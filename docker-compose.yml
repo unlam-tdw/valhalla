@@ -44,27 +44,6 @@ services:
       - maven_cache:/root/.m2
     restart: unless-stopped
 
-  app-prod:
-    profiles: ["prod"]
-    build:
-      context: .
-      dockerfile: DockerfileProd
-    container_name: valhalla-app-prod
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - valhalla
-    environment:
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    restart: unless-stopped
-
 volumes:
   postgres_data:
     driver: local

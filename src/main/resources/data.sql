@@ -1,1 +1,0 @@
-INSERT INTO users(email, password, role, active) VALUES('test@unlam.edu.ar', '$2a$10$ShOBUPfT5jLImCcQoWkM6edIQ3xjC6XYzgC7RDOPLqGiTRgHMkh2K', 'ADMIN', true) ON CONFLICT (email) DO NOTHING;
