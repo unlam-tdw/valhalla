@@ -1,6 +1,5 @@
 package com.valhalla;
 
-import com.valhalla.config.DatabaseInitializationConfig;
 import com.valhalla.config.JpaConfig;
 import com.valhalla.config.SpringWebConfig;
 import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
@@ -19,7 +18,6 @@ public class MyServletInitializer extends AbstractAnnotationConfigDispatcherServ
     return new Class<?>[] {
       SpringWebConfig.class,
       JpaConfig.class,
-      DatabaseInitializationConfig.class,
     };
   }
 
