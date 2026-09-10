@@ -66,7 +66,7 @@ gantt
 |--------|------|-------|--------|
 | A | **[PLC]** | 02-PLC.md | [PLC-001] a [PLC-011] |
 | B | **[PLN]** | 03-PLN.md | [PLN-001] a [PLN-010] |
-| C | Tests de [LOG] | 08-TEST.md | Unit + integration tests para SecurityConfig, LoginController, CustomUserDetailsService |
+| C | Tests de [LOG] | testing patterns | Unit + integration tests para SecurityConfig, LoginController, CustomUserDetailsService |
 
 **Salida esperada:**
 - Mapa de BA con markers, filtros, sidebar sincronizada
@@ -85,8 +85,8 @@ gantt
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
 | A | **[APL-BE]** | 04-APL-BE.md | [APL-BE-001] a [APL-BE-008] |
-| B | Tests de [PLC] | 08-TEST.md | Unit + integration tests para Place, PlaceService, PlaceController |
-| C | Tests de [PLN] | 08-TEST.md | Unit + integration tests para Plan, PlanService, PlanController |
+| B | Tests de [PLC] | testing patterns | Unit + integration tests para Place, PlaceService, PlaceController |
+| C | Tests de [PLN] | testing patterns | Unit + integration tests para Plan, PlanService, PlanController |
 
 **Salida esperada:**
 - Entity PlanPlace + repositorios + service + REST endpoints
@@ -104,8 +104,8 @@ gantt
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
 | A | **[APL-FE]** | 05-APL-FE.md | [APL-FE-001] a [APL-FE-004] |
-| B | Tests de [APL-BE] | 08-TEST.md | Unit + integration tests para PlanPlace, PlanPlaceService |
-| C | Tests de [APL-BE] | 08-TEST.md | Integration tests + fix de bugs encontrados |
+| B | Tests de [APL-BE] | testing patterns | Unit + integration tests para PlanPlace, PlanPlaceService |
+| C | Tests de [APL-BE] | testing patterns | Integration tests + fix de bugs encontrados |
 
 **Salida esperada:**
 - Botón "Add to plan" en ficha de lugar funcional
@@ -125,7 +125,7 @@ gantt
 |--------|------|-------|--------|
 | A | **[CMP]** | 06-CMP.md | [CMP-001] a [CMP-006] |
 | B | **[VPC]** | 07-VPC.md | [VPC-001] a [VPC-004] |
-| C | Tests E2E + integración | 08-TEST.md | Tests end-to-end con Playwright, integración completa |
+| C | Tests E2E + integración | testing patterns | Tests end-to-end con Playwright, integración completa |
 
 **Salida esperada:**
 - Botón "Share" genera link único

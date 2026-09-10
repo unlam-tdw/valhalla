@@ -10,7 +10,7 @@ User can share their plan via unique URL. Copy link with feedback. Public/privat
 ## Prerequisites
 
 - [PLN] completed (Plan entity with shortCode)
-- [APL] completed (itinerary working)
+- [APL-FE] completed (itinerary working)
 
 ## Steps
 

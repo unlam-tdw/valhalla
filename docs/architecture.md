@@ -120,73 +120,7 @@ graph LR
 |--------|-------|------------|------|
 | GET | `/share/{shortCode}` | ShareController | pages/share/view |
 
-## 4. Database Schema
-
-### users (existing)
-
-```sql
-CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    role VARCHAR(50) DEFAULT 'USER',
-    active BOOLEAN DEFAULT FALSE
-);
-```
-
-### places (new)
-
-```sql
-CREATE TABLE places (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    category VARCHAR(50) NOT NULL,
-    address VARCHAR(500),
-    image_url VARCHAR(500),
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION
-);
-
-CREATE INDEX idx_places_category ON places(category);
-CREATE INDEX idx_places_location ON places(latitude, longitude);
-```
-
-### plans (new)
-
-```sql
-CREATE TABLE plans (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    visit_date DATE,
-    visibility VARCHAR(20) DEFAULT 'PRIVATE',
-    short_code VARCHAR(10) UNIQUE,
-    user_id BIGINT NOT NULL REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_plans_user ON plans(user_id);
-CREATE INDEX idx_plans_short_code ON plans(short_code);
-```
-
-### plan_places (new)
-
-```sql
-CREATE TABLE plan_places (
-    id BIGSERIAL PRIMARY KEY,
-    plan_id BIGINT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
-    place_id BIGINT NOT NULL REFERENCES places(id),
-    visit_date DATE,
-    visit_time TIME,
-    sort_order INT DEFAULT 0,
-    UNIQUE(plan_id, place_id)
-);
-
-CREATE INDEX idx_plan_places_plan ON plan_places(plan_id);
-```
-
-## 5. Frontend Architecture
+## 4. Frontend Architecture
 
 ### Template Structure
 
@@ -240,7 +174,7 @@ src/main/webapp/resources/
 | Filters | Category filter toggles marker visibility |
 | Route lines | Leaflet.Polyline between plan places |
 
-## 6. User Flows
+## 5. User Flows
 
 ### Flow 1: Explore Places
 
@@ -304,7 +238,7 @@ src/main/webapp/resources/
 7. Sidebar shows itinerary with dates/times
 ```
 
-## 7. Key Decisions
+## 6. Key Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
@@ -316,25 +250,13 @@ src/main/webapp/resources/
 | Seed data | CommandLineRunner | Simple for MVP, migrate to Flyway later |
 | Frontend | Tailwind CSS + Vue.js (CDN) | No build step, fast development |
 
-## 8. Implementation Order
+## 7. Implementation Order
 
 | Phase | Cards | Dependencies |
 |-------|-------|--------------|
-| 1. Auth & Users | [LOG] | None |
-| 2. Places + Map | [PLC], [FIC] | Phase 1 |
+| 1. Auth & Security | [LOG] | None |
+| 2. Places + Map | [PLC] | Phase 1 |
 | 3. Plans | [PLN] | Phase 1 |
-| 4. Itinerary | [APL] | Phase 2, 3 |
-| 5. Share | [CMP], [VPC] | Phase 3 |
-
-## Checklist
-
-- [ ] Domain model validated with team
-- [ ] DB schema reviewed
-- [ ] Routes approved
-- [ ] Map integration approach confirmed
-- [ ] Template structure agreed
-- [ ] Implementation order confirmed
-
-## Next Step
-
-Review this doc with the team, then start implementation with [LOG] card.
+| 4. Itinerary Backend | [APL-BE] | Phase 2, 3 |
+| 5. Itinerary Frontend | [APL-FE] | Phase 4 |
+| 6. Share + Public View | [CMP], [VPC] | Phase 5 |
