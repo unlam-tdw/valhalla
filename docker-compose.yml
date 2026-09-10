@@ -20,7 +20,6 @@ services:
     restart: unless-stopped
 
   app:
-    profiles: ["dev"]
     build:
       context: .
       dockerfile: DockerfileDev
