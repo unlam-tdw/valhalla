@@ -14,10 +14,11 @@
 
 ### Entities
 
-```
-User (1) ──── (N) Plan
-Plan (1) ──── (N) PlanPlace
-Place (1) ──── (N) PlanPlace
+```mermaid
+erDiagram
+    USER ||--o{ PLAN : owns
+    PLAN ||--o{ PLANPLACE : contains
+    PLACE ||--o{ PLANPLACE : includes
 ```
 
 | Entity | Fields | Notes |
@@ -66,8 +67,10 @@ com.valhalla
 
 ### Dependency Rule
 
-```
-presentation → domain ← infrastructure
+```mermaid
+graph LR
+    presentation --> domain
+    infrastructure --> domain
 ```
 
 - Domain layer has NO dependencies on Spring, JPA, or Thymeleaf
