@@ -58,24 +58,14 @@ Jetty runs at [http://localhost:8080](http://localhost:8080). Java changes requi
 
 ## Docker
 
-### Local development (recommended)
+### Start / stop
 
 ```shell
 # Start PostgreSQL + app with hot-reload
-docker compose --profile dev up
+docker compose up
 
 # Stop and remove containers + volumes
-docker compose --profile dev down --rmi local
-```
-
-### Production build
-
-```shell
-# Build and start the full stack
-docker compose --profile prod up --build
-
-# Stop and remove containers + volumes
-docker compose --profile prod down --rmi local
+docker compose down --rmi local
 ```
 
 ### Common commands
@@ -110,7 +100,7 @@ docker run -it --entrypoint /bin/bash valhalla
 mvn test
 
 # Run E2E tests (requires Docker stack running)
-docker compose --profile dev up -d
+docker compose up -d
 mvn test -Dtest="LoginViewE2E"
 
 # Run a specific E2E test

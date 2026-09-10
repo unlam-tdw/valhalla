@@ -133,7 +133,7 @@ Docker WAR (it detects it is not running from a source checkout).
   No custom header logic to test.
 - **E2E (Playwright, real browser)**: Standard navigation assertions.
   `mvn test -Dtest=LoginViewE2E` runs them and requires PostgreSQL + the app up
-  (`docker compose --profile dev up -d`).
+  (`docker compose up -d`).
 
 ## 6. Vendored scripts (pinned versions)
 

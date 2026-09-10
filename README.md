@@ -16,13 +16,13 @@ docker compose up --build
 
 The app runs at [http://localhost:8080](http://localhost:8080).
 
-**Default credentials:** `test@unlam.edu.ar` / `test`
+**Default credentials:** `test@unlam.edu.ar` / `password`
 
 ### Local development (recommended)
 
 ```shell
 cp .env.example .env
-docker compose --profile dev up
+docker compose up
 ```
 
 This starts PostgreSQL + the app in Docker with hot-reload. The app is available at http://localhost:8080. No `--build` needed — the dev profile mounts your source code as a volume.
