@@ -15,10 +15,7 @@ public class MyServletInitializer extends AbstractAnnotationConfigDispatcherServ
   // controller, view resolver, handler mapping
   @Override
   protected Class<?>[] getServletConfigClasses() {
-    return new Class<?>[] {
-      SpringWebConfig.class,
-      JpaConfig.class,
-    };
+    return new Class<?>[] { SpringWebConfig.class, JpaConfig.class };
   }
 
   @Override

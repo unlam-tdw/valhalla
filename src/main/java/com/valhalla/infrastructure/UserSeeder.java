@@ -1,4 +1,4 @@
-package com.valhalla.config;
+package com.valhalla.infrastructure;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.user.UserService;
