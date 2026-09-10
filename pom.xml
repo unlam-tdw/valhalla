@@ -124,6 +124,25 @@
             <version>6.5.11</version>
         </dependency>
 
+        <!-- Spring Security Web + Config -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+            <version>6.5.11</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>6.5.11</version>
+        </dependency>
+
+        <!-- Thymeleaf Spring Security dialect -->
+        <dependency>
+            <groupId>org.thymeleaf.extras</groupId>
+            <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+            <version>3.1.5.RELEASE</version>
+        </dependency>
+
         <!-- Form validation with Bean Validation (Jakarta) -->
         <dependency>
             <groupId>org.hibernate.validator</groupId>

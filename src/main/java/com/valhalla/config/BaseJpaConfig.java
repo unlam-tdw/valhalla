@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 /** Shared JPA base between production and tests: only the DataSource and the dialect differ. */
 @Configuration
 @EnableTransactionManagement
-@EnableJpaRepositories(basePackages = "com.valhalla.infrastructure.user")
+@EnableJpaRepositories(basePackages = "com.valhalla.infrastructure")
 @ComponentScan("com.valhalla.infrastructure")
 public abstract class BaseJpaConfig {
 
@@ -25,7 +25,13 @@ public abstract class BaseJpaConfig {
     LocalContainerEntityManagerFactoryBean entityManagerFactory =
       new LocalContainerEntityManagerFactoryBean();
     entityManagerFactory.setDataSource(dataSource);
-    entityManagerFactory.setPackagesToScan("com.valhalla.domain.user", "com.valhalla.domain.login");
+    entityManagerFactory.setPackagesToScan(
+        "com.valhalla.domain.user",
+        "com.valhalla.domain.login",
+        "com.valhalla.domain.place",
+        "com.valhalla.domain.plan",
+        "com.valhalla.domain.planplace"
+    );
     entityManagerFactory.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
     entityManagerFactory.setJpaProperties(jpaProperties());
     return entityManagerFactory;

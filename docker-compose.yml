@@ -38,6 +38,7 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      SECURITY_SECRET: ${SECURITY_SECRET}
     volumes:
       - .:/workspace
       - maven_cache:/root/.m2
