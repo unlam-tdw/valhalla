@@ -9,25 +9,25 @@ gantt
     axisFormat Sprint %s
 
     section Equipo A
-    Sprint 1 : LOG (base)        :done,    s1a, 0, 1
-    Sprint 2 : PLC (lugares)     :active,  s2a, 1, 2
-    Sprint 3 : APL-BE (backend)  :         s3a, 2, 3
-    Sprint 4 : APL-FE (frontend) :         s4a, 3, 4
-    Sprint 5 : CMP (compartir)   :         s5a, 4, 5
+    Sprint 1 LOG (base)        :done,    s1a, 0, 1
+    Sprint 2 PLC (lugares)     :active,  s2a, 1, 2
+    Sprint 3 APL-BE (backend)  :         s3a, 2, 3
+    Sprint 4 APL-FE (frontend) :         s4a, 3, 4
+    Sprint 5 CMP (compartir)   :         s5a, 4, 5
 
     section Equipo B
-    Sprint 1 : LOG (soporte)      :done,    s1b, 0, 1
-    Sprint 2 : PLN (planes)      :active,  s2b, 1, 2
-    Sprint 3 : Tests PLC         :         s3b, 2, 3
-    Sprint 4 : Tests APL-BE      :         s4b, 3, 4
-    Sprint 5 : VPC (vista publica):         s5b, 4, 5
+    Sprint 1 LOG (soporte)      :done,    s1b, 0, 1
+    Sprint 2 PLN (planes)      :active,  s2b, 1, 2
+    Sprint 3 Tests PLC         :         s3b, 2, 3
+    Sprint 4 Tests APL-BE      :         s4b, 3, 4
+    Sprint 5 VPC (vista publica) :        s5b, 4, 5
 
     section Equipo C
-    Sprint 1 : LOG (soporte)      :done,    s1c, 0, 1
-    Sprint 2 : Tests LOG         :active,  s2c, 1, 2
-    Sprint 3 : Tests PLN         :         s3c, 2, 3
-    Sprint 4 : Tests APL-BE      :         s4c, 3, 4
-    Sprint 5 : Tests E2E         :         s5c, 4, 5
+    Sprint 1 LOG (soporte)      :done,    s1c, 0, 1
+    Sprint 2 Tests LOG         :active,  s2c, 1, 2
+    Sprint 3 Tests PLN         :         s3c, 2, 3
+    Sprint 4 Tests APL-BE      :         s4c, 3, 4
+    Sprint 5 Tests E2E         :         s5c, 4, 5
 ```
 
 ## Dependencias
