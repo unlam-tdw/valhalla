@@ -1,18 +1,82 @@
 # [APL-BE] Agregar Lugares al Plan (Backend)
 
-> Trello: https://trello.com/c/zHj13Gy6/6-apl-agregar-lugares-al-plan
+> Trello: https://trello.com/c/zHj13Gy6/6-apl-be-agregar-lugares-al-plan-backend
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
 
-## Objective
+## Objetivo
 
-Backend for adding places to plans: entity, repository, service, REST endpoints, and PlaceController update.
+Backend para agregar lugares a planes: entity PlanPlace, repository, service, REST endpoints y actualizacion de PlaceController para mostrar planes del usuario en la ficha de lugar.
 
-## Prerequisites
+## Pre-requisitos
 
 - [PLC] completed (Place entity)
 - [PLN] completed (Plan entity)
 
-## Steps
+## Criterios de Aceptacion
+
+| # | Criterio |
+|---|----------|
+| AC-01 | Se puede agregar un lugar a un plan via POST /api/plans/{planId}/places?placeId=X |
+| AC-02 | No se puede agregar el mismo lugar dos veces al mismo plan |
+| AC-03 | Al agregar un lugar se asigna un sortOrder automatico (siguiente al maximo) |
+| AC-04 | GET /api/plans/{planId}/places retorna el itinerario ordenado por sortOrder |
+| AC-05 | PUT /api/plans/{planId}/places/{id} actualiza visitDate y visitTime |
+| AC-06 | DELETE /api/plans/{planId}/places/{id} elimina un lugar del plan |
+| AC-07 | POST /api/plans/{planId}/places/reorder reordena los lugares del plan |
+| AC-08 | La ficha de lugar (/places/{id}) muestra los planes del usuario logueado |
+| AC-09 | PlanPlace tiene relacion ManyToOne con Plan y Place (LAZY) |
+| AC-10 | La combinacion (plan_id, place_id) es unica (unique constraint) |
+
+## Escenarios de Test
+
+### Tests Unitarios (`domain/planplace/PlanPlaceServiceImplTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-01 | `addPlaceToPlan()` agrega lugar con sortOrder correcto | AC-01, AC-03 |
+| U-02 | `addPlaceToPlan()` con lugar duplicado lanza IllegalStateException | AC-02 |
+| U-03 | `getItinerary()` retorna lugares ordenados por sortOrder | AC-04 |
+| U-04 | `updatePlanPlace()` actualiza visitDate/visitTime | AC-05 |
+| U-05 | `removePlaceFromPlan()` elimina el lugar del plan | AC-06 |
+| U-06 | `reorderPlaces()` reordena segun la lista recibida | AC-07 |
+| U-07 | `isPlaceInPlan()` retorna true si el lugar esta en el plan | AC-02 |
+| U-08 | `isPlaceInPlan()` retorna false si el lugar no esta en el plan | AC-02 |
+
+### Tests de Integracion (`integration/PlanPlaceRestControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-01 | `POST /api/plans/{planId}/places?placeId=X` agrega lugar | AC-01 |
+| I-02 | `POST` con lugar duplicado retorna error | AC-02 |
+| I-03 | `GET /api/plans/{planId}/places` retorna itinerario ordenado | AC-04 |
+| I-04 | `PUT /api/plans/{planId}/places/{id}` actualiza fecha/hora | AC-05 |
+| I-05 | `DELETE /api/plans/{planId}/places/{id}` elimina lugar | AC-06 |
+| I-06 | `POST /api/plans/{planId}/places/reorder` reordena | AC-07 |
+
+### Tests de Integracion (`infrastructure/PlanPlaceRepositoryTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-07 | `findByPlanIdOrderBySortOrder()` retorna ordenados | AC-04 |
+| I-08 | `existsByPlanIdAndPlaceId()` retorna true si existe | AC-10 |
+| I-09 | `existsByPlanIdAndPlaceId()` retorna false si no existe | AC-10 |
+| I-10 | Unique constraint previene duplicados | AC-10 |
+
+### Tests de Integracion (`integration/PlaceControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-11 | `GET /places/{id}` con sesion incluye userPlans en model | AC-08 |
+
+### E2E (minimos)
+
+| # | Test | Flujo | AC que cubre |
+|---|------|-------|-------------|
+| E-01 | `AddPlaceToPlanE2E` | Agregar lugar a plan, verificar en itinerario | AC-01, AC-04 |
+
+## Referencia de Implementacion
+
+> Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 
 ### 1. Create PlanPlace entity
 
@@ -375,18 +439,7 @@ public PlaceController(PlaceService placeService, PlanService planService) {
 }
 ```
 
-## Verification
-
-1. `mvn test` — all tests pass
-2. POST `/api/plans/{planId}/places?placeId=X` — adds place to plan
-3. GET `/api/plans/{planId}/places` — returns itinerary ordered by sortOrder
-4. PUT `/api/plans/{planId}/places/{id}` — updates visitDate/visitTime
-5. DELETE `/api/plans/{planId}/places/{id}` — removes place from plan
-6. POST `/api/plans/{planId}/places/reorder` — reorders places
-7. Adding same place twice → error
-8. PlaceController detail page shows user's plans in model
-
-## Files to create/modify
+## Archivos a crear/modificar
 
 | File | Action |
 |------|--------|

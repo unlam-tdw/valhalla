@@ -1,24 +1,93 @@
 # [LOG] Login & Seguridad
 
-> Trello: https://trello.com/c/AuMX9RgJ/1-log-registro-e-inicio-de-sesion
+> Trello: https://trello.com/c/AuMX9RgJ/1-log-login-seguridad
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
 
-## Objective
+## Objetivo
 
-User can register, login, and logout. Session managed by Spring Security with CSRF protection.
+El sistema gestiona autenticación y registro de usuarios con Spring Security. Los usuarios pueden registrarse, iniciar sesión, cerrar sesión. La sesión se invalida al hacer logout. Las rutas protegidas redirigen a login si no hay sesión.
 
-## Prerequisites
+## Pre-requisitos
 
 - Project running with `mvn jetty:run`
 - HSQLDB configured (dev)
+- [LOG] is the base (no other card depends on it)
 
-## Steps
+## Criterios de Aceptacion
+
+| # | Criterio |
+|---|----------|
+| AC-01 | Un usuario nuevo puede registrarse con email + password |
+| AC-02 | El email debe ser válido y la password mínimo 6 caracteres |
+| AC-03 | Un email ya registrado no puede volver a registrarse |
+| AC-04 | Un usuario registrado puede iniciar sesión con email + password correctos |
+| AC-05 | Login con credenciales inválidas muestra error |
+| AC-06 | Al hacer logout, la sesión se invalida y redirige a /login |
+| AC-07 | Rutas protegidas (/home, /places, /plans) redirigen a /login sin sesión |
+| AC-08 | Rutas públicas (/login, /register, /new-user, /share/**) no requieren sesión |
+| AC-09 | El header muestra el email del usuario logueado |
+| AC-10 | El header muestra link de login cuando no hay sesión |
+| AC-11 | POST sin token CSRF devuelve 403 Forbidden |
+| AC-12 | Endpoints /api/** no requieren CSRF |
+| AC-13 | Solo hay 1 sesión activa por usuario (la última prevalece) |
+
+## Escenarios de Test
+
+### Tests Unitarios (`presentation/login/LoginControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-01 | `showLogin()` devuelve vista `pages/auth/login` | n/a |
+| U-02 | `showLogin()` con error agrega atributo `error` al model | AC-05 |
+| U-03 | `showNewUser()` devuelve vista `pages/auth/new-user` con `NewUserRequest` vacío | n/a |
+| U-04 | `register()` con datos válidos → redirige a `/login` | AC-01 |
+| U-05 | `register()` con email duplicado → vista `new-user` con error | AC-03 |
+| U-06 | `register()` con email inválido → binding result tiene error en `email` | AC-02 |
+| U-07 | `register()` con password < 6 chars → binding result tiene error en `password` | AC-02 |
+| U-08 | `showHome()` devuelve vista `pages/home` | n/a |
+| U-09 | `index()` redirige a `/login` | AC-07 |
+
+### Tests de Integracion (`integration/LoginControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-01 | `GET /` → redirige a `/login` | AC-07 |
+| I-02 | `GET /login` → 200, vista login | n/a |
+| I-03 | `GET /new-user` → 200, vista registro | n/a |
+| I-04 | `POST /register` con datos válidos → redirige a `/login` | AC-01 |
+| I-05 | `POST /register` con email duplicado → 200, vista registro con error | AC-03 |
+| I-06 | `POST /register` con email inválido → 200, vista registro con error de validación | AC-02 |
+| I-07 | `POST /register` con password corta → 200, vista registro con error de validación | AC-02 |
+| I-08 | `POST /validate-login` con credenciales válidas → redirige a `/home` | AC-04 |
+| I-09 | `POST /validate-login` con credenciales inválidas → redirige a `/login?error=true` | AC-05 |
+| I-10 | `GET /home` sin sesión → redirige a `/login` | AC-07 |
+| I-11 | `GET /home` con sesión → 200, vista home | AC-09 |
+| I-12 | `POST /logout` → redirige a `/login`, sesión invalidada | AC-06 |
+| I-13 | `POST /api/something` sin CSRF → no devuelve 403 (CSRF exempt) | AC-12 |
+| I-14 | `POST /validate-login` sin CSRF → 403 Forbidden | AC-11 |
+
+### Tests de Seguridad (`integration/SecurityConfigTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| S-01 | `GET /places` sin sesión → redirige a `/login` | AC-07 |
+| S-02 | `GET /plans` sin sesión → redirige a `/login` | AC-07 |
+| S-03 | `GET /share/abc123` sin sesión → 200 (público) | AC-08 |
+| S-04 | `GET /login` sin sesión → 200 (público) | AC-08 |
+
+### E2E (mínimos, solo happy path completo)
+
+| # | Test | Flujo | AC que cubre |
+|---|------|-------|-------------|
+| E-01 | `LoginViewE2E` | Registro → Login → Home → Logout | AC-01, AC-04, AC-06 |
+
+## Referencia de Implementacion
+
+> Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 
 ### 1. Add Spring Security dependencies
 
 File: `pom.xml`
-
-Add to `<dependencies>`:
 
 ```xml
 <dependency>
@@ -38,13 +107,11 @@ Add to `<dependencies>`:
 </dependency>
 ```
 
-`spring-security-crypto` already exists in pom.xml — do NOT add it again.
+`spring-security-crypto` already exists in pom.xml, do NOT add it again.
 
 ### 2. Create SecurityConfig
 
 File: `src/main/java/com/valhalla/config/SecurityConfig.java`
-
-Replace the existing file entirely:
 
 ```java
 package com.valhalla.config;
@@ -105,8 +172,6 @@ public class SecurityConfig {
 
 File: `src/main/java/com/valhalla/config/BaseWebConfig.java`
 
-Two changes:
-
 **a)** Remove the import:
 ```java
 // DELETE this line:
@@ -134,8 +199,6 @@ public void addInterceptors(InterceptorRegistry registry) {
 ### 4. Update BaseWebConfig (add Thymeleaf Security dialect)
 
 File: `src/main/java/com/valhalla/config/BaseWebConfig.java`
-
-Update `templateEngine()` to register the Spring Security dialect:
 
 ```java
 import org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect;
@@ -196,13 +259,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
 ### 6. LoginService compatibility note
 
-The existing `LoginService` interface and `LoginServiceImpl` are **already compatible** with Spring Security:
-
-- `LoginService.findUser()` — still used by LoginController for manual validation (optional, can keep or remove)
-- `LoginService.register()` — still used for registration, already uses `PasswordEncoder`
-- `LoginServiceImpl` already injects `PasswordEncoder` and uses `BCrypt`
-
-**Do NOT rewrite LoginServiceImpl.** Just add `CustomUserDetailsService` (step 5) which Spring Security uses internally. The existing `LoginService` continues to work for registration.
+The existing `LoginService` interface and `LoginServiceImpl` are **already compatible** with Spring Security. Do NOT rewrite LoginServiceImpl. Just add `CustomUserDetailsService` (step 5) which Spring Security uses internally.
 
 ### 7. Add validation to NewUserRequest
 
@@ -232,8 +289,6 @@ public class NewUserRequest {
 ### 8. Update LoginController
 
 File: `src/main/java/com/valhalla/presentation/login/LoginController.java`
-
-Replace the entire file:
 
 ```java
 package com.valhalla.presentation.login;
@@ -496,19 +551,16 @@ Delete these files (replaced by Spring Security):
 - `src/main/java/com/valhalla/presentation/login/LoginRequest.java`
 
 **Keep these files** (still needed):
-- `src/main/java/com/valhalla/presentation/shared/GlobalExceptionHandler.java` — no dependency on SessionInterceptor
-- `src/main/java/com/valhalla/presentation/shared/NewUserRequest.java` — used by registration form
-- `src/main/java/com/valhalla/domain/login/LoginService.java` — interface still used
-- `src/main/java/com/valhalla/domain/login/LoginServiceImpl.java` — registration logic still used
+- `src/main/java/com/valhalla/presentation/shared/GlobalExceptionHandler.java`
+- `src/main/java/com/valhalla/presentation/shared/NewUserRequest.java`
+- `src/main/java/com/valhalla/domain/login/LoginService.java`
+- `src/main/java/com/valhalla/domain/login/LoginServiceImpl.java`
 
 ### 11. Update BaseJpaConfig
 
 File: `src/main/java/com/valhalla/config/BaseJpaConfig.java`
 
-Scan ALL domain packages (not just user + login) and ALL infrastructure packages for repositories:
-
 ```java
-// Change packagesToScan to:
 entityManagerFactory.setPackagesToScan(
     "com.valhalla.domain.user",
     "com.valhalla.domain.login",
@@ -517,7 +569,6 @@ entityManagerFactory.setPackagesToScan(
     "com.valhalla.domain.planplace"
 );
 
-// Change @EnableJpaRepositories to:
 @EnableJpaRepositories(basePackages = "com.valhalla.infrastructure")
 ```
 
@@ -525,39 +576,16 @@ entityManagerFactory.setPackagesToScan(
 
 File: `src/main/java/com/valhalla/MyServletInitializer.java`
 
-Add SecurityConfig to servlet config classes:
-
 ```java
-package com.valhalla;
-
-import com.valhalla.config.DatabaseInitializationConfig;
-import com.valhalla.config.JpaConfig;
 import com.valhalla.config.SecurityConfig;  // ADD THIS
-import com.valhalla.config.SpringWebConfig;
-import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
 
-public class MyServletInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
-
-    @Override
-    protected Class<?>[] getRootConfigClasses() {
-        return new Class<?>[0];
-    }
-
-    @Override
-    protected Class<?>[] getServletConfigClasses() {
-        return new Class<?>[] {
-            SpringWebConfig.class,
-            JpaConfig.class,
-            DatabaseInitializationConfig.class,
-            SecurityConfig.class,  // ADD THIS
-        };
-    }
-
-    @Override
-    protected String[] getServletMappings() {
-        return new String[] { "/" };
-    }
-}
+// In getServletConfigClasses():
+return new Class<?>[] {
+    SpringWebConfig.class,
+    JpaConfig.class,
+    DatabaseInitializationConfig.class,
+    SecurityConfig.class,  // ADD THIS
+};
 ```
 
 ### 13. CSRF token helpers
@@ -567,20 +595,15 @@ public class MyServletInitializer extends AbstractAnnotationConfigDispatcherServ
 ```html
 <form th:action="@{/plans}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-    <!-- form fields -->
 </form>
 ```
 
 #### In Vue.js fetch() calls
 
-Add meta tag in `<head>`:
-
 ```html
 <meta name="_csrf" th:content="${_csrf.token}">
 <meta name="_csrf_header" th:content="${_csrf.parameterName}">
 ```
-
-Vue.js helper function:
 
 ```javascript
 methods: {
@@ -591,17 +614,6 @@ methods: {
     getCsrfHeader() {
         const meta = document.querySelector('meta[name="_csrf_header"]');
         return meta ? meta.getAttribute('content') : 'X-CSRF-TOKEN';
-    },
-    async postData(url, data) {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                [this.getCsrfHeader()]: this.getCsrfToken()
-            },
-            body: JSON.stringify(data)
-        });
-        return response.json();
     }
 }
 ```
@@ -625,36 +637,7 @@ SECURITY_SECRET=mySecretKeyForCSRFAtLeast32CharactersLong!
 SERVER_PORT=8080
 ```
 
-### 15. Security rules summary
-
-| Route | Access |
-|-------|--------|
-| `/login`, `/register`, `/new-user` | Public |
-| `/api/**` | Public (CSRF exempt) |
-| `/share/**` | Public |
-| `/places/**` | Authenticated |
-| `/plans/**` | Authenticated |
-| Everything else | Authenticated |
-
-## Verification
-
-1. `mvn test` — all tests pass
-2. `mvn jetty:run` — app starts at localhost:8080
-3. Open http://localhost:8080 → redirects to /login
-4. Create account → redirects to /login
-5. Login → redirects to /home
-6. Logout → redirects to /login
-7. Without session → /home redirects to /login
-8. Header shows user email when logged in
-9. Header shows login link when not logged in
-10. Submit registration with empty email → validation error shown
-11. Submit registration with short password → validation error shown
-12. CSRF token present in all forms
-13. POST without CSRF → 403 Forbidden
-14. `/api/**` endpoints work without CSRF
-15. Logout clears session
-
-## Files to create/modify
+## Archivos a crear/modify
 
 | File | Action |
 |------|--------|

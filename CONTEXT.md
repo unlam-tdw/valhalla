@@ -1,4 +1,4 @@
-# PlanIt — Domain Glossary
+# PlanIt, Domain Glossary
 
 ## Core Entities
 

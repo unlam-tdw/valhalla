@@ -1,19 +1,94 @@
 # [PLC] Explorar Lugares + Ficha
 
-> Trello: https://trello.com/c/mPp6mZml/3-plc-explorar-lugares
+> Trello: https://trello.com/c/mPp6mZml/3-plc-explorar-lugares-ficha
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
 
-## Objective
+## Objetivo
 
-Show an interactive map of Buenos Aires with markers for each place. Synchronized sidebar. Category filters. Complete place detail with image, description, embedded map.
+El sistema muestra un mapa interactivo de Buenos Aires con markers por cada lugar. Sidebar sincronizada. Filtros por categoria. Ficha de lugar completa con imagen, descripcion, direccion y mapa embebido.
 
-## Prerequisites
+## Pre-requisitos
 
 - [LOG] completed (Spring Security configured)
 - Leaflet.js loaded (CDN)
 - Vue.js loaded (CDN)
 
-## Steps
+## Criterios de Aceptacion
+
+| # | Criterio |
+|---|----------|
+| AC-01 | El mapa carga centrado en Buenos Aires con tiles de OpenStreetMap |
+| AC-02 | Todos los lugares se muestran como markers en el mapa |
+| AC-03 | Cada marker tiene un color segun su categoria |
+| AC-04 | Al hacer click en un marker se muestra un popup con nombre, categoria y link a detalle |
+| AC-05 | La sidebar muestra las cards de lugares sincronizadas con el mapa |
+| AC-06 | Filtrar por categoria actualiza los markers y la sidebar |
+| AC-07 | Buscar por nombre filtra los markers y la sidebar |
+| AC-08 | Al hacer click en una card de la sidebar, el mapa centra en ese lugar |
+| AC-09 | La ficha de lugar muestra imagen (o placeholder), nombre, categoria, direccion, descripcion |
+| AC-10 | La ficha de lugar muestra un mapa con el marker de ese lugar |
+| AC-11 | El seeder carga 10 lugares de Buenos Aires al iniciar la app |
+| AC-12 | El endpoint GET /api/places retorna todos los lugares en JSON |
+| AC-13 | El endpoint GET /api/places?category=X filtra por categoria |
+| AC-14 | GET /places retorna la vista con la lista de lugares |
+
+## Escenarios de Test
+
+### Tests Unitarios (`presentation/place/PlaceControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-01 | `listPlaces()` sin filtros retorna todos los lugares | AC-14 |
+| U-02 | `listPlaces()` con category retorna lugares filtrados | AC-06 |
+| U-03 | `listPlaces()` con search retorna lugares filtrados | AC-07 |
+| U-04 | `placeDetail()` con id valido retorna la vista con el lugar | AC-09 |
+| U-05 | `placeDetail()` con id invalido retorna vista sin lugar | AC-09 |
+
+### Tests Unitarios (`domain/place/PlaceServiceImplTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-06 | `getAllPlaces()` retorna todos los lugares | AC-02 |
+| U-07 | `getPlacesByCategory()` retorna filtrados | AC-06 |
+| U-08 | `searchPlaces()` retorna por nombre | AC-07 |
+| U-09 | `getPlaceById()` con id existente retorna el lugar | AC-09 |
+| U-10 | `getPlaceById()` con id inexistente retorna empty | AC-09 |
+
+### Tests de Integracion (`integration/PlaceControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-01 | `GET /places` retorna 200 y vista con lugares | AC-14 |
+| I-02 | `GET /places?category=RESTAURANT` retorna 200 con filtrados | AC-06 |
+| I-03 | `GET /places?search=Don` retorna 200 con filtrados | AC-07 |
+| I-04 | `GET /places/{id}` con id valido retorna 200 | AC-09 |
+| I-05 | `GET /places/{id}` con id inexistente retorna 200 sin lugar | AC-09 |
+
+### Tests de Integracion (`integration/PlaceRestControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-06 | `GET /api/places` retorna 200 y JSON array | AC-12 |
+| I-07 | `GET /api/places?category=RESTAURANT` retorna filtrados | AC-13 |
+| I-08 | `GET /api/places?search=Don` retorna filtrados | AC-13 |
+
+### Tests de Integracion (`infrastructure/PlaceRepositoryTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-09 | `findAll()` retorna todos los lugares del seeder | AC-11 |
+| I-10 | `findByCategory()` retorna solo los de esa categoria | AC-11 |
+| I-11 | `findByNameContainingIgnoreCase()` retorna por nombre parcial | AC-11 |
+
+### E2E (minimos)
+
+| # | Test | Flujo | AC que cubre |
+|---|------|-------|-------------|
+| E-01 | `PlacesViewE2E` | Ir a /places, verificar mapa y markers, filtrar por categoria | AC-01, AC-02, AC-03, AC-06 |
+
+## Referencia de Implementacion
+
+> Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 
 ### 1. Create Place entity
 
@@ -257,7 +332,7 @@ public class PlaceController {
 }
 ```
 
-### 7. Create Place REST endpoint (for Vue.js)
+### 7. Create Place REST endpoint
 
 File: `src/main/java/com/valhalla/presentation/place/PlaceRestController.java`
 
@@ -594,20 +669,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/detail.html`
 
 **Note:** The "Add to plan" dropdown is implemented in [APL-FE] spec (05-APL-FE.md) which has the PlanPlace entity and PlanService. This spec only shows the place detail with image, description, and map.
 
-## Verification
-
-1. `mvn test` — all tests pass
-2. Go to `/places` — map loads with markers
-3. Select category — markers filter
-4. Search name — markers filter
-5. Click marker — popup with info
-6. Click card in sidebar — map centers
-7. Click "View details" — goes to `/places/{id}`
-8. Detail shows image (or placeholder), name, category, address, description
-9. Detail shows map with highlighted marker
-10. "Add to plan" section visible for logged-in users (full functionality in [APL-FE])
-
-## Files to create
+## Archivos a crear
 
 | File | Action |
 |------|--------|
@@ -619,6 +681,6 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/detail.html`
 | `infrastructure/place/PlaceRepositoryImpl.java` | Create |
 | `presentation/place/PlaceController.java` | Create |
 | `presentation/place/PlaceRestController.java` | Create |
-| `config/PlaceDataSeeder.java` | Create |
+| `infrastructure/PlaceDataSeeder.java` | Create |
 | `templates/pages/places/list.html` | Create |
 | `templates/pages/places/detail.html` | Create (with image handling + map) |

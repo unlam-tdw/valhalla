@@ -49,7 +49,7 @@ graph LR
 
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
-| A | **[LOG]** | 01-LOG.md | [LOG-001] a [LOG-015] |
+| A | **[LOG]** | 01-LOG.md | Ver spec (11 impl + 13 tests) |
 | B | **[LOG]** | 01-LOG.md | Ayuda a A o prepara infra de testing |
 | C | **[LOG]** | 01-LOG.md | Ayuda a A o prepara infra de testing |
 
@@ -61,6 +61,7 @@ graph LR
 **Notas:**
 - El trabajo de LOG ya está casi listo en local (pom.xml, BaseJpaConfig, .env.example actualizados)
 - Los equipos B y C pueden aprovechar para entender la arquitectura y preparar el entorno de test
+- Cada spec incluye Acceptance Criteria, Test Scenarios (unit/integration/security/E2E) e Implementation Reference. Ver `docs/spec-format.md`
 
 ---
 
@@ -70,9 +71,9 @@ graph LR
 
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
-| A | **[PLC]** | 02-PLC.md | [PLC-001] a [PLC-011] |
-| B | **[PLN]** | 03-PLN.md | [PLN-001] a [PLN-010] |
-| C | Tests de [LOG] | testing patterns | Unit + integration tests para SecurityConfig, LoginController, CustomUserDetailsService |
+| A | **[PLC]** | 02-PLC.md | Ver spec (impl + tests incluidos) |
+| B | **[PLN]** | 03-PLN.md | Ver spec (impl + tests incluidos) |
+| C | Tests de [LOG] | 01-LOG.md | Ver checklist Tests en card Trello |
 
 **Salida esperada:**
 - Mapa de BA con markers, filtros, sidebar sincronizada
@@ -90,9 +91,9 @@ graph LR
 
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
-| A | **[APL-BE]** | 04-APL-BE.md | [APL-BE-001] a [APL-BE-008] |
-| B | Tests de [PLC] | testing patterns | Unit + integration tests para Place, PlaceService, PlaceController |
-| C | Tests de [PLN] | testing patterns | Unit + integration tests para Plan, PlanService, PlanController |
+| A | **[APL-BE]** | 04-APL-BE.md | Ver spec (impl + tests incluidos) |
+| B | Tests de [PLC] | 02-PLC.md | Ver checklist Tests en card Trello |
+| C | Tests de [PLN] | 03-PLN.md | Ver checklist Tests en card Trello |
 
 **Salida esperada:**
 - Entity PlanPlace + repositorios + service + REST endpoints
@@ -109,9 +110,9 @@ graph LR
 
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
-| A | **[APL-FE]** | 05-APL-FE.md | [APL-FE-001] a [APL-FE-004] |
-| B | Tests de [APL-BE] | testing patterns | Unit + integration tests para PlanPlace, PlanPlaceService |
-| C | Tests de [APL-BE] | testing patterns | Integration tests + fix de bugs encontrados |
+| A | **[APL-FE]** | 05-APL-FE.md | Ver spec (impl + tests incluidos) |
+| B | Tests de [APL-BE] | 04-APL-BE.md | Ver checklist Tests en card Trello |
+| C | Tests de [APL-BE] | 04-APL-BE.md | Integration tests + fix de bugs |
 
 **Salida esperada:**
 - Botón "Add to plan" en ficha de lugar funcional
@@ -129,9 +130,9 @@ graph LR
 
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
-| A | **[CMP]** | 06-CMP.md | [CMP-001] a [CMP-006] |
-| B | **[VPC]** | 07-VPC.md | [VPC-001] a [VPC-004] |
-| C | Tests E2E + integración | testing patterns | Tests end-to-end con Playwright, integración completa |
+| A | **[CMP]** | 06-CMP.md | Ver spec (impl + tests incluidos) |
+| B | **[VPC]** | 07-VPC.md | Ver spec (impl + tests incluidos) |
+| C | Tests E2E + integración | 01-LOG.md a 07-VPC.md | Tests end-to-end con Playwright |
 
 **Salida esperada:**
 - Botón "Share" genera link único
@@ -146,10 +147,12 @@ graph LR
 
 ## Resumen de Carga
 
-| Sprint | Cards | Items totales | Equipos |
-|--------|-------|---------------|---------|
-| 1 | [LOG] | 15 | 1 activo + 2 soporte |
-| 2 | [PLC] + [PLN] + tests LOG | 21 + tests | 2 activos + 1 testing |
-| 3 | [APL-BE] + tests PLC/PLN | 8 + tests | 1 activo + 2 testing |
-| 4 | [APL-FE] + tests APL-BE | 4 + tests | 1 activo + 2 testing |
-| 5 | [CMP] + [VPC] + E2E | 10 + tests | 2 activos + 1 E2E |
+| Sprint | Cards | Equipos |
+|--------|-------|---------|
+| 1 | [LOG] | 1 activo + 2 soporte |
+| 2 | [PLC] + [PLN] + tests LOG | 2 activos + 1 testing |
+| 3 | [APL-BE] + tests PLC/PLN | 1 activo + 2 testing |
+| 4 | [APL-FE] + tests APL-BE | 1 activo + 2 testing |
+| 5 | [CMP] + [VPC] + E2E | 2 activos + 1 E2E |
+
+> Cada spec incluye sus propios tests. Las cards de Trello tienen dos checklists: "Implementacion" y "Tests".

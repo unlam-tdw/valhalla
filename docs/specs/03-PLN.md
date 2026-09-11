@@ -3,15 +3,88 @@
 > Trello: https://trello.com/c/vij4lVFO/5-pln-crear-plan
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
 
-## Objective
+## Objetivo
 
-User can create a plan with name, description, date, and visibility (public/private).
+El usuario puede crear, editar y eliminar planes con nombre, descripcion, fecha y visibilidad (publico/privado). Cada plan tiene un shortCode unico para compartir.
 
-## Prerequisites
+## Pre-requisitos
 
 - [LOG] completed (Spring Security configured)
 
-## Steps
+## Criterios de Aceptacion
+
+| # | Criterio |
+|---|----------|
+| AC-01 | El usuario puede ver la lista de sus planes en /plans |
+| AC-02 | El usuario puede crear un plan nuevo con nombre, descripcion, fecha y visibilidad |
+| AC-03 | El nombre del plan es obligatorio (minimo 1 caracter) |
+| AC-04 | La visibilidad por defecto es PRIVATE |
+| AC-05 | Al crear un plan se genera un shortCode unico automaticamente |
+| AC-06 | Al crear un plan valido se redirige a /plans/{id} |
+| AC-07 | El usuario puede ver el detalle de un plan (nombre, descripcion, fecha, visibilidad) |
+| AC-08 | El usuario puede eliminar un plan desde la lista |
+| AC-09 | Al eliminar un plan se redirige a /plans |
+| AC-10 | GET /plans muestra solo los planes del usuario logueado |
+| AC-11 | POST /plans crea un plan nuevo |
+| AC-12 | PUT /plans/{id} actualiza un plan existente |
+| AC-13 | DELETE /plans/{id} elimina un plan |
+
+## Escenarios de Test
+
+### Tests Unitarios (`presentation/plan/PlanControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-01 | `listPlans()` retorna vista con los planes del usuario | AC-01, AC-10 |
+| U-02 | `newPlan()` retorna vista con Plan vacio | AC-02 |
+| U-03 | `createPlan()` con datos validos redirige a /plans/{id} | AC-06 |
+| U-04 | `createPlan()` con nombre vacio retorna vista con error de validacion | AC-03 |
+| U-05 | `planDetail()` con id valido retorna vista con el plan | AC-07 |
+| U-06 | `planDetail()` con id invalido retorna vista sin plan | AC-07 |
+| U-07 | `deletePlan()` elimina y redirige a /plans | AC-08, AC-09 |
+
+### Tests Unitarios (`domain/plan/PlanServiceImplTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-08 | `createPlan()` genera shortCode si es null | AC-05 |
+| U-09 | `createPlan()` guarda el plan en el repositorio | AC-11 |
+| U-10 | `getPlansByUserEmail()` retorna solo planes del usuario | AC-10 |
+| U-11 | `getPlanById()` con id existente retorna el plan | AC-07 |
+| U-12 | `getPlanById()` con id inexistente retorna empty | AC-07 |
+| U-13 | `updatePlan()` actualiza el plan | AC-12 |
+| U-14 | `deletePlan()` elimina el plan | AC-13 |
+
+### Tests de Integracion (`integration/PlanControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-01 | `GET /plans` retorna 200 y lista de planes | AC-01 |
+| I-02 | `GET /plans/new` retorna 200 y formulario | AC-02 |
+| I-03 | `POST /plans` con datos validos redirige a /plans/{id} | AC-06 |
+| I-04 | `POST /plans` con nombre vacio retorna 200 con error de validacion | AC-03 |
+| I-05 | `GET /plans/{id}` con id valido retorna 200 | AC-07 |
+| I-06 | `GET /plans/{id}` con id inexistente retorna 200 sin plan | AC-07 |
+| I-07 | `DELETE /plans/{id}` redirige a /plans | AC-08, AC-09 |
+
+### Tests de Integracion (`infrastructure/PlanRepositoryTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-08 | `save()` persiste el plan con shortCode generado | AC-05 |
+| I-09 | `findByUserId()` retorna solo planes del usuario | AC-10 |
+| I-10 | `findByShortCode()` retorna el plan correcto | AC-05 |
+| I-11 | `deleteById()` elimina el plan | AC-13 |
+
+### E2E (minimos)
+
+| # | Test | Flujo | AC que cubre |
+|---|------|-------|-------------|
+| E-01 | `PlansViewE2E` | Crear plan, ver en lista, ver detalle, eliminar | AC-02, AC-06, AC-07, AC-08 |
+
+## Referencia de Implementacion
+
+> Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 
 ### 1. Create Plan entity
 
@@ -511,17 +584,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 </html>
 ```
 
-## Verification
-
-1. Go to `/plans` → shows empty list
-2. Click "Create Plan" → form appears
-3. Fill name, description, date, visibility
-4. Submit → redirects to `/plans/{id}`
-5. Detail shows name, description, date
-6. Plan appears in the list
-7. Submit with empty name → validation error shown
-
-## Files to create
+## Archivos a crear
 
 | File | Action |
 |------|--------|

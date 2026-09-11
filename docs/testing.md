@@ -2,6 +2,8 @@
 
 What to test at each layer, how to write tests, and the testing conventions used in this project.
 
+> Los escenarios de test de cada feature están definidos en las specs (`docs/specs/`). Cada spec incluye Test Scenarios agrupados por capa (unit, integration, security, E2E) con referencias a los Acceptance Criteria que cubren. Ver `docs/spec-format.md` para el formato completo.
+
 ## Test Pyramid
 
 ```
@@ -53,7 +55,7 @@ src/test/java/com/valhalla/
 
 **Rule:** put tests in the directory that matches what you're testing. Services go in `domain/`, controllers in `presentation/` (unit) or `integration/` (MockMvc).
 
-## `@WebIntegrationTest` — Composed Annotation
+## `@WebIntegrationTest`, composed annotation
 
 A custom composed annotation that bundles the boilerplate for MockMvc integration tests:
 
@@ -87,7 +89,7 @@ public class LoginControllerTest {
 }
 ```
 
-No need to repeat `@ExtendWith`, `@WebAppConfiguration`, or `@ContextConfiguration` on every test class — just annotate with `@WebIntegrationTest`.
+No need to repeat `@ExtendWith`, `@WebAppConfiguration`, or `ContextConfiguration` on every test class, just annotate with `@WebIntegrationTest`.
 
 ## Unit Tests (`presentation/`)
 
@@ -254,8 +256,8 @@ private void waitForPath(String expectedPath) {
 ```
 
 **UI contract:** E2E tests depend on element IDs and names:
-- `#email`, `#password` — input fields
-- `#btn-login`, `#btn-register` — buttons
+- `#email`, `#password`, input fields
+- `#btn-login`, `#btn-register`, buttons
 - Error message text: "Invalid email or password"
 
 ## Running Tests
@@ -319,7 +321,7 @@ mvn test -Dpmd.skip=true -Dcpd.skip=true
 mvn test -Djacoco.skip=true
 ```
 
-CI enforces these gates on `main` — always run `mvn clean verify` before pushing.
+CI enforces these gates on `main`, always run `mvn clean verify` before pushing.
 
 ## Coverage
 

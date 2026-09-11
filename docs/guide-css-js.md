@@ -230,10 +230,10 @@ document.getElementById('my-form').addEventListener('submit', async function(e) 
 
 ## Rules
 
-1. **Always `th:action` + `method="POST"`** — works without JS
-2. **`id` on the form and container** — for JS and Thymeleaf
-3. **`th:field` for binding** — Thymeleaf handles values
-4. **`th:if` for errors** — only shown if they exist
-5. **`async/await` in fetch** — clean code
-6. **`res.redirected`** — follow server redirects
-7. **`innerHTML` on error** — replace only the form area
+1. **Always `th:action` + `method="POST"`** , works without JS
+2. **`id` on the form and container** , for JS and Thymeleaf
+3. **`th:field` for binding** , Thymeleaf handles values
+4. **`th:if` for errors** , only shown if they exist
+5. **`async/await` in fetch** , clean code
+6. **`res.redirected`** , follow server redirects
+7. **`innerHTML` on error** , replace only the form area

@@ -34,7 +34,7 @@ mvn install
 ### Common combinations
 
 ```shell
-# Most common — downloads dependencies, compiles, and runs tests
+# Most common , downloads dependencies, compiles, and runs tests
 mvn clean install
 
 # Clean build with tests
@@ -111,7 +111,7 @@ mvn test -Dtest="LoginViewE2E#shouldNavigateToHomeWhenUserExists"
 
 The pipeline runs on every push and PR to `main`. It has two jobs:
 
-### `backend` — build + test + quality gates
+### `backend` , build + test + quality gates
 
 Runs `mvn clean verify --fail-at-end` which triggers:
 1. Prettier formatting (auto-fix)
@@ -122,7 +122,7 @@ Runs `mvn clean verify --fail-at-end` which triggers:
 
 If any gate fails, the build fails.
 
-### `e2e` — Playwright against a real stack
+### `e2e` , Playwright against a real stack
 
 1. Spins up a PostgreSQL service container
 2. Installs Playwright's Chromium

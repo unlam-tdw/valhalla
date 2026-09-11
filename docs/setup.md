@@ -71,4 +71,4 @@ cp .env.example .env
 # Edit .env with your values
 ```
 
-**Tip:** the defaults work out of the box — you only need to edit `.env` if you want custom credentials.
+**Tip:** the defaults work out of the box , you only need to edit `.env` if you want custom credentials.

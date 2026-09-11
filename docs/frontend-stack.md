@@ -21,9 +21,9 @@ Vue.js adds client-side interactivity, and it follows one rule:
 **Choice rule:** before adding interactive behavior, ask *"can the server answer
 this?"*. If yes, use Thymeleaf and keep the logic in Java. Only when the state
 belongs to the browser session (form submission, loading states, reactive UI)
-use Vue. Never make Vue the platform — Thymeleaf is the foundation.
+use Vue. Never make Vue the platform , Thymeleaf is the foundation.
 
-## 1. Thymeleaf — the views
+## 1. Thymeleaf , the views
 
 - Templates live in `src/main/webapp/WEB-INF/templates/`, resolved by path:
   a controller returning `"pages/auth/login"` maps to
@@ -34,10 +34,10 @@ use Vue. Never make Vue the platform — Thymeleaf is the foundation.
 - Reusable regions are declared as fragments, e.g.
   `<div id="login-form-area" th:fragment="loginForm">`.
 - The theme works in the browser: Thymeleaf's `ViewResolver` is configured with
-  `TemplateMode.HTML` (natural templates — the file opens fine in a browser
+  `TemplateMode.HTML` (natural templates , the file opens fine in a browser
   without the server).
 
-## 2. Tailwind — the styles (in the browser)
+## 2. Tailwind , the styles (in the browser)
 
 - There is **no build step and no Node**: the vendored
   `@tailwindcss/browser` script (`resources/core/js/tailwind-browser.js`)
@@ -51,7 +51,7 @@ use Vue. Never make Vue the platform — Thymeleaf is the foundation.
     https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3/dist/index.global.js
   ```
 
-## 3. Vue.js — client-side interactivity
+## 3. Vue.js , client-side interactivity
 
 Vue (`resources/core/js/vue.global.prod.js`, loaded in `layouts/base.html`)
 handles interactive forms and reactive UI. Each page mounts its own Vue app
@@ -95,7 +95,7 @@ Thymeleaf renders `error: '[[${error}]]'` into Vue's data. Vue displays it
 with `v-if="error"`. No client-side HTML parsing needed.
 
 **Loading states.** Vue's reactive `loading` property disables buttons and shows
-feedback during submission — no round-trip flicker.
+feedback during submission , no round-trip flicker.
 
 **Each page is independent.** Every template mounts its own Vue app. Pages
 without interactivity don't mount Vue at all. Vue is optional per page.
@@ -127,7 +127,7 @@ Docker WAR (it detects it is not running from a source checkout).
 
 ## 5. Testing the stack
 
-- **Unit tests** (`presentation`): Mockito — controllers use simple redirects,
+- **Unit tests** (`presentation`): Mockito , controllers use simple redirects,
   no branching on request headers.
 - **MockMvc integration**: MockMvc tests verify redirects and view names.
   No custom header logic to test.

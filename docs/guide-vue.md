@@ -221,11 +221,11 @@ methods: {
 
 ## Rules
 
-1. **Each page mounts its own Vue app** — do not share between pages
-2. **Thymeleaf renders initial data** — Vue takes over after
-3. **Always `th:action` + `method="POST"`** — works without JS (progressive enhancement)
-4. **`v-model` on all inputs** — reactive binding
-5. **`@submit.prevent` + `this.$refs.form.submit()`** — submit with loading state
-6. **`[[${variable}]]` to pass server data to Vue** — Thymeleaf -> Vue
-7. **`:disabled="loading"`** — user feedback
-8. **`v-if="error"`** — inline error display
+1. **Each page mounts its own Vue app** , do not share between pages
+2. **Thymeleaf renders initial data** , Vue takes over after
+3. **Always `th:action` + `method="POST"`** , works without JS (progressive enhancement)
+4. **`v-model` on all inputs** , reactive binding
+5. **`@submit.prevent` + `this.$refs.form.submit()`** , submit with loading state
+6. **`[[${variable}]]` to pass server data to Vue** , Thymeleaf -> Vue
+7. **`:disabled="loading"`** , user feedback
+8. **`v-if="error"`** , inline error display

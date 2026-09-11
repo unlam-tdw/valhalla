@@ -1,4 +1,4 @@
-# PlanIt MVP — Architecture & Design
+# PlanIt MVP , Architecture & Design
 
 > Platform for discovering and sharing experiences/plans in Buenos Aires.
 
@@ -34,8 +34,8 @@ erDiagram
 
 ### Visibility (Plan)
 
-- `PRIVATE` — only owner can see
-- `PUBLIC` — accessible via shared URL without login
+- `PRIVATE` , only owner can see
+- `PUBLIC` , accessible via shared URL without login
 
 ## 2. Architecture Layers
 

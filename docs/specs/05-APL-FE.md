@@ -1,18 +1,57 @@
 # [APL-FE] Agregar Lugares al Plan (Frontend)
 
-> Trello: https://trello.com/c/zHj13Gy6/6-apl-agregar-lugares-al-plan
+> Trello: https://trello.com/c/K7XqvGWZ/9-apl-fe-agregar-lugares-al-plan-frontend
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
 
-## Objective
+## Objetivo
 
-Frontend for adding places to plans: "Add to plan" form in place detail, and Vue.js itinerary with map and route lines in plan detail.
+Frontend para agregar lugares a planes: boton "Add to plan" en la ficha de lugar, itinerario con Vue.js, mapa con rutas y marcadores numerados en el detalle del plan.
 
-## Prerequisites
+## Pre-requisitos
 
 - [APL-BE] completed (PlanPlace entity, REST endpoints, PlaceController update)
 - [PLC] completed (place detail template exists)
 
-## Steps
+## Criterios de Aceptacion
+
+| # | Criterio |
+|---|----------|
+| AC-01 | La ficha de lugar (/places/{id}) muestra un dropdown con los planes del usuario logueado |
+| AC-02 | Se puede agregar un lugar a un plan desde la ficha de lugar |
+| AC-03 | Al agregar un lugar se muestra feedback visual (redirect o mensaje) |
+| AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
+| AC-05 | Cada lugar del itinerario muestra numero de orden, nombre, categoria, fecha y hora |
+| AC-06 | Se puede editar fecha y hora de visita desde el itinerario |
+| AC-07 | Se puede eliminar un lugar del itinerario con boton X |
+| AC-08 | El mapa muestra markers numerados por cada lugar del itinerario |
+| AC-09 | El mapa dibuja una linea de ruta entre los lugares en orden |
+| AC-10 | El mapa hace fitBounds para mostrar todos los markers |
+| AC-11 | Los forms usan CSRF token para proteger POST/PUT/DELETE |
+
+## Escenarios de Test
+
+### Tests Unitarios (Vue.js logic, si aplica)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-01 | Form "Add to plan" tiene select con planes del usuario y boton submit | AC-01, AC-02 |
+
+### Tests de Integracion (`presentation/plan/PlanControllerTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-01 | `GET /plans/{id}` con sesion retorna 200 y vista con itinerary | AC-04 |
+| I-02 | `GET /plans/{id}` sin sesion redirige a login | AC-04 |
+
+### E2E (minimos)
+
+| # | Test | Flujo | AC que cubre |
+|---|------|-------|-------------|
+| E-01 | `AddToPlanE2E` | Ir a /places/{id}, agregar a plan, verificar en /plans/{id} | AC-01, AC-02, AC-04, AC-05 |
+
+## Referencia de Implementacion
+
+> Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 
 ### 1. Update place detail template (add "Add to plan" form)
 
@@ -236,18 +275,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 </html>
 ```
 
-## Verification
-
-1. Go to `/places/{id}` → "Add to plan" form appears (logged in)
-2. Select plan → submit → place added
-3. Go to `/plans/{id}` → place appears in itinerary
-4. Set date/time → saves
-5. Click "X" → removes place from plan
-6. Map shows numbered markers and route line
-7. Try adding same place → error
-8. Share button generates link
-
-## Files to create/modify
+## Archivos a crear/modificar
 
 | File | Action |
 |------|--------|
