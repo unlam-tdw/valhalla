@@ -25,7 +25,7 @@ cp .env.example .env
 docker compose up
 ```
 
-This starts PostgreSQL + the app in Docker with hot-reload. The app is available at http://localhost:8080. No `--build` needed — the dev profile mounts your source code as a volume.
+This starts PostgreSQL + the app in Docker with hot-reload. The app is available at http://localhost:8080. No `--build` needed — the source code is mounted as a volume.
 
 ## Project Structure
 
@@ -35,9 +35,10 @@ src/main/java/com/valhalla/
 ├── domain/                 # Business logic (services, models, exceptions)
 │   ├── exception/          # Custom domain exceptions
 │   ├── login/              # Login service interface + implementation
-│   └── user/               # User entity
-├── infrastructure/         # Persistence (Spring Data JPA repositories)
-│   └── user/               # UserRepository
+│   └── user/               # User entity, service, repository interface
+├── infrastructure/         # Persistence (Spring Data JPA repositories) + seeders
+│   ├── user/               # UserRepositoryImpl, JpaUserRepository
+│   └── UserSeeder.java     # Seeds test admin on startup
 ├── presentation/           # MVC controllers, DTOs, session interceptor
 │   ├── login/              # Login controller + DTOs
 │   ├── shared/             # Cross-cutting: GlobalExceptionHandler, SessionInterceptor, UserSession

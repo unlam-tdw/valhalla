@@ -24,18 +24,28 @@ Tests live under `src/test/java/com/valhalla/` and mirror the main source layout
 ```
 src/test/java/com/valhalla/
 ├── config/                         # Test-specific Spring configs
+│   └── JpaTestConfig.java
 ├── domain/                         # Unit tests for services
 │   ├── login/LoginServiceTest.java
 │   └── user/UserServiceTest.java
 ├── e2e/                            # Playwright E2E tests (real browser)
-│   └── LoginViewE2E.java
+│   ├── LoginViewE2E.java
+│   ├── UserViewABME2E.java
+│   ├── ResetDatabase.java          # DB cleanup between E2E runs
+│   └── views/                      # Page objects for Playwright
+│       ├── WebPage.java
+│       ├── LoginPage.java
+│       ├── NewUserPage.java
+│       ├── UsersPage.java
+│       └── UserFormPage.java
 ├── infrastructure/                 # Repository tests
 │   └── user/UserRepositoryTest.java
 ├── integration/                    # MockMvc integration tests
+│   ├── config/SpringWebTestConfig.java
 │   ├── WebIntegrationTest.java     # Composed annotation (see below)
+│   ├── JpaIntegrationTest.java     # Composed annotation for JPA tests
 │   ├── LoginControllerTest.java
-│   ├── UserControllerTest.java
-│   └── JpaIntegrationTest.java
+│   └── UserControllerTest.java
 └── presentation/                   # Pure Mockito unit tests
     ├── login/LoginControllerTest.java
     └── shared/GlobalExceptionHandlerTest.java
