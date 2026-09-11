@@ -247,7 +247,7 @@ src/main/webapp/resources/
 | Template engine | Thymeleaf | Already in stack, server-side rendering |
 | Session auth | Spring Security | Declarative route protection, CSRF, login/logout |
 | DB for places | PostgreSQL (prod) | Already configured, supports PostGIS if needed later |
-| Seed data | CommandLineRunner | Simple for MVP, migrate to Flyway later |
+| Seed data | ApplicationListener | ContextRefreshedEvent seeder, migrate to Flyway later |
 | Frontend | Tailwind CSS + Vue.js (CDN) | No build step, fast development |
 
 ## 7. Implementation Order
