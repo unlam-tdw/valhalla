@@ -4,7 +4,7 @@
 
 ```mermaid
 gantt
-    title Sprint Plan : PlanIt
+    title Sprint Plan - PlanIt
     dateFormat X
     axisFormat Sprint %s
 
@@ -32,9 +32,15 @@ gantt
 
 ## Dependencias
 
-```
-[LOG] ──┬──► [PLC] ──────┬──► [APL-BE] ──► [APL-FE] ──┬──► [CMP]
-        └──► [PLN] ──────┘                              └──► [VPC]
+```mermaid
+graph LR
+    LOG --> PLC
+    LOG --> PLN
+    PLC --> APL-BE
+    PLN --> APL-BE
+    APL-BE --> APL-FE
+    APL-FE --> CMP
+    APL-FE --> VPC
 ```
 
 ## Sprint 1 : Base
