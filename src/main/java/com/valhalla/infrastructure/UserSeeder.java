@@ -13,17 +13,14 @@ public class UserSeeder implements ApplicationListener<ContextRefreshedEvent> {
 
   private static final Logger LOGGER = Logger.getLogger(UserSeeder.class.getName());
 
-  private final UserService userService;
-  private boolean seeded = false;
+  @Autowired(required = false)
+  private UserService userService;
 
-  @Autowired
-  public UserSeeder(UserService userService) {
-    this.userService = userService;
-  }
+  private boolean seeded = false;
 
   @Override
   public synchronized void onApplicationEvent(ContextRefreshedEvent event) {
-    if (seeded) return;
+    if (seeded || userService == null) return;
     seeded = true;
     try {
       userService.create("test@unlam.edu.ar", "password", "ADMIN");
