@@ -569,7 +569,18 @@
         </pluginManagement>
     </build>
 
-    <!-- Profiles removed: dev environment is now managed via docker-compose.dev.yml -->
+    <profiles>
+        <profile>
+            <id>dev</id>
+            <properties>
+                <checkstyle.skip>true</checkstyle.skip>
+                <pmd.skip>true</pmd.skip>
+                <cpd.skip>true</cpd.skip>
+                <prettier.skip>true</prettier.skip>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>
 
