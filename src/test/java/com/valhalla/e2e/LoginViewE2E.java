@@ -85,7 +85,7 @@ public class LoginViewE2E {
 
   private void givenUserIsOnLoginPage() throws MalformedURLException {
     URL loginUrl = loginPage.getCurrentUrl();
-    assertThat(loginUrl.getPath(), matchesPattern("^/login(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(loginUrl.getPath(), matchesPattern("^/admin/login(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   private void whenUserClicksSignIn() {
@@ -93,9 +93,9 @@ public class LoginViewE2E {
   }
 
   private void thenShouldBeRedirectedToHome() throws MalformedURLException {
-    loginPage.waitForPath("/home");
+    loginPage.waitForPath("/admin/home");
     URL url = loginPage.getCurrentUrl();
-    assertThat(url.getPath(), matchesPattern("^/home(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(url.getPath(), matchesPattern("^/admin/home(?:;jsessionid=[^/\\s]+)?$"));
     loginPage.waitForSessionTimerToTick();
   }
 
@@ -118,6 +118,6 @@ public class LoginViewE2E {
     newUserPage.typeEmail(email);
     newUserPage.typePassword(password);
     newUserPage.clickRegister();
-    newUserPage.waitForPath("/login");
+    newUserPage.waitForPath("/admin/login");
   }
 }

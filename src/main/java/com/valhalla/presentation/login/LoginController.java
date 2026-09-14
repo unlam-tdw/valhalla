@@ -25,7 +25,7 @@ public class LoginController {
   private static final String VIEW_LOGIN = "pages/auth/login";
   private static final String VIEW_NEW_USER = "pages/auth/new-user";
   private static final String VIEW_HOME = "pages/home";
-  private static final String REDIRECT_LOGIN = "redirect:/login";
+  private static final String REDIRECT_LOGIN = "redirect:/admin/login";
   private static final String ATTR_LOGIN_DATA = "loginData";
   private static final String ATTR_NEW_USER_DATA = "newUserData";
   private static final String ATTR_USER = "user";
@@ -38,14 +38,14 @@ public class LoginController {
     this.loginService = loginService;
   }
 
-  @RequestMapping("/login")
+  @RequestMapping("/admin/login")
   public ModelAndView showLogin() {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_LOGIN_DATA, new LoginRequest());
     return new ModelAndView(VIEW_LOGIN, model);
   }
 
-  @RequestMapping(path = "/validate-login", method = RequestMethod.POST)
+  @RequestMapping(path = "/admin/validate-login", method = RequestMethod.POST)
   public ModelAndView validateLogin(
     @Valid @ModelAttribute(ATTR_LOGIN_DATA) LoginRequest loginData,
     BindingResult bindingResult,
@@ -64,12 +64,12 @@ public class LoginController {
       );
       request.getSession().setAttribute(SessionInterceptor.USER_SESSION, userSession);
       request.getSession().setAttribute(ATTR_LOGIN_TIME, System.currentTimeMillis());
-      return new ModelAndView("redirect:/home");
+      return new ModelAndView("redirect:/admin/home");
     }
     return renderLoginWithError(loginData);
   }
 
-  @RequestMapping(path = "/register", method = RequestMethod.POST)
+  @RequestMapping(path = "/admin/register", method = RequestMethod.POST)
   public ModelAndView register(
     @Valid @ModelAttribute(ATTR_NEW_USER_DATA) NewUserRequest newUserData,
     BindingResult bindingResult
@@ -90,14 +90,14 @@ public class LoginController {
     }
   }
 
-  @RequestMapping(path = "/new-user", method = RequestMethod.GET)
+  @RequestMapping(path = "/admin/new-user", method = RequestMethod.GET)
   public ModelAndView showNewUser() {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_NEW_USER_DATA, new NewUserRequest());
     return new ModelAndView(VIEW_NEW_USER, model);
   }
 
-  @RequestMapping(path = "/home", method = RequestMethod.GET)
+  @RequestMapping(path = "/admin/home", method = RequestMethod.GET)
   public ModelAndView showHome(HttpSession httpSession) {
     UserSession userSession = (UserSession) httpSession.getAttribute(
       SessionInterceptor.USER_SESSION
@@ -111,17 +111,12 @@ public class LoginController {
     return new ModelAndView(VIEW_HOME, model);
   }
 
-  @RequestMapping(path = "/logout", method = RequestMethod.POST)
+  @RequestMapping(path = "/admin/logout", method = RequestMethod.POST)
   public ModelAndView logout(HttpServletRequest request) {
     HttpSession session = request.getSession(false);
     if (session != null) {
       session.invalidate();
     }
-    return new ModelAndView(REDIRECT_LOGIN);
-  }
-
-  @RequestMapping(path = "/", method = RequestMethod.GET)
-  public ModelAndView index() {
     return new ModelAndView(REDIRECT_LOGIN);
   }
 

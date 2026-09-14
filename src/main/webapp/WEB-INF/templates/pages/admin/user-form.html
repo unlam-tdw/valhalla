@@ -50,7 +50,7 @@
             <span v-if="loading">Saving...</span>
             <span v-else th:text="${isEdit} ? 'Update' : 'Create'">Save</span>
           </button>
-          <a th:href="@{/users}"
+          <a th:href="@{/admin/users}"
             class="flex-1 rounded-md bg-gray-200 py-2 text-center font-medium text-gray-700 transition hover:bg-gray-300">
             Cancel
           </a>

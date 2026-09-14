@@ -74,7 +74,7 @@ public class LoginControllerTest {
 
     ModelAndView modelAndView = controller.validateLogin(loginData, bindingResult, requestMock);
 
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/home"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/home"));
     ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
     verify(sessionMock, times(1))
       .setAttribute(eq(SessionInterceptor.USER_SESSION), captor.capture());
@@ -107,7 +107,7 @@ public class LoginControllerTest {
     );
     ModelAndView modelAndView = controller.register(newUserData, bindingResult);
 
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/login"));
     verify(loginServiceMock, times(1)).register("dami@unlam.com", "123456", "Dami", "Test");
   }
 
@@ -188,14 +188,14 @@ public class LoginControllerTest {
   public void shouldRedirectToLoginWhenNoSessionUser() {
     when(sessionMock.getAttribute(SessionInterceptor.USER_SESSION)).thenReturn(null);
     ModelAndView modelAndView = controller.showHome(sessionMock);
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/login"));
   }
 
   @Test
   public void shouldInvalidateSessionAndRedirectToLoginOnLogout() {
     when(requestMock.getSession(false)).thenReturn(sessionMock);
     ModelAndView modelAndView = controller.logout(requestMock);
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/login"));
     verify(sessionMock, times(1)).invalidate();
   }
 
@@ -203,13 +203,7 @@ public class LoginControllerTest {
   public void shouldRedirectToLoginOnLogoutWhenNoSession() {
     when(requestMock.getSession(false)).thenReturn(null);
     ModelAndView modelAndView = controller.logout(requestMock);
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/login"));
     verify(sessionMock, times(0)).invalidate();
-  }
-
-  @Test
-  public void shouldRedirectToLoginFromRoot() {
-    ModelAndView modelAndView = controller.index();
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
   }
 }

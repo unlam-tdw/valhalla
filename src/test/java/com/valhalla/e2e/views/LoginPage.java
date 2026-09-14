@@ -6,7 +6,7 @@ public class LoginPage extends WebPage {
 
   public LoginPage(Page page) {
     super(page);
-    page.navigate("localhost:8080/login");
+    page.navigate("localhost:8080/admin/login");
   }
 
   public String getNavbarText() {

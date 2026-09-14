@@ -20,7 +20,7 @@ public class SessionInterceptor implements HandlerInterceptor {
     if (session != null && session.getAttribute(USER_SESSION) != null) {
       return true;
     }
-    response.sendRedirect(request.getContextPath() + "/login");
+    response.sendRedirect(request.getContextPath() + "/admin/login");
     return false;
   }
 }

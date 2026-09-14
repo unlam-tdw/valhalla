@@ -21,12 +21,12 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
-@RequestMapping("/users")
+@RequestMapping("/admin/users")
 public class UserController {
 
   private static final String VIEW_USERS = "pages/admin/users";
   private static final String VIEW_USER_FORM = "pages/admin/user-form";
-  private static final String REDIRECT_USERS = "redirect:/users";
+  private static final String REDIRECT_USERS = "redirect:/admin/users";
   private static final String ATTR_USERS = "users";
   private static final String ATTR_USER_FORM = "userForm";
   private static final String ATTR_USER_ID = "userId";

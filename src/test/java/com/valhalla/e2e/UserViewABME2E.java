@@ -112,11 +112,11 @@ public class UserViewABME2E {
     loginPage.typeEmail("test@unlam.edu.ar");
     loginPage.typePassword("test");
     loginPage.clickSignIn();
-    loginPage.waitForPath("/home");
+    loginPage.waitForPath("/admin/home");
   }
 
   private void givenAdminIsOnUsersPage() throws MalformedURLException {
-    usersPage.waitForPath("/users");
+    usersPage.waitForPath("/admin/users");
     URL url = usersPage.getCurrentUrl();
     assertThat(url.getPath(), matchesPattern("^/users(?:;jsessionid=[^/\\s]+)?$"));
   }
@@ -174,17 +174,17 @@ public class UserViewABME2E {
   }
 
   private void thenShouldSeeRowWithEmail(String email) {
-    usersPage.waitForPath("/users");
+    usersPage.waitForPath("/admin/users");
     assertThat(usersPage.hasRowWithEmail(email), is(true));
   }
 
   private void thenShouldNotSeeRowWithEmail(String email) {
-    usersPage.waitForPath("/users");
+    usersPage.waitForPath("/admin/users");
     assertThat(usersPage.hasRowWithEmail(email), is(false));
   }
 
   private void thenShouldBeRedirectedToUsersList() {
-    usersPage.waitForPath("/users");
+    usersPage.waitForPath("/admin/users");
   }
 
   private void thenShouldSeeInactiveOnRow(String email) {
