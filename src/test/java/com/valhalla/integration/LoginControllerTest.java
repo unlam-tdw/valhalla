@@ -184,7 +184,7 @@ public class LoginControllerTest {
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(
       SessionInterceptor.USER_SESSION,
-      new UserSession(LOGIN_EMAIL, "USER", "Login", "Test")
+      new UserSession(LOGIN_EMAIL, "ADMIN", "Login", "Test")
     );
     session.setAttribute("loginTime", System.currentTimeMillis());
 
@@ -200,7 +200,7 @@ public class LoginControllerTest {
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(
       SessionInterceptor.USER_SESSION,
-      new UserSession(LOGIN_EMAIL, "USER", "Login", "Test")
+      new UserSession(LOGIN_EMAIL, "ADMIN", "Login", "Test")
     );
 
     this.mockMvc.perform(post("/admin/logout").session(session))

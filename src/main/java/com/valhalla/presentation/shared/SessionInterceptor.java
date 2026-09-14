@@ -17,10 +17,15 @@ public class SessionInterceptor implements HandlerInterceptor {
     Object handler
   ) throws IOException {
     HttpSession session = request.getSession(false);
-    if (session != null && session.getAttribute(USER_SESSION) != null) {
-      return true;
+    if (session == null || session.getAttribute(USER_SESSION) == null) {
+      response.sendRedirect(request.getContextPath() + "/admin/login");
+      return false;
     }
-    response.sendRedirect(request.getContextPath() + "/admin/login");
-    return false;
+    UserSession userSession = (UserSession) session.getAttribute(USER_SESSION);
+    if (!"ADMIN".equals(userSession.getRole())) {
+      response.sendRedirect(request.getContextPath() + "/admin/login");
+      return false;
+    }
+    return true;
   }
 }
