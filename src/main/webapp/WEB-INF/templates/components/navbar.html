@@ -12,7 +12,7 @@
       Users
     </a>
     <span class="text-gray-300">Signed in as
-      <span class="font-medium text-white" th:text="${user.email}">email</span>
+      <span class="font-medium text-white" th:text="${user.fullName}">name</span>
     </span>
     <form ref="form" @submit.prevent="logout" th:action="@{/logout}" method="POST">
       <button type="submit" :disabled="loading"

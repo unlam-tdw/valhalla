@@ -51,7 +51,7 @@ public class UserControllerTest {
     this.adminSession = new MockHttpSession();
     this.adminSession.setAttribute(
         SessionInterceptor.USER_SESSION,
-        new UserSession(ADMIN_EMAIL, ADMIN_ROLE)
+        new UserSession(ADMIN_EMAIL, ADMIN_ROLE, "Admin", "Test")
       );
   }
 
@@ -85,6 +85,8 @@ public class UserControllerTest {
     this.mockMvc.perform(
         post("/users")
           .session(adminSession)
+          .param("firstName", "New")
+          .param("lastName", "User")
           .param("email", "newuser@unlam.edu.ar")
           .param("role", "USER")
       )
@@ -95,7 +97,12 @@ public class UserControllerTest {
   @Test
   public void shouldReRenderFormWithErrorsWhenEmailIsInvalid() throws Exception {
     this.mockMvc.perform(
-        post("/users").session(adminSession).param("email", "not-an-email").param("role", "USER")
+        post("/users")
+          .session(adminSession)
+          .param("firstName", "Test")
+          .param("lastName", "User")
+          .param("email", "not-an-email")
+          .param("role", "USER")
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/admin/user-form"))
@@ -105,7 +112,13 @@ public class UserControllerTest {
 
   @Test
   public void shouldReRenderFormWithErrorsWhenEmailIsMissing() throws Exception {
-    this.mockMvc.perform(post("/users").session(adminSession).param("role", "USER"))
+    this.mockMvc.perform(
+        post("/users")
+          .session(adminSession)
+          .param("firstName", "Test")
+          .param("lastName", "User")
+          .param("role", "USER")
+      )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/admin/user-form"))
       .andExpect(model().attribute("error", "Invalid user data"));
@@ -113,7 +126,7 @@ public class UserControllerTest {
 
   @Test
   public void shouldShowEditUserForm() throws Exception {
-    userService.create("editable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE);
+    userService.create("editable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Editable", "User");
     Long userId = userRepository.findByEmail("editable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(get("/users/" + userId + "/edit").session(adminSession))
@@ -126,13 +139,15 @@ public class UserControllerTest {
 
   @Test
   public void shouldUpdateUserAndRedirectToList() throws Exception {
-    userService.create("updatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE);
+    userService.create("updatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Updatable", "User");
     Long userId = userRepository.findByEmail("updatable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
         post("/users/" + userId)
           .session(adminSession)
           .param("_method", "PUT")
+          .param("firstName", "Updated")
+          .param("lastName", "User")
           .param("email", "updated@unlam.edu.ar")
           .param("role", "ADMIN")
       )
@@ -142,7 +157,13 @@ public class UserControllerTest {
 
   @Test
   public void shouldDeactivateUserAndRedirectToList() throws Exception {
-    userService.create("deactivatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE);
+    userService.create(
+      "deactivatable@unlam.edu.ar",
+      TEST_PASSWORD,
+      TEST_ROLE,
+      "Deactivatable",
+      "User"
+    );
     Long userId = userRepository.findByEmail("deactivatable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
@@ -154,7 +175,7 @@ public class UserControllerTest {
 
   @Test
   public void shouldDeleteUserAndRedirectToList() throws Exception {
-    userService.create("deletable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE);
+    userService.create("deletable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Deletable", "User");
     Long userId = userRepository.findByEmail("deletable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
@@ -166,13 +187,21 @@ public class UserControllerTest {
 
   @Test
   public void shouldReRenderEditFormWithErrorWhenUpdateInputIsInvalid() throws Exception {
-    userService.create("updatable-invalid@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE);
+    userService.create(
+      "updatable-invalid@unlam.edu.ar",
+      TEST_PASSWORD,
+      TEST_ROLE,
+      "Updatable",
+      "Invalid"
+    );
     Long userId = userRepository.findByEmail("updatable-invalid@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
         post("/users/" + userId)
           .session(adminSession)
           .param("_method", "PUT")
+          .param("firstName", "Updatable")
+          .param("lastName", "Invalid")
           .param("email", "")
           .param("role", "ADMIN")
       )
@@ -184,7 +213,7 @@ public class UserControllerTest {
 
   @Test
   public void shouldActivateUserAndRedirectToList() throws Exception {
-    userService.create("activatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE);
+    userService.create("activatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Activatable", "User");
     Long userId = userRepository.findByEmail("activatable@unlam.edu.ar").get().getId();
     userService.deactivate(userId);
 
@@ -197,7 +226,7 @@ public class UserControllerTest {
 
   @Test
   public void shouldRotatePasswordAndRedirectToList() throws Exception {
-    userService.create("rotatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE);
+    userService.create("rotatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Rotatable", "User");
     Long userId = userRepository.findByEmail("rotatable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(

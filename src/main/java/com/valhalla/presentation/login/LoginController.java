@@ -56,7 +56,12 @@ public class LoginController {
     }
     User foundUser = loginService.findUser(loginData.getEmail(), loginData.getPassword());
     if (foundUser != null) {
-      UserSession userSession = new UserSession(foundUser.getEmail(), foundUser.getRole());
+      UserSession userSession = new UserSession(
+        foundUser.getEmail(),
+        foundUser.getRole(),
+        foundUser.getFirstName(),
+        foundUser.getLastName()
+      );
       request.getSession().setAttribute(SessionInterceptor.USER_SESSION, userSession);
       request.getSession().setAttribute(ATTR_LOGIN_TIME, System.currentTimeMillis());
       return new ModelAndView("redirect:/home");
@@ -73,7 +78,12 @@ public class LoginController {
       return renderNewUserWithError(newUserData);
     }
     try {
-      loginService.register(newUserData.getEmail(), newUserData.getPassword());
+      loginService.register(
+        newUserData.getEmail(),
+        newUserData.getPassword(),
+        newUserData.getFirstName(),
+        newUserData.getLastName()
+      );
       return new ModelAndView(REDIRECT_LOGIN);
     } catch (UserAlreadyExists e) {
       return renderNewUserWithError(newUserData, "Email is already registered");

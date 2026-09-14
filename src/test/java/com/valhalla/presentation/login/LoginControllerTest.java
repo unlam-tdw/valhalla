@@ -43,7 +43,7 @@ public class LoginControllerTest {
     sessionMock = mock(HttpSession.class);
     loginServiceMock = mock(LoginService.class);
     controller = new LoginController(loginServiceMock);
-    newUserData = new NewUserRequest("dami@unlam.com", "123456");
+    newUserData = new NewUserRequest("Dami", "Test", "dami@unlam.com", "123456");
   }
 
   @Test
@@ -108,12 +108,12 @@ public class LoginControllerTest {
     ModelAndView modelAndView = controller.register(newUserData, bindingResult);
 
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
-    verify(loginServiceMock, times(1)).register("dami@unlam.com", "123456");
+    verify(loginServiceMock, times(1)).register("dami@unlam.com", "123456", "Dami", "Test");
   }
 
   @Test
   public void shouldReRenderRegistrationFormWhenInputIsInvalid() {
-    NewUserRequest invalidData = new NewUserRequest("", "");
+    NewUserRequest invalidData = new NewUserRequest("", "", "", "");
     BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(
       invalidData,
       "newUserData"
@@ -127,12 +127,14 @@ public class LoginControllerTest {
       modelAndView.getModel().get("error").toString(),
       equalToIgnoringCase("Invalid registration data")
     );
-    verify(loginServiceMock, times(0)).register(anyString(), anyString());
+    verify(loginServiceMock, times(0)).register(anyString(), anyString(), anyString(), anyString());
   }
 
   @Test
   public void shouldReturnNewUserFormWithErrorWhenEmailAlreadyExists() {
-    doThrow(UserAlreadyExists.class).when(loginServiceMock).register(anyString(), anyString());
+    doThrow(UserAlreadyExists.class)
+      .when(loginServiceMock)
+      .register(anyString(), anyString(), anyString(), anyString());
     BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(
       newUserData,
       "newUserData"
@@ -147,7 +149,9 @@ public class LoginControllerTest {
 
   @Test
   public void shouldPropagateExceptionOnUnexpectedRegistrationError() {
-    doThrow(new RuntimeException()).when(loginServiceMock).register(anyString(), anyString());
+    doThrow(new RuntimeException())
+      .when(loginServiceMock)
+      .register(anyString(), anyString(), anyString(), anyString());
     BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(
       newUserData,
       "newUserData"
@@ -171,7 +175,7 @@ public class LoginControllerTest {
 
   @Test
   public void shouldReturnHomeViewWithUserWhenSessionExists() {
-    UserSession sessionUser = new UserSession("dami@unlam.com", "ADMIN");
+    UserSession sessionUser = new UserSession("dami@unlam.com", "ADMIN", "Dami", "Test");
     when(sessionMock.getAttribute(SessionInterceptor.USER_SESSION)).thenReturn(sessionUser);
     when(sessionMock.getAttribute("loginTime")).thenReturn(System.currentTimeMillis());
     ModelAndView modelAndView = controller.showHome(sessionMock);

@@ -30,6 +30,7 @@
       <table class="w-full border-collapse bg-white shadow-md">
         <thead>
           <tr class="border-b border-gray-200 bg-gray-50 text-left text-sm font-medium text-gray-600">
+            <th class="px-4 py-3">Name</th>
             <th class="px-4 py-3">Email</th>
             <th class="px-4 py-3">Role</th>
             <th class="px-4 py-3">Active</th>
@@ -38,6 +39,7 @@
         </thead>
         <tbody>
           <tr th:each="u : ${users}" class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm text-gray-900" th:text="${(u.firstName != null ? u.firstName : '') + ' ' + (u.lastName != null ? u.lastName : '')}">name</td>
             <td class="px-4 py-3 text-sm text-gray-900" th:text="${u.email}">email</td>
             <td class="px-4 py-3 text-sm text-gray-700" th:text="${u.role}">role</td>
             <td class="px-4 py-3 text-sm">
