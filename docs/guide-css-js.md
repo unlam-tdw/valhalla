@@ -202,7 +202,7 @@ document.getElementById('my-form').addEventListener('submit', async function(e) 
 
 <!-- Show something only if NO user -->
 <div th:if="${user == null}">
-  <a th:href="@{/login}">Sign in</a>
+  <a th:href="@{/admin/login}">Sign in</a>
 </div>
 ```
 

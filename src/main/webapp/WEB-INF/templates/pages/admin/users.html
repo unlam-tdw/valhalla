@@ -47,11 +47,11 @@
               <span th:unless="${u.active}" class="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Inactive</span>
             </td>
             <td class="flex justify-end gap-2 px-4 py-3">
-              <a th:href="@{/users/{id}/edit(id=${u.id})}"
+              <a th:href="@{/admin/users/{id}/edit(id=${u.id})}"
                 class="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-300">
                 Edit
               </a>
-              <form th:action="@{/users/{id}/rotate-password(id=${u.id})}" method="POST"
+              <form th:action="@{/admin/users/{id}/rotate-password(id=${u.id})}" method="POST"
                 th:if="${u.email != user.email}">
                 <input type="hidden" name="_method" value="PUT" />
                 <button type="submit"
@@ -59,7 +59,7 @@
                   Rotate Password
                 </button>
               </form>
-              <form th:action="@{/users/{id}/deactivate(id=${u.id})}" method="POST"
+              <form th:action="@{/admin/users/{id}/deactivate(id=${u.id})}" method="POST"
                 th:if="${u.active and u.email != user.email}">
                 <input type="hidden" name="_method" value="PUT" />
                 <button type="submit"
@@ -67,7 +67,7 @@
                   Deactivate
                 </button>
               </form>
-              <form th:action="@{/users/{id}/activate(id=${u.id})}" method="POST"
+              <form th:action="@{/admin/users/{id}/activate(id=${u.id})}" method="POST"
                 th:if="${!u.active and u.email != user.email}">
                 <input type="hidden" name="_method" value="PUT" />
                 <button type="submit"
@@ -75,7 +75,7 @@
                   Activate
                 </button>
               </form>
-              <form th:action="@{/users/{id}/delete(id=${u.id})}" method="POST"
+              <form th:action="@{/admin/users/{id}/delete(id=${u.id})}" method="POST"
                 th:if="${u.email != user.email}">
                 <input type="hidden" name="_method" value="DELETE" />
                 <button type="submit"

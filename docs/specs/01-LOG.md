@@ -22,9 +22,9 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | AC-03 | Un email ya registrado no puede volver a registrarse |
 | AC-04 | Un usuario registrado puede iniciar sesión con email + password correctos |
 | AC-05 | Login con credenciales inválidas muestra error |
-| AC-06 | Al hacer logout, la sesión se invalida y redirige a /login |
-| AC-07 | Rutas protegidas (/home, /places, /plans) redirigen a /login sin sesión |
-| AC-08 | Rutas públicas (/login, /register, /new-user, /share/**) no requieren sesión |
+| AC-06 | Al hacer logout, la sesión se invalida y redirige a /admin/login |
+| AC-07 | Rutas protegidas (/admin/home, /admin/users, /places, /plans) redirigen a /admin/login sin sesión |
+| AC-08 | Rutas públicas (/, /admin/login, /share/**) no requieren sesión |
 | AC-09 | El header muestra el email del usuario logueado |
 | AC-10 | El header muestra link de login cuando no hay sesión |
 | AC-11 | POST sin token CSRF devuelve 403 Forbidden |
@@ -40,40 +40,40 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | U-01 | `showLogin()` devuelve vista `pages/auth/login` | n/a |
 | U-02 | `showLogin()` con error agrega atributo `error` al model | AC-05 |
 | U-03 | `showNewUser()` devuelve vista `pages/auth/new-user` con `NewUserRequest` vacío | n/a |
-| U-04 | `register()` con datos válidos → redirige a `/login` | AC-01 |
+| U-04 | `register()` con datos válidos → redirige a `/admin/login` | AC-01 |
 | U-05 | `register()` con email duplicado → vista `new-user` con error | AC-03 |
 | U-06 | `register()` con email inválido → binding result tiene error en `email` | AC-02 |
 | U-07 | `register()` con password < 6 chars → binding result tiene error en `password` | AC-02 |
 | U-08 | `showHome()` devuelve vista `pages/home` | n/a |
-| U-09 | `index()` redirige a `/login` | AC-07 |
+| U-09 | `adminIndex()` redirige a `/admin/login` | AC-07 |
 
 ### Tests de Integracion (`integration/LoginControllerTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| I-01 | `GET /` → redirige a `/login` | AC-07 |
-| I-02 | `GET /login` → 200, vista login | n/a |
-| I-03 | `GET /new-user` → 200, vista registro | n/a |
-| I-04 | `POST /register` con datos válidos → redirige a `/login` | AC-01 |
-| I-05 | `POST /register` con email duplicado → 200, vista registro con error | AC-03 |
-| I-06 | `POST /register` con email inválido → 200, vista registro con error de validación | AC-02 |
-| I-07 | `POST /register` con password corta → 200, vista registro con error de validación | AC-02 |
-| I-08 | `POST /validate-login` con credenciales válidas → redirige a `/home` | AC-04 |
-| I-09 | `POST /validate-login` con credenciales inválidas → redirige a `/login?error=true` | AC-05 |
-| I-10 | `GET /home` sin sesión → redirige a `/login` | AC-07 |
-| I-11 | `GET /home` con sesión → 200, vista home | AC-09 |
-| I-12 | `POST /logout` → redirige a `/login`, sesión invalidada | AC-06 |
+| I-01 | `GET /` → returns landing page | AC-07 |
+| I-02 | `GET /admin/login` → 200, vista login | n/a |
+| I-03 | `GET /admin/new-user` → 200, vista registro | n/a |
+| I-04 | `POST /admin/register` con datos válidos → redirige a `/admin/login` | AC-01 |
+| I-05 | `POST /admin/register` con email duplicado → 200, vista registro con error | AC-03 |
+| I-06 | `POST /admin/register` con email inválido → 200, vista registro con error de validación | AC-02 |
+| I-07 | `POST /admin/register` con password corta → 200, vista registro con error de validación | AC-02 |
+| I-08 | `POST /admin/validate-login` con credenciales válidas → redirige a `/admin/home` | AC-04 |
+| I-09 | `POST /admin/validate-login` con credenciales inválidas → redirige a `/admin/login?error=true` | AC-05 |
+| I-10 | `GET /admin/home` sin sesión → redirige a `/admin/login` | AC-07 |
+| I-11 | `GET /admin/home` con sesión → 200, vista home | AC-09 |
+| I-12 | `POST /admin/logout` → redirige a `/admin/login`, sesión invalidada | AC-06 |
 | I-13 | `POST /api/something` sin CSRF → no devuelve 403 (CSRF exempt) | AC-12 |
-| I-14 | `POST /validate-login` sin CSRF → 403 Forbidden | AC-11 |
+| I-14 | `POST /admin/validate-login` sin CSRF → 403 Forbidden | AC-11 |
 
 ### Tests de Seguridad (`integration/SecurityConfigTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| S-01 | `GET /places` sin sesión → redirige a `/login` | AC-07 |
-| S-02 | `GET /plans` sin sesión → redirige a `/login` | AC-07 |
+| S-01 | `GET /places` sin sesión → redirige a `/admin/login` | AC-07 |
+| S-02 | `GET /plans` sin sesión → redirige a `/admin/login` | AC-07 |
 | S-03 | `GET /share/abc123` sin sesión → 200 (público) | AC-08 |
-| S-04 | `GET /login` sin sesión → 200 (público) | AC-08 |
+| S-04 | `GET /` sin sesión → 200 (landing page, público) | AC-08 |
 
 ### E2E (mínimos, solo happy path completo)
 
@@ -135,22 +135,22 @@ public class SecurityConfig {
                 .ignoringRequestMatchers("/api/**")
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/register", "/new-user").permitAll()
-                .requestMatchers("/share/**").permitAll()
+                .requestMatchers("/", "/share/**").permitAll()
                 .requestMatchers("/api/**").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
-                .loginPage("/login")
-                .loginProcessingUrl("/validate-login")
-                .defaultSuccessUrl("/home")
-                .failureUrl("/login?error=true")
+                .loginPage("/admin/login")
+                .loginProcessingUrl("/admin/validate-login")
+                .defaultSuccessUrl("/admin/home")
+                .failureUrl("/admin/login?error=true")
                 .permitAll()
             )
             .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login")
+                .logoutUrl("/admin/logout")
+                .logoutSuccessUrl("/admin/login")
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
             )
@@ -185,7 +185,7 @@ public void addInterceptors(InterceptorRegistry registry) {
     // DELETE these lines:
     // registry
     //   .addInterceptor(new SessionInterceptor())
-    //   .addPathPatterns("/home", "/users", "/users/**");
+    //   .addPathPatterns("/admin/home", "/admin/users", "/admin/users/**");
 
     // KEEP the DevReloadInterceptor block (if present)
     if (isLiveReload()) {
@@ -312,7 +312,7 @@ public class LoginController {
 
     private static final String VIEW_LOGIN = "pages/auth/login";
     private static final String VIEW_NEW_USER = "pages/auth/new-user";
-    private static final String REDIRECT_LOGIN = "redirect:/login";
+    private static final String REDIRECT_LOGIN = "redirect:/admin/login";
     private static final String ATTR_NEW_USER_DATA = "newUserData";
 
     private final LoginService loginService;
@@ -322,7 +322,7 @@ public class LoginController {
         this.loginService = loginService;
     }
 
-    @GetMapping("/login")
+    @GetMapping("/admin/login")
     public ModelAndView showLogin(@RequestParam(required = false) String error) {
         Map<String, Object> model = new ModelMap();
         if (error != null) {
@@ -331,14 +331,14 @@ public class LoginController {
         return new ModelAndView(VIEW_LOGIN, model);
     }
 
-    @GetMapping("/new-user")
+    @GetMapping("/admin/new-user")
     public ModelAndView showNewUser() {
         Map<String, Object> model = new ModelMap();
         model.put(ATTR_NEW_USER_DATA, new NewUserRequest());
         return new ModelAndView(VIEW_NEW_USER, model);
     }
 
-    @PostMapping("/register")
+    @PostMapping("/admin/register")
     public ModelAndView register(
         @Valid @ModelAttribute(ATTR_NEW_USER_DATA) NewUserRequest newUserData,
         BindingResult bindingResult
@@ -354,13 +354,13 @@ public class LoginController {
         }
     }
 
-    @GetMapping("/home")
+    @GetMapping("/admin/home")
     public ModelAndView showHome() {
         return new ModelAndView("pages/home");
     }
 
-    @GetMapping("/")
-    public ModelAndView index() {
+    @GetMapping("/admin")
+    public ModelAndView adminIndex() {
         return new ModelAndView(REDIRECT_LOGIN);
     }
 
@@ -390,10 +390,10 @@ File: `src/main/webapp/WEB-INF/templates/fragments/header.html`
 <body>
     <div th:fragment="header" class="bg-gray-800 text-white p-4">
         <nav class="container mx-auto flex justify-between items-center">
-            <a th:href="@{/home}" class="text-xl font-bold">PlanIt</a>
+            <a th:href="@{/admin/home}" class="text-xl font-bold">PlanIt</a>
             <div sec:authorize="isAuthenticated()" class="flex items-center gap-4">
                 <span sec:authentication="name">user</span>
-                <form th:action="@{/logout}" method="post" class="inline">
+                <form th:action="@{/admin/logout}" method="post" class="inline">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <button type="submit" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded">
                         Logout
@@ -401,7 +401,7 @@ File: `src/main/webapp/WEB-INF/templates/fragments/header.html`
                 </form>
             </div>
             <div sec:authorize="!isAuthenticated()">
-                <a th:href="@{/login}" class="bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded">
+                <a th:href="@{/admin/login}" class="bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded">
                     Login
                 </a>
             </div>
@@ -430,7 +430,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/auth/login.html`
         <div th:if="${error}" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"
              th:text="${error}"></div>
 
-        <form th:action="@{/validate-login}" method="post">
+        <form th:action="@{/admin/validate-login}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <div class="mb-4">
                 <label for="username" class="block text-gray-700 font-medium mb-2">Email</label>
@@ -451,7 +451,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/auth/login.html`
         </form>
 
         <p class="mt-4 text-center text-gray-600">
-            Don't have an account? <a th:href="@{/new-user}" class="text-blue-500 hover:underline">Register</a>
+            Don't have an account? <a th:href="@{/admin/new-user}" class="text-blue-500 hover:underline">Register</a>
         </p>
     </div>
 </body>
@@ -477,7 +477,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/auth/new-user.html`
         <div th:if="${error}" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"
              th:text="${error}"></div>
 
-        <form th:action="@{/register}" th:object="${newUserData}" method="post">
+        <form th:action="@{/admin/register}" th:object="${newUserData}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <div class="mb-4">
                 <label for="email" class="block text-gray-700 font-medium mb-2">Email</label>
@@ -500,7 +500,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/auth/new-user.html`
         </form>
 
         <p class="mt-4 text-center text-gray-600">
-            Already have an account? <a th:href="@{/login}" class="text-blue-500 hover:underline">Login</a>
+            Already have an account? <a th:href="@{/admin/login}" class="text-blue-500 hover:underline">Login</a>
         </p>
     </div>
 </body>
@@ -545,10 +545,10 @@ File: `src/main/webapp/WEB-INF/templates/pages/home.html`
 
 ### 10. Files to delete
 
-Delete these files (replaced by Spring Security):
-- `src/main/java/com/valhalla/presentation/shared/SessionInterceptor.java`
-- `src/main/java/com/valhalla/presentation/shared/UserSession.java`
-- `src/main/java/com/valhalla/presentation/login/LoginRequest.java`
+These files were considered for deletion but are **kept** (still needed for session management):
+- `src/main/java/com/valhalla/presentation/shared/SessionInterceptor.java` — protects admin routes
+- `src/main/java/com/valhalla/presentation/shared/UserSession.java` — carries user info in session
+- `src/main/java/com/valhalla/presentation/login/LoginRequest.java` — login form DTO
 
 **Keep these files** (still needed):
 - `src/main/java/com/valhalla/presentation/shared/GlobalExceptionHandler.java`
@@ -648,9 +648,12 @@ SERVER_PORT=8080
 | `MyServletInitializer.java` | Add SecurityConfig.class |
 | `infrastructure/security/CustomUserDetailsService.java` | Create |
 | `presentation/shared/NewUserRequest.java` | Add validation annotations |
-| `presentation/login/LoginController.java` | Rewrite |
-| `templates/fragments/header.html` | Create (with CSRF token in logout form) |
-| `templates/pages/auth/login.html` | Create (with CSRF token) |
+| `presentation/landing/LandingController.java` | Create (serves `/`) |
+| `presentation/login/LoginController.java` | Rewrite (all routes under `/admin`) |
+| `presentation/user/UserController.java` | Update (routes under `/admin/users`) |
+| `templates/pages/landing.html` | Create (public landing page) |
+| `templates/components/navbar.html` | Update (all links to `/admin` paths) |
+| `templates/pages/auth/login.html` | Update (form action to `/admin/validate-login`) |
 | `templates/pages/auth/new-user.html` | Create (with CSRF token + validation errors) |
 | `templates/pages/home.html` | Create |
 | `.env.example` | Create with all env vars |

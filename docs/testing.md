@@ -177,10 +177,10 @@ public class LoginControllerTest {
   }
 
   @Test
-  public void shouldRedirectToLoginPageFromRoot() throws Exception {
+  public void shouldShowLandingPage() throws Exception {
     this.mockMvc.perform(get("/"))
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/login"));
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/landing"));
   }
 }
 ```
@@ -189,13 +189,13 @@ public class LoginControllerTest {
 
 | Endpoint | Test cases |
 | :--- | :--- |
-| `GET /` | Redirects to `/login` |
-| `GET /login` | Returns login view with `loginData` model attribute |
-| `POST /validate-login` | Valid credentials → redirect `/home`; invalid → re-render with error; missing fields → validation error |
-| `GET /new-user` | Returns registration view |
-| `POST /register` | New email → redirect `/login`; duplicate → error; invalid → validation error |
-| `GET /home` | No session → redirect `/login`; with session → home view |
-| `POST /logout` | Invalidates session, redirects to `/login` |
+| `GET /` | Returns landing page |
+| `GET /admin/login` | Returns login view with `loginData` model attribute |
+| `POST /admin/validate-login` | Valid credentials → redirect `/admin/home`; invalid → re-render with error; missing fields → validation error |
+| `GET /admin/new-user` | Returns registration view |
+| `POST /admin/register` | New email → redirect `/admin/login`; duplicate → error; invalid → validation error |
+| `GET /admin/home` | No session → redirect `/admin/login`; with session → home view |
+| `POST /admin/logout` | Invalidates session, redirects to `/admin/login` |
 
 ### Key patterns
 
@@ -227,11 +227,11 @@ public class LoginViewE2E {
 
   @Test
   public void shouldNavigateToHomeWhenUserExists() {
-    page.navigate(baseUrl + "/login");
+    page.navigate(baseUrl + "/admin/login");
     page.locator("#email").fill("test@unlam.edu.ar");
     page.locator("#password").fill("test");
     page.locator("#btn-login").click();
-    waitForPath("/home");
+    waitForPath("/admin/home");
   }
 }
 ```

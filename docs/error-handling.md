@@ -39,7 +39,7 @@ Controller checks `BindingResult`:
 ```java
 package com.valhalla.presentation.login;
 
-@PostMapping("/validate-login")
+@PostMapping("/admin/validate-login")
 public ModelAndView validateLogin(
   @Valid @ModelAttribute("loginData") LoginRequest loginData,
   BindingResult bindingResult

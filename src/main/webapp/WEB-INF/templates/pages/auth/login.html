@@ -27,9 +27,6 @@
         </button>
         <p v-if="error" class="alert alert-danger my-4 rounded-md bg-red-100 px-4 py-3 text-sm text-red-700">{{ error }}</p>
       </form>
-      <div class="mt-4 text-center text-sm">
-        <a id="btn-register" th:href="@{/admin/new-user}" class="text-blue-600 hover:underline">Register</a>
-      </div>
     </div>
     <script>
       const app = Vue.createApp({
