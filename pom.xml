@@ -473,8 +473,7 @@
                     <httpConnector>
                         <port>8080</port>
                     </httpConnector>
-                    <scanIntervalSeconds>1</scanIntervalSeconds>
-                    <reload>automatic</reload>
+                    <scan>1</scan>
                     <webApp>
                         <contextPath>/</contextPath>
                     </webApp>
