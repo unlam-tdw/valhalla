@@ -12,7 +12,7 @@
       <hr class="mb-6 border-gray-200">
 
       <form ref="form" @submit.prevent="submit"
-        th:action="${isEdit} ? @{/users/{id}(id=${userId})} : @{/users}"
+        th:action="${isEdit} ? @{/admin/users/{id}(id=${userId})} : @{/admin/users}"
         th:method="${isEdit} ? 'POST' : 'POST'">
         <input th:if="${isEdit}" type="hidden" name="_method" value="PUT" />
 
