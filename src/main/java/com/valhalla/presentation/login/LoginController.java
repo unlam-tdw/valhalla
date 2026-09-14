@@ -38,6 +38,11 @@ public class LoginController {
     this.loginService = loginService;
   }
 
+  @RequestMapping("/admin")
+  public ModelAndView adminIndex() {
+    return new ModelAndView(REDIRECT_LOGIN);
+  }
+
   @RequestMapping("/admin/login")
   public ModelAndView showLogin() {
     Map<String, Object> model = new ModelMap();
