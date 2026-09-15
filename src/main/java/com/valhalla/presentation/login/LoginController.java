@@ -128,7 +128,7 @@ public class LoginController {
   private ModelAndView renderLoginWithError(LoginRequest loginData) {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_LOGIN_DATA, loginData);
-    model.put("error", "Invalid email or password");
+    model.put("error", "Invalid email or password 🔒");
     return new ModelAndView(VIEW_LOGIN, model);
   }
 
