@@ -23,6 +23,10 @@ public class WebPage {
     page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(;[^/?#]*)?$"));
   }
 
+  public void navigate(String url) {
+    page.navigate(url);
+  }
+
   protected String getElementText(String cssSelector) {
     return this.getElement(cssSelector).textContent();
   }

@@ -118,7 +118,7 @@ public class UserViewABME2E {
   private void givenAdminIsOnUsersPage() throws MalformedURLException {
     usersPage.waitForPath("/admin/users");
     URL url = usersPage.getCurrentUrl();
-    assertThat(url.getPath(), matchesPattern("^/users(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(url.getPath(), matchesPattern("^/admin/users(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   // --- when ---

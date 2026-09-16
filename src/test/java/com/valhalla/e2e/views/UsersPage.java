@@ -29,7 +29,7 @@ public class UsersPage extends WebPage {
   }
 
   public void clickNewUser() {
-    this.clickElement("a[href='/users/new']");
+    this.clickElement("a[href='/admin/users/new']");
   }
 
   public void clickEditOnRow(String email) {
