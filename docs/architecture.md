@@ -103,8 +103,8 @@ graph LR
 | PUT | `/admin/users/{id}/deactivate` | UserController | redirect → /admin/users |
 | PUT | `/admin/users/{id}/rotate-password` | UserController | redirect → /admin/users |
 | DELETE | `/admin/users/{id}/delete` | UserController | redirect → /admin/users |
-| POST | `/admin/validate-login` | LoginController | redirect → /admin/home |
-| POST | `/admin/logout` | LoginController | redirect → /admin/login |
+| POST | `/admin/validate-login` | Spring Security | redirect → /admin/home |
+| POST | `/admin/logout` | Spring Security | redirect → /admin/login |
 
 ### Future Authenticated Routes
 
@@ -263,7 +263,7 @@ src/main/webapp/resources/
 | Map library | Leaflet + OpenStreetMap | Free, no API key, open source |
 | Share mechanism | Short code in URL | Simple, no token exposure |
 | Template engine | Thymeleaf | Already in stack, server-side rendering |
-| Session auth | SessionInterceptor | Route protection via handler interceptor, admin prefix |
+| Session auth | Spring Security | SecurityFilterChain: form login, CSRF, session management (1 per user) |
 | DB for places | PostgreSQL (prod) | Already configured, supports PostGIS if needed later |
 | Seed data | ApplicationListener | ContextRefreshedEvent seeder, migrate to Flyway later |
 | Frontend | Tailwind CSS + Vue.js (CDN) | No build step, fast development |

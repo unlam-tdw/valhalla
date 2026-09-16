@@ -9,8 +9,8 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 
 ## Pre-requisitos
 
-- Project running with `mvn jetty:run`
-- HSQLDB configured (dev)
+- Project running with `mvn jetty:run` or `mvn verify` (auto-starts Jetty)
+- PostgreSQL (prod) or HSQLDB (tests)
 - [LOG] is the base (no other card depends on it)
 
 ## Criterios de Aceptacion
@@ -637,26 +637,23 @@ SECURITY_SECRET=mySecretKeyForCSRFAtLeast32CharactersLong!
 SERVER_PORT=8080
 ```
 
-## Archivos a crear/modify
+## Archivos a crear/modify (implementado)
 
 | File | Action |
 |------|--------|
-| `pom.xml` | Add spring-security-web, spring-security-config, thymeleaf-extras-springsecurity6 |
-| `config/SecurityConfig.java` | Replace entirely |
-| `config/BaseWebConfig.java` | Remove SessionInterceptor import + registration; add SpringSecurityDialect |
-| `config/BaseJpaConfig.java` | Scan all domain + infrastructure packages |
-| `MyServletInitializer.java` | Add SecurityConfig.class |
-| `infrastructure/security/CustomUserDetailsService.java` | Create |
-| `presentation/shared/NewUserRequest.java` | Add validation annotations |
-| `presentation/landing/LandingController.java` | Create (serves `/`) |
-| `presentation/login/LoginController.java` | Rewrite (all routes under `/admin`) |
-| `presentation/user/UserController.java` | Update (routes under `/admin/users`) |
-| `templates/pages/landing.html` | Create (public landing page) |
-| `templates/components/navbar.html` | Update (all links to `/admin` paths) |
-| `templates/pages/auth/login.html` | Update (form action to `/admin/validate-login`) |
-| `templates/pages/auth/new-user.html` | Create (with CSRF token + validation errors) |
-| `templates/pages/home.html` | Create |
-| `.env.example` | Create with all env vars |
-| `presentation/shared/SessionInterceptor.java` | Delete |
-| `presentation/shared/UserSession.java` | Delete |
-| `presentation/login/LoginRequest.java` | Delete |
+| `pom.xml` | Added spring-security-web, spring-security-config, thymeleaf-extras-springsecurity6, spring-security-test |
+| `config/SecurityConfig.java` | Rewritten: SecurityFilterChain (CSRF, form login, logout, session management) |
+| `config/BaseWebConfig.java` | Removed SessionInterceptor; added SpringSecurityDialect |
+| `MyServletInitializer.java` | Added SecurityConfig.class |
+| `infrastructure/security/CustomUserDetailsService.java` | Created: bridges UserRepository to Spring Security |
+| `infrastructure/security/CustomAuthenticationSuccessHandler.java` | Created: sets loginTime in session after login |
+| `presentation/login/LoginController.java` | Simplified: removed validateLogin/logout (Spring Security handles them) |
+| `presentation/user/UserController.java` | Uses Authentication instead of UserSession |
+| `templates/components/navbar.html` | Uses `sec:authorize`, `sec:authentication` |
+| `templates/pages/auth/login.html` | Added CSRF token |
+| `templates/pages/auth/new-user.html` | Added CSRF token |
+| `templates/pages/admin/users.html` | Added CSRF tokens; uses `${currentUserEmail}` |
+| `templates/pages/home.html` | Uses `sec:authentication` instead of `${user.*}` |
+| `presentation/shared/SessionInterceptor.java` | Deleted |
+| `presentation/shared/UserSession.java` | Deleted |
+| `presentation/login/LoginRequest.java` | Deleted |

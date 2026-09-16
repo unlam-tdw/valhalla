@@ -121,11 +121,11 @@ public class LoginControllerTest {
 
 | Method | Test cases |
 | :--- | :--- |
-| `showLogin()` | Returns correct view, includes `LoginRequest` in model |
-| `validateLogin()` | Success → redirect; failure → re-render with error; invalid input → validation error |
+| `showLogin()` | Returns correct view |
 | `register()` | Success → redirect; duplicate email → exception; invalid input → validation error |
-| `showHome()` | Has session → home view; no session → redirect to login |
-| `logout()` | Invalidates session; handles null session |
+| `showHome()` | Returns home view with loginTime |
+
+Note: `validateLogin()` and `logout()` are handled by Spring Security, not the controller. Test them via integration tests with `@WithMockUser` + `.with(csrf())`.
 
 ### Key patterns
 
@@ -135,12 +135,15 @@ loginServiceMock = mock(LoginService.class);
 controller = new LoginController(loginServiceMock);
 ```
 
-**Use `ArgumentCaptor` to verify session storage:**
+**Integration tests use `@WithMockUser` + `springSecurity()` filter:**
 ```java
-ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
-verify(sessionMock, times(1))
-  .setAttribute(eq(SessionInterceptor.USER_SESSION), captor.capture());
-assertThat(captor.getValue().getEmail(), equalToIgnoringCase("dami@unlam.com"));
+this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac)
+    .apply(springSecurity()).build();
+
+this.mockMvc.perform(post("/admin/validate-login")
+    .with(csrf())
+    .param("email", email).param("password", password))
+    .andExpect(redirectedUrl("/admin/home"));
 ```
 
 **Test that exceptions propagate:**
@@ -277,26 +280,26 @@ mvn test -Dtest="LoginControllerTest#shouldReturnToLoginWhenCredentialsAreWrong"
 
 ### E2E tests
 
-E2E tests need a real PostgreSQL and Playwright's Chromium.
+E2E tests need PostgreSQL and Playwright's Chromium. `mvn verify` auto-starts Jetty, runs E2E via failsafe, then stops Jetty.
 
 ```shell
-# 1. Start PostgreSQL
+# One-time: install Chromium
+npx playwright install chromium
+
+# Run everything (unit + integration + E2E)
 docker compose up -d postgres
+mvn verify
+```
 
-# 2. Install Chromium (first time only)
-mvn -q exec:java -e \
-  -Dexec.mainClass=com.microsoft.playwright.CLI \
-  -Dexec.args="install --with-deps chromium"
+Or run E2E manually:
 
-# 3. Start Jetty (in a separate terminal, with DB env vars from your .env)
-mvn jetty:run
+```shell
+# 1. Start PostgreSQL + Jetty
+docker compose up -d postgres
+mvn jetty:run &
 
-# 4. Run E2E tests (in another terminal)
-mvn test -Dtest=LoginViewE2E \
-  -Djacoco.skip=true \
-  -Dcheckstyle.skip=true \
-  -Dpmd.skip=true \
-  -Dcpd.skip=true
+# 2. Wait for server, then run E2E
+mvn failsafe:integration-test failsafe:verify -DskipTests
 ```
 
 ### Skipping quality gates

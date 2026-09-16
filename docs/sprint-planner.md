@@ -54,8 +54,8 @@ graph LR
 | C | **[LOG]** | 01-LOG.md | Ayuda a A o prepara infra de testing |
 
 **Salida esperada:**
-- `mvn jetty:run` levanta, `/admin` login/logout funcionan, landing page en `/`
-- Header muestra email del usuario logueado
+- `mvn verify` levanta, 70 tests pasan, E2E corren contra stack real
+- Login/logout manejado por Spring Security, navbar muestra email con `sec:authentication`
 - Validación de formulario andando
 
 **Notas:**
