@@ -2,6 +2,7 @@ package com.valhalla.config;
 
 import jakarta.servlet.ServletContext;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Executors;
@@ -12,10 +13,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Watches target/classes for .class file changes via polling and triggers a
- * Jetty context reload after a debounce period. Uses polling instead of
- * WatchService because inotify does not work over Docker Desktop volume
- * mounts (Windows → WSL2 → container).
+ * Polls target/classes for .class file changes and triggers a Jetty context
+ * reload after a debounce period. Uses polling instead of WatchService because
+ * inotify does not work over Docker Desktop volume mounts.
  */
 public final class DevClassReloader {
 
@@ -33,15 +33,32 @@ public final class DevClassReloader {
   private volatile ScheduledFuture<?> pollFuture;
   private volatile ScheduledFuture<?> pendingReload;
   private volatile long lastModified = 0;
-  private volatile boolean running = true;
-  private volatile ServletContext servletContext;
+  private volatile Object contextHandler;
+  private volatile Method reloadMethod;
 
   public DevClassReloader(Path classesDir) {
     this.classesDir = classesDir;
   }
 
   public void start(ServletContext ctx) {
-    this.servletContext = ctx;
+    // Use reflection to get Jetty's ContextHandler and its reload() method
+    // to avoid compile-time dependency on Jetty internals.
+    try {
+      // ctx is Jetty's ServletContextHandler$Context which has getContextHandler()
+      Method getContextHandler = ctx.getClass().getMethod("getContextHandler");
+      this.contextHandler = getContextHandler.invoke(ctx);
+      this.reloadMethod = contextHandler.getClass().getMethod("reload");
+      if (LOGGER.isLoggable(Level.INFO)) {
+        LOGGER.info("DevClassReloader: Jetty reload() available");
+      }
+    } catch (Exception e) {
+      if (LOGGER.isLoggable(Level.WARNING)) {
+        LOGGER.warning(
+          "DevClassReloader: cannot access Jetty reload(), disabled: " + e.getMessage()
+        );
+      }
+      return;
+    }
     try {
       this.lastModified = scanLastModified();
     } catch (IOException e) {
@@ -104,14 +121,13 @@ public final class DevClassReloader {
       if (LOGGER.isLoggable(Level.INFO)) {
         LOGGER.info("Class changes detected, reloading context...");
       }
-      servletContext.setAttribute("org.eclipse.jetty.server.context.reload", this);
+      reloadMethod.invoke(contextHandler);
     } catch (Exception e) {
       LOGGER.log(Level.WARNING, "Context reload failed", e);
     }
   }
 
   public void stop() {
-    running = false;
     if (pollFuture != null) {
       pollFuture.cancel(false);
     }
