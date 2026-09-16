@@ -110,7 +110,7 @@ public class UserViewABME2E {
   private void loginAsAdmin(Page page) {
     LoginPage loginPage = new LoginPage(page);
     loginPage.typeEmail("test@unlam.edu.ar");
-    loginPage.typePassword("test");
+    loginPage.typePassword("password");
     loginPage.clickSignIn();
     loginPage.waitForPath("/admin/home");
   }
@@ -141,6 +141,8 @@ public class UserViewABME2E {
 
   private void whenAdminFillsForm(String email, String role) {
     UserFormPage formPage = new UserFormPage(context.pages().get(0));
+    formPage.typeFirstName("Test");
+    formPage.typeLastName("User");
     formPage.typeEmail(email);
     formPage.selectRole(role);
   }

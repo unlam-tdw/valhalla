@@ -63,7 +63,7 @@ public class LoginViewE2E {
 
   @Test
   void shouldNavigateToHomeWhenUserExists() throws MalformedURLException {
-    givenUserFillsLoginFormWith("test@unlam.edu.ar", "test");
+    givenUserFillsLoginFormWith("test@unlam.edu.ar", "password");
     whenUserClicksSignIn();
     thenShouldBeRedirectedToHome();
   }
@@ -71,9 +71,9 @@ public class LoginViewE2E {
   @Test
   void shouldRegisterAUserAndSignInSuccessfully() throws MalformedURLException {
     // Registration is admin-only now — create user via admin panel, then login
-    givenAdminCreatesUser("juan@unlam.edu.ar", "123456");
+    String generatedPassword = givenAdminCreatesUser("juan@unlam.edu.ar");
     givenUserIsOnLoginPage();
-    givenUserFillsLoginFormWith("juan@unlam.edu.ar", "123456");
+    givenUserFillsLoginFormWith("juan@unlam.edu.ar", generatedPassword);
     whenUserClicksSignIn();
     thenShouldBeRedirectedToHome();
   }
@@ -109,22 +109,26 @@ public class LoginViewE2E {
     loginPage.typePassword(password);
   }
 
-  private void givenAdminCreatesUser(String email, String password) {
-    LoginPage adminLogin = new LoginPage(context.newPage());
+  private String givenAdminCreatesUser(String email) {
+    Page adminPage = context.newPage();
+    LoginPage adminLogin = new LoginPage(adminPage);
     adminLogin.typeEmail("test@unlam.edu.ar");
-    adminLogin.typePassword("test");
+    adminLogin.typePassword("password");
     adminLogin.clickSignIn();
     adminLogin.waitForPath("/admin/home");
     adminLogin.navigate("localhost:8080/admin/users/new");
-    NewUserPage newUserPage = new NewUserPage(context.pages().get(0));
+    NewUserPage newUserPage = new NewUserPage(adminPage);
     newUserPage.typeFirstName("Juan");
     newUserPage.typeLastName("Perez");
     newUserPage.typeEmail(email);
     newUserPage.selectRole("USER");
     newUserPage.clickCreate();
     newUserPage.waitForPath("/admin/users");
+    // Read the generated password displayed on the users page
+    String generatedPassword = adminPage.locator("code").textContent();
     context.close();
     context = browser.newContext();
     loginPage = new LoginPage(context.newPage());
+    return generatedPassword;
   }
 }

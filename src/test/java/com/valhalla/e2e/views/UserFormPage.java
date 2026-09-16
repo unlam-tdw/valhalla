@@ -12,6 +12,14 @@ public class UserFormPage extends WebPage {
     return this.getElementText("h3");
   }
 
+  public void typeFirstName(String name) {
+    this.typeIntoElement("#firstName", name);
+  }
+
+  public void typeLastName(String name) {
+    this.typeIntoElement("#lastName", name);
+  }
+
   public void typeEmail(String email) {
     this.typeIntoElement("#email", email);
   }
