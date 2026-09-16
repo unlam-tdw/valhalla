@@ -138,6 +138,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/share/**").permitAll()
                 .requestMatchers("/api/**").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
+                .requestMatchers("/admin/home").authenticated()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

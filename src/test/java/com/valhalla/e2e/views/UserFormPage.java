@@ -31,7 +31,7 @@ public class UserFormPage extends WebPage {
   }
 
   public void clickCreate() {
-    this.clickElement("button[type='submit']");
+    this.clickElement("#btn-create");
   }
 
   public void clickCancel() {

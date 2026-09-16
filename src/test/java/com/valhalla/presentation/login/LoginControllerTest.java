@@ -97,8 +97,18 @@ public class LoginControllerTest {
 
   @Test
   public void shouldReturnLoginPage() {
-    ModelAndView modelAndView = controller.showLogin();
+    ModelAndView modelAndView = controller.showLogin(null);
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
+  }
+
+  @Test
+  public void shouldAddErrorToModelWhenLoginFails() {
+    ModelAndView modelAndView = controller.showLogin("true");
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
+    assertThat(
+      (String) modelAndView.getModel().get("error"),
+      equalToIgnoringCase("Invalid email or password")
+    );
   }
 
   @Test

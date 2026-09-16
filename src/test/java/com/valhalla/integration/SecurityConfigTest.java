@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -47,5 +48,17 @@ public class SecurityConfigTest {
   @Test
   public void shouldAllowPublicAccessToReloadEndpoint() throws Exception {
     this.mockMvc.perform(get("/reload/version")).andExpect(status().isOk());
+  }
+
+  @Test
+  @WithMockUser(roles = "USER")
+  public void shouldAllowUserRoleAccessToHome() throws Exception {
+    this.mockMvc.perform(get("/admin/home")).andExpect(status().isOk());
+  }
+
+  @Test
+  @WithMockUser(roles = "USER")
+  public void shouldDenyUserRoleAccessToAdminUsers() throws Exception {
+    this.mockMvc.perform(get("/admin/users")).andExpect(status().isForbidden());
   }
 }

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 @Controller
@@ -40,8 +41,14 @@ public class LoginController {
   }
 
   @GetMapping("/admin/login")
-  public ModelAndView showLogin() {
-    return new ModelAndView(VIEW_LOGIN);
+  public ModelAndView showLogin(@RequestParam(value = "error", required = false) String error) {
+    Map<String, Object> model = new ModelMap();
+    if (error != null) {
+      // Spring Security redirects here with ?error=true on failed login.
+      // The view's Vue error alert reads ${error}.
+      model.put("error", "Invalid email or password");
+    }
+    return new ModelAndView(VIEW_LOGIN, model);
   }
 
   @GetMapping("/admin/new-user")
