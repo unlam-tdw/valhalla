@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    name: Build + Test + Quality
+    name: Backend (Maven build, tests & quality gates)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -45,7 +45,7 @@ jobs:
           retention-days: 14
 
   e2e:
-    name: E2E (Playwright)
+    name: E2E (Playwright against a running Jetty + PostgreSQL)
     runs-on: ubuntu-latest
     needs: backend
     services:
