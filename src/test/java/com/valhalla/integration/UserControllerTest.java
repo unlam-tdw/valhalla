@@ -1,6 +1,5 @@
 package com.valhalla.integration;
 
-import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -12,12 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.valhalla.domain.user.UserRepository;
 import com.valhalla.domain.user.UserService;
-import com.valhalla.presentation.shared.SessionInterceptor;
-import com.valhalla.presentation.shared.UserSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -30,8 +26,6 @@ import org.springframework.web.filter.HiddenHttpMethodFilter;
 public class UserControllerTest {
 
   private static final String ADMIN_EMAIL = "admin@unlam.edu.ar";
-  private static final String ADMIN_ROLE = "ADMIN";
-  private static final String TEST_EMAIL = "test-user@unlam.edu.ar";
   private static final String TEST_PASSWORD = "password123";
   private static final String TEST_ROLE = "USER";
 
@@ -45,7 +39,6 @@ public class UserControllerTest {
   private UserRepository userRepository;
 
   private MockMvc mockMvc;
-  private MockHttpSession adminSession;
 
   @BeforeEach
   public void setUp() {
@@ -55,11 +48,6 @@ public class UserControllerTest {
         .apply(springSecurity())
         .addFilter(new HiddenHttpMethodFilter())
         .build();
-    this.adminSession = new MockHttpSession();
-    this.adminSession.setAttribute(
-        SessionInterceptor.USER_SESSION,
-        new UserSession(ADMIN_EMAIL, ADMIN_ROLE, "Admin", "Test")
-      );
   }
 
   @Test
@@ -70,17 +58,17 @@ public class UserControllerTest {
   @Test
   @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldShowUsersListWhenAuthenticated() throws Exception {
-    this.mockMvc.perform(get("/admin/users").session(adminSession))
+    this.mockMvc.perform(get("/admin/users"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/admin/users"))
       .andExpect(model().attributeExists("users"))
-      .andExpect(model().attributeExists("user"));
+      .andExpect(model().attributeExists("currentUserEmail"));
   }
 
   @Test
   @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldShowNewUserForm() throws Exception {
-    this.mockMvc.perform(get("/admin/users/new").session(adminSession))
+    this.mockMvc.perform(get("/admin/users/new"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/admin/user-form"))
       .andExpect(model().attributeExists("userForm"))
@@ -93,7 +81,6 @@ public class UserControllerTest {
     this.mockMvc.perform(
         post("/admin/users")
           .with(csrf())
-          .session(adminSession)
           .param("firstName", "New")
           .param("lastName", "User")
           .param("email", "newuser@unlam.edu.ar")
@@ -109,7 +96,6 @@ public class UserControllerTest {
     this.mockMvc.perform(
         post("/admin/users")
           .with(csrf())
-          .session(adminSession)
           .param("firstName", "Test")
           .param("lastName", "User")
           .param("email", "not-an-email")
@@ -127,7 +113,6 @@ public class UserControllerTest {
     this.mockMvc.perform(
         post("/admin/users")
           .with(csrf())
-          .session(adminSession)
           .param("firstName", "Test")
           .param("lastName", "User")
           .param("role", "USER")
@@ -143,7 +128,7 @@ public class UserControllerTest {
     userService.create("editable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Editable", "User");
     Long userId = userRepository.findByEmail("editable@unlam.edu.ar").get().getId();
 
-    this.mockMvc.perform(get("/admin/users/" + userId + "/edit").session(adminSession))
+    this.mockMvc.perform(get("/admin/users/" + userId + "/edit"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/admin/user-form"))
       .andExpect(model().attributeExists("userForm"))
@@ -160,7 +145,6 @@ public class UserControllerTest {
     this.mockMvc.perform(
         post("/admin/users/" + userId)
           .with(csrf())
-          .session(adminSession)
           .param("_method", "PUT")
           .param("firstName", "Updated")
           .param("lastName", "User")
@@ -184,10 +168,7 @@ public class UserControllerTest {
     Long userId = userRepository.findByEmail("deactivatable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
-        post("/admin/users/" + userId + "/deactivate")
-          .with(csrf())
-          .session(adminSession)
-          .param("_method", "PUT")
+        post("/admin/users/" + userId + "/deactivate").with(csrf()).param("_method", "PUT")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/users"));
@@ -200,10 +181,7 @@ public class UserControllerTest {
     Long userId = userRepository.findByEmail("deletable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
-        post("/admin/users/" + userId + "/delete")
-          .with(csrf())
-          .session(adminSession)
-          .param("_method", "DELETE")
+        post("/admin/users/" + userId + "/delete").with(csrf()).param("_method", "DELETE")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/users"));
@@ -224,7 +202,6 @@ public class UserControllerTest {
     this.mockMvc.perform(
         post("/admin/users/" + userId)
           .with(csrf())
-          .session(adminSession)
           .param("_method", "PUT")
           .param("firstName", "Updatable")
           .param("lastName", "Invalid")
@@ -245,10 +222,7 @@ public class UserControllerTest {
     userService.deactivate(userId);
 
     this.mockMvc.perform(
-        post("/admin/users/" + userId + "/activate")
-          .with(csrf())
-          .session(adminSession)
-          .param("_method", "PUT")
+        post("/admin/users/" + userId + "/activate").with(csrf()).param("_method", "PUT")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/users"));
@@ -261,10 +235,7 @@ public class UserControllerTest {
     Long userId = userRepository.findByEmail("rotatable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
-        post("/admin/users/" + userId + "/rotate-password")
-          .with(csrf())
-          .session(adminSession)
-          .param("_method", "PUT")
+        post("/admin/users/" + userId + "/rotate-password").with(csrf()).param("_method", "PUT")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/users"));
@@ -273,9 +244,7 @@ public class UserControllerTest {
   @Test
   @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldShowGeneratedPasswordAfterCreate() throws Exception {
-    this.mockMvc.perform(
-        get("/admin/users").session(adminSession).flashAttr("generatedPassword", "abc12345")
-      )
+    this.mockMvc.perform(get("/admin/users").flashAttr("generatedPassword", "abc12345"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/admin/users"))
       .andExpect(model().attribute("generatedPassword", "abc12345"));

@@ -1,5 +1,6 @@
 <!DOCTYPE HTML>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head th:replace="~{layouts/base :: head('Home')}"></head>
 
@@ -9,10 +10,7 @@
     <h1 class="text-3xl font-semibold text-gray-900">Welcome to Taller Web 1</h1>
 
     <p class="text-gray-600">
-      You are signed in as <span class="font-medium text-gray-900" th:text="${user.fullName}">name</span>
-      <span th:if="${user.role != null}"
-        class="ml-2 rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700"
-        th:text="${user.role}">ROLE</span>
+      You are signed in as <span class="font-medium text-gray-900" sec:authentication="name">email</span>
     </p>
 
     <div id="session-clock-app" th:attr="data-login-time=${loginTime}"

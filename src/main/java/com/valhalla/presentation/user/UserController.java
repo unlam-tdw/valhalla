@@ -2,12 +2,10 @@ package com.valhalla.presentation.user;
 
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserService;
-import com.valhalla.presentation.shared.SessionInterceptor;
-import com.valhalla.presentation.shared.UserSession;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -31,7 +29,7 @@ public class UserController {
   private static final String ATTR_USER_FORM = "userForm";
   private static final String ATTR_USER_ID = "userId";
   private static final String ATTR_IS_EDIT = "isEdit";
-  private static final String ATTR_USER = "user";
+  private static final String ATTR_CURRENT_USER_EMAIL = "currentUserEmail";
   private static final String ATTR_GENERATED_PASSWORD = "generatedPassword";
 
   private final UserService userService;
@@ -42,11 +40,10 @@ public class UserController {
   }
 
   @GetMapping
-  public ModelAndView listUsers(HttpSession session) {
-    UserSession currentUser = (UserSession) session.getAttribute(SessionInterceptor.USER_SESSION);
+  public ModelAndView listUsers(Authentication authentication) {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_USERS, userService.findAll());
-    model.put(ATTR_USER, currentUser);
+    model.put(ATTR_CURRENT_USER_EMAIL, authentication.getName());
     return new ModelAndView(VIEW_USERS, model);
   }
 

@@ -1,7 +1,6 @@
 package com.valhalla.presentation.login;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.text.IsEqualIgnoringCase.equalToIgnoringCase;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,8 +14,6 @@ import static org.mockito.Mockito.when;
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
 import com.valhalla.presentation.shared.NewUserRequest;
-import com.valhalla.presentation.shared.SessionInterceptor;
-import com.valhalla.presentation.shared.UserSession;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -112,20 +109,17 @@ public class LoginControllerTest {
   }
 
   @Test
-  public void shouldReturnHomeViewWithUserWhenSessionExists() {
-    UserSession sessionUser = new UserSession("dami@unlam.com", "ADMIN", "Dami", "Test");
-    when(sessionMock.getAttribute(SessionInterceptor.USER_SESSION)).thenReturn(sessionUser);
+  public void shouldReturnHomeViewWithLoginTime() {
     when(sessionMock.getAttribute("loginTime")).thenReturn(System.currentTimeMillis());
     ModelAndView modelAndView = controller.showHome(sessionMock);
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/home"));
-    assertThat(modelAndView.getModel().get("user"), equalTo(sessionUser));
     assertThat(modelAndView.getModel().get("loginTime"), instanceOf(Long.class));
   }
 
   @Test
-  public void shouldRedirectToLoginWhenNoSessionUser() {
-    when(sessionMock.getAttribute(SessionInterceptor.USER_SESSION)).thenReturn(null);
+  public void shouldReturnHomeViewWhenNoLoginTime() {
+    when(sessionMock.getAttribute("loginTime")).thenReturn(null);
     ModelAndView modelAndView = controller.showHome(sessionMock);
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/login"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/home"));
   }
 }

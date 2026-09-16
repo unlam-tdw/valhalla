@@ -3,12 +3,11 @@ package com.valhalla.presentation.login;
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
 import com.valhalla.presentation.shared.NewUserRequest;
-import com.valhalla.presentation.shared.SessionInterceptor;
-import com.valhalla.presentation.shared.UserSession;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -26,7 +25,6 @@ public class LoginController {
   private static final String VIEW_HOME = "pages/home";
   private static final String REDIRECT_LOGIN = "redirect:/admin/login";
   private static final String ATTR_NEW_USER_DATA = "newUserData";
-  private static final String ATTR_USER = "user";
   private static final String ATTR_LOGIN_TIME = "loginTime";
 
   private final LoginService loginService;
@@ -76,14 +74,7 @@ public class LoginController {
 
   @GetMapping("/admin/home")
   public ModelAndView showHome(HttpSession httpSession) {
-    UserSession userSession = (UserSession) httpSession.getAttribute(
-      SessionInterceptor.USER_SESSION
-    );
-    if (userSession == null) {
-      return new ModelAndView(REDIRECT_LOGIN);
-    }
     Map<String, Object> model = new ModelMap();
-    model.put(ATTR_USER, userSession);
     model.put(ATTR_LOGIN_TIME, httpSession.getAttribute(ATTR_LOGIN_TIME));
     return new ModelAndView(VIEW_HOME, model);
   }
