@@ -23,6 +23,10 @@ public class WebPage {
     page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(;[^/?#]*)?$"));
   }
 
+  public void navigate(String url) {
+    page.navigate(url);
+  }
+
   protected String getElementText(String cssSelector) {
     return this.getElement(cssSelector).textContent();
   }
@@ -33,6 +37,9 @@ public class WebPage {
 
   protected void typeIntoElement(String cssSelector, String text) {
     this.getElement(cssSelector).fill(text);
+    // Dispatch input event so Vue v-model picks up the value
+    this.getElement(cssSelector)
+      .evaluate("el => el.dispatchEvent(new Event('input', {bubbles: true}))");
   }
 
   private Locator getElement(String cssSelector) {

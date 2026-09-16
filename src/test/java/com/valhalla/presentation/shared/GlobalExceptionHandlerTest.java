@@ -44,7 +44,7 @@ public class GlobalExceptionHandlerTest {
   @Test
   public void shouldRedirectToUsersWithErrorWhenUserNotFound() {
     ModelAndView modelAndView = handler.handleUserNotFound();
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/users"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/users"));
     assertThat(
       modelAndView.getModel().get("error").toString(),
       equalToIgnoringCase("User not found")

@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
   public ModelAndView handleUserNotFound() {
     Map<String, Object> model = new ModelMap();
     model.put("error", "User not found");
-    return new ModelAndView("redirect:/users", model);
+    return new ModelAndView("redirect:/admin/users", model);
   }
 
   @ExceptionHandler(Exception.class)

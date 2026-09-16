@@ -79,29 +79,47 @@ graph LR
 
 ## 3. Controllers & Routes
 
-### Authenticated Routes (Spring Security required)
+### Public Routes
 
 | Method | Route | Controller | View |
 |--------|-------|------------|------|
-| GET | `/` | LoginController | redirect → /login |
-| GET | `/login` | LoginController | pages/auth/login |
-| GET | `/new-user` | LoginController | pages/auth/new-user |
-| POST | `/register` | LoginController | redirect → /login |
-| GET | `/home` | LoginController | pages/home |
+| GET | `/` | LandingController | pages/landing |
+
+### Admin Routes (session required)
+
+| Method | Route | Controller | View |
+|--------|-------|------------|------|
+| GET | `/admin` | LoginController | redirect → /admin/login |
+| GET | `/admin/login` | LoginController | pages/auth/login |
+| GET | `/admin/new-user` | LoginController | pages/auth/new-user |
+| POST | `/admin/register` | LoginController | redirect → /admin/login |
+| GET | `/admin/home` | LoginController | pages/home |
+| GET | `/admin/users` | UserController | pages/admin/users |
+| GET | `/admin/users/new` | UserController | pages/admin/user-form |
+| POST | `/admin/users` | UserController | redirect → /admin/users |
+| GET | `/admin/users/{id}/edit` | UserController | pages/admin/user-form |
+| PUT | `/admin/users/{id}` | UserController | redirect → /admin/users |
+| PUT | `/admin/users/{id}/activate` | UserController | redirect → /admin/users |
+| PUT | `/admin/users/{id}/deactivate` | UserController | redirect → /admin/users |
+| PUT | `/admin/users/{id}/rotate-password` | UserController | redirect → /admin/users |
+| DELETE | `/admin/users/{id}/delete` | UserController | redirect → /admin/users |
+| POST | `/admin/validate-login` | Spring Security | redirect → /admin/home |
+| POST | `/admin/logout` | Spring Security | redirect → /admin/login |
+
+### Future Authenticated Routes
+
+| Method | Route | Controller | View |
+|--------|-------|------------|------|
 | GET | `/places` | PlaceController | pages/places/list |
 | GET | `/places/{id}` | PlaceController | pages/places/detail |
 | GET | `/plans` | PlanController | pages/plans/list |
 | GET | `/plans/new` | PlanController | pages/plans/new |
 | POST | `/plans` | PlanController | redirect → /plans/{id} |
-| GET | `/plans/{id}` | PlanController | pages/plans/detail |
+| GET | `/plans/{id}` | PlanController | pages/places/detail |
 | PUT | `/plans/{id}` | PlanController | redirect → /plans/{id} |
 | DELETE | `/plans/{id}` | PlanController | redirect → /plans |
 | POST | `/plans/{id}/share` | PlanController | JSON { url } |
 | POST | `/plans/{id}/visibility` | PlanController | JSON { visibility } |
-
-**Spring Security handles:**
-- `POST /validate-login` → authenticates user, redirects to /home
-- `POST /logout` → invalidates session, redirects to /login
 
 ### REST API Routes (CSRF exempt)
 
@@ -245,7 +263,7 @@ src/main/webapp/resources/
 | Map library | Leaflet + OpenStreetMap | Free, no API key, open source |
 | Share mechanism | Short code in URL | Simple, no token exposure |
 | Template engine | Thymeleaf | Already in stack, server-side rendering |
-| Session auth | Spring Security | Declarative route protection, CSRF, login/logout |
+| Session auth | Spring Security | SecurityFilterChain: form login, CSRF, session management (1 per user) |
 | DB for places | PostgreSQL (prod) | Already configured, supports PostGIS if needed later |
 | Seed data | ApplicationListener | ContextRefreshedEvent seeder, migrate to Flyway later |
 | Frontend | Tailwind CSS + Vue.js (CDN) | No build step, fast development |

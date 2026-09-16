@@ -63,17 +63,17 @@ public class LoginViewE2E {
 
   @Test
   void shouldNavigateToHomeWhenUserExists() throws MalformedURLException {
-    givenUserFillsLoginFormWith("test@unlam.edu.ar", "test");
+    givenUserFillsLoginFormWith("test@unlam.edu.ar", "password");
     whenUserClicksSignIn();
     thenShouldBeRedirectedToHome();
   }
 
   @Test
   void shouldRegisterAUserAndSignInSuccessfully() throws MalformedURLException {
-    givenUserNavigatesToRegistrationPage();
-    givenUserRegistersWith("juan@unlam.edu.ar", "123456");
+    // Registration is admin-only now — create user via admin panel, then login
+    String generatedPassword = givenAdminCreatesUser("juan@unlam.edu.ar");
     givenUserIsOnLoginPage();
-    givenUserFillsLoginFormWith("juan@unlam.edu.ar", "123456");
+    givenUserFillsLoginFormWith("juan@unlam.edu.ar", generatedPassword);
     whenUserClicksSignIn();
     thenShouldBeRedirectedToHome();
   }
@@ -85,7 +85,7 @@ public class LoginViewE2E {
 
   private void givenUserIsOnLoginPage() throws MalformedURLException {
     URL loginUrl = loginPage.getCurrentUrl();
-    assertThat(loginUrl.getPath(), matchesPattern("^/login(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(loginUrl.getPath(), matchesPattern("^/admin/login(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   private void whenUserClicksSignIn() {
@@ -93,9 +93,9 @@ public class LoginViewE2E {
   }
 
   private void thenShouldBeRedirectedToHome() throws MalformedURLException {
-    loginPage.waitForPath("/home");
+    loginPage.waitForPath("/admin/home");
     URL url = loginPage.getCurrentUrl();
-    assertThat(url.getPath(), matchesPattern("^/home(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(url.getPath(), matchesPattern("^/admin/home(?:;jsessionid=[^/\\s]+)?$"));
     loginPage.waitForSessionTimerToTick();
   }
 
@@ -109,15 +109,26 @@ public class LoginViewE2E {
     loginPage.typePassword(password);
   }
 
-  private void givenUserNavigatesToRegistrationPage() {
-    loginPage.clickRegister();
-  }
-
-  private void givenUserRegistersWith(String email, String password) {
-    NewUserPage newUserPage = new NewUserPage(context.pages().get(0));
+  private String givenAdminCreatesUser(String email) {
+    Page adminPage = context.newPage();
+    LoginPage adminLogin = new LoginPage(adminPage);
+    adminLogin.typeEmail("test@unlam.edu.ar");
+    adminLogin.typePassword("password");
+    adminLogin.clickSignIn();
+    adminLogin.waitForPath("/admin/home");
+    adminLogin.navigate("localhost:8080/admin/users/new");
+    NewUserPage newUserPage = new NewUserPage(adminPage);
+    newUserPage.typeFirstName("Juan");
+    newUserPage.typeLastName("Perez");
     newUserPage.typeEmail(email);
-    newUserPage.typePassword(password);
-    newUserPage.clickRegister();
-    newUserPage.waitForPath("/login");
+    newUserPage.selectRole("USER");
+    newUserPage.clickCreate();
+    newUserPage.waitForPath("/admin/users");
+    // Read the generated password displayed on the users page
+    String generatedPassword = adminPage.locator("code").textContent();
+    context.close();
+    context = browser.newContext();
+    loginPage = new LoginPage(context.newPage());
+    return generatedPassword;
   }
 }

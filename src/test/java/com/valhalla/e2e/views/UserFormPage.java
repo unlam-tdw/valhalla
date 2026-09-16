@@ -12,16 +12,26 @@ public class UserFormPage extends WebPage {
     return this.getElementText("h3");
   }
 
+  public void typeFirstName(String name) {
+    this.typeIntoElement("#firstName", name);
+  }
+
+  public void typeLastName(String name) {
+    this.typeIntoElement("#lastName", name);
+  }
+
   public void typeEmail(String email) {
     this.typeIntoElement("#email", email);
   }
 
   public void selectRole(String role) {
     this.page.selectOption("#role", role);
+    this.page.locator("#role")
+      .evaluate("el => el.dispatchEvent(new Event('change', {bubbles: true}))");
   }
 
   public void clickCreate() {
-    this.clickElement("button[type='submit']");
+    this.clickElement("#btn-create");
   }
 
   public void clickCancel() {

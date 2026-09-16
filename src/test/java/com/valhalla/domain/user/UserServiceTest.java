@@ -90,13 +90,15 @@ public class UserServiceTest {
     when(this.userRepositoryMock.existsByEmail(email)).thenReturn(false);
 
     // when
-    this.userService.create(email, password, role);
+    this.userService.create(email, password, role, "John", "Doe");
 
     // then
     ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
     verify(this.userRepositoryMock, times(1)).save(captor.capture());
     User saved = captor.getValue();
     assertThat(saved.getEmail(), is(equalTo(email)));
+    assertThat(saved.getFirstName(), is(equalTo("John")));
+    assertThat(saved.getLastName(), is(equalTo("Doe")));
     assertThat(saved.getRole(), is(equalTo(role)));
     assertThat(saved.getActive(), is(true));
     assertThat(saved.getPassword(), not(equalTo(password)));
@@ -112,7 +114,7 @@ public class UserServiceTest {
     // when and then
     assertThrows(
       UserAlreadyExists.class,
-      () -> this.userService.create(email, "password123", "USER")
+      () -> this.userService.create(email, "password123", "USER", "John", "Doe")
     );
     verify(this.userRepositoryMock, never()).save(any(User.class));
   }
@@ -128,13 +130,15 @@ public class UserServiceTest {
     when(this.userRepositoryMock.findById(id)).thenReturn(Optional.of(existingUser));
 
     // when
-    this.userService.update(id, "new@test.com", "ADMIN");
+    this.userService.update(id, "new@test.com", "ADMIN", "Jane", "Smith");
 
     // then
     ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
     verify(this.userRepositoryMock, times(1)).update(captor.capture());
     User updated = captor.getValue();
     assertThat(updated.getEmail(), is(equalTo("new@test.com")));
+    assertThat(updated.getFirstName(), is(equalTo("Jane")));
+    assertThat(updated.getLastName(), is(equalTo("Smith")));
     assertThat(updated.getRole(), is(equalTo("ADMIN")));
   }
 
@@ -147,7 +151,7 @@ public class UserServiceTest {
     // when and then
     assertThrows(
       UserNotFoundException.class,
-      () -> this.userService.update(id, "new@test.com", "ADMIN")
+      () -> this.userService.update(id, "new@test.com", "ADMIN", "Jane", "Smith")
     );
   }
 

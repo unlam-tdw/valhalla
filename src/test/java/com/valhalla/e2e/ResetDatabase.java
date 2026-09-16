@@ -5,6 +5,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.TimeZone;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /** Resets the database to a known state using JDBC directly (no external tools). */
 public class ResetDatabase {
@@ -13,7 +15,7 @@ public class ResetDatabase {
 
   /** Deletes all users and seeds the default admin user via JDBC. */
   public static void cleanDatabase() {
-    String bcryptHash = "$2a$10$ShOBUPfT5jLImCcQoWkM6edIQ3xjC6XYzgC7RDOPLqGiTRgHMkh2K";
+    String bcryptHash = new BCryptPasswordEncoder().encode("password");
     String[] statements = {
       "DELETE FROM users",
       "ALTER SEQUENCE users_id_seq RESTART WITH 1",
@@ -36,10 +38,17 @@ public class ResetDatabase {
   }
 
   private static Connection openConnection() throws SQLException {
-    return DriverManager.getConnection(
-      EnvironmentConfig.databaseUrl(),
-      EnvironmentConfig.dbUser(),
-      EnvironmentConfig.dbPassword()
-    );
+    // Force UTC timezone — PostgreSQL rejects the deprecated "America/Buenos_Aires"
+    // name that the JDBC driver picks up from the JVM default timezone.
+    TimeZone previousTz = TimeZone.getDefault();
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+    java.util.Properties props = new java.util.Properties();
+    props.setProperty("user", EnvironmentConfig.dbUser());
+    props.setProperty("password", EnvironmentConfig.dbPassword());
+    try {
+      return DriverManager.getConnection(EnvironmentConfig.databaseUrl(), props);
+    } finally {
+      TimeZone.setDefault(previousTz);
+    }
   }
 }
