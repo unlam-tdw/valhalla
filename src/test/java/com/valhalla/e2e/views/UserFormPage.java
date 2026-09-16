@@ -18,6 +18,8 @@ public class UserFormPage extends WebPage {
 
   public void selectRole(String role) {
     this.page.selectOption("#role", role);
+    this.page.locator("#role")
+      .evaluate("el => el.dispatchEvent(new Event('change', {bubbles: true}))");
   }
 
   public void clickCreate() {
