@@ -48,7 +48,7 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
   public void addInterceptors(InterceptorRegistry registry) {
     registry
       .addInterceptor(new SessionInterceptor())
-      .addPathPatterns("/home", "/users", "/users/**");
+      .addPathPatterns("/admin/home", "/admin/users", "/admin/users/**");
     if (isLiveReload()) {
       registry
         .addInterceptor(new DevReloadInterceptor(devReloadController()))

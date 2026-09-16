@@ -49,20 +49,20 @@ public class LoginControllerTest {
   public void setUp() {
     this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
     if (userRepository.findByEmail(LOGIN_EMAIL).isEmpty()) {
-      loginService.register(LOGIN_EMAIL, LOGIN_PASSWORD);
+      loginService.register(LOGIN_EMAIL, LOGIN_PASSWORD, "Login", "Test");
     }
   }
 
   @Test
-  public void shouldRedirectToLoginPageFromRoot() throws Exception {
+  public void shouldShowLandingPage() throws Exception {
     this.mockMvc.perform(get("/"))
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/login"));
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/landing"));
   }
 
   @Test
   public void shouldReturnLoginPageWithLoginRequest() throws Exception {
-    this.mockMvc.perform(get("/login"))
+    this.mockMvc.perform(get("/admin/login"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/login"))
       .andExpect(model().attributeExists(ATTR_LOGIN_DATA));
@@ -70,7 +70,7 @@ public class LoginControllerTest {
 
   @Test
   public void shouldReturnNewUserPageWithNewUserRequest() throws Exception {
-    this.mockMvc.perform(get("/new-user"))
+    this.mockMvc.perform(get("/admin/new-user"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/new-user"))
       .andExpect(model().attributeExists(ATTR_NEW_USER_DATA));
@@ -79,16 +79,18 @@ public class LoginControllerTest {
   @Test
   public void shouldRedirectToHomeWhenCredentialsAreCorrect() throws Exception {
     this.mockMvc.perform(
-        post("/validate-login").param("email", LOGIN_EMAIL).param("password", LOGIN_PASSWORD)
+        post("/admin/validate-login").param("email", LOGIN_EMAIL).param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/home"));
+      .andExpect(redirectedUrl("/admin/home"));
   }
 
   @Test
   public void shouldReRenderLoginWithErrorWhenPasswordIsWrong() throws Exception {
     this.mockMvc.perform(
-        post("/validate-login").param("email", LOGIN_EMAIL).param("password", "wrong-password")
+        post("/admin/validate-login")
+          .param("email", LOGIN_EMAIL)
+          .param("password", "wrong-password")
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/login"))
@@ -98,7 +100,7 @@ public class LoginControllerTest {
 
   @Test
   public void shouldReRenderLoginWithValidationErrorsWhenEmailIsMissing() throws Exception {
-    this.mockMvc.perform(post("/validate-login").param("password", LOGIN_PASSWORD))
+    this.mockMvc.perform(post("/admin/validate-login").param("password", LOGIN_PASSWORD))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/login"))
       .andExpect(model().attribute("error", "Invalid email or password"))
@@ -108,7 +110,9 @@ public class LoginControllerTest {
   @Test
   public void shouldReRenderLoginWithValidationErrorsWhenEmailIsInvalid() throws Exception {
     this.mockMvc.perform(
-        post("/validate-login").param("email", "not-an-email").param("password", LOGIN_PASSWORD)
+        post("/admin/validate-login")
+          .param("email", "not-an-email")
+          .param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/login"))
@@ -119,22 +123,34 @@ public class LoginControllerTest {
   @Test
   public void shouldRedirectToLoginWhenRegisteringWithANewEmail() throws Exception {
     this.mockMvc.perform(
-        post("/register").param("email", "new@unlam.edu.ar").param("password", "new-password")
+        post("/admin/register")
+          .param("firstName", "New")
+          .param("lastName", "User")
+          .param("email", "new@unlam.edu.ar")
+          .param("password", "new-password")
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/login"));
+      .andExpect(redirectedUrl("/admin/login"));
   }
 
   @Test
   public void shouldReRenderNewUserWithErrorWhenEmailAlreadyExists() throws Exception {
     String duplicateEmail = "duplicate@unlam.edu.ar";
     this.mockMvc.perform(
-        post("/register").param("email", duplicateEmail).param("password", LOGIN_PASSWORD)
+        post("/admin/register")
+          .param("firstName", "Dup")
+          .param("lastName", "User")
+          .param("email", duplicateEmail)
+          .param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().is3xxRedirection());
 
     this.mockMvc.perform(
-        post("/register").param("email", duplicateEmail).param("password", "another-password")
+        post("/admin/register")
+          .param("firstName", "Dup")
+          .param("lastName", "User")
+          .param("email", duplicateEmail)
+          .param("password", "another-password")
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/new-user"))
@@ -143,7 +159,13 @@ public class LoginControllerTest {
 
   @Test
   public void shouldReRenderNewUserWithValidationErrorsWhenInputIsInvalid() throws Exception {
-    this.mockMvc.perform(post("/register").param("email", "not-an-email").param("password", "123"))
+    this.mockMvc.perform(
+        post("/admin/register")
+          .param("firstName", "")
+          .param("lastName", "")
+          .param("email", "not-an-email")
+          .param("password", "123")
+      )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/new-user"))
       .andExpect(model().attribute("error", "Invalid registration data"))
@@ -152,18 +174,21 @@ public class LoginControllerTest {
 
   @Test
   public void shouldRedirectToLoginFromHomeWhenNotAuthenticated() throws Exception {
-    this.mockMvc.perform(get("/home"))
+    this.mockMvc.perform(get("/admin/home"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/login"));
+      .andExpect(redirectedUrl("/admin/login"));
   }
 
   @Test
   public void shouldShowHomeWhenAuthenticated() throws Exception {
     MockHttpSession session = new MockHttpSession();
-    session.setAttribute(SessionInterceptor.USER_SESSION, new UserSession(LOGIN_EMAIL, "USER"));
+    session.setAttribute(
+      SessionInterceptor.USER_SESSION,
+      new UserSession(LOGIN_EMAIL, "ADMIN", "Login", "Test")
+    );
     session.setAttribute("loginTime", System.currentTimeMillis());
 
-    this.mockMvc.perform(get("/home").session(session))
+    this.mockMvc.perform(get("/admin/home").session(session))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/home"))
       .andExpect(model().attributeExists("user"))
@@ -173,11 +198,14 @@ public class LoginControllerTest {
   @Test
   public void shouldInvalidateSessionAndRedirectToLoginOnLogout() throws Exception {
     MockHttpSession session = new MockHttpSession();
-    session.setAttribute(SessionInterceptor.USER_SESSION, new UserSession(LOGIN_EMAIL, "USER"));
+    session.setAttribute(
+      SessionInterceptor.USER_SESSION,
+      new UserSession(LOGIN_EMAIL, "ADMIN", "Login", "Test")
+    );
 
-    this.mockMvc.perform(post("/logout").session(session))
+    this.mockMvc.perform(post("/admin/logout").session(session))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/login"));
+      .andExpect(redirectedUrl("/admin/login"));
 
     assertThat(session.isInvalid(), is(true));
   }

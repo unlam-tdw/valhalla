@@ -70,8 +70,8 @@ public class LoginViewE2E {
 
   @Test
   void shouldRegisterAUserAndSignInSuccessfully() throws MalformedURLException {
-    givenUserNavigatesToRegistrationPage();
-    givenUserRegistersWith("juan@unlam.edu.ar", "123456");
+    // Registration is admin-only now — create user via admin panel, then login
+    givenAdminCreatesUser("juan@unlam.edu.ar", "123456");
     givenUserIsOnLoginPage();
     givenUserFillsLoginFormWith("juan@unlam.edu.ar", "123456");
     whenUserClicksSignIn();
@@ -85,7 +85,7 @@ public class LoginViewE2E {
 
   private void givenUserIsOnLoginPage() throws MalformedURLException {
     URL loginUrl = loginPage.getCurrentUrl();
-    assertThat(loginUrl.getPath(), matchesPattern("^/login(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(loginUrl.getPath(), matchesPattern("^/admin/login(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   private void whenUserClicksSignIn() {
@@ -93,9 +93,9 @@ public class LoginViewE2E {
   }
 
   private void thenShouldBeRedirectedToHome() throws MalformedURLException {
-    loginPage.waitForPath("/home");
+    loginPage.waitForPath("/admin/home");
     URL url = loginPage.getCurrentUrl();
-    assertThat(url.getPath(), matchesPattern("^/home(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(url.getPath(), matchesPattern("^/admin/home(?:;jsessionid=[^/\\s]+)?$"));
     loginPage.waitForSessionTimerToTick();
   }
 
@@ -109,15 +109,22 @@ public class LoginViewE2E {
     loginPage.typePassword(password);
   }
 
-  private void givenUserNavigatesToRegistrationPage() {
-    loginPage.clickRegister();
-  }
-
-  private void givenUserRegistersWith(String email, String password) {
+  private void givenAdminCreatesUser(String email, String password) {
+    LoginPage adminLogin = new LoginPage(context.newPage());
+    adminLogin.typeEmail("test@unlam.edu.ar");
+    adminLogin.typePassword("test");
+    adminLogin.clickSignIn();
+    adminLogin.waitForPath("/admin/home");
+    adminLogin.navigate("localhost:8080/admin/users/new");
     NewUserPage newUserPage = new NewUserPage(context.pages().get(0));
+    newUserPage.typeFirstName("Juan");
+    newUserPage.typeLastName("Perez");
     newUserPage.typeEmail(email);
-    newUserPage.typePassword(password);
-    newUserPage.clickRegister();
-    newUserPage.waitForPath("/login");
+    newUserPage.selectRole("USER");
+    newUserPage.clickCreate();
+    newUserPage.waitForPath("/admin/users");
+    context.close();
+    context = browser.newContext();
+    loginPage = new LoginPage(context.newPage());
   }
 }

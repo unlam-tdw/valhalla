@@ -34,7 +34,13 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public void create(String email, String password, String role) {
+  public void create(
+    String email,
+    String password,
+    String role,
+    String firstName,
+    String lastName
+  ) {
     if (userRepository.existsByEmail(email)) {
       throw new UserAlreadyExists();
     }
@@ -42,15 +48,19 @@ public class UserServiceImpl implements UserService {
     user.setEmail(email);
     user.setPassword(passwordEncoder.encode(password));
     user.setRole(role);
+    user.setFirstName(firstName);
+    user.setLastName(lastName);
     user.setActive(true);
     userRepository.save(user);
   }
 
   @Override
-  public void update(Long id, String email, String role) {
+  public void update(Long id, String email, String role, String firstName, String lastName) {
     User user = findById(id);
     user.setEmail(email);
     user.setRole(role);
+    user.setFirstName(firstName);
+    user.setLastName(lastName);
     userRepository.update(user);
   }
 

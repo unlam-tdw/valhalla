@@ -45,7 +45,7 @@ graph LR
 
 ## Sprint 1 : Base
 
-**Objetivo:** Spring Security funcional, login/logout/register andando.
+**Objetivo:** Login/logout andando, admin UI bajo `/admin`, landing page en `/`.
 
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
@@ -54,7 +54,7 @@ graph LR
 | C | **[LOG]** | 01-LOG.md | Ayuda a A o prepara infra de testing |
 
 **Salida esperada:**
-- `mvn jetty:run` levanta, login/logout/register funcionan
+- `mvn jetty:run` levanta, `/admin` login/logout funcionan, landing page en `/`
 - Header muestra email del usuario logueado
 - Validación de formulario andando
 

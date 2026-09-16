@@ -7,10 +7,22 @@
 
   <main class="flex-1 flex items-center justify-center p-4">
     <div id="register-app" class="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
-      <form ref="form" @submit.prevent="submit" action="#" th:action="@{/register}" method="POST">
+      <form ref="form" @submit.prevent="submit" action="#" th:action="@{/admin/register}" method="POST">
         <h3 class="mb-2 text-2xl font-semibold text-gray-900">New User</h3>
         <hr class="mb-6 border-gray-200">
-        <div>
+        <div class="flex gap-4">
+          <div class="flex-1">
+            <label for="firstName" class="mb-1 block text-sm font-medium text-gray-700">First Name</label>
+            <input v-model="firstName" id="firstName" name="firstName" type="text" autocomplete="given-name"
+              class="mb-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+          </div>
+          <div class="flex-1">
+            <label for="lastName" class="mb-1 block text-sm font-medium text-gray-700">Last Name</label>
+            <input v-model="lastName" id="lastName" name="lastName" type="text" autocomplete="family-name"
+              class="mb-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+          </div>
+        </div>
+        <div class="mt-4">
           <label for="email" class="mb-1 block text-sm font-medium text-gray-700">Email</label>
           <input v-model="email" id="email" name="email" type="email" autocomplete="username"
             class="mb-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
@@ -32,6 +44,8 @@
       const app = Vue.createApp({
         data() {
           return {
+            firstName: '',
+            lastName: '',
             email: '',
             password: '',
             error: '[[${error}]]',

@@ -109,13 +109,15 @@ public class LoginServiceTest {
     when(this.userRepositoryMock.findByEmail(email)).thenReturn(Optional.empty());
 
     // when
-    this.loginService.register(email, password);
+    this.loginService.register(email, password, "John", "Doe");
 
     // then
     ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
     verify(this.userRepositoryMock, times(1)).save(captor.capture());
     User saved = captor.getValue();
     assertThat(saved.getEmail(), is(equalTo(email)));
+    assertThat(saved.getFirstName(), is(equalTo("John")));
+    assertThat(saved.getLastName(), is(equalTo("Doe")));
     assertThat(saved.getRole(), is(equalTo("USER")));
     assertThat(saved.getActive(), is(true));
     assertThat(saved.getPassword(), not(equalTo(password)));
@@ -129,7 +131,10 @@ public class LoginServiceTest {
     when(this.userRepositoryMock.findByEmail(email)).thenReturn(Optional.of(new User()));
 
     // when and then
-    assertThrows(UserAlreadyExists.class, () -> this.loginService.register(email, "password123"));
+    assertThrows(
+      UserAlreadyExists.class,
+      () -> this.loginService.register(email, "password123", "John", "Doe")
+    );
     verify(this.userRepositoryMock, times(0)).save(any(User.class));
   }
 
@@ -145,7 +150,7 @@ public class LoginServiceTest {
     // when and then: signup is rejected because the email already exists
     assertThrows(
       UserAlreadyExists.class,
-      () -> this.loginService.register(email, "differentPassword")
+      () -> this.loginService.register(email, "differentPassword", "John", "Doe")
     );
     verify(this.userRepositoryMock, times(0)).save(any(User.class));
   }

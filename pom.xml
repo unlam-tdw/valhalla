@@ -473,7 +473,7 @@
                     <httpConnector>
                         <port>8080</port>
                     </httpConnector>
-                    <scan>1</scan>
+                    <scan>-1</scan>
                     <webApp>
                         <contextPath>/</contextPath>
                     </webApp>
