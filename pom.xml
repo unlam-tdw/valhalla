@@ -202,15 +202,38 @@
                 <version>3.5.3</version>
 
                 <configuration>
-                    <!-- Test-specific configuration -->
+                    <!-- Unit + integration tests (everything except E2E) -->
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
+                    <excludes>
+                        <exclude>**/e2e/**</exclude>
+                    </excludes>
                     <!-- Load Mockito as a real agent so it stops self-attaching and
                          stops warning about dynamic agent loading. @{argLine} keeps
                          the JaCoCo agent injected by prepare-agent. -->
                     <argLine>@{argLine} -Xshare:off -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
                 </configuration>
+            </plugin>
+
+            <!-- E2E tests: runs after jetty starts, before it stops -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.3</version>
+                <configuration>
+                    <includes>
+                        <include>**/e2e/**</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
@@ -486,6 +509,22 @@
                         <contextPath>/</contextPath>
                     </webApp>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>start-jetty</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>stop-jetty</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
