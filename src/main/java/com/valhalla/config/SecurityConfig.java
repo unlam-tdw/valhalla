@@ -23,7 +23,7 @@ public class SecurityConfig {
       .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
       .authorizeHttpRequests(auth ->
         auth
-          .requestMatchers("/", "/share/**", "/api/**")
+          .requestMatchers("/", "/share/**", "/api/**", "/reload/**")
           .permitAll()
           .requestMatchers("/css/**", "/js/**", "/images/**")
           .permitAll()

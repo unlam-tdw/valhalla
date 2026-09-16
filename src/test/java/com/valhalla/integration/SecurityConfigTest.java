@@ -43,4 +43,9 @@ public class SecurityConfigTest {
   public void shouldAllowPublicAccessToLandingPage() throws Exception {
     this.mockMvc.perform(get("/")).andExpect(status().isOk());
   }
+
+  @Test
+  public void shouldAllowPublicAccessToReloadEndpoint() throws Exception {
+    this.mockMvc.perform(get("/reload/version")).andExpect(status().isOk());
+  }
 }
