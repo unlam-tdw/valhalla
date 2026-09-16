@@ -10,6 +10,20 @@ jobs:
   backend:
     name: Build + Test + Quality
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: valhalla
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: user
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d valhalla"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +34,7 @@ jobs:
           cache: maven
 
       - name: Build, test, and quality gates
-        run: mvn clean verify --fail-at-end
+        run: mvn clean verify --fail-at-end -DskipITs
 
       - name: Upload coverage report
         if: always()
@@ -81,7 +95,7 @@ jobs:
           echo "Server did not start in time" && exit 1
 
       - name: Run E2E tests
-        run: mvn failsafe:integration-test failsafe:verify -DskipTests
+        run: mvn failsafe:integration-test failsafe:verify
         env:
           DB_HOST: localhost
           DB_PORT: 5432
