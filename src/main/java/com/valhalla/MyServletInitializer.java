@@ -3,8 +3,6 @@ package com.valhalla;
 import com.valhalla.config.DevClassReloader;
 import com.valhalla.config.JpaConfig;
 import com.valhalla.config.SpringWebConfig;
-import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
@@ -33,25 +31,12 @@ public class MyServletInitializer extends AbstractAnnotationConfigDispatcherServ
     throws jakarta.servlet.ServletException {
     super.onStartup(servletContext);
 
-    // Dev-only class hot-reload: watches target/classes for .class changes
-    // and triggers a context reload after a debounce period. Only active
-    // when running via mvn jetty:run (target/classes exists).
+    // Dev-only: watches target/classes for .class changes and restarts the
+    // container (System.exit(1)) so Docker picks up new classes on restart.
     Path classesDir = Path.of("target/classes");
     if (Files.exists(classesDir)) {
       DevClassReloader reloader = new DevClassReloader(classesDir);
-      servletContext.addListener(
-        new ServletContextListener() {
-          @Override
-          public void contextInitialized(ServletContextEvent sce) {
-            reloader.start(sce.getServletContext());
-          }
-
-          @Override
-          public void contextDestroyed(ServletContextEvent sce) {
-            reloader.stop();
-          }
-        }
-      );
+      reloader.start();
     }
   }
 }
