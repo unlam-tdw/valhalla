@@ -1,6 +1,5 @@
 package com.valhalla.config;
 
-import jakarta.servlet.ServletContext;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -72,7 +71,7 @@ public final class DevClassReloader {
           LOGGER.info("Class changes detected, restarting container...");
         }
         // Exit with code 1 → Docker restarts the container → fresh classes loaded
-        System.exit(1);
+        System.exit(1); // NOPMD — intentional: dev-only container restart trigger
       }
       lastModified = current;
     } catch (IOException e) {
