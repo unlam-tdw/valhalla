@@ -21,10 +21,13 @@ public class SessionInterceptor implements HandlerInterceptor {
       response.sendRedirect(request.getContextPath() + "/admin/login");
       return false;
     }
-    UserSession userSession = (UserSession) session.getAttribute(USER_SESSION);
-    if (!"ADMIN".equals(userSession.getRole())) {
-      response.sendRedirect(request.getContextPath() + "/admin/login");
-      return false;
+    String path = request.getServletPath();
+    if (path.startsWith("/admin/users")) {
+      UserSession userSession = (UserSession) session.getAttribute(USER_SESSION);
+      if (!"ADMIN".equals(userSession.getRole())) {
+        response.sendRedirect(request.getContextPath() + "/admin/login");
+        return false;
+      }
     }
     return true;
   }
