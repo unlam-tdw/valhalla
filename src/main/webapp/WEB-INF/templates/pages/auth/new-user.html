@@ -8,6 +8,7 @@
   <main class="flex-1 flex items-center justify-center p-4">
     <div id="register-app" class="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
       <form ref="form" @submit.prevent="submit" action="#" th:action="@{/admin/register}" method="POST">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <h3 class="mb-2 text-2xl font-semibold text-gray-900">New User</h3>
         <hr class="mb-6 border-gray-200">
         <div class="flex gap-4">

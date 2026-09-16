@@ -143,6 +143,14 @@
             <version>3.1.5.RELEASE</version>
         </dependency>
 
+        <!-- Spring Security test support -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <version>6.5.11</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Form validation with Bean Validation (Jakarta) -->
         <dependency>
             <groupId>org.hibernate.validator</groupId>

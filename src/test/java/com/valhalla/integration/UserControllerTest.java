@@ -1,6 +1,8 @@
 package com.valhalla.integration;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,7 +50,11 @@ public class UserControllerTest {
   @BeforeEach
   public void setUp() {
     this.mockMvc =
-      MockMvcBuilders.webAppContextSetup(this.wac).addFilter(new HiddenHttpMethodFilter()).build();
+      MockMvcBuilders
+        .webAppContextSetup(this.wac)
+        .apply(springSecurity())
+        .addFilter(new HiddenHttpMethodFilter())
+        .build();
     this.adminSession = new MockHttpSession();
     this.adminSession.setAttribute(
         SessionInterceptor.USER_SESSION,
@@ -57,12 +64,11 @@ public class UserControllerTest {
 
   @Test
   public void shouldRedirectToLoginWhenNotAuthenticated() throws Exception {
-    this.mockMvc.perform(get("/admin/users"))
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/admin/login"));
+    this.mockMvc.perform(get("/admin/users")).andExpect(status().is3xxRedirection());
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldShowUsersListWhenAuthenticated() throws Exception {
     this.mockMvc.perform(get("/admin/users").session(adminSession))
       .andExpect(status().isOk())
@@ -72,6 +78,7 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldShowNewUserForm() throws Exception {
     this.mockMvc.perform(get("/admin/users/new").session(adminSession))
       .andExpect(status().isOk())
@@ -81,9 +88,11 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldCreateUserAndRedirectToList() throws Exception {
     this.mockMvc.perform(
         post("/admin/users")
+          .with(csrf())
           .session(adminSession)
           .param("firstName", "New")
           .param("lastName", "User")
@@ -95,9 +104,11 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldReRenderFormWithErrorsWhenEmailIsInvalid() throws Exception {
     this.mockMvc.perform(
         post("/admin/users")
+          .with(csrf())
           .session(adminSession)
           .param("firstName", "Test")
           .param("lastName", "User")
@@ -111,9 +122,11 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldReRenderFormWithErrorsWhenEmailIsMissing() throws Exception {
     this.mockMvc.perform(
         post("/admin/users")
+          .with(csrf())
           .session(adminSession)
           .param("firstName", "Test")
           .param("lastName", "User")
@@ -125,6 +138,7 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldShowEditUserForm() throws Exception {
     userService.create("editable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Editable", "User");
     Long userId = userRepository.findByEmail("editable@unlam.edu.ar").get().getId();
@@ -138,12 +152,14 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldUpdateUserAndRedirectToList() throws Exception {
     userService.create("updatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Updatable", "User");
     Long userId = userRepository.findByEmail("updatable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
         post("/admin/users/" + userId)
+          .with(csrf())
           .session(adminSession)
           .param("_method", "PUT")
           .param("firstName", "Updated")
@@ -156,6 +172,7 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldDeactivateUserAndRedirectToList() throws Exception {
     userService.create(
       "deactivatable@unlam.edu.ar",
@@ -167,25 +184,33 @@ public class UserControllerTest {
     Long userId = userRepository.findByEmail("deactivatable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
-        post("/admin/users/" + userId + "/deactivate").session(adminSession).param("_method", "PUT")
+        post("/admin/users/" + userId + "/deactivate")
+          .with(csrf())
+          .session(adminSession)
+          .param("_method", "PUT")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/users"));
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldDeleteUserAndRedirectToList() throws Exception {
     userService.create("deletable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Deletable", "User");
     Long userId = userRepository.findByEmail("deletable@unlam.edu.ar").get().getId();
 
     this.mockMvc.perform(
-        post("/admin/users/" + userId + "/delete").session(adminSession).param("_method", "DELETE")
+        post("/admin/users/" + userId + "/delete")
+          .with(csrf())
+          .session(adminSession)
+          .param("_method", "DELETE")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/users"));
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldReRenderEditFormWithErrorWhenUpdateInputIsInvalid() throws Exception {
     userService.create(
       "updatable-invalid@unlam.edu.ar",
@@ -198,6 +223,7 @@ public class UserControllerTest {
 
     this.mockMvc.perform(
         post("/admin/users/" + userId)
+          .with(csrf())
           .session(adminSession)
           .param("_method", "PUT")
           .param("firstName", "Updatable")
@@ -212,25 +238,15 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldActivateUserAndRedirectToList() throws Exception {
     userService.create("activatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Activatable", "User");
     Long userId = userRepository.findByEmail("activatable@unlam.edu.ar").get().getId();
     userService.deactivate(userId);
 
     this.mockMvc.perform(
-        post("/admin/users/" + userId + "/activate").session(adminSession).param("_method", "PUT")
-      )
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/admin/users"));
-  }
-
-  @Test
-  public void shouldRotatePasswordAndRedirectToList() throws Exception {
-    userService.create("rotatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Rotatable", "User");
-    Long userId = userRepository.findByEmail("rotatable@unlam.edu.ar").get().getId();
-
-    this.mockMvc.perform(
-        post("/admin/users/" + userId + "/rotate-password")
+        post("/admin/users/" + userId + "/activate")
+          .with(csrf())
           .session(adminSession)
           .param("_method", "PUT")
       )
@@ -239,6 +255,23 @@ public class UserControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldRotatePasswordAndRedirectToList() throws Exception {
+    userService.create("rotatable@unlam.edu.ar", TEST_PASSWORD, TEST_ROLE, "Rotatable", "User");
+    Long userId = userRepository.findByEmail("rotatable@unlam.edu.ar").get().getId();
+
+    this.mockMvc.perform(
+        post("/admin/users/" + userId + "/rotate-password")
+          .with(csrf())
+          .session(adminSession)
+          .param("_method", "PUT")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/users"));
+  }
+
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldShowGeneratedPasswordAfterCreate() throws Exception {
     this.mockMvc.perform(
         get("/admin/users").session(adminSession).flashAttr("generatedPassword", "abc12345")

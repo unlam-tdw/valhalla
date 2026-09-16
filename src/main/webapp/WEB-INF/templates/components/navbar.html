@@ -1,25 +1,32 @@
 <nav th:fragment="navbar" xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
   class="flex items-center justify-between bg-gray-900 px-4 text-white shadow">
   <a class="navbar-brand inline-block py-3 text-lg font-semibold hover:text-gray-300"
     th:href="@{/admin/home}">UNLAM</a>
-  <div id="navbar-app" th:if="${user != null}" class="flex items-center gap-4 text-sm">
+  <div sec:authorize="isAuthenticated()" class="flex items-center gap-4 text-sm">
     <a th:href="@{/admin/home}"
       class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
       Home
     </a>
-    <a th:href="@{/admin/users}" th:if="${user.role == 'ADMIN'}"
+    <a th:href="@{/admin/users}" sec:authorize="hasRole('ADMIN')"
       class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
       Users
     </a>
     <span class="text-gray-300">Signed in as
-      <span class="font-medium text-white" th:text="${user.fullName}">name</span>
+      <span class="font-medium text-white" sec:authentication="name">user</span>
     </span>
     <form th:action="@{/admin/logout}" method="POST" class="inline">
-      <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
       <button type="submit"
         class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
         Logout
       </button>
     </form>
+  </div>
+  <div sec:authorize="!isAuthenticated()" class="flex items-center gap-4 text-sm">
+    <a th:href="@{/admin/login}"
+      class="rounded-md bg-blue-600 px-3 py-2 font-medium hover:bg-blue-500">
+      Login
+    </a>
   </div>
 </nav>
