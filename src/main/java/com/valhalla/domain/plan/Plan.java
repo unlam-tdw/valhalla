@@ -4,9 +4,6 @@ import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-
-import com.valhalla.domain.place.Place;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -56,6 +53,14 @@ public class Plan {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    public List<PlanPlace> getPlanPlaces() {
+        return planPlaces;
+    }
+
+    public void setPlanPlaces(List<PlanPlace> planPlaces) {
+        this.planPlaces = planPlaces;
+    }
 
     public enum Visibility {
         PUBLIC, PRIVATE
