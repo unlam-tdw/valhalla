@@ -34,8 +34,6 @@ public class Plan {
     @Column(name = "short_code", unique = true)
     private String shortCode;
 
-
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
