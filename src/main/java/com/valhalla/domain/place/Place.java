@@ -1,5 +1,6 @@
 package com.valhalla.domain.place;
 
+import com.valhalla.domain.ubicacion.Ubicacion;
 import jakarta.persistence.*;
 
 @Entity
@@ -13,9 +14,26 @@ public class Place {
     @Column(nullable = false)
     private String name;
 
-    private String address;
+    public String getDescription() {
+        return description;
+    }
 
-    private String city;
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    private String description;
+
+    public Ubicacion getLocation() {
+        return location;
+    }
+
+    public void setLocation(Ubicacion location) {
+        this.location = location;
+    }
+
+    private Ubicacion location;
+
 
     public Long getId() {
         return id;
@@ -33,19 +51,5 @@ public class Place {
         this.name = name;
     }
 
-    public String getAddress() {
-        return address;
-    }
 
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
 }

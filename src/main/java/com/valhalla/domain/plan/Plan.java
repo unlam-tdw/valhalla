@@ -1,13 +1,14 @@
 package com.valhalla.domain.plan;
 
+import com.valhalla.domain.place.Place;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalTime;
+import java.util.*;
 
 @Entity
 @Table(name = "plans")
@@ -15,61 +16,50 @@ public class Plan {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long IdPlan;
 
     @NotBlank(message = "Plan name is required")
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "visit_date")
-    private LocalDate visitDate;
+    private Date eventDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Visibility visibility = Visibility.PRIVATE;
+    @ManyToOne
+    @JoinColumn(name = "administrator_id", nullable = false)
+    private User administrator;
 
-    @Column(name = "short_code", unique = true)
-    private String shortCode;
+    private Date eventDateCreated;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private LocalTime startTime;
+
+    private LocalTime endTime;
+
+    private String codigo;
+
+    private Boolean isPublic;
 
     @ManyToMany
     @JoinTable(
-            name = "plan_participants",
+            name = "plan_places",
             joinColumns = @JoinColumn(name = "plan_id"),
-            inverseJoinColumns = @JoinColumn(name = "user_id")
+            inverseJoinColumns = @JoinColumn(name = "place_id")
     )
-    private List<User> participants = new ArrayList<>();
+    private ArrayList<Place> places = new ArrayList<>();
 
-    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PlanPlace> planPlaces = new ArrayList<>();
+    @ManyToOne
+    @JoinColumn(name = "selected_place_id")
+    private Place selectedPlace = null;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Map<User, Long> participants = new HashMap<User, Long>();
 
-    public List<PlanPlace> getPlanPlaces() {
-        return planPlaces;
+    public Long getIdPlan() {
+        return IdPlan;
     }
 
-    public void setPlanPlaces(List<PlanPlace> planPlaces) {
-        this.planPlaces = planPlaces;
-    }
-
-    public enum Visibility {
-        PUBLIC, PRIVATE
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
+    public void setIdPlan(Long idPlan) {
+        IdPlan = idPlan;
     }
 
     public String getName() {
@@ -80,6 +70,14 @@ public class Plan {
         this.name = name;
     }
 
+    public Date getEventDate() {
+        return eventDate;
+    }
+
+    public void setEventDate(Date eventDate) {
+        this.eventDate = eventDate;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -88,51 +86,75 @@ public class Plan {
         this.description = description;
     }
 
-    public LocalDate getVisitDate() {
-        return visitDate;
+    public User getAdministrator() {
+        return administrator;
     }
 
-    public void setVisitDate(LocalDate visitDate) {
-        this.visitDate = visitDate;
+    public void setAdministrator(User administrator) {
+        this.administrator = administrator;
     }
 
-    public Visibility getVisibility() {
-        return visibility;
+    public Date getEventDateCreated() {
+        return eventDateCreated;
     }
 
-    public void setVisibility(Visibility visibility) {
-        this.visibility = visibility;
+    public void setEventDateCreated(Date eventDateCreated) {
+        this.eventDateCreated = eventDateCreated;
     }
 
-    public String getShortCode() {
-        return shortCode;
+    public LocalTime getStartTime() {
+        return startTime;
     }
 
-    public void setShortCode(String shortCode) {
-        this.shortCode = shortCode;
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
     }
 
-    public User getUser() {
-        return user;
+    public LocalTime getEndTime() {
+        return endTime;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
     }
 
-    public List<User> getParticipants() {
+    public String getCodigo() {
+        return codigo;
+    }
+
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
+    }
+
+    public Boolean getPublic() {
+        return isPublic;
+    }
+
+    public void setPublic(Boolean aPublic) {
+        isPublic = aPublic;
+    }
+
+    public ArrayList<Place> getPlaces() {
+        return places;
+    }
+
+    public void setPlaces(ArrayList<Place> places) {
+        this.places = places;
+    }
+
+    public Place getSelectedPlace() {
+        return selectedPlace;
+    }
+
+    public void setSelectedPlace(Place selectedPlace) {
+        this.selectedPlace = selectedPlace;
+    }
+
+    public Map<User, Long> getParticipants() {
         return participants;
     }
 
-    public void setParticipants(List<User> participants) {
+    public void setParticipants(Map<User, Long> participants) {
         this.participants = participants;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }
