@@ -10,34 +10,34 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class PlaceServiceImpl implements PlaceService {
 
-    private final PlaceRepository placeRepository;
+  private final PlaceRepository placeRepository;
 
-    @Autowired
-    public PlaceServiceImpl(PlaceRepository placeRepository) {
-        this.placeRepository = placeRepository;
-    }
+  @Autowired
+  public PlaceServiceImpl(PlaceRepository placeRepository) {
+    this.placeRepository = placeRepository;
+  }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Place> getAllPlaces() {
-        return placeRepository.findAll();
-    }
+  @Override
+  @Transactional(readOnly = true)
+  public List<Place> getAllPlaces() {
+    return placeRepository.findAll();
+  }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<Place> getPlaceById(Long id) {
-        return placeRepository.findById(id);
-    }
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Place> getPlaceById(Long id) {
+    return placeRepository.findById(id);
+  }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Place> getPlacesByCategory(String category) {
-        return placeRepository.findByCategory(category);
-    }
+  @Override
+  @Transactional(readOnly = true)
+  public List<Place> getPlacesByCategory(String category) {
+    return placeRepository.findByCategory(category);
+  }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Place> searchPlaces(String query) {
-        return placeRepository.findByNameContainingIgnoreCase(query);
-    }
+  @Override
+  @Transactional(readOnly = true)
+  public List<Place> searchPlaces(String query) {
+    return placeRepository.findByNameContainingIgnoreCase(query);
+  }
 }
