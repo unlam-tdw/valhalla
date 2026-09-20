@@ -1,10 +1,217 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Crear plan</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f5f7;
+            color: #222;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .row .form-group {
+            flex: 1;
+        }
+
+        .checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox input {
+            width: auto;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button,
+        .cancel {
+            padding: 11px 20px;
+            border-radius: 7px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 15px;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .cancel {
+            background-color: #e5e7eb;
+            color: #222;
+        }
+    </style>
 </head>
+
 <body>
+
+<div class="container">
+
+    <h1>Crear nuevo plan</h1>
+
+    <p class="subtitle">
+        Completá los datos para crear tu plan.
+    </p>
+
+    <form th:action="@{/planes/crear}" method="post">
+
+        <div class="form-group">
+            <label for="name">Nombre del plan</label>
+            <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Ej: Salida por Buenos Aires"
+                    required>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Descripción</label>
+            <textarea
+                    id="description"
+                    name="description"
+                    placeholder="Contá brevemente de qué se trata el plan..."></textarea>
+        </div>
+
+        <div class="row">
+
+            <div class="form-group">
+                <label for="eventDate">Fecha</label>
+                <input
+                        type="date"
+                        id="eventDate"
+                        name="eventDate">
+            </div>
+
+            <div class="form-group">
+                <label for="startTime">Hora de inicio</label>
+                <input
+                        type="time"
+                        id="startTime"
+                        name="startTime">
+            </div>
+
+            <div class="form-group">
+                <label for="endTime">Hora de finalización</label>
+                <input
+                        type="time"
+                        id="endTime"
+                        name="endTime">
+            </div>
+
+        </div>
+
+        <div class="form-group">
+            <label for="codigo">Código</label>
+            <input
+                    type="text"
+                    id="codigo"
+                    name="codigo"
+                    placeholder="Código para compartir el plan">
+        </div>
+
+        <div class="form-group">
+
+            <label>Visibilidad</label>
+
+            <div class="checkbox">
+                <input
+                        type="checkbox"
+                        id="isPublic"
+                        name="isPublic">
+
+                <label for="isPublic">
+                    Hacer público este plan
+                </label>
+            </div>
+
+        </div>
+
+        <div class="buttons">
+
+            <a href="/planes" class="cancel">
+                Cancelar
+            </a>
+
+            <button type="submit">
+                Crear plan
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
 
 </body>
 </html>
+```
