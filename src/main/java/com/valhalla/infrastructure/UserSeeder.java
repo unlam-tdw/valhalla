@@ -23,7 +23,7 @@ public class UserSeeder implements ApplicationListener<ContextRefreshedEvent> {
     if (seeded || userService == null) return;
     seeded = true;
     try {
-      userService.create("test@unlam.edu.ar", "password", "ADMIN");
+      userService.create("test@unlam.edu.ar", "password", "ADMIN", "Admin", "Test");
       LOGGER.info("Test admin user created: test@unlam.edu.ar");
     } catch (UserAlreadyExists e) {
       LOGGER.info("Test admin user already exists, skipping seed");

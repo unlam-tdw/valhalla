@@ -21,15 +21,16 @@ Validation happens in two places:
 Using Hibernate Validator annotations on DTOs:
 
 ```java
-package com.valhalla.presentation.login;
+package com.valhalla.presentation.shared;
 
-public class LoginRequest {
+public class NewUserRequest {
 
   @NotBlank(message = "Email is required")
   @Email(message = "Email is not valid")
   private String email;
 
   @NotBlank(message = "Password is required")
+  @Size(min = 6, message = "Password must be at least 6 characters")
   private String password;
 }
 ```
@@ -39,14 +40,14 @@ Controller checks `BindingResult`:
 ```java
 package com.valhalla.presentation.login;
 
-@PostMapping("/validate-login")
-public ModelAndView validateLogin(
-  @Valid @ModelAttribute("loginData") LoginRequest loginData,
+@PostMapping("/admin/register")
+public ModelAndView register(
+  @Valid @ModelAttribute("newUserData") NewUserRequest newUserData,
   BindingResult bindingResult
 ) {
   if (bindingResult.hasErrors()) {
     // Re-render form with validation errors
-    return renderLoginWithError(loginData);
+    return renderNewUserWithError(newUserData);
   }
   // ... proceed with business logic
 }

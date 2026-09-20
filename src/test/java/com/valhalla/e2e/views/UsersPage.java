@@ -10,7 +10,7 @@ public class UsersPage extends WebPage {
   }
 
   public void navigateToUsers() {
-    page.navigate("localhost:8080/users");
+    page.navigate("localhost:8080/admin/users");
   }
 
   public String getHeading() {
@@ -29,7 +29,7 @@ public class UsersPage extends WebPage {
   }
 
   public void clickNewUser() {
-    this.clickElement("a[href='/users/new']");
+    this.clickElement("a[href='/admin/users/new']");
   }
 
   public void clickEditOnRow(String email) {

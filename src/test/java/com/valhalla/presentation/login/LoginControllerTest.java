@@ -1,13 +1,10 @@
 package com.valhalla.presentation.login;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.text.IsEqualIgnoringCase.equalToIgnoringCase;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -16,15 +13,10 @@ import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
-import com.valhalla.domain.user.User;
 import com.valhalla.presentation.shared.NewUserRequest;
-import com.valhalla.presentation.shared.SessionInterceptor;
-import com.valhalla.presentation.shared.UserSession;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.servlet.ModelAndView;
@@ -32,71 +24,16 @@ import org.springframework.web.servlet.ModelAndView;
 public class LoginControllerTest {
 
   private LoginController controller;
-  private HttpServletRequest requestMock;
   private HttpSession sessionMock;
   private LoginService loginServiceMock;
   private NewUserRequest newUserData;
 
   @BeforeEach
   public void init() {
-    requestMock = mock(HttpServletRequest.class);
     sessionMock = mock(HttpSession.class);
     loginServiceMock = mock(LoginService.class);
     controller = new LoginController(loginServiceMock);
-    newUserData = new NewUserRequest("dami@unlam.com", "123456");
-  }
-
-  @Test
-  public void shouldReturnToLoginWhenCredentialsAreWrong() {
-    when(loginServiceMock.findUser(anyString(), anyString())).thenReturn(null);
-    LoginRequest loginData = new LoginRequest("dami@unlam.com", "123456");
-    BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(loginData, "loginData");
-
-    ModelAndView modelAndView = controller.validateLogin(loginData, bindingResult, requestMock);
-
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
-    assertThat(
-      modelAndView.getModel().get("error").toString(),
-      equalToIgnoringCase("Invalid email or password")
-    );
-    verify(sessionMock, times(0)).setAttribute(anyString(), any());
-  }
-
-  @Test
-  public void shouldGoToHomeAndStoreSessionWhenCredentialsAreCorrect() {
-    User foundUserMock = mock(User.class);
-    when(foundUserMock.getEmail()).thenReturn("dami@unlam.com");
-    when(foundUserMock.getRole()).thenReturn("ADMIN");
-    when(requestMock.getSession()).thenReturn(sessionMock);
-    when(loginServiceMock.findUser(anyString(), anyString())).thenReturn(foundUserMock);
-    LoginRequest loginData = new LoginRequest("dami@unlam.com", "123456");
-    BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(loginData, "loginData");
-
-    ModelAndView modelAndView = controller.validateLogin(loginData, bindingResult, requestMock);
-
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/home"));
-    ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
-    verify(sessionMock, times(1))
-      .setAttribute(eq(SessionInterceptor.USER_SESSION), captor.capture());
-    assertThat(captor.getValue().getEmail(), equalToIgnoringCase("dami@unlam.com"));
-    assertThat(captor.getValue().getRole(), equalToIgnoringCase("ADMIN"));
-    verify(sessionMock, times(1)).setAttribute(eq("loginTime"), any(Long.class));
-  }
-
-  @Test
-  public void shouldReRenderLoginPageWhenInputIsInvalid() {
-    LoginRequest loginData = new LoginRequest("", "");
-    BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(loginData, "loginData");
-    bindingResult.addError(new FieldError("loginData", "email", "Email is required"));
-
-    ModelAndView modelAndView = controller.validateLogin(loginData, bindingResult, requestMock);
-
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
-    assertThat(
-      modelAndView.getModel().get("error").toString(),
-      equalToIgnoringCase("Invalid email or password")
-    );
-    verify(loginServiceMock, times(0)).findUser(anyString(), anyString());
+    newUserData = new NewUserRequest("Dami", "Test", "dami@unlam.com", "123456");
   }
 
   @Test
@@ -107,13 +44,13 @@ public class LoginControllerTest {
     );
     ModelAndView modelAndView = controller.register(newUserData, bindingResult);
 
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
-    verify(loginServiceMock, times(1)).register("dami@unlam.com", "123456");
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/login"));
+    verify(loginServiceMock, times(1)).register("dami@unlam.com", "123456", "Dami", "Test");
   }
 
   @Test
   public void shouldReRenderRegistrationFormWhenInputIsInvalid() {
-    NewUserRequest invalidData = new NewUserRequest("", "");
+    NewUserRequest invalidData = new NewUserRequest("", "", "", "");
     BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(
       invalidData,
       "newUserData"
@@ -127,12 +64,13 @@ public class LoginControllerTest {
       modelAndView.getModel().get("error").toString(),
       equalToIgnoringCase("Invalid registration data")
     );
-    verify(loginServiceMock, times(0)).register(anyString(), anyString());
   }
 
   @Test
   public void shouldReturnNewUserFormWithErrorWhenEmailAlreadyExists() {
-    doThrow(UserAlreadyExists.class).when(loginServiceMock).register(anyString(), anyString());
+    doThrow(UserAlreadyExists.class)
+      .when(loginServiceMock)
+      .register(anyString(), anyString(), anyString(), anyString());
     BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(
       newUserData,
       "newUserData"
@@ -147,7 +85,9 @@ public class LoginControllerTest {
 
   @Test
   public void shouldPropagateExceptionOnUnexpectedRegistrationError() {
-    doThrow(new RuntimeException()).when(loginServiceMock).register(anyString(), anyString());
+    doThrow(new RuntimeException())
+      .when(loginServiceMock)
+      .register(anyString(), anyString(), anyString(), anyString());
     BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(
       newUserData,
       "newUserData"
@@ -156,10 +96,19 @@ public class LoginControllerTest {
   }
 
   @Test
-  public void shouldReturnLoginPageWithLoginRequest() {
-    ModelAndView modelAndView = controller.showLogin();
+  public void shouldReturnLoginPage() {
+    ModelAndView modelAndView = controller.showLogin(null);
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
-    assertThat(modelAndView.getModel().get("loginData"), instanceOf(LoginRequest.class));
+  }
+
+  @Test
+  public void shouldAddErrorToModelWhenLoginFails() {
+    ModelAndView modelAndView = controller.showLogin("true");
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
+    assertThat(
+      (String) modelAndView.getModel().get("error"),
+      equalToIgnoringCase("Invalid email or password")
+    );
   }
 
   @Test
@@ -170,42 +119,17 @@ public class LoginControllerTest {
   }
 
   @Test
-  public void shouldReturnHomeViewWithUserWhenSessionExists() {
-    UserSession sessionUser = new UserSession("dami@unlam.com", "ADMIN");
-    when(sessionMock.getAttribute(SessionInterceptor.USER_SESSION)).thenReturn(sessionUser);
+  public void shouldReturnHomeViewWithLoginTime() {
     when(sessionMock.getAttribute("loginTime")).thenReturn(System.currentTimeMillis());
     ModelAndView modelAndView = controller.showHome(sessionMock);
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/home"));
-    assertThat(modelAndView.getModel().get("user"), equalTo(sessionUser));
     assertThat(modelAndView.getModel().get("loginTime"), instanceOf(Long.class));
   }
 
   @Test
-  public void shouldRedirectToLoginWhenNoSessionUser() {
-    when(sessionMock.getAttribute(SessionInterceptor.USER_SESSION)).thenReturn(null);
+  public void shouldReturnHomeViewWhenNoLoginTime() {
+    when(sessionMock.getAttribute("loginTime")).thenReturn(null);
     ModelAndView modelAndView = controller.showHome(sessionMock);
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
-  }
-
-  @Test
-  public void shouldInvalidateSessionAndRedirectToLoginOnLogout() {
-    when(requestMock.getSession(false)).thenReturn(sessionMock);
-    ModelAndView modelAndView = controller.logout(requestMock);
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
-    verify(sessionMock, times(1)).invalidate();
-  }
-
-  @Test
-  public void shouldRedirectToLoginOnLogoutWhenNoSession() {
-    when(requestMock.getSession(false)).thenReturn(null);
-    ModelAndView modelAndView = controller.logout(requestMock);
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
-    verify(sessionMock, times(0)).invalidate();
-  }
-
-  @Test
-  public void shouldRedirectToLoginFromRoot() {
-    ModelAndView modelAndView = controller.index();
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/login"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/home"));
   }
 }

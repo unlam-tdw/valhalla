@@ -36,9 +36,9 @@ src/main/java/com/valhalla/
 │   ├── planplace/          # PlanPlaceRepositoryImpl, JpaPlanPlaceRepository
 │   ├── UserSeeder.java     # Seeds test admin on startup
 │   └── PlaceDataSeeder.java # Seeds 10 Buenos Aires places
-├── presentation/           # MVC controllers, DTOs, session interceptor
-│   ├── login/              # Login controller + DTOs
-│   ├── shared/             # Cross-cutting: GlobalExceptionHandler, SessionInterceptor, UserSession
+├── presentation/           # MVC controllers, DTOs
+│   ├── login/              # Login controller
+│   ├── shared/             # Cross-cutting: GlobalExceptionHandler, NewUserRequest
 │   ├── user/               # User controller + DTOs
 │   ├── place/              # PlaceController, PlaceRestController
 │   ├── plan/               # PlanController, PlanPlaceRestController
@@ -91,13 +91,13 @@ Las specs definen cada feature del proyecto. Cada una tiene Criterios de Aceptac
 
 ## Authentication
 
-Session-based. On successful login the controller maps the domain `User` to a `UserSession` DTO (email + role) and stores it in the HTTP session. `SessionInterceptor` guards `/home` (redirects to `/login` if no session), and `POST /logout` invalidates the session. New registrations get `role = USER` and `active = true`.
+Spring Security handles auth. `SecurityConfig` configures form login (`/admin/login`), logout (`/admin/logout`), CSRF (exempt for `/api/**`), and session management (1 session per user). `CustomUserDetailsService` bridges `UserRepository` to Spring Security. `CustomAuthenticationSuccessHandler` sets `loginTime` in the HTTP session after successful login. Public routes: `/`, `/share/**`. Protected: `/admin/**` requires `ROLE_ADMIN`. New registrations get `role = USER` and `active = true`.
 
 ## Technologies
 
 - Docker
 - Java 25 (LTS)
-- Spring 6.2.19 + Spring Data JPA 3.5.13
+- Spring 6.2.19 + Spring Data JPA 3.5.13 + Spring Security 6.5.11
 - Hibernate Validator 8.0.5.Final
 - Thymeleaf 3.1.5.RELEASE
 - Embedded Jetty Server EE10 12.0.37

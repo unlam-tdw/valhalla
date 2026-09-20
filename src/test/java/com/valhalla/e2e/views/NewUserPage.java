@@ -8,16 +8,26 @@ public class NewUserPage extends WebPage {
     super(page);
   }
 
+  public void typeFirstName(String name) {
+    this.typeIntoElement("#firstName", name);
+  }
+
+  public void typeLastName(String name) {
+    this.typeIntoElement("#lastName", name);
+  }
+
   public void typeEmail(String email) {
     this.typeIntoElement("#email", email);
   }
 
-  public void typePassword(String password) {
-    this.typeIntoElement("#password", password);
+  public void selectRole(String role) {
+    this.page.selectOption("#role", role);
+    this.page.locator("#role")
+      .evaluate("el => el.dispatchEvent(new Event('change', {bubbles: true}))");
   }
 
-  public void clickRegister() {
-    this.clickElement("#btn-register");
+  public void clickCreate() {
+    this.clickElement("#btn-create");
   }
 
   public String getErrorMessage() {

@@ -37,13 +37,15 @@ public class LoginServiceImpl implements LoginService {
   }
 
   @Override
-  public void register(String email, String password) {
+  public void register(String email, String password, String firstName, String lastName) {
     if (userRepository.findByEmail(email).isPresent()) {
       throw new UserAlreadyExists();
     }
     User user = new User();
     user.setEmail(email);
     user.setPassword(passwordEncoder.encode(password));
+    user.setFirstName(firstName);
+    user.setLastName(lastName);
     user.setRole(DEFAULT_ROLE);
     user.setActive(true);
     userRepository.save(user);
