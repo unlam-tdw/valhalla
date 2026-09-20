@@ -1,29 +1,42 @@
 package com.valhalla.presentation.plan;
 
+import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequestMapping("/planes")
 public class PlanController {
 
-    @GetMapping
-    public String planList(){
-        return "plans/list";
-    }
+  private final PlanService planService;
 
-    @GetMapping("/{id}")
-    public String planDetail(@PathVariable Long id, Model model){
-        return "plans/detail";
-    }
+  public PlanController(PlanService planService) {
+    this.planService = planService;
+  }
 
-    @GetMapping
-    public String planCreate(){
-        return "plans/create";
-    }
+  @GetMapping
+  public String planList(Model model) {
+    model.addAttribute("plans", planService.getAllPlans());
+    return "plans/list";
+  }
 
+  @GetMapping("/{id}")
+  public String planDetail(@PathVariable Long id, Model model) {
+    model.addAttribute("plan", planService.getPlanById(id));
+    return "plans/detail";
+  }
 
+  @GetMapping
+  public String planCreate(Model model) {
+    model.addAttribute("plan", new Plan());
+    return "plans/create";
+  }
+
+  @PostMapping("/crear")
+  public String planGenerate(@ModelAttribute Plan plan) {
+    planService.createPlan(plan);
+    return "redirect:/planes";
+  }
 }

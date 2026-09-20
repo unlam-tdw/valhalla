@@ -6,60 +6,61 @@ import jakarta.persistence.Id;
 
 public class Ubicacion {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String street;
-    private int number;
-    private int cp;
-    private String localidad;
-    private String provincia;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    public String getLocalidad() {
-        return localidad;
-    }
+  private String street;
+  private int number;
+  private int cp;
+  private String localidad;
+  private String provincia;
 
-    public void setLocalidad(String localidad) {
-        this.localidad = localidad;
-    }
+  public String getLocalidad() {
+    return localidad;
+  }
 
-    public String getProvincia() {
-        return provincia;
-    }
+  public void setLocalidad(String localidad) {
+    this.localidad = localidad;
+  }
 
-    public void setProvincia(String provincia) {
-        this.provincia = provincia;
-    }
+  public String getProvincia() {
+    return provincia;
+  }
 
-    public int getCp() {
-        return cp;
-    }
+  public void setProvincia(String provincia) {
+    this.provincia = provincia;
+  }
 
-    public void setCp(int cp) {
-        this.cp = cp;
-    }
+  public int getCp() {
+    return cp;
+  }
 
-    public int getNumber() {
-        return number;
-    }
+  public void setCp(int cp) {
+    this.cp = cp;
+  }
 
-    public void setNumber(int number) {
-        this.number = number;
-    }
+  public int getNumber() {
+    return number;
+  }
 
-    public String getStreet() {
-        return street;
-    }
+  public void setNumber(int number) {
+    this.number = number;
+  }
 
-    public void setStreet(String street) {
-        this.street = street;
-    }
+  public String getStreet() {
+    return street;
+  }
 
-    public Long getId() {
-        return id;
-    }
+  public void setStreet(String street) {
+    this.street = street;
+  }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
 }

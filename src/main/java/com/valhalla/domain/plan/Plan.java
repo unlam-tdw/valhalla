@@ -1,160 +1,174 @@
 package com.valhalla.domain.plan;
 
 import com.valhalla.domain.place.Place;
-import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "plans")
+@SuppressWarnings("PMD.TooManyFields")
 public class Plan {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long IdPlan;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long IdPlan;
 
-    @NotBlank(message = "Plan name is required")
-    @Column(nullable = false)
-    private String name;
+  @NotBlank(message = "Plan name is required")
+  @Column(nullable = false)
+  private String name;
 
-    private String description;
+  private String description;
 
-    private Date eventDate;
+  private LocalDate eventDate;
 
-    @ManyToOne
-    @JoinColumn(name = "administrator_id", nullable = false)
-    private User administrator;
+  @ManyToOne
+  @JoinColumn(name = "administrator_id")
+  private User administrator;
 
-    private Date eventDateCreated;
+  private LocalDate eventDateCreated;
 
-    private LocalTime startTime;
+  private LocalTime startTime;
 
-    private LocalTime endTime;
+  private LocalTime endTime;
 
-    private String codigo;
+  private String codigo;
 
-    private Boolean isPublic;
+  private Boolean isPublic;
 
-    @ManyToMany
-    @JoinTable(
-            name = "plan_places",
-            joinColumns = @JoinColumn(name = "plan_id"),
-            inverseJoinColumns = @JoinColumn(name = "place_id")
-    )
-    private ArrayList<Place> places = new ArrayList<>();
+  @ManyToMany
+  @JoinTable(
+    name = "plan_places",
+    joinColumns = @JoinColumn(name = "plan_id"),
+    inverseJoinColumns = @JoinColumn(name = "place_id")
+  )
+  private List<Place> places = new ArrayList<>();
 
-    @ManyToOne
-    @JoinColumn(name = "selected_place_id")
-    private Place selectedPlace = null;
+  @ManyToOne
+  @JoinColumn(name = "selected_place_id")
+  private Place selectedPlace;
 
-    private Map<User, Long> participants = new HashMap<User, Long>();
+  @Transient
+  private Map<User, Long> participants = new HashMap<>();
 
-    public Long getIdPlan() {
-        return IdPlan;
-    }
+  public Long getIdPlan() {
+    return IdPlan;
+  }
 
-    public void setIdPlan(Long idPlan) {
-        IdPlan = idPlan;
-    }
+  public void setIdPlan(Long idPlan) {
+    IdPlan = idPlan;
+  }
 
-    public String getName() {
-        return name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-    public Date getEventDate() {
-        return eventDate;
-    }
+  public LocalDate getEventDate() {
+    return eventDate;
+  }
 
-    public void setEventDate(Date eventDate) {
-        this.eventDate = eventDate;
-    }
+  public void setEventDate(LocalDate eventDate) {
+    this.eventDate = eventDate;
+  }
 
-    public String getDescription() {
-        return description;
-    }
+  public String getDescription() {
+    return description;
+  }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
+  public void setDescription(String description) {
+    this.description = description;
+  }
 
-    public User getAdministrator() {
-        return administrator;
-    }
+  public User getAdministrator() {
+    return administrator;
+  }
 
-    public void setAdministrator(User administrator) {
-        this.administrator = administrator;
-    }
+  public void setAdministrator(User administrator) {
+    this.administrator = administrator;
+  }
 
-    public Date getEventDateCreated() {
-        return eventDateCreated;
-    }
+  public LocalDate getEventDateCreated() {
+    return eventDateCreated;
+  }
 
-    public void setEventDateCreated(Date eventDateCreated) {
-        this.eventDateCreated = eventDateCreated;
-    }
+  public void setEventDateCreated(LocalDate eventDateCreated) {
+    this.eventDateCreated = eventDateCreated;
+  }
 
-    public LocalTime getStartTime() {
-        return startTime;
-    }
+  public LocalTime getStartTime() {
+    return startTime;
+  }
 
-    public void setStartTime(LocalTime startTime) {
-        this.startTime = startTime;
-    }
+  public void setStartTime(LocalTime startTime) {
+    this.startTime = startTime;
+  }
 
-    public LocalTime getEndTime() {
-        return endTime;
-    }
+  public LocalTime getEndTime() {
+    return endTime;
+  }
 
-    public void setEndTime(LocalTime endTime) {
-        this.endTime = endTime;
-    }
+  public void setEndTime(LocalTime endTime) {
+    this.endTime = endTime;
+  }
 
-    public String getCodigo() {
-        return codigo;
-    }
+  public String getCodigo() {
+    return codigo;
+  }
 
-    public void setCodigo(String codigo) {
-        this.codigo = codigo;
-    }
+  public void setCodigo(String codigo) {
+    this.codigo = codigo;
+  }
 
-    public Boolean getPublic() {
-        return isPublic;
-    }
+  public Boolean getPublic() {
+    return isPublic;
+  }
 
-    public void setPublic(Boolean aPublic) {
-        isPublic = aPublic;
-    }
+  public void setPublic(Boolean aPublic) {
+    isPublic = aPublic;
+  }
 
-    public ArrayList<Place> getPlaces() {
-        return places;
-    }
+  //  public List<Place> getPlaces() {
+  //    return List<Place> places;
+  //  }
 
-    public void setPlaces(ArrayList<Place> places) {
-        this.places = places;
-    }
+  public void setPlaces(List<Place> places) {
+    this.places = places;
+  }
 
-    public Place getSelectedPlace() {
-        return selectedPlace;
-    }
+  public Place getSelectedPlace() {
+    return selectedPlace;
+  }
 
-    public void setSelectedPlace(Place selectedPlace) {
-        this.selectedPlace = selectedPlace;
-    }
+  public void setSelectedPlace(Place selectedPlace) {
+    this.selectedPlace = selectedPlace;
+  }
 
-    public Map<User, Long> getParticipants() {
-        return participants;
-    }
+  public Map<User, Long> getParticipants() {
+    return participants;
+  }
 
-    public void setParticipants(Map<User, Long> participants) {
-        this.participants = participants;
-    }
+  public void setParticipants(Map<User, Long> participants) {
+    this.participants = participants;
+  }
 }

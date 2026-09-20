@@ -5,6 +5,6 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface JpaPlanRepository extends JpaRepository<Plan, Long> {
-    List<Plan> findByUserId(Long userId);
-    Plan findByShortCode(String shortCode);
+  List<Plan> findByUserId(Long userId);
+  Plan findByShortCode(String shortCode);
 }
