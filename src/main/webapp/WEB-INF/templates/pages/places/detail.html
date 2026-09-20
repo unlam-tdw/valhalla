@@ -1,0 +1,66 @@
+<!DOCTYPE HTML>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{layouts/base :: head(${place != null} ? ${place.name} : 'Place not found')}"></head>
+
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+
+  <main class="flex-1 px-4 py-8">
+    <section th:if="${place != null}" class="mx-auto max-w-6xl">
+      <a th:href="@{/places}" class="mb-6 inline-block text-sm font-medium text-blue-700 hover:underline">Back to places</a>
+      <div class="grid gap-8 lg:grid-cols-2">
+        <div>
+          <img th:if="${place.imageUrl != null and !place.imageUrl.isBlank()}" th:src="${place.imageUrl}"
+            th:alt="${place.name}" class="h-80 w-full object-cover">
+          <div th:unless="${place.imageUrl != null and !place.imageUrl.isBlank()}"
+            class="flex h-80 w-full items-center justify-center bg-gray-200 text-gray-600">
+            No image available
+          </div>
+        </div>
+        <div>
+          <span class="inline-block px-2 py-1 text-xs font-medium text-white bg-slate-600" th:text="${place.category}">CATEGORY</span>
+          <h1 class="mt-3 text-3xl font-semibold text-gray-900" th:text="${place.name}">Place name</h1>
+          <p th:if="${place.address != null}" class="mt-4 text-gray-700">
+            <span class="font-medium">Address:</span>
+            <span th:text="${place.address}">Address</span>
+          </p>
+          <p th:if="${place.description != null}" class="mt-4 leading-7 text-gray-700" th:text="${place.description}">Description</p>
+        </div>
+      </div>
+      <section th:if="${place.latitude != null and place.longitude != null}" class="mt-8">
+        <h2 class="mb-3 text-xl font-semibold text-gray-900">Location</h2>
+        <div id="place-detail-map" class="h-96 w-full"></div>
+      </section>
+    </section>
+
+    <section th:unless="${place != null}" class="mx-auto max-w-xl py-16 text-center">
+      <h1 class="text-2xl font-semibold text-gray-900">Place not found</h1>
+      <a th:href="@{/places}" class="mt-4 inline-block text-sm font-medium text-blue-700 hover:underline">Back to places</a>
+    </section>
+  </main>
+
+  <th:block th:if="${place != null and place.latitude != null and place.longitude != null}">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo8Qyf92U0+LEBTLz0WLwZV2K6c4bV4yKpJZSr1DdYdQ=="
+      crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIINfQ3a3J6NLwUUwzU8VlymyqALWl6YkGN1SH7F2uCFhHOl7nZ2JJn2b5PzZueGv1jUgtP1lFB0w=="
+      crossorigin="">
+    <script th:inline="javascript">
+      const place = /*[[${place}]]*/ null;
+      const map = L.map('place-detail-map').setView([place.latitude, place.longitude], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      L.circleMarker([place.latitude, place.longitude], {
+        radius: 10,
+        fillColor: '#b91c1c',
+        color: '#ffffff',
+        weight: 2,
+        fillOpacity: 0.9
+      }).addTo(map).bindPopup(place.name).openPopup();
+    </script>
+  </th:block>
+</body>
+
+</html>
