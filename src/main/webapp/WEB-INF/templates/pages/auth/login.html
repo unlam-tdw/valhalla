@@ -7,7 +7,8 @@
 
   <main class="flex-1 flex items-center justify-center p-4">
     <div id="login-app" class="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
-      <form ref="form" @submit.prevent="submit" action="#" th:action="@{/validate-login}" method="POST">
+      <form ref="form" @submit.prevent="submit" action="#" th:action="@{/admin/validate-login}" method="POST">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <h3 class="mb-2 text-2xl font-semibold text-gray-900">Taller Web I</h3>
         <hr class="mb-6 border-gray-200">
         <div>
@@ -27,9 +28,6 @@
         </button>
         <p v-if="error" class="alert alert-danger my-4 rounded-md bg-red-100 px-4 py-3 text-sm text-red-700">{{ error }}</p>
       </form>
-      <div class="mt-4 text-center text-sm">
-        <a id="btn-register" href="new-user" class="text-blue-600 hover:underline">Register</a>
-      </div>
     </div>
     <script>
       const app = Vue.createApp({

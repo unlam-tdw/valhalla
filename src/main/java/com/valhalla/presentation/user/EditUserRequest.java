@@ -6,6 +6,12 @@ import jakarta.validation.constraints.Size;
 
 public class EditUserRequest {
 
+  @NotBlank(message = "First name is required")
+  private String firstName;
+
+  @NotBlank(message = "Last name is required")
+  private String lastName;
+
   @NotBlank(message = "Email is required")
   @Email(message = "Email is not valid")
   private String email;
@@ -16,9 +22,27 @@ public class EditUserRequest {
 
   public EditUserRequest() {}
 
-  public EditUserRequest(String email, String role) {
+  public EditUserRequest(String email, String role, String firstName, String lastName) {
     this.email = email;
     this.role = role;
+    this.firstName = firstName;
+    this.lastName = lastName;
+  }
+
+  public String getFirstName() {
+    return firstName;
+  }
+
+  public void setFirstName(String firstName) {
+    this.firstName = firstName;
+  }
+
+  public String getLastName() {
+    return lastName;
+  }
+
+  public void setLastName(String lastName) {
+    this.lastName = lastName;
   }
 
   public String getEmail() {

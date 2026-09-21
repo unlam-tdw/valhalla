@@ -41,7 +41,7 @@ services:
     volumes:
       - .:/workspace
       - maven_cache:/root/.m2
-    command: mvn jetty:run -DskipTests -Pdev
+    command: sh docker-dev.sh
     restart: unless-stopped
 
 volumes:

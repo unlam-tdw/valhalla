@@ -65,7 +65,7 @@ reactive UI. The server handles all business logic:
 
 ```html
 <form ref="form" @submit.prevent="submit" action="#"
-  th:action="@{/validate-login}" method="POST">
+  th:action="@{/admin/validate-login}" method="POST">
   <input v-model="email" name="email" type="email" />
   <button :disabled="loading">Sign in</button>
 </form>

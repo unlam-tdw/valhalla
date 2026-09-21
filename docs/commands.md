@@ -99,12 +99,14 @@ docker run -it --entrypoint /bin/bash valhalla
 # Run all Java tests (uses in-memory HSQLDB, no PostgreSQL needed)
 mvn test
 
-# Run E2E tests (requires Docker stack running)
-docker compose up -d
-mvn test -Dtest="LoginViewE2E"
+# Run everything (unit + integration + E2E, requires Docker stack)
+docker compose up -d postgres
+mvn verify
 
-# Run a specific E2E test
-mvn test -Dtest="LoginViewE2E#shouldNavigateToHomeWhenUserExists"
+# Run E2E tests manually (requires Docker stack + server running)
+docker compose up -d postgres
+mvn jetty:run &
+mvn failsafe:integration-test failsafe:verify -DskipTests
 ```
 
 ## CI/CD (GitHub Actions)

@@ -10,7 +10,7 @@
 *.war
 *.ear
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# virtual machine crash logs, see http://java.sun.com/javase/6/docs/technotes/guides/vm/error-hspot.html
 hs_err_pid*
 /.tomcatplugin
 /work/
@@ -30,3 +30,4 @@ openspec
 
 # Local environment configuration (contains credentials)
 .env
+cookies.txt

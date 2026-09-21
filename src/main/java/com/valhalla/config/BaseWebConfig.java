@@ -1,6 +1,5 @@
 package com.valhalla.config;
 
-import com.valhalla.presentation.shared.SessionInterceptor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +13,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.spring6.templateresolver.SpringResourceTemplateResolver;
 import org.thymeleaf.spring6.view.ThymeleafViewResolver;
@@ -46,9 +46,6 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    registry
-      .addInterceptor(new SessionInterceptor())
-      .addPathPatterns("/home", "/users", "/users/**");
     if (isLiveReload()) {
       registry
         .addInterceptor(new DevReloadInterceptor(devReloadController()))
@@ -91,12 +88,8 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
     // enables Spring's own MessageSource message resolution mechanisms.
     SpringTemplateEngine templateEngine = new SpringTemplateEngine();
     templateEngine.setTemplateResolver(templateResolver());
-    // Enabling the SpringEL compiler with Spring 4.2.4 or newer can
-    // speed up execution in most scenarios, but might be incompatible
-    // with specific cases when expressions in one template are reused
-    // across different data types, so this flag is "false" by default
-    // for safer backwards compatibility.
     templateEngine.setEnableSpringELCompiler(true);
+    templateEngine.addDialect("sec", new SpringSecurityDialect());
     return templateEngine;
   }
 
