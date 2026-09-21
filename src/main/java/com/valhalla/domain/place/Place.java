@@ -32,6 +32,8 @@ public class Place {
     this.location = location;
   }
 
+  @OneToOne
+  @JoinColumn(name = "ubicacion_id")
   private Ubicacion location;
 
   public Long getId() {

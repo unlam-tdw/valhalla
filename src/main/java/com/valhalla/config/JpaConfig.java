@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-/** Production JPA configuration: PostgreSQL with parameters from environment variables. */
 @Configuration
 public class JpaConfig extends BaseJpaConfig {
 
