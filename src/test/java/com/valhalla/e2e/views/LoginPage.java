@@ -6,7 +6,7 @@ public class LoginPage extends WebPage {
 
   public LoginPage(Page page) {
     super(page);
-    page.navigate("localhost:8080/admin/login");
+    page.navigate(baseUrl() + "/admin/login");
   }
 
   public String getNavbarText() {
@@ -27,6 +27,10 @@ public class LoginPage extends WebPage {
 
   public void clickSignIn() {
     this.clickElement("#btn-login");
+  }
+
+  public void clickLogout() {
+    this.clickElement("button:text-is('Logout')");
   }
 
   public void clickRegister() {

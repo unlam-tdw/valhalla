@@ -23,6 +23,11 @@ public class WebPage {
     page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(;[^/?#]*)?$"));
   }
 
+  /** Base URL for E2E navigation; override with -De2e.baseUrl (default http://localhost:8080). */
+  public String baseUrl() {
+    return System.getProperty("e2e.baseUrl", "http://localhost:8080");
+  }
+
   public void navigate(String url) {
     page.navigate(url);
   }
