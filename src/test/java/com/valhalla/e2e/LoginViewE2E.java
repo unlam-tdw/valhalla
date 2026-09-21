@@ -69,6 +69,15 @@ public class LoginViewE2E {
   }
 
   @Test
+  void shouldLogoutAndReturnToLoginPage() throws MalformedURLException {
+    givenUserFillsLoginFormWith("test@unlam.edu.ar", "password");
+    whenUserClicksSignIn();
+    thenShouldBeRedirectedToHome();
+    whenUserClicksLogout();
+    thenShouldBeRedirectedToLogin();
+  }
+
+  @Test
   void shouldRegisterAUserAndSignInSuccessfully() throws MalformedURLException {
     // Registration is admin-only now — create user via admin panel, then login
     String generatedPassword = givenAdminCreatesUser("juan@unlam.edu.ar");
@@ -90,6 +99,16 @@ public class LoginViewE2E {
 
   private void whenUserClicksSignIn() {
     loginPage.clickSignIn();
+  }
+
+  private void whenUserClicksLogout() {
+    loginPage.clickLogout();
+  }
+
+  private void thenShouldBeRedirectedToLogin() throws MalformedURLException {
+    loginPage.waitForPath("/admin/login");
+    URL url = loginPage.getCurrentUrl();
+    assertThat(url.getPath(), matchesPattern("^/admin/login(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   private void thenShouldBeRedirectedToHome() throws MalformedURLException {
@@ -116,7 +135,7 @@ public class LoginViewE2E {
     adminLogin.typePassword("password");
     adminLogin.clickSignIn();
     adminLogin.waitForPath("/admin/home");
-    adminLogin.navigate("localhost:8080/admin/users/new");
+    adminLogin.navigate(adminLogin.baseUrl() + "/admin/users/new");
     NewUserPage newUserPage = new NewUserPage(adminPage);
     newUserPage.typeFirstName("Juan");
     newUserPage.typeLastName("Perez");

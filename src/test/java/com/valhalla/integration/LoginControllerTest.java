@@ -1,5 +1,8 @@
 package com.valhalla.integration;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -14,6 +17,7 @@ import com.valhalla.domain.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -97,6 +101,18 @@ public class LoginControllerTest {
   }
 
   @Test
+  public void shouldRedirectToLoginWhenEmailDoesNotExist() throws Exception {
+    this.mockMvc.perform(
+        post("/admin/validate-login")
+          .with(csrf())
+          .param("email", "nobody@unlam.edu.ar")
+          .param("password", LOGIN_PASSWORD)
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/login?error=true"));
+  }
+
+  @Test
   public void shouldRedirectToLoginFromHomeWhenNotAuthenticated() throws Exception {
     this.mockMvc.perform(get("/admin/home")).andExpect(status().is3xxRedirection());
   }
@@ -174,5 +190,21 @@ public class LoginControllerTest {
         post("/admin/validate-login").param("email", LOGIN_EMAIL).param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldLogoutRedirectToLoginAndInvalidateSession() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    this.mockMvc.perform(post("/admin/logout").session(session).with(csrf()))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/login"));
+    assertThat("session must be invalidated after logout", session.isInvalid(), is(true));
+  }
+
+  @Test
+  public void shouldNotRequireCsrfForApiEndpoints() throws Exception {
+    this.mockMvc.perform(post("/api/something"))
+      .andExpect(result -> assertThat(result.getResponse().getStatus(), is(not(403))));
   }
 }

@@ -132,4 +132,10 @@ public class LoginControllerTest {
     ModelAndView modelAndView = controller.showHome(sessionMock);
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/home"));
   }
+
+  @Test
+  public void shouldRedirectToAdminLoginFromAdminIndex() {
+    ModelAndView modelAndView = controller.adminIndex();
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/login"));
+  }
 }
