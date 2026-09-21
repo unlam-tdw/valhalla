@@ -1,9 +1,15 @@
 package com.valhalla.integration;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,9 +17,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.valhalla.domain.login.LoginService;
 import com.valhalla.domain.user.UserRepository;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -38,6 +50,12 @@ public class LoginControllerTest {
   @Autowired
   private UserRepository userRepository;
 
+  @Autowired
+  private SessionRegistry sessionRegistry;
+
+  @Autowired
+  private UserDetailsService userDetailsService;
+
   private MockMvc mockMvc;
 
   @BeforeEach
@@ -60,6 +78,13 @@ public class LoginControllerTest {
     this.mockMvc.perform(get("/admin/login"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/login"));
+  }
+
+  @Test
+  public void shouldShowLoginLinkInNavbarWhenAnonymous() throws Exception {
+    this.mockMvc.perform(get("/admin/login"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("href=\"/admin/login\"")));
   }
 
   @Test
@@ -91,6 +116,18 @@ public class LoginControllerTest {
           .with(csrf())
           .param("email", LOGIN_EMAIL)
           .param("password", "wrong-password")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/login?error=true"));
+  }
+
+  @Test
+  public void shouldRedirectToLoginWhenEmailDoesNotExist() throws Exception {
+    this.mockMvc.perform(
+        post("/admin/validate-login")
+          .with(csrf())
+          .param("email", "nobody@unlam.edu.ar")
+          .param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/login?error=true"));
@@ -174,5 +211,69 @@ public class LoginControllerTest {
         post("/admin/validate-login").param("email", LOGIN_EMAIL).param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldLogoutRedirectToLoginAndInvalidateSession() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    this.mockMvc.perform(post("/admin/logout").session(session).with(csrf()))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/login"));
+    assertThat("session must be invalidated after logout", session.isInvalid(), is(true));
+  }
+
+  @Test
+  public void shouldNotRequireCsrfForApiEndpoints() throws Exception {
+    this.mockMvc.perform(post("/api/something"))
+      .andExpect(result -> assertThat(result.getResponse().getStatus(), is(not(403))));
+  }
+
+  @Test
+  public void shouldKeepOnlyTheMostRecentSessionPerUser() throws Exception {
+    UserDetails principal = userDetailsService.loadUserByUsername(LOGIN_EMAIL);
+
+    MockHttpSession firstSession = new MockHttpSession();
+    performSuccessfulLogin(firstSession);
+    assertThat(
+      "a single login yields one active session",
+      sessionRegistry.getAllSessions(principal, false),
+      hasSize(1)
+    );
+
+    MockHttpSession secondSession = new MockHttpSession();
+    performSuccessfulLogin(secondSession);
+
+    List<SessionInformation> activeSessions = sessionRegistry.getAllSessions(principal, false);
+    assertThat(
+      "only one session stays active after a second login (AC-13)",
+      activeSessions,
+      hasSize(1)
+    );
+    assertThat(
+      "the most recent session prevails",
+      activeSessions.get(0).getSessionId(),
+      is(secondSession.getId())
+    );
+
+    SessionInformation firstSessionInfo = sessionRegistry
+      .getAllSessions(principal, true)
+      .stream()
+      .filter(s -> s.getSessionId().equals(firstSession.getId()))
+      .findFirst()
+      .orElseThrow();
+    assertThat("the displaced session must be expired", firstSessionInfo.isExpired(), is(true));
+  }
+
+  private void performSuccessfulLogin(MockHttpSession session) throws Exception {
+    this.mockMvc.perform(
+        post("/admin/validate-login")
+          .session(session)
+          .with(csrf())
+          .param("email", LOGIN_EMAIL)
+          .param("password", LOGIN_PASSWORD)
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/home"));
   }
 }
