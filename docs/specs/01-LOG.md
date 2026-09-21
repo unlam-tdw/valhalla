@@ -65,6 +65,9 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | I-12 | `POST /admin/logout` → redirige a `/admin/login`, sesión invalidada | AC-06 |
 | I-13 | `POST /api/something` sin CSRF → no devuelve 403 (CSRF exempt) | AC-12 |
 | I-14 | `POST /admin/validate-login` sin CSRF → 403 Forbidden | AC-11 |
+| I-15 | `POST /admin/validate-login` con email inexistente → redirige a `/admin/login?error=true` | AC-05 |
+| I-16 | `GET /admin/login` sin sesión → 200 con link de login en la navbar | AC-10 |
+| I-17 | Login 2 veces con el mismo usuario → solo 1 sesión activa (la última prevalece, la primera queda expirada) | AC-13 |
 
 ### Tests de Seguridad (`integration/SecurityConfigTest.java`)
 
@@ -79,7 +82,24 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `LoginViewE2E` | Registro → Login → Home → Logout | AC-01, AC-04, AC-06 |
+| E-01 | `shouldShowUNLAMInTheNavbar` | Abre `/admin/login` → navbar muestra UNLAM | n/a |
+| E-02 | `shouldShowErrorWhenSigningInWithAnUnknownUser` | Login con usuario desconocido → mensaje de error | AC-05 |
+| E-03 | `shouldNavigateToHomeWhenUserExists` | Login admin seed → home | AC-04, AC-09 |
+| E-04 | `shouldRegisterAUserAndSignInSuccessfully` | Admin crea usuario → se loguea con la password generada → home | AC-01, AC-04 |
+| E-05 | `shouldLogoutAndReturnToLoginPage` | Login → Home → Logout → vuelve a `/admin/login` | AC-06 |
+
+## Notas de implementación (desviaciones acordadas vs este spec)
+
+- **Registro admin-only**: AC-01/02/03 se implementaron solo en el flujo admin — `/admin/login`,
+  `/admin/new-user` y `/admin/register` requieren rol `ADMIN` (SecurityConfig). El auto-registro
+  público del spec quedó descartado por decisión de equipo (commit `e80d1c3`); el login final para
+  usuarios será otra card. Por eso `adminIndex()` (U-09) redirige a `/admin/login`.
+- **`email` como username**: el form de login usa `email`/`password` como parámetros
+  (`usernameParameter("email")` en SecurityConfig), no `username` como figura en la sección de
+  referencia. La UI (Vue) y los tests/E2E usan `#email`.
+- **AC-13**: requiere `HttpSessionEventPublisher` (registrado en `MyServletInitializer`) + el bean
+  `SessionRegistry` (SecurityConfig) para que `maximumSessions(1)` funcione de verdad.
+- Tests extra con respecto a este spec: U-09, I-12, I-13, I-15, I-16, I-17 y E-05.
 
 ## Referencia de Implementacion
 
