@@ -4,6 +4,7 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -17,7 +18,6 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +51,10 @@ public class Plan {
 
   private String codigo;
 
-  private Boolean isPublic;
+  private Boolean isPublic = false;
 
-  @ManyToMany
+  // Se agrega fetch = FetchType.EAGER para cargar los lugares junto con el plan
+  @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
     name = "plan_places",
     joinColumns = @JoinColumn(name = "plan_id"),
@@ -140,17 +141,17 @@ public class Plan {
     this.codigo = codigo;
   }
 
-  public Boolean getPublic() {
-    return isPublic;
+  public Boolean getIsPublic() {
+    return isPublic != null ? isPublic : false;
   }
 
-  public void setPublic(Boolean aPublic) {
+  public void setIsPublic(Boolean aPublic) {
     isPublic = aPublic;
   }
 
-  //  public List<Place> getPlaces() {
-  //    return List<Place> places;
-  //  }
+  public List<Place> getPlaces() {
+    return places;
+  }
 
   public void setPlaces(List<Place> places) {
     this.places = places;

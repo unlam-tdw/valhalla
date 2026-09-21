@@ -160,13 +160,7 @@
 
                 </p>
 
-                <span
-                        class="visibility"
-                        th:text="${plan.isPublic ? 'Público' : 'Privado'}">
-
-                    Público
-
-                </span>
+                <span th:text="${plan.isPublic != null and plan.isPublic ? 'Público' : 'Privado'}"></span>
 
             </div>
 

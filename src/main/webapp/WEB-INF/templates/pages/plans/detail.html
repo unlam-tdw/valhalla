@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 
@@ -152,7 +151,7 @@
 
                 <span>Administrador</span>
 
-                <strong th:text="${plan.administrator.name}">
+                <strong th:text="${plan.administrator?.name ?: 'Sin asignar'}">
                     Usuario
                 </strong>
 
@@ -196,10 +195,14 @@
             <div
                     class="place"
                     th:each="place : ${plan.places}"
-                    th:text="${place.name}">
+                    th:text="${place?.name ?: 'Lugar sin nombre'}">
 
                 Lugar
 
+            </div>
+
+            <div th:if="${#lists.isEmpty(plan.places)}" class="participants">
+                No hay lugares propuestos todavía.
             </div>
 
         </div>
@@ -215,7 +218,7 @@
 
         <div class="place"
              th:if="${plan.selectedPlace != null}"
-             th:text="${plan.selectedPlace.name}">
+             th:text="${plan.selectedPlace?.name}">
 
             Lugar seleccionado
 
@@ -259,4 +262,3 @@
 
 </body>
 </html>
-```
