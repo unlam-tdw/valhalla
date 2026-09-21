@@ -36,7 +36,7 @@ public class PlanServiceImpl implements PlanService {
   @Override
   @Transactional(readOnly = true)
   public Optional<Plan> getPlanByShortCode(String shortCode) {
-    return Optional.ofNullable(planRepository.findByShortCode(shortCode));
+    return Optional.ofNullable(planRepository.findByCodigo(shortCode));
   }
 
   @Transactional(readOnly = true)

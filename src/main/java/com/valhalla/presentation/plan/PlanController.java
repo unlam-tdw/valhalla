@@ -19,19 +19,19 @@ public class PlanController {
   @GetMapping
   public String planList(Model model) {
     model.addAttribute("plans", planService.getAllPlans());
-    return "plans/list";
+    return "pages/plans/list";
   }
 
   @GetMapping("/{id}")
   public String planDetail(@PathVariable Long id, Model model) {
     model.addAttribute("plan", planService.getPlanById(id));
-    return "plans/detail";
+    return "pages/plans/detail";
   }
 
-  @GetMapping
+  @GetMapping("/crear")
   public String planCreate(Model model) {
     model.addAttribute("plan", new Plan());
-    return "plans/create";
+    return "pages/plans/create";
   }
 
   @PostMapping("/crear")
