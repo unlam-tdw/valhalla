@@ -14,7 +14,7 @@ while [ ! -d target/classes ]; do sleep 1; done
 INITIAL_STAMPS=$(find src/main -name '*.java' -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
 LAST_STAMPS="$INITIAL_STAMPS"
 
-echo "[dev-watch] Watching src/**/*.java for changes..."
+echo "[dev-watch] Watching src/*/.java for changes..."
 
 while kill -0 "$JETTY_PID" 2>/dev/null; do
     sleep 2
