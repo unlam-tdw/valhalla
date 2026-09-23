@@ -8,6 +8,10 @@
       class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
       Home
     </a>
+    <a th:href="@{/places}"
+      class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
+      Places
+    </a>
     <a th:href="@{/admin/users}" sec:authorize="hasRole('ADMIN')"
       class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
       Users
