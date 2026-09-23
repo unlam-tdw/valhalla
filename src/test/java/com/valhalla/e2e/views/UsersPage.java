@@ -10,7 +10,7 @@ public class UsersPage extends WebPage {
   }
 
   public void navigateToUsers() {
-    page.navigate("localhost:8080/admin/users");
+    page.navigate(baseUrl() + "/admin/users");
   }
 
   public String getHeading() {

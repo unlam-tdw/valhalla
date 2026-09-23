@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -18,7 +20,8 @@ public class SecurityConfig {
   private CustomAuthenticationSuccessHandler successHandler;
 
   @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain filterChain(HttpSecurity http, SessionRegistry sessionRegistry)
+    throws Exception {
     http
       .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
       .authorizeHttpRequests(auth ->
@@ -51,12 +54,22 @@ public class SecurityConfig {
           .invalidateHttpSession(true)
           .deleteCookies("JSESSIONID")
       )
-      .sessionManagement(session -> session.maximumSessions(1).maxSessionsPreventsLogin(false));
+      .sessionManagement(session ->
+        session.maximumSessions(1).sessionRegistry(sessionRegistry).maxSessionsPreventsLogin(false)
+      );
     return http.build();
   }
 
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
+  }
+
+  @Bean
+  public SessionRegistry sessionRegistry() {
+    // Exposed as a bean so maximumSessions(1) (AC-13) tracks sessions in a
+    // registry the app (and tests) can inspect; paired with
+    // HttpSessionEventPublisher in MyServletInitializer for cleanup.
+    return new SessionRegistryImpl();
   }
 }

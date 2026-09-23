@@ -24,10 +24,10 @@ gantt
 
     section Equipo C
     Sprint 1 LOG (soporte)      :done,    s1c, 0, 1
-    Sprint 2 Tests LOG         :active,  s2c, 1, 2
-    Sprint 3 Tests PLN         :         s3c, 2, 3
-    Sprint 4 Tests APL-BE      :         s4c, 3, 4
-    Sprint 5 Tests E2E         :         s5c, 4, 5
+    Sprint 2 AUT (auth usuarios):active,  s2c, 1, 2
+    Sprint 3 Tests PLN          :         s3c, 2, 3
+    Sprint 4 Tests APL-BE       :         s4c, 3, 4
+    Sprint 5 Tests E2E          :         s5c, 4, 5
 ```
 
 ## Dependencias
@@ -36,6 +36,7 @@ gantt
 graph LR
     LOG --> PLC
     LOG --> PLN
+    LOG --> AUT
     PLC --> APL-BE
     PLN --> APL-BE
     APL-BE --> APL-FE
@@ -65,23 +66,24 @@ graph LR
 
 ---
 
-## Sprint 2 : Lugares + Planes (paralelo)
+## Sprint 2 : Lugares + Planes + User Auth (paralelo)
 
-**Objetivo:** Places con mapa + CRUD de Plans funcional.
+**Objetivo:** Places con mapa + CRUD de Plans funcional + Auth de usuarios finales.
 
 | Equipo | Card | Specs | Tareas |
 |--------|------|-------|--------|
 | A | **[PLC]** | 02-PLC.md | Ver spec (impl + tests incluidos) |
 | B | **[PLN]** | 03-PLN.md | Ver spec (impl + tests incluidos) |
-| C | Tests de [LOG] | 01-LOG.md | Ver checklist Tests en card Trello |
+| C | **[AUT]** | 08-AUT.md | Ver spec (impl + tests incluidos). Timeline: [AUT-01] SecurityConfig multi-chain primero, luego controller/templates |
 
 **Salida esperada:**
 - Mapa de BA con markers, filtros, sidebar sincronizada
 - Ficha de lugar con imagen, mapa, descripción
 - CRUD de planes (crear, listar, detalle, eliminar)
+- Auth de usuarios: `/auth/login`, `/auth/register` y recuperación de password funcionando (login de usuario separado de `/admin/login`)
 - Tests de LOG pasando
 
-**Dependencias:** [LOG] completado en Sprint 1.
+**Dependencias:** [LOG] completado en Sprint 1. [AUT] depende de [LOG] (no de PLC/PLN).
 
 ---
 
@@ -150,7 +152,7 @@ graph LR
 | Sprint | Cards | Equipos |
 |--------|-------|---------|
 | 1 | [LOG] | 1 activo + 2 soporte |
-| 2 | [PLC] + [PLN] + tests LOG | 2 activos + 1 testing |
+| 2 | [PLC] + [PLN] + [AUT] | 3 activos |
 | 3 | [APL-BE] + tests PLC/PLN | 1 activo + 2 testing |
 | 4 | [APL-FE] + tests APL-BE | 1 activo + 2 testing |
 | 5 | [CMP] + [VPC] + E2E | 2 activos + 1 E2E |
