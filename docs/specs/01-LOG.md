@@ -94,6 +94,8 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
   `/admin/new-user` y `/admin/register` requieren rol `ADMIN` (SecurityConfig). El auto-registro
   público del spec quedó descartado por decisión de equipo (commit `e80d1c3`); el login final para
   usuarios será otra card. Por eso `adminIndex()` (U-09) redirige a `/admin/login`.
+- **AC-07 reemplazado parcialmente por [AUT]** (08-AUT.md): `/places` y `/plans` sin sesión pasan
+  a redirigir a `/auth/login` (AC-11 de 08-AUT). `/admin/**` sigue redirigiendo a `/admin/login`.
 - **`email` como username**: el form de login usa `email`/`password` como parámetros
   (`usernameParameter("email")` en SecurityConfig), no `username` como figura en la sección de
   referencia. La UI (Vue) y los tests/E2E usan `#email`.
