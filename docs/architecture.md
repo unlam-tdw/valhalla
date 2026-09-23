@@ -106,6 +106,18 @@ graph LR
 | POST | `/admin/validate-login` | Spring Security | redirect → /admin/home |
 | POST | `/admin/logout` | Spring Security | redirect → /admin/login |
 
+### User Auth Routes (planificadas — spec 08-AUT)
+
+| Method | Route | Controller | View |
+|--------|-------|------------|------|
+| GET | `/auth/login` | AuthController | pages/auth/user/login |
+| GET | `/auth/register` | AuthController | pages/auth/user/register |
+| POST | `/auth/register` | AuthController | redirect → /auth/login |
+| GET | `/auth/forgot-password` | AuthController | pages/auth/user/forgot-password |
+| POST | `/auth/recover` | AuthController | pages/auth/user/recovered |
+| POST | `/auth/validate-login` | Spring Security | redirect → /plans (USER) · /admin/home (ADMIN) |
+| POST | `/auth/logout` | Spring Security | redirect → /auth/login |
+
 ### Future Authenticated Routes
 
 | Method | Route | Controller | View |
@@ -273,6 +285,7 @@ src/main/webapp/resources/
 | Phase | Cards | Dependencies |
 |-------|-------|--------------|
 | 1. Auth & Security | [LOG] | None |
+| 1b. User Auth | [AUT] | Phase 1 |
 | 2. Places + Map | [PLC] | Phase 1 |
 | 3. Plans | [PLN] | Phase 1 |
 | 4. Itinerary Backend | [APL-BE] | Phase 2, 3 |

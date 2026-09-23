@@ -88,10 +88,13 @@ Las specs definen cada feature del proyecto. Cada una tiene Criterios de Aceptac
 | [05-APL-FE](docs/specs/05-APL-FE.md) | Agregar Lugares al Plan (Frontend) | [APL-FE](https://trello.com/c/K7XqvGWZ) |
 | [06-CMP](docs/specs/06-CMP.md) | Compartir Plan | [CMP](https://trello.com/c/vZuil82c) |
 | [07-VPC](docs/specs/07-VPC.md) | Vista Publica de Plan Compartido | [VPC](https://trello.com/c/hr1n4EwA) |
+| [08-AUT](docs/specs/08-AUT.md) | Auth de Usuarios (login, registro, recovery) | [AUT](https://trello.com/c/AhEeTyf7) |
 
 ## Authentication
 
 Spring Security handles auth. `SecurityConfig` configures form login (`/admin/login`), logout (`/admin/logout`), CSRF (exempt for `/api/**`), and session management (1 session per user). `CustomUserDetailsService` bridges `UserRepository` to Spring Security. `CustomAuthenticationSuccessHandler` sets `loginTime` in the HTTP session after successful login. Public routes: `/`, `/share/**`. Protected: `/admin/**` requires `ROLE_ADMIN`. New registrations get `role = USER` and `active = true`.
+
+User-facing auth (self-registration, `/auth/login`, password recovery) is specified in [08-AUT](docs/specs/08-AUT.md) — planned, not yet implemented.
 
 ## Technologies
 
