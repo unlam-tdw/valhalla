@@ -26,11 +26,9 @@ public abstract class BaseJpaConfig {
       new LocalContainerEntityManagerFactoryBean();
     entityManagerFactory.setDataSource(dataSource);
     entityManagerFactory.setPackagesToScan(
-      "com.valhalla.domain.user",
-      "com.valhalla.domain.login",
+      "com.valhalla.domain",
       "com.valhalla.domain.place",
-      "com.valhalla.domain.plan",
-      "com.valhalla.domain.planplace"
+      "com.valhalla.domain.ubicacion"
     );
     entityManagerFactory.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
     entityManagerFactory.setJpaProperties(jpaProperties());
