@@ -53,7 +53,6 @@ public class Plan {
 
   private Boolean isPublic = false;
 
-  // Se agrega fetch = FetchType.EAGER para cargar los lugares junto con el plan
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
     name = "plan_places",

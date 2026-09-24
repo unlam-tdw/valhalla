@@ -4,7 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Mis planes</title>
 
     <style>
@@ -60,7 +59,6 @@
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
-
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -90,12 +88,33 @@
             font-size: 13px;
         }
 
+        .plan-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         .detail-button {
             padding: 9px 15px;
             border-radius: 7px;
             background-color: #e5e7eb;
             color: #222;
             text-decoration: none;
+            font-size: 14px;
+        }
+
+        .delete-button {
+            padding: 9px 15px;
+            border-radius: 7px;
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .delete-button:hover {
+            background-color: #fecaca;
         }
 
         .empty {
@@ -112,88 +131,42 @@
 
 <div class="container">
 
-    <!-- Encabezado -->
-
     <div class="header">
-
         <div>
             <h1>Mis planes</h1>
-
-            <p class="subtitle">
-                Todos tus planes creados.
-            </p>
+            <p class="subtitle">Todos tus planes creados.</p>
         </div>
-
-        <a href="/planes/crear" class="create-button">
-            Crear plan
-        </a>
-
+        <a href="/planes/crear" class="create-button">Crear plan</a>
     </div>
-
-
-    <!-- Lista de planes -->
 
     <div class="plans">
-
-        <div
-                class="plan"
-                th:each="plan : ${plans}">
-
+        <div class="plan" th:each="plan : ${plans}">
             <div class="plan-info">
-
-                <h2 th:text="${plan.name}">
-                    Nombre del plan
-                </h2>
-
-                <p
-                        class="plan-description"
-                        th:text="${plan.description}">
-                    Descripción del plan
-                </p>
-
+                <h2 th:text="${plan.name}">Nombre del plan</h2>
+                <p class="plan-description" th:text="${plan.description}">Descripción del plan</p>
                 <p class="plan-date">
-
-                    Fecha:
-                    <span th:text="${plan.eventDate}">
-                        00/00/0000
-                    </span>
-
+                    Fecha: <span th:text="${plan.eventDate}">00/00/0000</span>
                 </p>
-
-                <span th:text="${plan.isPublic != null and plan.isPublic ? 'Público' : 'Privado'}"></span>
-
+                <span class="visibility" th:text="${plan.isPublic != null and plan.isPublic ? 'Público' : 'Privado'}"></span>
             </div>
 
+            <div class="plan-actions">
+                <a class="detail-button" th:href="@{/planes/{id}(id=${plan.IdPlan})}">
+                    Ver detalle
+                </a>
 
-            <!-- Ver detalle -->
-
-            <a
-                    class="detail-button"
-                    th:href="@{/planes/{id}(id=${plan.IdPlan})}">
-
-                Ver detalle
-
-            </a>
-
+                <form th:action="@{/planes/delete/{id}(id=${plan.IdPlan})}" method="post" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este plan?');">
+                    <button type="submit" class="delete-button">Eliminar</button>
+                </form>
+            </div>
         </div>
-
     </div>
 
-
-    <!-- Cuando no existen planes -->
-
-    <div
-            class="empty"
-            th:if="${#lists.isEmpty(plans)}">
-
-        <p>
-            Todavía no tenés ningún plan creado.
-        </p>
-
+    <div class="empty" th:if="${#lists.isEmpty(plans)}">
+        <p>Todavía no tenés ningún plan creado.</p>
     </div>
 
 </div>
 
 </body>
 </html>
-```

@@ -24,7 +24,10 @@ public class PlanController {
 
   @GetMapping("/{id}")
   public String planDetail(@PathVariable Long id, Model model) {
-    model.addAttribute("plan", planService.getPlanById(id));
+    Plan plan = planService
+      .getPlanById(id)
+      .orElseThrow(() -> new IllegalArgumentException("Plan no encontrado"));
+    model.addAttribute("plan", plan);
     return "pages/plans/detail";
   }
 
@@ -37,6 +40,12 @@ public class PlanController {
   @PostMapping("/crear")
   public String planGenerate(@ModelAttribute Plan plan) {
     planService.createPlan(plan);
+    return "redirect:/planes";
+  }
+
+  @PostMapping("/delete/{id}")
+  public String planDelete(@PathVariable Long id) {
+    planService.deletePlan(id);
     return "redirect:/planes";
   }
 }
