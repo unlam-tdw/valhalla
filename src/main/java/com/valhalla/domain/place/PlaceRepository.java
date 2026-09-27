@@ -12,6 +12,8 @@ public interface PlaceRepository {
 
   List<Place> findByNameContainingIgnoreCase(String name);
 
+  List<Place> findByCategoryAndNameContainingIgnoreCase(PlaceCategory category, String name);
+
   void save(Place place);
 
   long count();

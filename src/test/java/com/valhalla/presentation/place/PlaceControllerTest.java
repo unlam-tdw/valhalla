@@ -52,6 +52,17 @@ public class PlaceControllerTest {
   }
 
   @Test
+  public void shouldApplySearchWithinSelectedCategory() {
+    List<Place> places = List.of(place(1L, "Parrilla Don Julio", PlaceCategory.RESTAURANT));
+    when(placeServiceMock.searchPlaces("Don", PlaceCategory.RESTAURANT)).thenReturn(places);
+
+    ModelAndView result = controller.listPlaces("RESTAURANT", "Don");
+
+    assertThat(result.getModel().get("places"), is(sameInstance(places)));
+    verify(placeServiceMock).searchPlaces("Don", PlaceCategory.RESTAURANT);
+  }
+
+  @Test
   public void shouldReturnNameFilteredPlaces() {
     List<Place> places = List.of(place(1L, "Parrilla Don Julio", PlaceCategory.RESTAURANT));
     when(placeServiceMock.searchPlaces("Don")).thenReturn(places);

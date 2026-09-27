@@ -66,4 +66,14 @@ public class PlaceRestControllerTest {
       .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
       .andExpect(content().string(containsString("\"name\":\"Parrilla Don Julio\"")));
   }
+
+  @Test
+  public void shouldApplySearchWithinSelectedCategoryAsJson() throws Exception {
+    mockMvc
+      .perform(get("/api/places").param("category", "RESTAURANT").param("search", "Don"))
+      .andExpect(status().isOk())
+      .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+      .andExpect(content().string(containsString("\"name\":\"Parrilla Don Julio\"")))
+      .andExpect(content().string(org.hamcrest.Matchers.not(containsString("El Sanjuanino"))));
+  }
 }
