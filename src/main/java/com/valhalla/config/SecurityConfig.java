@@ -12,6 +12,7 @@ import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
 @Configuration
 @EnableWebSecurity
@@ -111,6 +112,8 @@ public class SecurityConfig {
 
   // 3. Cadena Default para el resto del sitio
 
+  // 3. Cadena Default para el resto del sitio
+
   @Bean
   @Order(3)
   public SecurityFilterChain defaultFilterChain(HttpSecurity http, SessionRegistry sessionRegistry)
@@ -129,12 +132,15 @@ public class SecurityConfig {
       .formLogin(form ->
         form
           .loginPage("/auth/login")
-          .loginProcessingUrl("/auth/validate-login")
+          .loginProcessingUrl("/auth/login")
           .usernameParameter("username")
           .passwordParameter("password")
           .successHandler(successHandler)
           .failureUrl("/auth/login?error=true")
           .permitAll()
+      )
+      .exceptionHandling(ex ->
+        ex.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/auth/login"))
       )
       .sessionManagement(session ->
         session.maximumSessions(1).sessionRegistry(sessionRegistry).maxSessionsPreventsLogin(false)
