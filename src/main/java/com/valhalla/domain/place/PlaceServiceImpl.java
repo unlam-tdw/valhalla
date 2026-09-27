@@ -31,7 +31,7 @@ public class PlaceServiceImpl implements PlaceService {
 
   @Override
   @Transactional(readOnly = true)
-  public List<Place> getPlacesByCategory(String category) {
+  public List<Place> getPlacesByCategory(PlaceCategory category) {
     return placeRepository.findByCategory(category);
   }
 

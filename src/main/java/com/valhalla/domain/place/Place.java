@@ -2,12 +2,15 @@ package com.valhalla.domain.place;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "places")
@@ -24,9 +27,10 @@ public class Place {
   @Lob
   private String description;
 
-  @NotBlank(message = "Category is required")
+  @NotNull(message = "Category is required")
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private String category;
+  private PlaceCategory category;
 
   private String address;
 
@@ -60,11 +64,11 @@ public class Place {
     this.description = description;
   }
 
-  public String getCategory() {
+  public PlaceCategory getCategory() {
     return category;
   }
 
-  public void setCategory(String category) {
+  public void setCategory(PlaceCategory category) {
     this.category = category;
   }
 

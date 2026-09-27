@@ -8,7 +8,7 @@ public interface PlaceService {
 
   Optional<Place> getPlaceById(Long id);
 
-  List<Place> getPlacesByCategory(String category);
+  List<Place> getPlacesByCategory(PlaceCategory category);
 
   List<Place> searchPlaces(String query);
 }

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceService;
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +30,7 @@ public class PlaceControllerTest {
 
   @Test
   public void shouldReturnAllPlacesWhenListHasNoFilters() {
-    List<Place> places = List.of(place(1L, "MALBA", "MUSEUM"));
+    List<Place> places = List.of(place(1L, "MALBA", PlaceCategory.MUSEUM));
     when(placeServiceMock.getAllPlaces()).thenReturn(places);
 
     ModelAndView result = controller.listPlaces(null, null);
@@ -41,18 +42,18 @@ public class PlaceControllerTest {
 
   @Test
   public void shouldReturnCategoryFilteredPlaces() {
-    List<Place> places = List.of(place(1L, "Cafe Tortoni", "CAFE"));
-    when(placeServiceMock.getPlacesByCategory("CAFE")).thenReturn(places);
+    List<Place> places = List.of(place(1L, "Cafe Tortoni", PlaceCategory.CAFE));
+    when(placeServiceMock.getPlacesByCategory(PlaceCategory.CAFE)).thenReturn(places);
 
     ModelAndView result = controller.listPlaces("CAFE", null);
 
     assertThat(result.getModel().get("places"), is(sameInstance(places)));
-    verify(placeServiceMock).getPlacesByCategory("CAFE");
+    verify(placeServiceMock).getPlacesByCategory(PlaceCategory.CAFE);
   }
 
   @Test
   public void shouldReturnNameFilteredPlaces() {
-    List<Place> places = List.of(place(1L, "Parrilla Don Julio", "RESTAURANT"));
+    List<Place> places = List.of(place(1L, "Parrilla Don Julio", PlaceCategory.RESTAURANT));
     when(placeServiceMock.searchPlaces("Don")).thenReturn(places);
 
     ModelAndView result = controller.listPlaces(null, "Don");
@@ -63,7 +64,7 @@ public class PlaceControllerTest {
 
   @Test
   public void shouldReturnPlaceInDetailWhenIdExists() {
-    Place expectedPlace = place(1L, "MALBA", "MUSEUM");
+    Place expectedPlace = place(1L, "MALBA", PlaceCategory.MUSEUM);
     when(placeServiceMock.getPlaceById(1L)).thenReturn(Optional.of(expectedPlace));
 
     ModelAndView result = controller.placeDetail(1L);
@@ -82,7 +83,7 @@ public class PlaceControllerTest {
     assertThat(result.getModel().containsKey("place"), is(false));
   }
 
-  private Place place(Long id, String name, String category) {
+  private Place place(Long id, String name, PlaceCategory category) {
     Place place = new Place();
     place.setId(id);
     place.setName(name);

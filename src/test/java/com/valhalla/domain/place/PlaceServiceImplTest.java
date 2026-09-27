@@ -26,7 +26,7 @@ public class PlaceServiceImplTest {
 
   @Test
   public void shouldReturnAllPlaces() {
-    List<Place> places = List.of(place("Cafe Tortoni", "CAFE"));
+    List<Place> places = List.of(place("Cafe Tortoni", PlaceCategory.CAFE));
     when(placeRepositoryMock.findAll()).thenReturn(places);
 
     List<Place> result = placeService.getAllPlaces();
@@ -37,18 +37,18 @@ public class PlaceServiceImplTest {
 
   @Test
   public void shouldReturnPlacesForCategory() {
-    List<Place> places = List.of(place("Cafe Tortoni", "CAFE"));
-    when(placeRepositoryMock.findByCategory("CAFE")).thenReturn(places);
+    List<Place> places = List.of(place("Cafe Tortoni", PlaceCategory.CAFE));
+    when(placeRepositoryMock.findByCategory(PlaceCategory.CAFE)).thenReturn(places);
 
-    List<Place> result = placeService.getPlacesByCategory("CAFE");
+    List<Place> result = placeService.getPlacesByCategory(PlaceCategory.CAFE);
 
     assertThat(result, is(sameInstance(places)));
-    verify(placeRepositoryMock).findByCategory("CAFE");
+    verify(placeRepositoryMock).findByCategory(PlaceCategory.CAFE);
   }
 
   @Test
   public void shouldSearchPlacesByName() {
-    List<Place> places = List.of(place("Parrilla Don Julio", "RESTAURANT"));
+    List<Place> places = List.of(place("Parrilla Don Julio", PlaceCategory.RESTAURANT));
     when(placeRepositoryMock.findByNameContainingIgnoreCase("Don")).thenReturn(places);
 
     List<Place> result = placeService.searchPlaces("Don");
@@ -59,7 +59,7 @@ public class PlaceServiceImplTest {
 
   @Test
   public void shouldReturnPlaceWhenIdExists() {
-    Place expectedPlace = place("MALBA", "MUSEUM");
+    Place expectedPlace = place("MALBA", PlaceCategory.MUSEUM);
     expectedPlace.setId(1L);
     when(placeRepositoryMock.findById(1L)).thenReturn(Optional.of(expectedPlace));
 
@@ -79,7 +79,7 @@ public class PlaceServiceImplTest {
     verify(placeRepositoryMock).findById(99L);
   }
 
-  private Place place(String name, String category) {
+  private Place place(String name, PlaceCategory category) {
     Place place = new Place();
     place.setName(name);
     place.setCategory(category);
