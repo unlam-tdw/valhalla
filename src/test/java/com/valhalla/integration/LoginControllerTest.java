@@ -84,7 +84,7 @@ public class LoginControllerTest {
   public void shouldShowLoginLinkInNavbarWhenAnonymous() throws Exception {
     this.mockMvc.perform(get("/admin/login"))
       .andExpect(status().isOk())
-      .andExpect(content().string(containsString("href=\"/admin/login\"")));
+      .andExpect(content().string(containsString("href=\"/auth/login\"")));
   }
 
   @Test
@@ -98,7 +98,7 @@ public class LoginControllerTest {
 
   @Test
   @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
-  public void shouldRedirectToHomeWhenCredentialsAreCorrect() throws Exception {
+  public void shouldRedirectToPlansWhenUserCredentialsAreCorrect() throws Exception {
     this.mockMvc.perform(
         post("/admin/validate-login")
           .with(csrf())
@@ -106,7 +106,7 @@ public class LoginControllerTest {
           .param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/admin/home"));
+      .andExpect(redirectedUrl("/plans"));
   }
 
   @Test
@@ -274,6 +274,6 @@ public class LoginControllerTest {
           .param("password", LOGIN_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/admin/home"));
+      .andExpect(redirectedUrl("/plans"));
   }
 }

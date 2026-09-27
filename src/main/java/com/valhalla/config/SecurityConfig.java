@@ -15,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 public class SecurityConfig {
 
   @Autowired
@@ -124,6 +125,16 @@ public class SecurityConfig {
           .permitAll()
           .anyRequest()
           .authenticated()
+      )
+      .formLogin(form ->
+        form
+          .loginPage("/auth/login")
+          .loginProcessingUrl("/auth/validate-login")
+          .usernameParameter("username")
+          .passwordParameter("password")
+          .successHandler(successHandler)
+          .failureUrl("/auth/login?error=true")
+          .permitAll()
       )
       .sessionManagement(session ->
         session.maximumSessions(1).sessionRegistry(sessionRegistry).maxSessionsPreventsLogin(false)

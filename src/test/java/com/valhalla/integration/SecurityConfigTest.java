@@ -2,6 +2,7 @@ package com.valhalla.integration;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -27,12 +28,16 @@ public class SecurityConfigTest {
 
   @Test
   public void shouldRedirectToLoginWhenAccessingPlacesWithoutSession() throws Exception {
-    this.mockMvc.perform(get("/places")).andExpect(status().is3xxRedirection());
+    this.mockMvc.perform(get("/places"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login"));
   }
 
   @Test
   public void shouldRedirectToLoginWhenAccessingPlansWithoutSession() throws Exception {
-    this.mockMvc.perform(get("/plans")).andExpect(status().is3xxRedirection());
+    this.mockMvc.perform(get("/plans"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login"));
   }
 
   @Test
