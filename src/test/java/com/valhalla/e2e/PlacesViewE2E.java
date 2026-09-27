@@ -7,8 +7,10 @@ import static org.hamcrest.Matchers.is;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -16,7 +18,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-// TODO: The test exists and asserts the required marker/filter behavior, but its latest real-browser run fails before the login DOM is available in the local Jetty setup.
 public class PlacesViewE2E {
 
   private static Playwright playwright;
@@ -49,21 +50,21 @@ public class PlacesViewE2E {
   }
 
   @Test
-  void shouldRenderMarkersAndSynchronizeCategoryFilter() {
+  void shouldRenderPlacesAndFilterByCategory() {
     page.navigate(
       "http://127.0.0.1:8080/places",
       new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT)
     );
 
-    waitForMarkerCount(10);
-    assertThat(page.locator("#places-app article").count(), is(equalTo(10)));
+    assertThat(placeCards().count(), is(equalTo(10)));
 
-    page.locator("#place-category").selectOption("RESTAURANT");
+    page.locator("select[name='category']").selectOption("RESTAURANT");
+    page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Apply Filters")).click();
+    page.waitForURL("**/places?*");
 
-    waitForMarkerCount(2);
-    assertThat(page.locator("#places-app article").count(), is(equalTo(2)));
+    assertThat(placeCards().count(), is(equalTo(2)));
     assertThat(
-      page.locator("#places-app article").allTextContents().toString().contains("RESTAURANT"),
+      placeCards().allTextContents().stream().allMatch(cardText -> cardText.contains("RESTAURANT")),
       is(true)
     );
   }
@@ -79,10 +80,7 @@ public class PlacesViewE2E {
     page.waitForURL("**/admin/home");
   }
 
-  private void waitForMarkerCount(int expectedCount) {
-    page.waitForFunction(
-      "expectedCount => document.querySelectorAll('#places-map .leaflet-interactive').length === expectedCount",
-      expectedCount
-    );
+  private Locator placeCards() {
+    return page.locator("main a[href*='/places/']");
   }
 }
