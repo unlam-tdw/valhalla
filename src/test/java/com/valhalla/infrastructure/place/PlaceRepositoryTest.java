@@ -49,4 +49,15 @@ public class PlaceRepositoryTest {
     assertThat(places.size(), is(equalTo(1)));
     assertThat(places.getFirst().getName(), is(equalTo("Parrilla Don Julio")));
   }
+
+  @Test
+  public void shouldFindPlacesMatchingCategoryAndPartialCaseInsensitiveName() {
+    List<Place> places = placeRepository.findByCategoryAndNameContainingIgnoreCase(
+      PlaceCategory.RESTAURANT,
+      "don"
+    );
+
+    assertThat(places.size(), is(equalTo(1)));
+    assertThat(places.getFirst().getName(), is(equalTo("Parrilla Don Julio")));
+  }
 }

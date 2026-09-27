@@ -11,4 +11,6 @@ public interface PlaceService {
   List<Place> getPlacesByCategory(PlaceCategory category);
 
   List<Place> searchPlaces(String query);
+
+  List<Place> searchPlaces(String query, PlaceCategory category);
 }

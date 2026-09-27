@@ -54,7 +54,11 @@ public class PlaceController {
     if (category != null && !category.isBlank()) {
       return PlaceCategory
         .fromCode(category)
-        .map(placeService::getPlacesByCategory)
+        .map(placeCategory ->
+          search != null && !search.isBlank()
+            ? placeService.searchPlaces(search, placeCategory)
+            : placeService.getPlacesByCategory(placeCategory)
+        )
         .orElseGet(List::of);
     }
     if (search != null && !search.isBlank()) {

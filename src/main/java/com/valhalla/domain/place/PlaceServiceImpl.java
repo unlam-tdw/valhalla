@@ -40,4 +40,10 @@ public class PlaceServiceImpl implements PlaceService {
   public List<Place> searchPlaces(String query) {
     return placeRepository.findByNameContainingIgnoreCase(query);
   }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<Place> searchPlaces(String query, PlaceCategory category) {
+    return placeRepository.findByCategoryAndNameContainingIgnoreCase(category, query);
+  }
 }

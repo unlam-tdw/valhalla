@@ -39,6 +39,11 @@ public class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @Override
+  public List<Place> findByCategoryAndNameContainingIgnoreCase(PlaceCategory category, String name) {
+    return jpaPlaceRepository.findByCategoryAndNameContainingIgnoreCase(category, name);
+  }
+
+  @Override
   public void save(Place place) {
     jpaPlaceRepository.save(place);
   }
