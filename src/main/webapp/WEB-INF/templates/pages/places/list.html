@@ -13,16 +13,9 @@
         class="flex-1 min-w-[12rem] rounded-md border-gray-300 bg-white border px-3 py-2" />
       <select name="category" class="flex-1 min-w-[10rem] rounded-md border-gray-300 bg-white border px-3 py-2">
         <option value="" th:selected="${category == null or category == ''}">All categories</option>
-        <option value="RESTAURANT" th:selected="${category == 'RESTAURANT'}">Restaurant</option>
-        <option value="BAR" th:selected="${category == 'BAR'}">Bar</option>
-        <option value="CAFE" th:selected="${category == 'CAFE'}">Cafe</option>
-        <option value="MUSEUM" th:selected="${category == 'MUSEUM'}">Museum</option>
-        <option value="PARK" th:selected="${category == 'PARK'}">Park</option>
-        <option value="SHOPPING" th:selected="${category == 'SHOPPING'}">Shopping</option>
-        <option value="NIGHTLIFE" th:selected="${category == 'NIGHTLIFE'}">Nightlife</option>
-        <option value="CULTURE" th:selected="${category == 'CULTURE'}">Culture</option>
-        <option value="SPORT" th:selected="${category == 'SPORT'}">Sport</option>
-        <option value="OTHER" th:selected="${category == 'OTHER'}">Other</option>
+        <option th:each="placeCategory : ${categories}" th:value="${placeCategory.name()}"
+          th:text="${#strings.capitalize(#strings.toLowerCase(placeCategory.name()))}"
+          th:selected="${category == placeCategory.name()}"></option>
       </select>
       <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700">Apply
         Filters</button>
