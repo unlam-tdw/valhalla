@@ -37,6 +37,7 @@ public class PlaceController {
   ) {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLACES, getPlaces(category, search));
+    model.put("categories", PlaceCategory.values());
     model.put("category", category);
     model.put("search", search);
     return new ModelAndView(VIEW_LIST, model);
