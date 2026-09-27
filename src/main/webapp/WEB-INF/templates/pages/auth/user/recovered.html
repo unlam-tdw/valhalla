@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Contraseña Recuperada - Valhalla</title>
+</head>
+<body>
+    <main>
+        <h1>Contraseña Actualizada</h1>
+        <p>Tu clave ha sido restablecida exitosamente.</p>
+
+        <div>
+            <p>Tu nueva clave provisoria es: <strong th:text="${tempPassword}"></strong></p>
+        </div>
+
+        <nav>
+            <a th:href="@{/auth/login}">Ir a Iniciar Sesión</a>
+        </nav>
+    </main>
+</body>
+</html>
