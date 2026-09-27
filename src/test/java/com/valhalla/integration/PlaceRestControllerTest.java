@@ -24,8 +24,7 @@ public class PlaceRestControllerTest {
 
   @BeforeEach
   public void setUp() {
-    mockMvc =
-      MockMvcBuilders
+    mockMvc = MockMvcBuilders
         .webAppContextSetup(webApplicationContext)
         .apply(SecurityMockMvcConfigurers.springSecurity())
         .build();
@@ -34,27 +33,28 @@ public class PlaceRestControllerTest {
   @Test
   public void shouldReturnPlacesAsJson() throws Exception {
     mockMvc
-      .perform(get("/api/places"))
-      .andExpect(status().isOk())
-      .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-      .andExpect(content().string(containsString("\"name\":\"MALBA\"")));
+        .perform(get("/api/places"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(content().string(containsString("\"name\":\"MALBA\"")));
   }
 
   @Test
   public void shouldFilterPlacesByCategoryAsJson() throws Exception {
     mockMvc
-      .perform(get("/api/places").param("category", "RESTAURANT"))
-      .andExpect(status().isOk())
-      .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-      .andExpect(content().string(containsString("\"category\":\"RESTAURANT\"")));
+        .perform(get("/api/places").param("category", "RESTAURANT"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(content().string(containsString("\"category\":\"RESTAURANT\"")));
   }
 
   @Test
   public void shouldSearchPlacesByNameAsJson() throws Exception {
     mockMvc
-      .perform(get("/api/places").param("search", "Don"))
-      .andExpect(status().isOk())
-      .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-      .andExpect(content().string(containsString("\"name\":\"Parrilla Don Julio\"")));
+        .perform(get("/api/places").param("search", "Don"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(content().string(containsString("\"name\":\"Parrilla Don Julio\"")));
+    ;
   }
 }

@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface JpaPlaceRepository extends JpaRepository<Place, Long> {
   List<Place> findByCategory(String category);
+
   List<Place> findByNameContainingIgnoreCase(String name);
 }

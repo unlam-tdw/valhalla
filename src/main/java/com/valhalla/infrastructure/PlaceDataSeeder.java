@@ -28,7 +28,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     seeded = true;
     savePlace(
       "El Sanjuanino",
-      "Classic porteno empanadas and northern food",
+      "Empanadas portenas clasicas y comida del norte",
       "RESTAURANT",
       "Av. del Libertador 1234",
       -34.5895,
@@ -36,7 +36,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "La Viruta",
-      "Tango milonga and dance school in Palermo",
+      "Milonga de tango y escuela de baile en Palermo",
       "NIGHTLIFE",
       "Armenia 1366",
       -34.6025,
@@ -44,7 +44,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "MALBA",
-      "Museum of Latin American Art of Buenos Aires",
+      "Museo de Arte Latinoamericano de Buenos Aires",
       "MUSEUM",
       "Av. Figueroa Alcorta 3415",
       -34.5833,
@@ -52,7 +52,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "Plaza Serrano",
-      "Plaza with artisan market on Sundays",
+      "Plaza con feria de artesanos los domingos",
       "SHOPPING",
       "Plaza Cortazar, Palermo",
       -34.5818,
@@ -60,7 +60,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "Cafe Tortoni",
-      "Oldest cafe in Buenos Aires (1858)",
+      "El cafe mas antiguo de Buenos Aires (1858)",
       "CAFE",
       "Av. de Mayo 825",
       -34.6083,
@@ -68,7 +68,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "Parque Tres de Febrero",
-      "Large park with lakes and green areas",
+      "Gran parque con lagos y areas verdes",
       "PARK",
       "Palermo",
       -34.5747,
@@ -76,7 +76,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "El Ateneo Grand Splendid",
-      "Bookstore in a former theater",
+      "Libreria en un antiguo teatro",
       "CULTURE",
       "Av. Santa Fe 1860",
       -34.5967,
@@ -84,7 +84,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "Cerveceria General San Martin",
-      "Craft brewery with live shows",
+      "Cerveceria artesanal con shows en vivo",
       "BAR",
       "Av. Corrientes 1475",
       -34.6033,
@@ -92,7 +92,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "Planetario Galileo Galilei",
-      "Planetarium in Parque Tres de Febrero",
+      "Planetario ubicado en el Parque Tres de Febrero",
       "CULTURE",
       "Av. Sarmiento s/n",
       -34.5725,
@@ -100,7 +100,7 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     );
     savePlace(
       "Parrilla Don Julio",
-      "Internationally award-winning grill",
+      "Parrilla galardonada a nivel internacional",
       "RESTAURANT",
       "Guatemala 4699",
       -34.5892,
