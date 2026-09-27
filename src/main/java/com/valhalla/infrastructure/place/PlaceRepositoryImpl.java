@@ -1,6 +1,7 @@
 package com.valhalla.infrastructure.place;
 
 import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
 import java.util.List;
 import java.util.Optional;
@@ -28,7 +29,7 @@ public class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @Override
-  public List<Place> findByCategory(String category) {
+  public List<Place> findByCategory(PlaceCategory category) {
     return jpaPlaceRepository.findByCategory(category);
   }
 

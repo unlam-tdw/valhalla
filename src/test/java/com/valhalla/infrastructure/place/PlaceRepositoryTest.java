@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
 import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.integration.JpaIntegrationTest;
 import java.util.List;
@@ -31,12 +32,12 @@ public class PlaceRepositoryTest {
 
   @Test
   public void shouldFindOnlyPlacesInRequestedCategory() {
-    List<Place> places = placeRepository.findByCategory("RESTAURANT");
+    List<Place> places = placeRepository.findByCategory(PlaceCategory.RESTAURANT);
 
     assertThat(places.size(), is(greaterThanOrEqualTo(1)));
     assertThat(places, everyItem(notNullValue()));
     assertThat(
-      places.stream().allMatch(place -> "RESTAURANT".equals(place.getCategory())),
+      places.stream().allMatch(place -> PlaceCategory.RESTAURANT == place.getCategory()),
       is(true)
     );
   }

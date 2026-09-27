@@ -1,6 +1,7 @@
 package com.valhalla.presentation.place;
 
 import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,10 @@ public class PlaceRestController {
     @RequestParam(required = false) String search
   ) {
     if (category != null && !category.isBlank()) {
-      return placeService.getPlacesByCategory(category);
+      return PlaceCategory
+        .fromCode(category)
+        .map(placeService::getPlacesByCategory)
+        .orElseGet(List::of);
     }
     if (search != null && !search.isBlank()) {
       return placeService.searchPlaces(search);

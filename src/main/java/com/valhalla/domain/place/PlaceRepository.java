@@ -8,7 +8,7 @@ public interface PlaceRepository {
 
   Optional<Place> findById(Long id);
 
-  List<Place> findByCategory(String category);
+  List<Place> findByCategory(PlaceCategory category);
 
   List<Place> findByNameContainingIgnoreCase(String name);
 
