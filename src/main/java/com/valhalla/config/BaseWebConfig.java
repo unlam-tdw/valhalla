@@ -19,7 +19,10 @@ import org.thymeleaf.spring6.templateresolver.SpringResourceTemplateResolver;
 import org.thymeleaf.spring6.view.ThymeleafViewResolver;
 import org.thymeleaf.templatemode.TemplateMode;
 
-/** Shared MVC base between production and tests: only the concrete context differs. */
+/**
+ * Shared MVC base between production and tests: only the concrete context
+ * differs.
+ */
 @Configuration
 @EnableWebMvc
 @Import({ SecurityConfig.class, ValidationConfig.class })
@@ -42,6 +45,7 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
   @Override
   public void addResourceHandlers(final ResourceHandlerRegistry registry) {
     registry.addResourceHandler("/js/**").addResourceLocations("/resources/core/js/");
+    registry.addResourceHandler("/images/**").addResourceLocations("/resources/images/");
   }
 
   @Override

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title">
+  <title id="title">Place image unavailable</title>
+  <rect width="1200" height="640" fill="#e9efeb"/>
+  <path d="M0 470h1200v170H0z" fill="#c8d8ce"/>
+  <path d="M0 500 180 360l170 140 175-210 220 210 175-150 280 150v140H0z" fill="#a9c1b2"/>
+  <path d="M440 500V310h90v190m24 0V250h120v250m28 0V330h76v170m26 0V285h112v215m22 0V365h102v135" fill="#718f7d"/>
+  <path d="M597 190c-48 0-87 39-87 87 0 68 87 157 87 157s87-89 87-157c0-48-39-87-87-87zm0 119a32 32 0 1 1 0-64 32 32 0 0 1 0 64z" fill="#d16b50"/>
+  <path d="M0 556c180-34 345-34 525 0s345 34 675 0v84H0z" fill="#dce7e0"/>
+</svg>

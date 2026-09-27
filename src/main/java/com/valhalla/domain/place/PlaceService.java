@@ -5,7 +5,10 @@ import java.util.Optional;
 
 public interface PlaceService {
   List<Place> getAllPlaces();
+
   Optional<Place> getPlaceById(Long id);
+
   List<Place> getPlacesByCategory(String category);
+
   List<Place> searchPlaces(String query);
 }

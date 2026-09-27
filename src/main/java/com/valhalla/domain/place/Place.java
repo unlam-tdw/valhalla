@@ -24,7 +24,6 @@ public class Place {
   @Lob
   private String description;
 
-  // TODO: Consider using an enum for category to enforce valid values
   @NotBlank(message = "Category is required")
   @Column(nullable = false)
   private String category;
