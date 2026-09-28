@@ -16,7 +16,6 @@ import org.springframework.security.web.authentication.LoginUrlAuthenticationEnt
 
 @Configuration
 @EnableWebSecurity
-@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 public class SecurityConfig {
 
   @Autowired
@@ -31,21 +30,15 @@ public class SecurityConfig {
     http
       .securityMatcher("/auth/**")
       .authorizeHttpRequests(auth ->
-        auth
-          .requestMatchers(
-            "/auth/login",
-            "/auth/register",
-            "/auth/forgot-password",
-            "/auth/recover"
-          )
-          .permitAll()
-          .anyRequest()
-          .authenticated()
+        // AC-10: todo el namespace /auth/** es público (form, registro y recuperación).
+        // Un endpoint nuevo bajo /auth/ nace público, como pide la spec, en vez de
+        // aparecer bloqueado en silencio por un anyRequest() restrictivo.
+        auth.anyRequest().permitAll()
       )
       .formLogin(form ->
         form
           .loginPage("/auth/login")
-          .loginProcessingUrl("/auth/login")
+          .loginProcessingUrl("/auth/validate-login")
           .usernameParameter("username")
           .passwordParameter("password")
           .successHandler(successHandler)
@@ -130,7 +123,7 @@ public class SecurityConfig {
       .formLogin(form ->
         form
           .loginPage("/auth/login")
-          .loginProcessingUrl("/auth/login")
+          .loginProcessingUrl("/auth/validate-login")
           .usernameParameter("username")
           .passwordParameter("password")
           .successHandler(successHandler)

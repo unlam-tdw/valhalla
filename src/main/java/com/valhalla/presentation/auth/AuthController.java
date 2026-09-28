@@ -3,6 +3,7 @@ package com.valhalla.presentation.auth;
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
 import com.valhalla.domain.user.RecoverPasswordService;
+import com.valhalla.presentation.shared.RecoverPasswordRequest;
 import com.valhalla.presentation.shared.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,9 +35,7 @@ public class AuthController {
     @RequestParam(value = "error", required = false) String error,
     Model model
   ) {
-    if (error != null) {
-      model.addAttribute("error", true);
-    }
+    model.addAttribute("error", "true".equals(error));
     return "pages/auth/user/login";
   }
 
@@ -68,14 +67,23 @@ public class AuthController {
 
   // --- RECUPERACIÓN DE CONTRASEÑA ---
   @GetMapping("/forgot-password")
-  public String showForgotPasswordForm() {
+  public String showForgotPasswordForm(Model model) {
+    model.addAttribute("recoverPasswordRequest", new RecoverPasswordRequest());
     return "pages/auth/user/forgot-password";
   }
 
   @PostMapping("/recover")
-  public String handleRecoverPassword(@RequestParam("email") String email, Model model) {
+  public String handleRecoverPassword(
+    @Valid @ModelAttribute("recoverPasswordRequest") RecoverPasswordRequest request,
+    BindingResult bindingResult,
+    Model model
+  ) {
+    if (bindingResult.hasErrors()) {
+      return "pages/auth/user/forgot-password";
+    }
+
     try {
-      String tempPassword = recoverPasswordService.recoverPassword(email);
+      String tempPassword = recoverPasswordService.recoverPassword(request.getEmail());
       model.addAttribute("tempPassword", tempPassword);
       return "pages/auth/user/recovered";
     } catch (IllegalArgumentException e) {
