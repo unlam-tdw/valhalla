@@ -57,15 +57,16 @@ while ($args.Count -gt 0) {
 }
 
 if ($list) {
-    # Package-private (no modifier) or public: private helpers are not tests, and
-    # listing them would suggest names that failsafe cannot run.
-    $testMethod = '^\s*(?:@Test\s*)?(?:public\s+|protected\s+|)\s*void\s+([A-Za-z0-9_]+)\s*\(\s*\)'
+    # Match over the whole file, not line by line: `@Test` sits on its own line above the
+    # declaration, so a line-based match with `@Test` optional also lists @BeforeEach helpers
+    # that failsafe cannot run.
+    $testMethod = '@Test\s+(?:public\s+|protected\s+|)?void\s+([A-Za-z0-9_]+)\s*\(\s*\)'
     Get-ChildItem src/test/java -Recurse -Filter '*E2E.java' |
         Sort-Object FullName |
         ForEach-Object {
             $_.BaseName
-            Select-String -Path $_.FullName -Pattern $testMethod |
-                ForEach-Object { '  ' + $_.Matches[0].Groups[1].Value }
+            [regex]::Matches((Get-Content $_.FullName -Raw), $testMethod) |
+                ForEach-Object { '  ' + $_.Groups[1].Value }
         }
     exit 0
 }

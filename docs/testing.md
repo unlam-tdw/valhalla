@@ -269,10 +269,18 @@ public class LoginViewE2E {
 
 **Wait for navigation (async):**
 ```java
-private void waitForPath(String expectedPath) {
-  await().atMost(Duration.ofSeconds(5))
-    .until(() -> page.url().contains(expectedPath));
+// WebPage — every page object inherits it. The path is anchored right after the authority, so
+// waitForPath("/plans") is not satisfied by /admin/plans. The trailing group allows both the
+// ?logout=true / ?error=true query and the ;jsessionid suffix.
+public void waitForPath(String path) {
+  page.waitForURL(
+    Pattern.compile("[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*" + Pattern.quote(path) + "(?:[?;][^#]*)?$"));
 }
+```
+
+**Listing the suite:**
+```powershell
+.\scripts\e2e.ps1 -List    # only @Test methods, never lifecycle helpers
 ```
 
 **UI contract:** E2E tests depend on element IDs and names:

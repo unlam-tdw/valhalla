@@ -24,9 +24,16 @@ public class WebPage {
    * {@code ;jsessionid} suffix: Spring Security lands on {@code ?logout=true} and {@code
    * ?error=true} after these flows, and a pattern that only allowed the session id would time out
    * on them instead of matching.
+   *
+   * <p>The path has to start right after the authority, which is what {@code [^/]*} pins down. A
+   * bare {@code .*} prefix would let {@code waitForPath("/plans")} be satisfied by
+   * {@code /admin/plans}, so a wrong redirect would pass. That assumes the app is deployed at the
+   * context root, which is how failsafe starts Jetty; under a context path the caller has to pass
+   * {@code /context/...} too.
    */
   public void waitForPath(String path) {
-    page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(?:[?;][^#]*)?$"));
+    page.waitForURL(
+      Pattern.compile("[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*" + Pattern.quote(path) + "(?:[?;][^#]*)?$"));
   }
 
   /**
