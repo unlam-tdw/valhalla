@@ -23,7 +23,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | AC-04 | Un usuario registrado puede iniciar sesión con email + password correctos |
 | AC-05 | Login con credenciales inválidas muestra error |
 | AC-06 | Al hacer logout, la sesión se invalida y redirige a /admin/login |
-| AC-07 | Rutas protegidas (/admin/home, /admin/users, /places, /plans) redirigen a /admin/login sin sesión |
+| AC-07 | Rutas protegidas: `/places` y `/plans` redirigen a `/auth/login` sin sesión; `/admin/home` y `/admin/users` siguen redirigiendo a `/admin/login` (cadena admin intacta) |
 | AC-08 | Rutas públicas (/, /admin/login, /share/**) no requieren sesión |
 | AC-09 | El header muestra el email del usuario logueado |
 | AC-10 | El header muestra link de login cuando no hay sesión |
@@ -73,8 +73,8 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| S-01 | `GET /places` sin sesión → redirige a `/admin/login` | AC-07 |
-| S-02 | `GET /plans` sin sesión → redirige a `/admin/login` | AC-07 |
+| S-01 | `GET /places` sin sesión → redirige a `/auth/login` | AC-07 |
+| S-02 | `GET /plans` sin sesión → redirige a `/auth/login` | AC-07 |
 | S-03 | `GET /share/abc123` sin sesión → 200 (público) | AC-08 |
 | S-04 | `GET /` sin sesión → 200 (landing page, público) | AC-08 |
 
@@ -93,15 +93,22 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 - **Registro admin-only**: AC-01/02/03 se implementaron solo en el flujo admin — `/admin/login`,
   `/admin/new-user` y `/admin/register` requieren rol `ADMIN` (SecurityConfig). El auto-registro
   público del spec quedó descartado por decisión de equipo (commit `e80d1c3`); el login final para
-  usuarios será otra card. Por eso `adminIndex()` (U-09) redirige a `/admin/login`.
+  usuarios será otra card. Por eso `adminIndex()` (U-09) redirige a `/admin/login`. **AUT
+  (08-AUT.md) revierte esa decisión**: el auto-registro público volvió en `/auth/register`
+  (solo email + password) y el login de usuarios quedó en `/auth/login`.
 - **AC-07 reemplazado parcialmente por [AUT]** (08-AUT.md): `/places` y `/plans` sin sesión pasan
   a redirigir a `/auth/login` (AC-11 de 08-AUT). `/admin/**` sigue redirigiendo a `/admin/login`.
-- **`email` como username**: el form de login usa `email`/`password` como parámetros
-  (`usernameParameter("email")` en SecurityConfig), no `username` como figura en la sección de
-  referencia. La UI (Vue) y los tests/E2E usan `#email`.
+- **`email` como username**: los forms de login usan el campo visible `#email` en las 3 cadenas,
+  pero el parámetro que viaja es distinto. Las cadenas admin (2 y 3) usan
+  `usernameParameter("email")`; la cadena de usuarios (1, `/auth/validate-login`) usa
+  `usernameParameter("username")`, que es lo que el `input` de `pages/auth/user/login.html`
+  declara. La UI (Vue) y los tests/E2E usan `#email`.
 - **AC-13**: requiere `HttpSessionEventPublisher` (registrado en `MyServletInitializer`) + el bean
   `SessionRegistry` (SecurityConfig) para que `maximumSessions(1)` funcione de verdad.
 - Tests extra con respecto a este spec: U-09, I-12, I-13, I-15, I-16, I-17 y E-05.
+- Tests de [AUT] (08-AUT.md), que no viven en este spec: escenarios U-01..U-10 e I-01..I-13 en
+  `presentation/auth/AuthControllerTest` e `integration/AuthControllerTest`, la recuperacion de
+  clave en `domain/user/RecoverPasswordServiceTest`, y E-01/E-02 en `e2e/UserAuthViewE2E`.
 
 ## Referencia de Implementacion
 
