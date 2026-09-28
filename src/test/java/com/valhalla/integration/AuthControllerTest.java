@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -249,6 +250,34 @@ public class AuthControllerTest {
       .andExpect(redirectedUrlPattern("**/admin/login"));
   }
 
+  // --- AC-13 ---
+
+  @Test
+  public void shouldShowRegisterLinkInNavbarWhenAnonymous() throws Exception {
+    this.mockMvc.perform(get("/auth/login"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("href=\"/auth/register\"")));
+  }
+
+  @Test
+  @WithMockUser(username = "user@unlam.edu.ar", roles = { "USER" })
+  public void shouldShowLogoutFormInNavbarOnceSignedIn() throws Exception {
+    this.mockMvc.perform(get("/"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("action=\"/auth/logout\"")));
+  }
+
+  // --- AC-14 ---
+
+  @Test
+  public void shouldKeepAdminPermissionsAfterLoggingInThroughTheUserForm() throws Exception {
+    String email = uniqueEmail();
+    userService.create(email, PASSWORD, "ADMIN", "Admin", "AUT");
+    MockHttpSession session = logInAndKeepSession(email, PASSWORD);
+
+    this.mockMvc.perform(get("/admin/users").session(session)).andExpect(status().isOk());
+  }
+
   // --- helpers ---
 
   private static String uniqueEmail() {
@@ -268,6 +297,23 @@ public class AuthControllerTest {
       .param("username", email)
       .param("password", password);
     return this.mockMvc.perform(request);
+  }
+
+  /**
+   * Logs in through the user form and hands the session back, so a later request can prove the
+   * session it produced is the one being authorized.
+   */
+  private MockHttpSession logInAndKeepSession(String email, String password) throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    this.mockMvc.perform(
+        post(VALIDATE_LOGIN)
+          .session(session)
+          .with(csrf())
+          .param("username", email)
+          .param("password", password)
+      )
+      .andExpect(status().is3xxRedirection());
+    return session;
   }
 
   private static String extractTempPassword(ResultActions actions) throws Exception {

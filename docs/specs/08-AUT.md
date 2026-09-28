@@ -71,6 +71,9 @@ sin sesión redirigen a `/auth/login`.
 | I-11 | `GET /places` sin sesión → redirige a `/auth/login` | AC-11 |
 | I-12 | `GET /plans` sin sesión → redirige a `/auth/login` | AC-11 |
 | I-13 | `GET /admin/users` sin sesión → redirige a `/admin/login` (sin cambios) | AC-12 |
+| I-14 | `GET /auth/login` sin sesión → el navbar tiene link a `/auth/register` | AC-13 |
+| I-15 | `GET /` con sesión `USER` → el navbar tiene form de logout a `/auth/logout` | AC-13 |
+| I-16 | `GET /admin/users` con la sesión creada por `POST /auth/validate-login` de un `ADMIN` → 200, no 403 | AC-14 |
 
 ### Tests de Seguridad (`integration/SecurityConfigTest.java`)
 
@@ -95,9 +98,17 @@ sin sesión redirigen a `/auth/login`.
   se reusa `UserService.rotatePassword(id)`. El email debe existir (si no, "Email no
   encontrado"): la pantalla de recuperación es el único lugar donde se revela la existencia
   del email, aceptado como trade-off del mecanismo.
+- **Recuperación, DTO y formato (AC-07/08)**: `presentation/shared/RecoverPasswordRequest` con
+  `@Email`. Un email mal formado se rechaza en el form con "Email is not valid" y nunca llega al
+  service; uno bien formado que no existe responde "Email no encontrado". Son dos mensajes a
+  propósito: el primero es un error de tipeo corregible, el segundo revela existencia y por eso
+  solo aparece después de pasar la validación de formato.
 - **Landing post-login (AC-04)**: `USER` → `/plans`; `ADMIN` → `/admin/home` (por rol).
-- **Registro (AC-01/02/03)**: solo email + password, reusando `NewUserRequest` y
-  `LoginService.register(email, password, "", "")` (crea rol `USER` activo).
+- **Registro (AC-01/02/03)**: solo email + password, con un DTO propio,
+  `presentation/shared/RegisterRequest` (`@NotBlank` + `@Email` en email, `@Size(min = 6)` en
+  password). **No** se reusa `NewUserRequest`: ese pide `firstName`/`lastName` y su `@NotBlank`
+  está ejercitado por un test del flujo admin, así que reutilizarlo cambiaría el contrato de la
+  vista admin. El service es `LoginService.register(email, password)`, que crea rol `USER` activo.
 
 ## Referencia de Implementacion
 
@@ -121,6 +132,10 @@ ordenadas (todo en `config/SecurityConfig.java`):
 - Un `AuthenticationSuccessHandler` común: si `authorities` incluye `ROLE_ADMIN` →
   `/admin/home`, si no → `/plans` (AC-04).
 - Chain 2 queda con la config actual de LOG (solo cambia el `securityMatcher`).
+- `usernameParameter` de las cadenas 1 y 3 es `"username"`, no `"email"`: el input de
+  `pages/auth/user/login.html` declara `name="username"` (con `id="email"`), mientras que las
+  cadenas admin usan `name="email"`. La UI y los tests usan el selector `#email`; el nombre del
+  parámetro que viaja al servidor es otro.
 
 Ref de la estructura:
 
@@ -137,7 +152,7 @@ public class SecurityConfig {
         .formLogin(form -> form
             .loginPage("/auth/login")
             .loginProcessingUrl("/auth/validate-login")
-            .usernameParameter("email")
+            .usernameParameter("username")
             .passwordParameter("password")
             .successHandler(roleAwareSuccessHandler())
             .failureUrl("/auth/login?error=true")
@@ -160,19 +175,21 @@ public class SecurityConfig {
 
 - `GET /auth/login` — vista `pages/auth/user/login`, atributo `error` si `?error=true` (patrón de LOG).
 - `GET /auth/register` — vista `pages/auth/user/register` con form.
-- `POST /auth/register` — valida (`NewUserRequest` existente: email + password) →
-  `LoginService.register(email, password, "", "")` (ya existe, crea rol `USER` activo) →
-  redirige `/auth/login`. Email duplicado / fallo → vuelve a `register` con error.
+- `POST /auth/register` — valida `RegisterRequest` (`@NotBlank` + `@Email` en email,
+  `@Size(min = 6)` en password) → `LoginService.register(email, password)` (crea rol `USER`
+  activo) → redirige `/auth/login`. Email duplicado / fallo → vuelve a `register` con error.
 - `GET /auth/forgot-password` — vista `pages/auth/user/forgot-password`.
-- `POST /auth/recover` — `RecoverPasswordService.recover(email)` → si el email existe,
-  rotar password y devolver la temporal para mostrar (éxito); si no, mensaje
-  "Email no encontrado" en la misma vista (AC-08).
+- `POST /auth/recover` — valida `RecoverPasswordRequest` (`@Email`); mal formado → vuelve al
+  form con "Email is not valid" sin tocar la base. Bien formado →
+  `RecoverPasswordService.recover(email)` → si el email existe, rotar password y devolver la
+  temporal para mostrar (éxito); si no, mensaje "Email no encontrado" en la misma vista (AC-08).
 
-### 3. RecoverPasswordService (`domain/user/` o `domain/login/`)
+### 3. RecoverPasswordService (`infrastructure/user/`)
 
 Reusa lo existente: `userRepository.findByEmail(email)` + `UserService.rotatePassword(id)`
 (ya genera y persiste password temporal con BCrypt). `AuthController` muestra la temporal
-en la vista success.
+en la vista success. Va en `infrastructure/` y no en `domain/` porque es una clase concreta
+anotada con `@Service`: las interfaces (`UserService`, `UserRepository`) se quedan en el dominio.
 
 ### 4. Templates
 
@@ -192,8 +209,8 @@ Los templates del flujo admin (`pages/auth/login.html`, `new-user.html`) no se t
 |---------|--------|
 | `config/SecurityConfig.java` | Actualizar (3 filter chains + success handler por rol) |
 | `presentation/auth/AuthController.java` | Crear |
-| `presentation/auth/AuthRegisterRequest.java` (o reuso de `NewUserRequest`) | Crear/Reusar |
-| `domain/login/RecoverPasswordService.java` (+ Impl) | Crear |
+| `presentation/shared/RegisterRequest.java`, `presentation/shared/RecoverPasswordRequest.java` | Crear (DTOs del flujo público) |
+| `infrastructure/user/RecoverPasswordService.java` | Crear |
 | `templates/pages/auth/user/*.html` (login, register, forgot-password, recovered) | Crear |
 | `templates/components/navbar.html` | Actualizar (links `/auth/*`, logout por rol) |
 | `presentation/auth/AuthControllerTest.java`, `integration/AuthControllerTest.java`, `integration/SecurityConfigTest.java` | Crear/Actualizar |
