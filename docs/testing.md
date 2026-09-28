@@ -27,33 +27,47 @@ Tests live under `src/test/java/com/valhalla/` and mirror the main source layout
 src/test/java/com/valhalla/
 ├── config/                         # Test-specific Spring configs
 │   └── JpaTestConfig.java
-├── domain/                         # Unit tests for services
-│   ├── login/LoginServiceTest.java
-│   └── user/UserServiceTest.java
 ├── e2e/                            # Playwright E2E tests (real browser)
+│   ├── E2eBase.java                # Shared Playwright lifecycle
 │   ├── LoginViewE2E.java
+│   ├── UserAuthViewE2E.java
 │   ├── UserViewABME2E.java
 │   ├── ResetDatabase.java          # DB cleanup between E2E runs
 │   └── views/                      # Page objects for Playwright
 │       ├── WebPage.java
 │       ├── LoginPage.java
+│       ├── RegisterPage.java
 │       ├── NewUserPage.java
 │       ├── UsersPage.java
 │       └── UserFormPage.java
-├── infrastructure/                 # Repository tests
-│   └── user/UserRepositoryTest.java
+├── infrastructure/                 # Tests for the *Impl classes
+│   ├── login/LoginServiceTest.java
+│   └── user/
+│       ├── UserServiceTest.java
+│       ├── UserRepositoryTest.java
+│       └── RecoverPasswordServiceTest.java
 ├── integration/                    # MockMvc integration tests
 │   ├── config/SpringWebTestConfig.java
 │   ├── WebIntegrationTest.java     # Composed annotation (see below)
 │   ├── JpaIntegrationTest.java     # Composed annotation for JPA tests
 │   ├── LoginControllerTest.java
-│   └── UserControllerTest.java
+│   ├── AuthControllerTest.java
+│   ├── UserControllerTest.java
+│   └── SecurityConfigTest.java
 └── presentation/                   # Pure Mockito unit tests
     ├── login/LoginControllerTest.java
+    ├── auth/AuthControllerTest.java
     └── shared/GlobalExceptionHandlerTest.java
 ```
 
-**Rule:** put tests in the directory that matches what you're testing. Services go in `domain/`, controllers in `presentation/` (unit) or `integration/` (MockMvc).
+Note there is no `domain/` directory under `src/test/`. In `src/main/`, `domain/` holds only
+interfaces, entities and exceptions; the implementations (`LoginServiceImpl`, `UserRepositoryImpl`)
+live in `infrastructure/` (see [architecture.md](architecture.md#2-architecture-layers)).
+
+**Rule:** put the test where the **implementation** lives, not where the interface lives. A test for
+`infrastructure/user/UserServiceImpl` goes in `infrastructure/user/`, even though the type it
+implements is declared in `domain/user/UserService.java`. Controllers go in `presentation/` (unit,
+Mockito) or `integration/` (MockMvc).
 
 ## `@WebIntegrationTest`, composed annotation
 
@@ -278,6 +292,15 @@ mvn test -Dtest="LoginControllerTest"
 mvn test -Dtest="LoginControllerTest#shouldReturnToLoginWhenCredentialsAreWrong"
 ```
 
+> **Naming is load-bearing.** Surefire only includes `**/*Test.java` (`pom.xml:210`). A file named
+> `FooTests.java` or `FooIT.java` is **not picked up at all** and the build still reports success.
+> Test classes must end in `Test`.
+>
+> E2E is the mirror image: Failsafe only includes `**/e2e/*E2E.java` (`pom.xml:230`), so an E2E class
+> outside the `e2e/` package or without the `E2E` suffix is silently skipped. Failsafe sets
+> `failIfNoTests` (`pom.xml:234`); Surefire does not — that is why a typo in `-Dtest` reports green
+> over zero tests.
+
 ### E2E tests
 
 E2E tests need PostgreSQL and Playwright's Chromium.
@@ -363,7 +386,16 @@ A failing test leaves a full-page screenshot and a Playwright trace in
 
 ### Skipping quality gates
 
-During development you may want to skip static analysis to iterate faster:
+During development you may want to skip static analysis to iterate faster.
+
+The fastest option is the `dev` profile, which switches off every gate at once
+(Checkstyle, PMD, CPD, Prettier and JaCoCo — `pom.xml:640-649`):
+
+```shell
+mvn test -Pdev
+```
+
+The individual flags, if you only need to drop one or two:
 
 ```shell
 # Skip all quality gates
@@ -384,6 +416,11 @@ mvn test -Djacoco.skip=true
 ```
 
 CI enforces these gates on `main`, always run `mvn clean verify` before pushing.
+
+> **`e2e.ps1` does not accept Maven flags.** It parses its own arguments by hand and throws
+> `unknown option: <arg>` on anything starting with `-` it does not recognise (`e2e.ps1:50-52`).
+> `.\scripts\e2e.ps1 -Pdev` therefore fails before Maven ever starts. To skip gates, run
+> `mvn test -Pdev` for the fast loop and keep `.\scripts\e2e.ps1` for the full run.
 
 ## Coverage
 

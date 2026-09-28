@@ -99,6 +99,9 @@ docker run -it --entrypoint /bin/bash valhalla
 # Run all Java tests (uses in-memory HSQLDB, no PostgreSQL needed)
 mvn test
 
+# Same, skipping Checkstyle/PMD/CPD/Prettier/JaCoCo -- fastest loop
+mvn test -Pdev
+
 # Run everything (unit + integration + E2E) -- one command, sets up the E2E database
 .\scripts\e2e.ps1                           # everything
 .\scripts\e2e.ps1 -Headed -SlowMo 300       # watch the browser
