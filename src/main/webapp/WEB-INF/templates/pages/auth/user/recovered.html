@@ -1,21 +1,31 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>Contraseña Recuperada - Valhalla</title>
-</head>
-<body>
-    <main>
-        <h1>Contraseña Actualizada</h1>
-        <p>Tu clave ha sido restablecida exitosamente.</p>
+<!DOCTYPE HTML>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 
-        <div>
-            <p>Tu nueva clave provisoria es: <strong th:text="${tempPassword}"></strong></p>
-        </div>
+<head th:replace="~{layouts/base :: head('Contraseña Recuperada - Valhalla')}"></head>
 
-        <nav>
-            <a th:href="@{/auth/login}">Ir a Iniciar Sesión</a>
-        </nav>
-    </main>
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+
+  <main class="flex flex-1 items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
+      <h1 class="mb-2 text-2xl font-semibold text-gray-900">Contraseña Actualizada</h1>
+      <p class="mb-6 text-sm text-gray-600">Tu clave ha sido restablecida exitosamente.</p>
+
+      <div class="rounded-md bg-blue-50 px-4 py-3 text-sm text-gray-800">
+        Tu nueva clave provisoria es:
+        <strong id="temp-password" class="block mt-1 text-lg tracking-wide" th:text="${tempPassword}"></strong>
+      </div>
+
+      <p class="mt-4 text-xs text-gray-500">
+        Guardala y cambiala apenas ingreses. No vas a poder recuperarla de nuevo.
+      </p>
+
+      <a th:href="@{/auth/login}" id="btn-login"
+        class="mt-6 block w-full rounded-md bg-blue-600 py-2 text-center font-medium text-white transition hover:bg-blue-700">
+        Ir a Iniciar Sesión
+      </a>
+    </div>
+  </main>
+
 </body>
+
 </html>

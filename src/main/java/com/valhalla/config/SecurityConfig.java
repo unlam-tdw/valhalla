@@ -112,8 +112,6 @@ public class SecurityConfig {
 
   // 3. Cadena Default para el resto del sitio
 
-  // 3. Cadena Default para el resto del sitio
-
   @Bean
   @Order(3)
   public SecurityFilterChain defaultFilterChain(HttpSecurity http, SessionRegistry sessionRegistry)
