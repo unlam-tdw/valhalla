@@ -26,7 +26,8 @@ Tests live under `src/test/java/com/valhalla/` and mirror the main source layout
 ```
 src/test/java/com/valhalla/
 ├── config/                         # Test-specific Spring configs
-│   └── JpaTestConfig.java
+│   ├── JpaTestConfig.java
+│   └── DevReloadControllerTest.java # Dev/prod switch of the live-reload endpoint
 ├── e2e/                            # Playwright E2E tests (real browser)
 │   ├── E2eBase.java                # Shared Playwright lifecycle
 │   ├── LoginViewE2E.java
@@ -37,6 +38,8 @@ src/test/java/com/valhalla/
 │       ├── WebPage.java
 │       ├── LoginPage.java
 │       ├── RegisterPage.java
+│       ├── ForgotPasswordPage.java
+│       ├── RecoveredPasswordPage.java
 │       ├── NewUserPage.java
 │       ├── UsersPage.java
 │       └── UserFormPage.java

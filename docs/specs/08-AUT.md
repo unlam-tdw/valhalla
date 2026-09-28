@@ -74,6 +74,7 @@ sin sesión redirigen a `/auth/login`.
 | I-14 | `GET /auth/login` sin sesión → el navbar tiene link a `/auth/register` | AC-13 |
 | I-15 | `GET /` con sesión `USER` → el navbar tiene form de logout a `/auth/logout` | AC-13 |
 | I-16 | `GET /admin/users` con la sesión creada por `POST /auth/validate-login` de un `ADMIN` → 200, no 403 | AC-14 |
+| I-17 | `GET /auth/forgot-password` → 200, vista recuperación con el form ya bound (el botón `#btn-recover` renderiza) | n/a |
 
 ### Tests de Seguridad (`integration/SecurityConfigTest.java`)
 
@@ -85,12 +86,25 @@ sin sesión redirigen a `/auth/login`.
 | S-04 | `GET /places` con sesión `USER` → 200 | AC-11 |
 | S-05 | `POST /auth/register` sin CSRF → 403 | AC-06 |
 
-### E2E (mínimos, solo happy path completo)
+### E2E (`UserAuthViewE2E.java`)
+
+Happy path completo, más los errores que un usuario puede alcanzar desde el navegador. La
+integración sigue siendo la capa que cubre los rechazos que el navegador impide (ver la nota
+sobre el email mal formado).
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
 | E-01 | `shouldRegisterLoginAndLandOnPlans` | `/auth/register` → crear cuenta → `/auth/login` → `/plans` | AC-01, AC-04 |
 | E-02 | `shouldRecoverPasswordAndSignIn` | `/auth/forgot-password` → password temporal → login → `/plans` | AC-07, AC-08 |
+| E-03 | `shouldSignOutAndReturnToLogin` | login → navbar "Logout" → `/auth/login` con el aviso de sesión cerrada | AC-09 |
+| E-04 | `shouldTellTheUserTheEmailIsAlreadyRegistered` | registrar dos veces el mismo email → alerta en el form | AC-03 |
+| E-05 | `shouldRejectAPasswordShorterThanSixCharacters` | password de 3 chars → error de campo, sin `minlength` que lo frene | AC-02 |
+| E-06 | `shouldNotSendAMalformedEmailToTheServer` | email mal formado → el navegador lo rechaza, el request no sale | AC-02 |
+| E-07 | `shouldTellTheUserTheCredentialsAreWrong` | login con password incorrecta → alerta en `/auth/login?error=true` | AC-05 |
+| E-08 | `shouldTellTheUserTheEmailIsUnknownOnRecovery` | recuperación con email inexistente → "Email no encontrado" | AC-08 |
+
+E-03 y E-07 asertan el texto que renderiza la vista, no la URL. Un assert de path pasa igual
+contra la página de error, así que no distingue un logout de un fallo de login.
 
 ## Notas / decisiones de diseño
 
@@ -109,6 +123,14 @@ sin sesión redirigen a `/auth/login`.
   password). **No** se reusa `NewUserRequest`: ese pide `firstName`/`lastName` y su `@NotBlank`
   está ejercitado por un test del flujo admin, así que reutilizarlo cambiaría el contrato de la
   vista admin. El service es `LoginService.register(email, password)`, que crea rol `USER` activo.
+- **Email mal formado (AC-02)**: el input de `register.html` es `type="email"`, así que el
+  navegador no envía el request: la rama `@Email` del DTO es inalcanzable desde la UI y solo la
+  ejercitan `U-05` e `I-03`. `E-06` verifica el rechazo del navegador, que es lo que el usuario
+  ve. El password, en cambio, no tiene `minlength`, así que sí llega al server y `E-05` lo cubre
+  de punta a punta.
+- **S-04 sin implementar**: el spec pide `GET /places` con sesión `USER` → 200, pero `/places` no
+  lo sirve ningún controller. El unico test que toca `/places` es el de la redirección sin sesión
+  (`I-11`), que no depende de que la ruta exista. Corregirlo es parte del trabajo de `/plans`.
 
 ## Referencia de Implementacion
 

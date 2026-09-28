@@ -37,6 +37,10 @@ import org.springframework.web.context.WebApplicationContext;
  * anonymous -> {@code /auth/login}) are already covered by
  * {@code SecurityConfigTest#shouldRedirectToLoginWhenAccessingPlacesWithoutSession} and its
  * sibling, so they are not duplicated here.
+ *
+ * <p>The {@code SecurityConfig} permission checks for these same routes live in
+ * {@code SecurityConfigTest} as S-01 and S-05, where the spec files them; this class owns what
+ * the routes render.
  */
 @WebIntegrationTest
 public class AuthControllerTest {
@@ -76,6 +80,17 @@ public class AuthControllerTest {
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/user/register"))
       .andExpect(content().string(not(containsString("firstName"))));
+  }
+
+  // --- I-17 ---
+
+  @Test
+  public void shouldRenderTheForgotPasswordPage() throws Exception {
+    this.mockMvc.perform(get("/auth/forgot-password"))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/user/forgot-password"))
+      // The submit button only renders if Thymeleaf bound the recoverPasswordRequest form object.
+      .andExpect(content().string(containsString("id=\"btn-recover\"")));
   }
 
   // --- I-02 ---

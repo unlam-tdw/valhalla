@@ -2,6 +2,7 @@ package com.valhalla.integration;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,5 +66,24 @@ public class SecurityConfigTest {
   @WithMockUser(roles = "USER")
   public void shouldDenyUserRoleAccessToAdminUsers() throws Exception {
     this.mockMvc.perform(get("/admin/users")).andExpect(status().isForbidden());
+  }
+
+  // --- S-01: the whole /auth/** namespace is public, so a form never redirects to login ---
+
+  @Test
+  public void shouldAllowPublicAccessToTheAuthForms() throws Exception {
+    this.mockMvc.perform(get("/auth/login")).andExpect(status().isOk());
+    this.mockMvc.perform(get("/auth/register")).andExpect(status().isOk());
+    this.mockMvc.perform(get("/auth/forgot-password")).andExpect(status().isOk());
+  }
+
+  // --- S-05: a register post without a token is refused ---
+
+  @Test
+  public void shouldRejectRegisterPostWithoutCsrf() throws Exception {
+    this.mockMvc.perform(
+        post("/auth/register").param("email", "s01@unlam.edu.ar").param("password", "secret123")
+      )
+      .andExpect(status().isForbidden());
   }
 }

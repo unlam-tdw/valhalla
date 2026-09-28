@@ -1,6 +1,7 @@
 package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -17,7 +18,7 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /**
- * Browser coverage of the public auth flow. Scenario ids E-01 and E-02 of docs/specs/08-AUT.md.
+ * Browser coverage of the public auth flow. Scenario ids E-01..E-08 of docs/specs/08-AUT.md.
  *
  * <p>E2eBase wipes the database before each test, so the single admin seed is all that exists
  * beforehand and a fixed email per test cannot collide with a previous run.
@@ -26,6 +27,9 @@ public class UserAuthViewE2E extends E2eBase {
 
   private static final String EMAIL = "aut.registrado@unlam.edu.ar";
   private static final String PASSWORD = "secret123";
+  private static final String WRONG_PASSWORD = "no-es-la-clave";
+  private static final String SHORT_PASSWORD = "123";
+  private static final String UNKNOWN_EMAIL = "nadie@unlam.edu.ar";
 
   @Test
   void shouldRegisterLoginAndLandOnPlans() throws MalformedURLException {
@@ -48,6 +52,92 @@ public class UserAuthViewE2E extends E2eBase {
     thenShouldBeOnPath("/plans");
   }
 
+  @Test
+  void shouldSignOutAndReturnToLogin() throws MalformedURLException {
+    givenUserRegisters(EMAIL, PASSWORD);
+    LoginPage loginPage = givenUserSignsInWith(EMAIL, PASSWORD);
+
+    loginPage.clickLogout();
+
+    // Asserting the notice, not just the path: the logout redirect carries ?logout=true, and a
+    // path-only assertion would also pass on a page that never rendered the signed-out state.
+    assertThat(
+      "the session-gone notice only renders on a completed logout",
+      loginPage.getLogoutNotice(),
+      containsString("Has cerrado sesión")
+    );
+    thenShouldBeOnPath("/auth/login");
+  }
+
+  @Test
+  void shouldTellTheUserTheEmailIsAlreadyRegistered() throws MalformedURLException {
+    givenUserRegisters(EMAIL, PASSWORD);
+
+    RegisterPage registerPage = new RegisterPage(page);
+    registerPage.typeEmail(EMAIL);
+    registerPage.typePassword(PASSWORD);
+    registerPage.clickRegister();
+
+    assertThat(registerPage.getErrorMessage(), containsString("Ese email ya está registrado"));
+    thenShouldBeOnPath("/auth/register");
+  }
+
+  @Test
+  void shouldRejectAPasswordShorterThanSixCharacters() throws MalformedURLException {
+    RegisterPage registerPage = new RegisterPage(page);
+    registerPage.typeEmail(EMAIL);
+    registerPage.typePassword(SHORT_PASSWORD);
+    registerPage.clickRegister();
+
+    assertThat(
+      "the DTO owns the minimum length, not a minlength attribute",
+      registerPage.getFieldError(),
+      containsString("at least 6 characters")
+    );
+    thenShouldBeOnPath("/auth/register");
+  }
+
+  @Test
+  void shouldNotSendAMalformedEmailToTheServer() throws MalformedURLException {
+    RegisterPage registerPage = new RegisterPage(page);
+    registerPage.typeEmail("not-an-email");
+    registerPage.typePassword(PASSWORD);
+    registerPage.clickRegister();
+
+    assertThat(
+      "type=email makes the browser block the submit, so the DTO's @Email never sees it",
+      registerPage.isEmailRejectedByBrowser(),
+      is(true)
+    );
+    thenShouldBeOnPath("/auth/register");
+  }
+
+  @Test
+  void shouldTellTheUserTheCredentialsAreWrong() throws MalformedURLException {
+    givenUserRegisters(EMAIL, PASSWORD);
+
+    LoginPage loginPage = givenUserSignsInWith(EMAIL, WRONG_PASSWORD);
+
+    // Read the alert before the path: the locator auto-waits, which removes the race between the
+    // failed-login redirect and the assertion. Reusing the instance matters — the alert is keyed
+    // off ?error=true, so re-navigating to /auth/login would drop it.
+    assertThat(loginPage.getErrorMessage(), containsString("inválidos"));
+    thenShouldBeOnPath("/auth/login");
+  }
+
+  @Test
+  void shouldTellTheUserTheEmailIsUnknownOnRecovery() throws MalformedURLException {
+    ForgotPasswordPage forgotPasswordPage = new ForgotPasswordPage(page);
+    forgotPasswordPage.typeEmail(UNKNOWN_EMAIL);
+    forgotPasswordPage.clickRecover();
+
+    assertThat(forgotPasswordPage.getErrorMessage(), containsString("Email no encontrado"));
+    // The recover handler returns the view without redirecting, so the browser stays on the POST
+    // target. That is what a user sees; asserting /auth/forgot-password here would encode a
+    // redirect the app does not do.
+    thenShouldBeOnPath("/auth/recover");
+  }
+
   // --- steps ---
 
   private void givenUserRegisters(String email, String password) throws MalformedURLException {
@@ -59,11 +149,13 @@ public class UserAuthViewE2E extends E2eBase {
     thenShouldBeOnPath("/auth/login");
   }
 
-  private void givenUserSignsInWith(String email, String password) {
+  /** Hands the page back so a caller can keep driving the page the sign-in left it on. */
+  private LoginPage givenUserSignsInWith(String email, String password) {
     LoginPage loginPage = new LoginPage(page, "/auth/login");
     loginPage.typeEmail(email);
     loginPage.typePassword(password);
     loginPage.clickSignIn();
+    return loginPage;
   }
 
   /** Reads the temporary password off the confirmation view, which only exists after a rotation. */
