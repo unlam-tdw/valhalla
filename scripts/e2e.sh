@@ -3,7 +3,8 @@
 #
 # Brings up PostgreSQL, creates the dedicated E2E database if it is missing,
 # installs Chromium, exports DB_*, and runs `mvn verify` -- which starts Jetty,
-# runs failsafe, and stops Jetty.
+# runs failsafe, and stops Jetty. PostgreSQL is stopped again on the way out,
+# whether the build passed, failed, or was interrupted.
 #
 # Usage:
 #   scripts/e2e.sh                                    run every E2E
@@ -51,6 +52,20 @@ fi
 E2E_DB=valhalla_e2e
 
 docker compose up -d postgres
+
+# From here on the container is up, so the trap owns the teardown: a failing mvn, an
+# error under `set -e`, and Ctrl+C all still shut the database down. `stop`, not `down`,
+# so the container and the valhalla_e2e database survive for the next run.
+# status is captured first, because `docker compose stop` overwrites $? -- without it a
+# red build would exit 0 and read as green. The stop is `|| true` for the same reason:
+# under `set -e` a failing stop would abort the trap before `exit $status` and report 1.
+cleanup() {
+    status=$?
+    echo '[e2e] stopping postgres'
+    docker compose stop postgres || true
+    exit $status
+}
+trap cleanup EXIT INT TERM
 
 # createdb is not idempotent, so ask the catalog first. -d postgres is required:
 # without it psql connects to a database named after the user, which does not exist.

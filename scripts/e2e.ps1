@@ -5,7 +5,8 @@
 .DESCRIPTION
     Brings up PostgreSQL, creates the dedicated E2E database if it is missing,
     installs Chromium, exports DB_*, and runs `mvn verify` -- which starts Jetty,
-    runs failsafe, and stops Jetty.
+    runs failsafe, and stops Jetty. PostgreSQL is stopped again on the way out,
+    whether the build passed, failed, or was interrupted.
 
     Selectors go straight to failsafe's -Dit.test, so a name that matches nothing
     fails the build instead of reporting a green run over zero tests.
@@ -25,6 +26,18 @@
 #>
 
 $ErrorActionPreference = 'Stop'
+
+# $env: is process-wide, not scope-wide, and Set-Location is not scoped either: both would
+# otherwise survive the script and land in the caller's session. That matters because
+# `docker compose` prefers the shell environment over .env, so a leaked DB_HOST=localhost
+# plus DB_NAME=valhalla_e2e makes the next `docker compose up` point the app container at
+# itself and at the E2E database. Save both, restore both on the way out.
+$originalLocation = $PWD
+$savedEnv = @{}
+foreach ($name in 'DB_NAME', 'DB_HOST', 'DB_USER', 'DB_PASSWORD') {
+    $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name)
+}
+
 Set-Location (Join-Path $PSScriptRoot '..')
 
 $headed = $false
@@ -68,6 +81,7 @@ if ($list) {
             [regex]::Matches((Get-Content $_.FullName -Raw), $testMethod) |
                 ForEach-Object { '  ' + $_.Groups[1].Value }
         }
+    Set-Location $originalLocation
     exit 0
 }
 
@@ -76,31 +90,51 @@ $e2eDb = 'valhalla_e2e'
 docker compose up -d postgres
 if ($LASTEXITCODE -ne 0) { throw 'docker compose up failed' }
 
-# createdb is not idempotent, so ask the catalog first. -d postgres is required:
-# without it psql connects to a database named after the user, which does not exist.
-$exists = docker compose exec -T postgres psql -U user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$e2eDb'"
-if ($LASTEXITCODE -ne 0) { throw 'could not query pg_database' }
-if (-not ($exists -join '').Trim()) {
-    Write-Host "[e2e] creating database $e2eDb"
-    docker compose exec -T postgres createdb -U user $e2eDb
+# from here on the container is up, so everything below runs inside try/finally: a failing
+# mvn, a throw, or Ctrl+C all still shut the database down. Captured before the stop,
+# because the stop overwrites $LASTEXITCODE and that is the code the caller needs.
+try {
+    # createdb is not idempotent, so ask the catalog first. -d postgres is required:
+    # without it psql connects to a database named after the user, which does not exist.
+    $exists = docker compose exec -T postgres psql -U user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$e2eDb'"
+    if ($LASTEXITCODE -ne 0) { throw 'could not query pg_database' }
+    if (-not ($exists -join '').Trim()) {
+        Write-Host "[e2e] creating database $e2eDb"
+        docker compose exec -T postgres createdb -U user $e2eDb
+    }
+
+    # Read from the pom so a Playwright bump cannot silently drift out of sync.
+    $pwVersion = (Select-String -Path pom.xml -Pattern '<playwright\.version>([^<]+)<').Matches[0].Groups[1].Value
+    npx -y "playwright@$pwVersion" install chromium
+    if ($LASTEXITCODE -ne 0) { throw 'playwright install failed' }
+
+    # Jetty and failsafe must agree: Jetty needs the schema, ResetDatabase needs the
+    # same data. The name must contain "e2e" or ResetDatabase refuses to run.
+    $env:DB_NAME = $e2eDb
+    $env:DB_HOST = 'localhost'
+    $env:DB_USER = 'user'
+    $env:DB_PASSWORD = 'user'
+
+    $mvnArgs = @('verify')
+    if ($selectors) { $mvnArgs += "-Dit.test=$($selectors -join ',')" }
+    if ($headed) { $mvnArgs += '-De2e.headed=true' }
+    if ($slowmo -gt 0) { $mvnArgs += "-De2e.slowMo=$slowmo" }
+
+    & mvn @mvnArgs
+    $exitCode = $LASTEXITCODE
+}
+finally {
+    Write-Host '[e2e] stopping postgres'
+    docker compose stop postgres
+
+    Set-Location $originalLocation
+    foreach ($name in $savedEnv.Keys) {
+        # Remove-Item, not [Environment]::SetEnvironmentVariable($name, $null): on this
+        # runtime that defines the variable as an empty string instead of unsetting it,
+        # and an empty DB_NAME still beats the .env file and breaks the next `up`.
+        if ($null -eq $savedEnv[$name]) { Remove-Item "env:$name" -ErrorAction SilentlyContinue }
+        else { [Environment]::SetEnvironmentVariable($name, $savedEnv[$name]) }
+    }
 }
 
-# Read from the pom so a Playwright bump cannot silently drift out of sync.
-$pwVersion = (Select-String -Path pom.xml -Pattern '<playwright\.version>([^<]+)<').Matches[0].Groups[1].Value
-npx -y "playwright@$pwVersion" install chromium
-if ($LASTEXITCODE -ne 0) { throw 'playwright install failed' }
-
-# Jetty and failsafe must agree: Jetty needs the schema, ResetDatabase needs the
-# same data. The name must contain "e2e" or ResetDatabase refuses to run.
-$env:DB_NAME = $e2eDb
-$env:DB_HOST = 'localhost'
-$env:DB_USER = 'user'
-$env:DB_PASSWORD = 'user'
-
-$mvnArgs = @('verify')
-if ($selectors) { $mvnArgs += "-Dit.test=$($selectors -join ',')" }
-if ($headed) { $mvnArgs += '-De2e.headed=true' }
-if ($slowmo -gt 0) { $mvnArgs += "-De2e.slowMo=$slowmo" }
-
-& mvn @mvnArgs
-exit $LASTEXITCODE
+exit $exitCode
