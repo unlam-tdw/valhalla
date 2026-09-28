@@ -52,13 +52,16 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: valhalla
+          # A database of its own: ResetDatabase refuses to wipe anything whose name lacks "e2e",
+          # so pointing the suite at the app's database would now fail by design. A service
+          # container always starts on an empty volume, so naming it here is enough to create it.
+          POSTGRES_DB: valhalla_e2e
           POSTGRES_USER: user
           POSTGRES_PASSWORD: user
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U user -d valhalla"
+          --health-cmd "pg_isready -U user -d valhalla_e2e"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
@@ -86,7 +89,7 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: valhalla
+          DB_NAME: valhalla_e2e
           DB_USER: user
           DB_PASSWORD: user
 
@@ -107,7 +110,7 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: valhalla
+          DB_NAME: valhalla_e2e
           DB_USER: user
           DB_PASSWORD: user
 

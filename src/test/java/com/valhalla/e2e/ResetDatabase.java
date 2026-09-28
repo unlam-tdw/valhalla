@@ -14,6 +14,8 @@ public class ResetDatabase {
 
   /** Deletes all users and seeds the default admin user via JDBC. */
   public static void cleanDatabase() {
+    requireE2eDatabase();
+
     String bcryptHash = new BCryptPasswordEncoder().encode("password");
     String[] statements = {
       "DELETE FROM users",
@@ -32,7 +34,27 @@ public class ResetDatabase {
       }
       System.out.println("Database cleaned successfully");
     } catch (SQLException e) {
-      System.err.println("Error cleaning the database: " + e.getMessage());
+      // Swallowing this left the suite green against a dirty database: a foreign key added by a
+      // later task makes DELETE FROM users throw, and every test then ran on stale rows.
+      throw new IllegalStateException("Could not reset the E2E database: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Refuses to wipe anything that is not recognisably an E2E database. The E2E suite has no
+   * database of its own yet, so it points at whatever DB_NAME says -- on a developer machine that
+   * is usually the same database the app is being developed against, and DELETE FROM users there
+   * destroys real work.
+   */
+  private static void requireE2eDatabase() {
+    String database = EnvironmentConfig.dbName().toLowerCase();
+    if (!database.contains("e2e")) {
+      throw new IllegalStateException(
+        "Refusing to reset database '" +
+        EnvironmentConfig.dbName() +
+        "': its name does not contain 'e2e'. Point DB_NAME at an E2E database, or rename" +
+        " the one in use, before running the E2E suite."
+      );
     }
   }
 

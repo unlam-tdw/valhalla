@@ -282,20 +282,37 @@ mvn test -Dtest="LoginControllerTest#shouldReturnToLoginWhenCredentialsAreWrong"
 
 E2E tests need PostgreSQL and Playwright's Chromium. `mvn verify` auto-starts Jetty, runs E2E via failsafe, then stops Jetty.
 
+The E2E suite wipes the database before every test, so it refuses to run against anything whose
+name does not contain `e2e`. Give it a database of its own:
+
+```shell
+# One-time: create the E2E database
+docker compose up -d postgres
+docker compose exec postgres createdb -U user valhalla_e2e
+```
+
+Then point both the app and the tests at it. They must agree: Jetty needs the schema, and
+`ResetDatabase` needs the same data the app serves.
+
+```shell
+export DB_NAME=valhalla_e2e   # PowerShell: $env:DB_NAME="valhalla_e2e"
+export DB_HOST=localhost
+export DB_USER=user
+export DB_PASSWORD=user
+```
+
 ```shell
 # One-time: install Chromium (keep the version in sync with pom.xml's playwright.version)
 npx -y playwright@1.61.0 install chromium
 
 # Run everything (unit + integration + E2E)
-docker compose up -d postgres
 mvn verify
 ```
 
 Or run E2E manually:
 
 ```shell
-# 1. Start PostgreSQL + Jetty
-docker compose up -d postgres
+# 1. Start Jetty (PostgreSQL is already up, DB_NAME is exported)
 mvn jetty:run &
 
 # 2. Wait for server, then run E2E
@@ -314,6 +331,10 @@ mvn failsafe:integration-test failsafe:verify "-De2e.headed=true" "-De2e.slowMo=
 
 Quote the `-D` arguments in PowerShell; unquoted it splits them and Maven reports
 `Unknown lifecycle phase`.
+
+A failing test leaves a full-page screenshot and a Playwright trace in
+`target/e2e-artifacts/<Class>-<method>/`. Open the trace with
+`npx playwright show-trace target/e2e-artifacts/<Class>-<method>/trace.zip`.
 
 ### Skipping quality gates
 
