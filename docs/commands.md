@@ -99,15 +99,9 @@ docker run -it --entrypoint /bin/bash valhalla
 # Run all Java tests (uses in-memory HSQLDB, no PostgreSQL needed)
 mvn test
 
-# Run everything (unit + integration + E2E, requires Docker stack)
-docker compose up -d postgres
-mvn verify
-
-# Run E2E tests manually
-# Needs its own database first — see docs/testing.md, "E2E tests"
-mvn jetty:run &
-mvn failsafe:integration-test failsafe:verify
-mvn jetty:stop
+# Run everything (unit + integration + E2E) -- one command, sets up the E2E database
+./scripts/e2e.sh                            # everything
+./scripts/e2e.sh --headed --slowmo 300      # watch the browser
 ```
 
 For the full E2E setup — the dedicated database, `DB_NAME`, headed mode and reading failure

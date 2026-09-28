@@ -280,18 +280,31 @@ mvn test -Dtest="LoginControllerTest#shouldReturnToLoginWhenCredentialsAreWrong"
 
 ### E2E tests
 
-E2E tests need PostgreSQL and Playwright's Chromium. `mvn verify` auto-starts Jetty, runs E2E via failsafe, then stops Jetty.
-
-The E2E suite wipes the database before every test, so it refuses to run against anything whose
-name does not contain `e2e`. Give it a database of its own:
+E2E tests need PostgreSQL and Playwright's Chromium.
 
 ```shell
-# One-time: create the E2E database
-docker compose up -d postgres
-docker compose exec postgres createdb -U user valhalla_e2e
+./scripts/e2e.sh                         # everything
+./scripts/e2e.sh --headed --slowmo 300   # watch the browser, 300ms between actions
 ```
 
-Then point both the app and the tests at it. They must agree: Jetty needs the schema, and
+The script is idempotent and does everything: starts PostgreSQL, creates the
+`valhalla_e2e` database if missing, installs Chromium, exports `DB_*`, and runs
+`mvn verify` — which starts Jetty, runs failsafe, and stops Jetty. Run it from
+Git Bash on Windows.
+
+<details>
+<summary>What the script does, if you need to run the steps by hand</summary>
+
+The E2E suite wipes the database before every test, so it refuses to run against
+anything whose name does not contain `e2e`.
+
+```shell
+docker compose up -d postgres
+docker compose exec postgres createdb -U user valhalla_e2e
+npx -y playwright@1.61.0 install chromium   # keep in sync with pom.xml's playwright.version
+```
+
+Jetty and the tests must point at the same database: Jetty needs the schema, and
 `ResetDatabase` needs the same data the app serves.
 
 ```shell
@@ -301,36 +314,23 @@ export DB_USER=user
 export DB_PASSWORD=user
 ```
 
-```shell
-# One-time: install Chromium (keep the version in sync with pom.xml's playwright.version)
-npx -y playwright@1.61.0 install chromium
-
-# Run everything (unit + integration + E2E)
-mvn verify
-```
-
-Or run E2E manually:
+To keep the server running between runs, start Jetty yourself and invoke failsafe
+directly:
 
 ```shell
-# 1. Start Jetty (PostgreSQL is already up, DB_NAME is exported)
-mvn jetty:run &
-
-# 2. Wait for server, then run E2E
-mvn failsafe:integration-test failsafe:verify
-
-# 3. Stop Jetty
-mvn jetty:stop
+mvn jetty:run &                              # 1. leave this running
+mvn failsafe:integration-test failsafe:verify "-De2e.headed=true"   # 2. in another terminal
+mvn jetty:stop                               # 3. when done
 ```
 
-Failsafe derives the Playwright base URL from `jetty.port`, so moving the server moves the tests
-with it. To watch the browser instead of running headless:
+Failsafe derives the Playwright base URL from `jetty.port`, so moving the server
+moves the tests with it. Quote the `-D` arguments in PowerShell; unquoted it
+splits them and Maven reports `Unknown lifecycle phase`.
 
-```shell
-mvn failsafe:integration-test failsafe:verify "-De2e.headed=true" "-De2e.slowMo=300"
-```
+`-De2e.slowMo=N` inserts N milliseconds between Playwright actions, which is how
+you watch a headless run without a visible window.
 
-Quote the `-D` arguments in PowerShell; unquoted it splits them and Maven reports
-`Unknown lifecycle phase`.
+</details>
 
 A failing test leaves a full-page screenshot and a Playwright trace in
 `target/e2e-artifacts/<Class>-<method>/`. Open the trace with
