@@ -1,5 +1,7 @@
 package com.valhalla.config;
 
+import java.util.TimeZone;
+
 /** Centralizes environment variable resolution with sensible defaults. */
 public final class EnvironmentConfig {
 
@@ -39,6 +41,21 @@ public final class EnvironmentConfig {
 
   public static String databaseUrl() {
     return String.format("jdbc:postgresql://%s:%s/%s", dbHost(), dbPort(), dbName());
+  }
+
+  /**
+   * Pins the JVM default timezone to UTC. Must be called before opening a PostgreSQL connection.
+   *
+   * <p>pgjdbc always sends {@code TimeZone.getDefault()} as a startup parameter and ignores the
+   * {@code TimeZone} and {@code options} connection properties for it, so the JVM default is the
+   * only control point. PostgreSQL 16 rejects names such as {@code America/Buenos_Aires} (the zone
+   * was renamed to {@code America/Argentina/Buenos_Aires}) with {@code FATAL: invalid value for
+   * parameter "TimeZone"}. The failure is not self-explanatory downstream: Hibernate reports "Unable
+   * to determine Dialect without JDBC metadata" and Jetty then answers 503, so the app looks like a
+   * wiring bug rather than a clock problem.
+   */
+  public static void pinTimeZoneToUtc() {
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
   }
 
   private static String envValue(String variable, String defaultValue) {

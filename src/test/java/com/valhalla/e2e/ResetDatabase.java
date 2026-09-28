@@ -5,7 +5,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.TimeZone;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /** Resets the database to a known state using JDBC directly (no external tools). */
@@ -38,17 +37,10 @@ public class ResetDatabase {
   }
 
   private static Connection openConnection() throws SQLException {
-    // Force UTC timezone — PostgreSQL rejects the deprecated "America/Buenos_Aires"
-    // name that the JDBC driver picks up from the JVM default timezone.
-    TimeZone previousTz = TimeZone.getDefault();
-    TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     java.util.Properties props = new java.util.Properties();
     props.setProperty("user", EnvironmentConfig.dbUser());
     props.setProperty("password", EnvironmentConfig.dbPassword());
-    try {
-      return DriverManager.getConnection(EnvironmentConfig.databaseUrl(), props);
-    } finally {
-      TimeZone.setDefault(previousTz);
-    }
+    EnvironmentConfig.pinTimeZoneToUtc();
+    return DriverManager.getConnection(EnvironmentConfig.databaseUrl(), props);
   }
 }
