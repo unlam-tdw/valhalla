@@ -99,15 +99,19 @@ docker run -it --entrypoint /bin/bash valhalla
 # Run all Java tests (uses in-memory HSQLDB, no PostgreSQL needed)
 mvn test
 
-# Run everything (unit + integration + E2E, requires Docker stack)
-docker compose up -d postgres
-mvn verify
+# Run everything (unit + integration + E2E) -- one command, sets up the E2E database
+.\scripts\e2e.ps1                           # everything
+.\scripts\e2e.ps1 -Headed -SlowMo 300       # watch the browser
+.\scripts\e2e.ps1 -List                     # list the E2E classes and methods
+.\scripts\e2e.ps1 LoginViewE2E              # run only what you name
 
-# Run E2E tests manually (requires Docker stack + server running)
-docker compose up -d postgres
-mvn jetty:run &
-mvn failsafe:integration-test failsafe:verify -DskipTests
+# Same from Git Bash
+./scripts/e2e.sh --headed --slowmo 300
 ```
+
+For the full E2E setup — the dedicated database, `DB_NAME`, headed mode and reading failure
+artifacts — see [testing.md](testing.md#e2e-tests). That section is canonical; this file only
+lists the one-line commands.
 
 ## CI/CD (GitHub Actions)
 
@@ -115,7 +119,7 @@ The pipeline runs on every push and PR to `main`. It has two jobs:
 
 ### `backend` , build + test + quality gates
 
-Runs `mvn clean verify --fail-at-end` which triggers:
+Runs `mvn clean verify --fail-at-end -DskipITs` which triggers:
 1. Prettier formatting (auto-fix)
 2. Checkstyle (naming, Javadoc, imports)
 3. PMD + CPD (logic issues, duplication)
@@ -126,11 +130,15 @@ If any gate fails, the build fails.
 
 ### `e2e` , Playwright against a real stack
 
-1. Spins up a PostgreSQL service container
-2. Installs Playwright's Chromium
-3. Packages the app (`mvn package -DskipTests`)
-4. Starts Jetty against the local Postgres
-5. Runs E2E tests (`LoginViewE2E`, `UserViewABME2E`) with quality gates skipped
+1. Spins up a PostgreSQL service container holding a dedicated `valhalla_e2e` database
+2. Installs Playwright's Chromium, pinned to the version in `pom.xml`
+3. Packages the app (`mvn package -DskipTests` with the static-analysis gates skipped, since
+   the `backend` job already enforced them and this job `needs: backend`)
+4. Starts Jetty against the local Postgres and waits up to 120s for the app root to answer
+5. Runs E2E tests (`LoginViewE2E`, `UserViewABME2E`) via
+   `mvn failsafe:integration-test failsafe:verify`
+6. Uploads `target/failsafe-reports/` and `target/e2e-artifacts/` (per-test screenshot and
+   Playwright trace) as an artifact, even when the run fails
 
 **To run the full pipeline locally before pushing:**
 

@@ -12,44 +12,22 @@ import com.valhalla.e2e.views.UserFormPage;
 import com.valhalla.e2e.views.UsersPage;
 import java.net.MalformedURLException;
 import java.net.URL;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class UserViewABME2E {
+public class UserViewABME2E extends E2eBase {
 
-  static Playwright playwright;
-  static Browser browser;
-  BrowserContext context;
   UsersPage usersPage;
 
-  @BeforeAll
-  static void openBrowser() {
-    playwright = Playwright.create();
-    browser = playwright.chromium().launch();
-  }
-
-  @AfterAll
-  static void closeBrowser() {
-    playwright.close();
-  }
-
   @BeforeEach
-  void createContextAndPage() {
-    ResetDatabase.cleanDatabase();
-
-    context = browser.newContext();
-    Page page = context.newPage();
-    loginAsAdmin(page);
+  void loginAsAdmin() {
+    LoginPage loginPage = new LoginPage(page);
+    loginPage.typeEmail("test@unlam.edu.ar");
+    loginPage.typePassword("password");
+    loginPage.clickSignIn();
+    loginPage.waitForPath("/admin/home");
     usersPage = new UsersPage(page);
     usersPage.navigateToUsers();
-  }
-
-  @AfterEach
-  void closeContext() {
-    context.close();
   }
 
   @Test
@@ -106,14 +84,6 @@ public class UserViewABME2E {
   }
 
   // --- given ---
-
-  private void loginAsAdmin(Page page) {
-    LoginPage loginPage = new LoginPage(page);
-    loginPage.typeEmail("test@unlam.edu.ar");
-    loginPage.typePassword("password");
-    loginPage.clickSignIn();
-    loginPage.waitForPath("/admin/home");
-  }
 
   private void givenAdminIsOnUsersPage() throws MalformedURLException {
     usersPage.waitForPath("/admin/users");

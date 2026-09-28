@@ -10,7 +10,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jdk.version>25</jdk.version>
-        <!-- HTTP port for E2E: Jetty (mvn verify) and Playwright base URL. CI uses 8080 (default); local runs override with -Djetty.port / -De2e.baseUrl. -->
+        <!-- HTTP port for E2E: Jetty and Playwright both read this. Failsafe derives
+             e2e.baseUrl from it, so -Djetty.port=9090 moves the server and the tests together. -->
         <jetty.port>8080</jetty.port>
         <spring.version>6.2.19</spring.version>
         <servletapi.version>6.0.0</servletapi.version>
@@ -224,9 +225,17 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
+                    <!-- *E2E.java only: **/e2e/** also matched views/*.java and ResetDatabase -->
                     <includes>
-                        <include>**/e2e/**</include>
+                        <include>**/e2e/*E2E.java</include>
                     </includes>
+                    <!-- fail the build when the include pattern matches nothing, instead of
+                         reporting BUILD SUCCESS for zero tests -->
+                    <failIfNoTests>true</failIfNoTests>
+                    <!-- tests follow the server: -Djetty.port=9090 moves Jetty and Playwright -->
+                    <systemPropertyVariables>
+                        <e2e.baseUrl>http://localhost:${jetty.port}</e2e.baseUrl>
+                    </systemPropertyVariables>
                 </configuration>
                 <executions>
                     <execution>

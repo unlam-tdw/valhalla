@@ -280,27 +280,86 @@ mvn test -Dtest="LoginControllerTest#shouldReturnToLoginWhenCredentialsAreWrong"
 
 ### E2E tests
 
-E2E tests need PostgreSQL and Playwright's Chromium. `mvn verify` auto-starts Jetty, runs E2E via failsafe, then stops Jetty.
+E2E tests need PostgreSQL and Playwright's Chromium.
 
-```shell
-# One-time: install Chromium
-npx playwright install chromium
-
-# Run everything (unit + integration + E2E)
-docker compose up -d postgres
-mvn verify
+```powershell
+.\scripts\e2e.ps1                         # everything
+.\scripts\e2e.ps1 -Headed -SlowMo 300     # watch the browser, 300ms between actions
 ```
 
-Or run E2E manually:
+Or from Git Bash, with the same behaviour:
 
 ```shell
-# 1. Start PostgreSQL + Jetty
-docker compose up -d postgres
-mvn jetty:run &
-
-# 2. Wait for server, then run E2E
-mvn failsafe:integration-test failsafe:verify -DskipTests
+./scripts/e2e.sh --headed --slowmo 300
 ```
+
+The script is idempotent and does everything: starts PostgreSQL, creates the
+`valhalla_e2e` database if missing, installs Chromium, exports `DB_*`, and runs
+`mvn verify` — which starts Jetty, runs failsafe, and stops Jetty.
+
+#### Running part of the suite
+
+Pass one or more selectors to run only what you name:
+
+```powershell
+.\scripts\e2e.ps1 -List                                       # what is available
+.\scripts\e2e.ps1 LoginViewE2E                                 # one class
+.\scripts\e2e.ps1 LoginViewE2E UserViewABME2E                  # several classes
+.\scripts\e2e.ps1 LoginViewE2E#shouldLogoutAndReturnToLoginPage # one method
+.\scripts\e2e.ps1 -Headed LoginViewE2E                         # flags go either way
+```
+
+On Git Bash the same thing with `--list`, `--headed`, `--slowmo`.
+
+Selectors go to failsafe's `-Dit.test`, so a name that matches nothing fails the
+build with `No tests matching pattern` instead of reporting a green run over zero
+tests. Selecting a subset still runs the 80 unit tests — they cost about a second,
+and the flag that would skip them (`-Dmaven.test.skip.exec`) also skips failsafe,
+which turns a typo into a silent success.
+
+<details>
+<summary>What the script does, if you need to run the steps by hand</summary>
+
+The E2E suite wipes the database before every test, so it refuses to run against
+anything whose name does not contain `e2e`.
+
+```shell
+docker compose up -d postgres
+docker compose exec postgres createdb -U user valhalla_e2e
+npx -y playwright@1.61.0 install chromium   # keep in sync with pom.xml's playwright.version
+```
+
+Jetty and the tests must point at the same database: Jetty needs the schema, and
+`ResetDatabase` needs the same data the app serves.
+
+```shell
+export DB_NAME=valhalla_e2e   # PowerShell: $env:DB_NAME="valhalla_e2e"
+export DB_HOST=localhost
+export DB_USER=user
+export DB_PASSWORD=user
+```
+
+To keep the server running between runs, start Jetty yourself and invoke failsafe
+directly:
+
+```shell
+mvn jetty:run &                              # 1. leave this running
+mvn failsafe:integration-test failsafe:verify "-De2e.headed=true"   # 2. in another terminal
+mvn jetty:stop                               # 3. when done
+```
+
+Failsafe derives the Playwright base URL from `jetty.port`, so moving the server
+moves the tests with it. Quote the `-D` arguments in PowerShell; unquoted it
+splits them and Maven reports `Unknown lifecycle phase`.
+
+`-De2e.slowMo=N` inserts N milliseconds between Playwright actions, which is how
+you watch a headless run without a visible window.
+
+</details>
+
+A failing test leaves a full-page screenshot and a Playwright trace in
+`target/e2e-artifacts/<Class>-<method>/`. Open the trace with
+`npx playwright show-trace target/e2e-artifacts/<Class>-<method>/trace.zip`.
 
 ### Skipping quality gates
 

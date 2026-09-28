@@ -52,13 +52,16 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: valhalla
+          # A database of its own: ResetDatabase refuses to wipe anything whose name lacks "e2e",
+          # so pointing the suite at the app's database would now fail by design. A service
+          # container always starts on an empty volume, so naming it here is enough to create it.
+          POSTGRES_DB: valhalla_e2e
           POSTGRES_USER: user
           POSTGRES_PASSWORD: user
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U user -d valhalla"
+          --health-cmd "pg_isready -U user -d valhalla_e2e"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
@@ -72,37 +75,57 @@ jobs:
           cache: maven
 
       - name: Install Playwright Chromium
-        run: npx playwright install chromium
+        # Pinned to ${playwright.version} in pom.xml: an unpinned `npx playwright` resolves the
+        # latest npm release, which can demand a different Chromium revision than the Java driver.
+        run: npx -y playwright@1.61.0 install chromium
 
       - name: Package app (skip tests)
-        run: mvn package -DskipTests
+        # The backend job already gated on Prettier/Checkstyle/PMD/CPD, and e2e `needs: backend`.
+        # Re-running them here only couples a style violation to the E2E result.
+        run: mvn package -DskipTests -Dprettier.skip -Dcheckstyle.skip -Dpmd.skip -Dcpd.skip
 
       - name: Start Jetty
         run: mvn jetty:run &
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: valhalla
+          DB_NAME: valhalla_e2e
           DB_USER: user
           DB_PASSWORD: user
 
       - name: Wait for server
+        # Probes the app root rather than a login route: a cold runner booting Spring + Jetty
+        # needs more than 60s, and a route-coupled probe breaks whenever auth routes move.
+        # `-f` makes HTTP 5xx keep the loop waiting, so a DataSource failure surfaces as this
+        # timeout rather than as a confusing E2E failure.
         run: |
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:8080/admin/login > /dev/null 2>&1 && exit 0
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:8080/ && exit 0
             sleep 2
           done
-          echo "Server did not start in time" && exit 1
+          echo "Server did not become ready in 120s" && exit 1
 
       - name: Run E2E tests
         run: mvn failsafe:integration-test failsafe:verify
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: valhalla
+          DB_NAME: valhalla_e2e
           DB_USER: user
           DB_PASSWORD: user
 
       - name: Stop Jetty
         if: always()
         run: mvn jetty:stop
+
+      - name: Upload E2E reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: failsafe-reports
+          # E2eBase writes a screenshot and a Playwright trace per failing test into
+          # target/e2e-artifacts; without this a red E2E run leaves nothing to inspect.
+          path: |
+            target/failsafe-reports/
+            target/e2e-artifacts/
+          retention-days: 14
