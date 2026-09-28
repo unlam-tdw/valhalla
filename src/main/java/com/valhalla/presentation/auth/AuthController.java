@@ -2,7 +2,7 @@ package com.valhalla.presentation.auth;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
-import com.valhalla.domain.user.RecoverPasswordService;
+import com.valhalla.infrastructure.user.RecoverPasswordService;
 import com.valhalla.presentation.shared.RecoverPasswordRequest;
 import com.valhalla.presentation.shared.RegisterRequest;
 import jakarta.validation.Valid;

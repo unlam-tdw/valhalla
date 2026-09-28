@@ -1,9 +1,13 @@
-package com.valhalla.domain.user;
+package com.valhalla.infrastructure.user;
 
+import com.valhalla.domain.user.User;
+import com.valhalla.domain.user.UserRepository;
+import com.valhalla.domain.user.UserService;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+/** Lives in infrastructure, not domain: the domain package must not depend on the framework. */
 @Service
 public class RecoverPasswordService {
 

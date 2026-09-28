@@ -1,4 +1,4 @@
-package com.valhalla.domain.user;
+package com.valhalla.infrastructure.user;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -9,6 +9,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.valhalla.domain.user.User;
+import com.valhalla.domain.user.UserRepository;
+import com.valhalla.domain.user.UserService;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

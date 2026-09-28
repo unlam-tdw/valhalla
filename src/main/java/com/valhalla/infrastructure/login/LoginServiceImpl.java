@@ -1,6 +1,7 @@
-package com.valhalla.domain.login;
+package com.valhalla.infrastructure.login;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
+import com.valhalla.domain.login.LoginService;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Lives in infrastructure, not domain: the domain package must not depend on the framework. */
 @Service
 @Transactional
 public class LoginServiceImpl implements LoginService {

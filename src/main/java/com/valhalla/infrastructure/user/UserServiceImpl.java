@@ -1,13 +1,17 @@
-package com.valhalla.domain.user;
+package com.valhalla.infrastructure.user;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.user.User;
+import com.valhalla.domain.user.UserRepository;
+import com.valhalla.domain.user.UserService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Lives in infrastructure, not domain: the domain package must not depend on the framework. */
 @Service
 @Transactional
 public class UserServiceImpl implements UserService {
