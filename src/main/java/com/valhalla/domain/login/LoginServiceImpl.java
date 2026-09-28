@@ -37,6 +37,11 @@ public class LoginServiceImpl implements LoginService {
   }
 
   @Override
+  public void register(String email, String password) {
+    register(email, password, null, null);
+  }
+
+  @Override
   public void register(String email, String password, String firstName, String lastName) {
     if (userRepository.findByEmail(email).isPresent()) {
       throw new UserAlreadyExists();

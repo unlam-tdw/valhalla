@@ -1,8 +1,9 @@
 package com.valhalla.presentation.auth;
 
+import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
 import com.valhalla.domain.user.RecoverPasswordService;
-import com.valhalla.presentation.shared.NewUserRequest;
+import com.valhalla.presentation.shared.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -42,13 +43,13 @@ public class AuthController {
   // --- REGISTRO ---
   @GetMapping("/register")
   public String showRegisterForm(Model model) {
-    model.addAttribute("newUserRequest", new NewUserRequest());
+    model.addAttribute("registerRequest", new RegisterRequest());
     return "pages/auth/user/register";
   }
 
   @PostMapping("/register")
   public String handleRegister(
-    @Valid @ModelAttribute("newUserRequest") NewUserRequest request,
+    @Valid @ModelAttribute("registerRequest") RegisterRequest request,
     BindingResult bindingResult,
     Model model
   ) {
@@ -57,16 +58,10 @@ public class AuthController {
     }
 
     try {
-      // Reutiliza LoginService.register asignando el rol USER
-      loginService.register(
-        request.getEmail(),
-        request.getPassword(),
-        request.getFirstName(),
-        request.getLastName()
-      );
+      loginService.register(request.getEmail(), request.getPassword());
       return "redirect:/auth/login";
-    } catch (IllegalArgumentException | IllegalStateException e) {
-      model.addAttribute("errorMessage", e.getMessage());
+    } catch (UserAlreadyExists e) {
+      model.addAttribute("errorMessage", "Ese email ya está registrado");
       return "pages/auth/user/register";
     }
   }
