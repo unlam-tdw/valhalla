@@ -123,6 +123,10 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
   Esto reescribe S-03: `/share/abc123` es público pero ningún controller lo mapea, así que la
   respuesta correcta es 404, no 200. El test afirma además el atributo `error` del model para
   dejar claro que el 404 lo produce el handler y no la página de error del contenedor.
+- **El navbar ya no promete `/plans`**: el item "Planes" se quitó porque la ruta no tiene
+  controller, así que con el 404 real pasó a ser un link visible a una página inexistente.
+  Apuntarlo a `/` no lo arreglaba: el rótulo diría "Planes" y llevaría a la landing. 03-PLN
+  repone el item junto con la página. `/places` nunca llegó a tener link.
 - Tests extra con respecto a este spec: U-09, I-12, I-13, I-15, I-16, I-17 y E-05.
 - Tests de [AUT] (08-AUT.md), que no viven en este spec: escenarios U-01..U-10 e I-01..I-13 en
   `presentation/auth/AuthControllerTest` e `integration/AuthControllerTest`, la recuperacion de

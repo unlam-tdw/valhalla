@@ -20,11 +20,8 @@
       Users
     </a>
 
-   <!-- Enlaces para USER común -->
-    <a th:href="@{/plans}" sec:authorize="!hasRole('ADMIN')"
-      class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
-      Planes
-    </a>
+    <!-- Sin links para USER: /plans todavia no tiene controller (spec 03-PLN). Un item de menu
+         que apunte ahi devuelve 404; 03-PLN lo repone junto con la pagina. -->
 
     <span class="text-gray-300">Signed in as
       <span class="font-medium text-white" sec:authentication="name">user</span>

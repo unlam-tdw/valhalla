@@ -5,6 +5,7 @@ import com.microsoft.playwright.Page;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class WebPage {
@@ -33,7 +34,8 @@ public class WebPage {
    */
   public void waitForPath(String path) {
     page.waitForURL(
-      Pattern.compile("[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*" + Pattern.quote(path) + "(?:[?;][^#]*)?$"));
+      Pattern.compile("[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*" + Pattern.quote(path) + "(?:[?;][^#]*)?$")
+    );
   }
 
   /**
@@ -71,6 +73,15 @@ public class WebPage {
    */
   public String getNavbarSignedInAs() {
     return this.getElementText("nav span.text-gray-300").replaceAll("\\s+", " ").trim();
+  }
+
+  /**
+   * Visible text of every navbar link and button, in document order. Pinned by the callers
+   * instead of filtered: a menu item pointing at a route nobody maps still renders perfectly,
+   * so the only way to catch it is to name the items the navbar is allowed to have.
+   */
+  public List<String> getNavbarItems() {
+    return page.locator("nav a, nav button").allTextContents();
   }
 
   protected String getElementText(String cssSelector) {

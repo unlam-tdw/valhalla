@@ -1,6 +1,7 @@
 package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.is;
@@ -43,10 +44,19 @@ public class UserAuthViewE2E extends E2eBase {
     // The navbar is one fragment shared by both chains, so its brand is covered once on the admin
     // login page. What has no counterpart there is the signed-in half of the fragment, which only
     // renders once a session exists and is what this chain exercises.
+    WebPage landing = new WebPage(page);
     assertThat(
       "the authenticated navbar names the signed-in user",
-      new WebPage(page).getNavbarSignedInAs(),
+      landing.getNavbarSignedInAs(),
       containsString(EMAIL)
+    );
+    // Naming the whole set, not just the presence of the items: the navbar used to offer a
+    // "Planes" link to /plans, which had no controller. It rendered fine, so no other assertion
+    // could see the difference between a live item and a 404 waiting to be clicked.
+    assertThat(
+      "the authenticated navbar offers only items that resolve",
+      landing.getNavbarItems(),
+      contains("UNLAM", "Logout")
     );
   }
 
