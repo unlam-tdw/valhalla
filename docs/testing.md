@@ -282,27 +282,34 @@ mvn test -Dtest="LoginControllerTest#shouldReturnToLoginWhenCredentialsAreWrong"
 
 E2E tests need PostgreSQL and Playwright's Chromium.
 
+```powershell
+.\scripts\e2e.ps1                         # everything
+.\scripts\e2e.ps1 -Headed -SlowMo 300     # watch the browser, 300ms between actions
+```
+
+Or from Git Bash, with the same behaviour:
+
 ```shell
-./scripts/e2e.sh                         # everything
-./scripts/e2e.sh --headed --slowmo 300   # watch the browser, 300ms between actions
+./scripts/e2e.sh --headed --slowmo 300
 ```
 
 The script is idempotent and does everything: starts PostgreSQL, creates the
 `valhalla_e2e` database if missing, installs Chromium, exports `DB_*`, and runs
-`mvn verify` — which starts Jetty, runs failsafe, and stops Jetty. Run it from
-Git Bash on Windows.
+`mvn verify` — which starts Jetty, runs failsafe, and stops Jetty.
 
 #### Running part of the suite
 
 Pass one or more selectors to run only what you name:
 
-```shell
-./scripts/e2e.sh --list                                        # what is available
-./scripts/e2e.sh LoginViewE2E                                   # one class
-./scripts/e2e.sh LoginViewE2E UserViewABME2E                     # several classes
-./scripts/e2e.sh LoginViewE2E#shouldLogoutAndReturnToLoginPage   # one method
-./scripts/e2e.sh --headed LoginViewE2E                          # combines with the flags
+```powershell
+.\scripts\e2e.ps1 -List                                       # what is available
+.\scripts\e2e.ps1 LoginViewE2E                                 # one class
+.\scripts\e2e.ps1 LoginViewE2E UserViewABME2E                  # several classes
+.\scripts\e2e.ps1 LoginViewE2E#shouldLogoutAndReturnToLoginPage # one method
+.\scripts\e2e.ps1 -Headed LoginViewE2E                         # flags go either way
 ```
+
+On Git Bash the same thing with `--list`, `--headed`, `--slowmo`.
 
 Selectors go to failsafe's `-Dit.test`, so a name that matches nothing fails the
 build with `No tests matching pattern` instead of reporting a green run over zero

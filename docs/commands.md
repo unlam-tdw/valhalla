@@ -100,10 +100,13 @@ docker run -it --entrypoint /bin/bash valhalla
 mvn test
 
 # Run everything (unit + integration + E2E) -- one command, sets up the E2E database
-./scripts/e2e.sh                            # everything
-./scripts/e2e.sh --headed --slowmo 300      # watch the browser
-./scripts/e2e.sh --list                     # list the E2E classes and methods
-./scripts/e2e.sh LoginViewE2E               # run only what you name
+.\scripts\e2e.ps1                           # everything
+.\scripts\e2e.ps1 -Headed -SlowMo 300       # watch the browser
+.\scripts\e2e.ps1 -List                     # list the E2E classes and methods
+.\scripts\e2e.ps1 LoginViewE2E              # run only what you name
+
+# Same from Git Bash
+./scripts/e2e.sh --headed --slowmo 300
 ```
 
 For the full E2E setup — the dedicated database, `DB_NAME`, headed mode and reading failure
