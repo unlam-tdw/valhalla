@@ -5,8 +5,13 @@ import com.microsoft.playwright.Page;
 public class LoginPage extends WebPage {
 
   public LoginPage(Page page) {
+    this(page, "/admin/login");
+  }
+
+  /** @param path login page to open: {@code /admin/login} or {@code /auth/login} [AUT-01]. */
+  public LoginPage(Page page, String path) {
     super(page);
-    page.navigate(baseUrl() + "/admin/login");
+    page.navigate(baseUrl() + path);
   }
 
   public String getNavbarText() {
