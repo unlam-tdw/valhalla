@@ -51,18 +51,22 @@ Docker is a container platform that packages applications together with all thei
 
 ## Environment Variables
 
-The app connects to PostgreSQL via environment variables. Copy `.env.example` to `.env` and fill in the values:
+The app connects to PostgreSQL via environment variables. Copy `.env.example` to `.env` and fill in the values. That file is read by `docker compose` only -- the application does not load it:
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_NAME` | Database name | `valhalla` |
-| `DB_USER` | Database user | `user` |
-| `DB_PASSWORD` | Database password | `user` |
-| `POSTGRES_DB` | Initial DB created by the Postgres container | `valhalla` |
-| `POSTGRES_USER` | Initial superuser created by the Postgres container | `user` |
-| `POSTGRES_PASSWORD` | Initial superuser password | `user` |
+| Variable | Read by | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `APP_DB_HOST` | compose | PostgreSQL host **as seen from the container**, i.e. the `postgres` service name | `postgres` |
+| `DB_PORT` | compose | PostgreSQL port | `5432` |
+| `DB_NAME` | compose | Database name | `valhalla` |
+| `DB_USER` | compose | Database user | `user` |
+| `DB_PASSWORD` | compose | Database password | `user` |
+| `POSTGRES_DB` | compose | Initial DB created by the Postgres container | `valhalla` |
+| `POSTGRES_USER` | compose | Initial superuser created by the Postgres container | `user` |
+| `POSTGRES_PASSWORD` | compose | Initial superuser password | `user` |
+
+Compose passes `APP_DB_HOST` to the app as `DB_HOST`. The two names are deliberately different: Compose prefers the shell environment over this file, so a single `DB_HOST` carrying both the container value and the host value would let any host-side `DB_HOST=localhost` silently repoint the container at itself.
+
+When you run the app **outside** Docker (`mvn jetty:run`, `mvn verify` via `scripts/e2e.ps1`), it reads `DB_*` from the process environment instead. Set only what differs from the built-in defaults -- the host needs no `DB_HOST` at all, because `EnvironmentConfig.DEFAULT_DB_HOST` is already `localhost`.
 
 `DB_*` variables are read by the Java app at runtime. `POSTGRES_*` variables are only used by the Postgres Docker container on first boot.
 
