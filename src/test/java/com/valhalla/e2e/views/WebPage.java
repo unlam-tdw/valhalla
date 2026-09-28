@@ -23,9 +23,20 @@ public class WebPage {
     page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(;[^/?#]*)?$"));
   }
 
-  /** Base URL for E2E navigation; override with -De2e.baseUrl (default http://localhost:8080). */
+  /**
+   * Base URL for E2E navigation. Failsafe derives this from ${jetty.port} (see pom.xml), so
+   * there is no local default: one that silently said 8080 would let the tests keep hitting
+   * the old port after the server moved.
+   */
   public String baseUrl() {
-    return System.getProperty("e2e.baseUrl", "http://localhost:8080");
+    String baseUrl = System.getProperty("e2e.baseUrl");
+    if (baseUrl == null) {
+      throw new IllegalStateException(
+        "e2e.baseUrl is not set. Run through failsafe, or pass -De2e.baseUrl when running" +
+        " from an IDE."
+      );
+    }
+    return baseUrl;
   }
 
   public void navigate(String url) {

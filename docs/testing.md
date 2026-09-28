@@ -283,8 +283,8 @@ mvn test -Dtest="LoginControllerTest#shouldReturnToLoginWhenCredentialsAreWrong"
 E2E tests need PostgreSQL and Playwright's Chromium. `mvn verify` auto-starts Jetty, runs E2E via failsafe, then stops Jetty.
 
 ```shell
-# One-time: install Chromium
-npx playwright install chromium
+# One-time: install Chromium (keep the version in sync with pom.xml's playwright.version)
+npx -y playwright@1.61.0 install chromium
 
 # Run everything (unit + integration + E2E)
 docker compose up -d postgres
@@ -299,8 +299,21 @@ docker compose up -d postgres
 mvn jetty:run &
 
 # 2. Wait for server, then run E2E
-mvn failsafe:integration-test failsafe:verify -DskipTests
+mvn failsafe:integration-test failsafe:verify
+
+# 3. Stop Jetty
+mvn jetty:stop
 ```
+
+Failsafe derives the Playwright base URL from `jetty.port`, so moving the server moves the tests
+with it. To watch the browser instead of running headless:
+
+```shell
+mvn failsafe:integration-test failsafe:verify "-De2e.headed=true" "-De2e.slowMo=300"
+```
+
+Quote the `-D` arguments in PowerShell; unquoted it splits them and Maven reports
+`Unknown lifecycle phase`.
 
 ### Skipping quality gates
 
