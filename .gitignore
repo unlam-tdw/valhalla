@@ -28,6 +28,9 @@ hs_err_pid*
 .atl
 openspec
 
+# Agent working documents (local task tracking, not part of the build)
+odd/
+
 # Local environment configuration (contains credentials)
 .env
 cookies.txt
