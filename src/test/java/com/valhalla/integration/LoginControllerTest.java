@@ -227,7 +227,7 @@ public class LoginControllerTest {
     MockHttpSession session = new MockHttpSession();
     this.mockMvc.perform(post("/admin/logout").session(session).with(csrf()))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/admin/login"));
+      .andExpect(redirectedUrl("/admin/login?logout=true"));
     assertThat("session must be invalidated after logout", session.isInvalid(), is(true));
   }
 

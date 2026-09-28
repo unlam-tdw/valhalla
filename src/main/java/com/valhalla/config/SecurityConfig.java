@@ -92,7 +92,9 @@ public class SecurityConfig {
       .logout(logout ->
         logout
           .logoutUrl("/admin/logout")
-          .logoutSuccessUrl("/admin/login")
+          // Mirrors the /auth chain above: the flag is what lets the login view confirm the
+          // session ended, instead of the user landing on a form that says nothing about it.
+          .logoutSuccessUrl("/admin/login?logout=true")
           .invalidateHttpSession(true)
           .deleteCookies("JSESSIONID")
       )

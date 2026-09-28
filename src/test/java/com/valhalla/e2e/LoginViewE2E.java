@@ -1,6 +1,7 @@
 package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.text.IsEqualIgnoringCase.equalToIgnoringCase;
 
@@ -47,6 +48,10 @@ public class LoginViewE2E extends E2eBase {
     whenUserClicksSignIn();
     thenShouldBeRedirectedToHome();
     whenUserClicksLogout();
+    // Notice before path: the locator auto-waits, which absorbs the redirect race, and it is the
+    // only assertion here that can tell a completed logout from any other reason to be back on
+    // the login form. A path check alone cannot.
+    thenShouldSeeSignedOutNotice();
     thenShouldBeRedirectedToLogin();
   }
 
@@ -84,6 +89,14 @@ public class LoginViewE2E extends E2eBase {
     loginPage.waitForPath("/admin/login");
     URL url = loginPage.getCurrentUrl();
     assertThat(url.getPath(), matchesPattern("^/admin/login(?:;jsessionid=[^/\\s]+)?$"));
+  }
+
+  private void thenShouldSeeSignedOutNotice() {
+    assertThat(
+      "the notice only renders on a completed logout",
+      loginPage.getLogoutNotice(),
+      containsString("You have been signed out")
+    );
   }
 
   private void thenShouldBeRedirectedToHome() throws MalformedURLException {

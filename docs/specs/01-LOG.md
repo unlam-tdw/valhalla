@@ -62,7 +62,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | I-09 | `POST /admin/validate-login` con credenciales inválidas → redirige a `/admin/login?error=true` | AC-05 |
 | I-10 | `GET /admin/home` sin sesión → redirige a `/admin/login` | AC-07 |
 | I-11 | `GET /admin/home` con sesión → 200, vista home | AC-09 |
-| I-12 | `POST /admin/logout` → redirige a `/admin/login`, sesión invalidada | AC-06 |
+| I-12 | `POST /admin/logout` → redirige a `/admin/login?logout=true`, sesión invalidada | AC-06 |
 | I-13 | `POST /api/something` sin CSRF → no devuelve 403 (CSRF exempt) | AC-12 |
 | I-14 | `POST /admin/validate-login` sin CSRF → 403 Forbidden | AC-11 |
 | I-15 | `POST /admin/validate-login` con email inexistente → redirige a `/admin/login?error=true` | AC-05 |
@@ -86,7 +86,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | E-02 | `shouldShowErrorWhenSigningInWithAnUnknownUser` | Login con usuario desconocido → mensaje de error | AC-05 |
 | E-03 | `shouldNavigateToHomeWhenUserExists` | Login admin seed → home | AC-04, AC-09 |
 | E-04 | `shouldRegisterAUserAndSignInSuccessfully` | Admin crea usuario → se loguea con la password generada → home | AC-01, AC-04 |
-| E-05 | `shouldLogoutAndReturnToLoginPage` | Login → Home → Logout → vuelve a `/admin/login` | AC-06 |
+| E-05 | `shouldLogoutAndReturnToLoginPage` | Login → Home → Logout → vuelve a `/admin/login` con el aviso de sesión cerrada | AC-06 |
 
 ## Notas de implementación (desviaciones acordadas vs este spec)
 
@@ -105,10 +105,22 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
   declara. La UI (Vue) y los tests/E2E usan `#email`.
 - **AC-13**: requiere `HttpSessionEventPublisher` (registrado en `MyServletInitializer`) + el bean
   `SessionRegistry` (SecurityConfig) para que `maximumSessions(1)` funcione de verdad.
+- **Dos cadenas, dos superficies**: `/admin/**` es el ABM de usuarios y `/auth/**` es el
+  self-service. Ambas existen y ambas llevan cobertura completa de lo que les corresponde, pero
+  no los mismos escenarios: un usuario self-service no puede editar ni borrar cuentas, así que
+  `shouldEditExistingUser` y `shouldDeactivateAndThenDeleteUser` no tienen contraparte en `/auth`.
+  Editar, desactivar, borrar, listar y recuperar clave son de `/admin`; registrarse, recuperar
+  clave propia y el logout de usuario son de `/auth`.
+- **Logout simétrico**: las dos cadenas pasan `?logout=true` al login
+  (`SecurityConfig` líneas 51 y 95) y las dos vistas lo renderizan. Antes solo `/auth` lo hacía:
+  el logout de admin era mudo y su E-05 solo podía assertar el path, que no distingue un logout
+  de cualquier otro motivo de volver al login. El aviso de admin lo lee Vue de
+  `location.search` y el de `/auth` lo lee Thymeleaf de `${param.logout}`, porque cada vista ya
+  tenía un motor distinto; lo que se igualó es el comportamiento observable, no la implementación.
 - Tests extra con respecto a este spec: U-09, I-12, I-13, I-15, I-16, I-17 y E-05.
 - Tests de [AUT] (08-AUT.md), que no viven en este spec: escenarios U-01..U-10 e I-01..I-13 en
   `presentation/auth/AuthControllerTest` e `integration/AuthControllerTest`, la recuperacion de
-  clave en `domain/user/RecoverPasswordServiceTest`, y E-01/E-02 en `e2e/UserAuthViewE2E`.
+  clave en `domain/user/RecoverPasswordServiceTest`, y E-01..E-08 en `e2e/UserAuthViewE2E`.
 
 ## Referencia de Implementacion
 
@@ -180,7 +192,7 @@ public class SecurityConfig {
             )
             .logout(logout -> logout
                 .logoutUrl("/admin/logout")
-                .logoutSuccessUrl("/admin/login")
+                .logoutSuccessUrl("/admin/login?logout=true")
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
             )

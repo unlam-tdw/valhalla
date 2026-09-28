@@ -19,8 +19,14 @@ public class WebPage {
     return URI.create(page.url()).toURL();
   }
 
+  /**
+   * Waits until the browser sits on {@code path}. Tolerates a query string as well as the
+   * {@code ;jsessionid} suffix: Spring Security lands on {@code ?logout=true} and {@code
+   * ?error=true} after these flows, and a pattern that only allowed the session id would time out
+   * on them instead of matching.
+   */
   public void waitForPath(String path) {
-    page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(;[^/?#]*)?$"));
+    page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(?:[?;][^#]*)?$"));
   }
 
   /**
