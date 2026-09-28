@@ -292,6 +292,24 @@ The script is idempotent and does everything: starts PostgreSQL, creates the
 `mvn verify` — which starts Jetty, runs failsafe, and stops Jetty. Run it from
 Git Bash on Windows.
 
+#### Running part of the suite
+
+Pass one or more selectors to run only what you name:
+
+```shell
+./scripts/e2e.sh --list                                        # what is available
+./scripts/e2e.sh LoginViewE2E                                   # one class
+./scripts/e2e.sh LoginViewE2E UserViewABME2E                     # several classes
+./scripts/e2e.sh LoginViewE2E#shouldLogoutAndReturnToLoginPage   # one method
+./scripts/e2e.sh --headed LoginViewE2E                          # combines with the flags
+```
+
+Selectors go to failsafe's `-Dit.test`, so a name that matches nothing fails the
+build with `No tests matching pattern` instead of reporting a green run over zero
+tests. Selecting a subset still runs the 80 unit tests — they cost about a second,
+and the flag that would skip them (`-Dmaven.test.skip.exec`) also skips failsafe,
+which turns a typo into a silent success.
+
 <details>
 <summary>What the script does, if you need to run the steps by hand</summary>
 

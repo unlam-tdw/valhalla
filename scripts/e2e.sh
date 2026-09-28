@@ -5,21 +5,49 @@
 # installs Chromium, exports DB_*, and runs `mvn verify` -- which starts Jetty,
 # runs failsafe, and stops Jetty.
 #
-# Usage: scripts/e2e.sh [--headed] [--slowmo N]
+# Usage:
+#   scripts/e2e.sh                                    run every E2E
+#   scripts/e2e.sh LoginViewE2E                       one class
+#   scripts/e2e.sh LoginViewE2E UserViewABME2E         several classes
+#   scripts/e2e.sh LoginViewE2E#shouldLogout           one method
+#   scripts/e2e.sh --headed --slowmo 300 LoginViewE2E
+#   scripts/e2e.sh --list                             what is available
+#
+# Selectors go straight to failsafe's -Dit.test, so a name that matches nothing
+# fails the build instead of reporting a green run over zero tests.
 set -e
 
+cd "$(dirname "$0")/.."
+
+list=false
 headed=false
 slowmo=0
+selectors=""
+
 while [ $# -gt 0 ]; do
     case "$1" in
+        --list)   list=true ;;
         --headed) headed=true ;;
         --slowmo) slowmo="$2"; shift ;;
-        *) echo "unknown option: $1" >&2; exit 2 ;;
+        -h|--help) sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -*)       echo "unknown option: $1" >&2; exit 2 ;;
+        *)        selectors="$selectors${selectors:+,}$1" ;;
     esac
     shift
 done
 
-cd "$(dirname "$0")/.."
+if [ "$list" = true ]; then
+    find src/test/java -path '*/e2e/*E2E.java' | sort | while read -r f; do
+        echo "$(basename "$f" .java)"
+        awk '/@Test/{t=1; next}
+             t && /void [A-Za-z0-9_]+\(/ {
+                 match($0, /void [A-Za-z0-9_]+/)
+                 print "  " substr($0, RSTART + 5, RLENGTH - 5); t = 0
+             }' "$f"
+    done
+    exit 0
+fi
+
 E2E_DB=valhalla_e2e
 
 docker compose up -d postgres
@@ -44,8 +72,15 @@ export DB_USER=user
 export DB_PASSWORD=user
 
 MVN_ARGS=verify
-[ "$headed" = true ] && MVN_ARGS="$MVN_ARGS -De2e.headed=true"
-[ "$slowmo" -gt 0 ] 2>/dev/null && MVN_ARGS="$MVN_ARGS -De2e.slowmo=$slowmo"
+if [ -n "$selectors" ]; then
+    MVN_ARGS="$MVN_ARGS -Dit.test=$selectors"
+fi
+if [ "$headed" = true ]; then
+    MVN_ARGS="$MVN_ARGS -De2e.headed=true"
+fi
+if [ "$slowmo" -gt 0 ] 2>/dev/null; then
+    MVN_ARGS="$MVN_ARGS -De2e.slowMo=$slowmo"
+fi
 
 # shellcheck disable=SC2086
 mvn $MVN_ARGS

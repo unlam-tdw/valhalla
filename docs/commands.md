@@ -102,6 +102,8 @@ mvn test
 # Run everything (unit + integration + E2E) -- one command, sets up the E2E database
 ./scripts/e2e.sh                            # everything
 ./scripts/e2e.sh --headed --slowmo 300      # watch the browser
+./scripts/e2e.sh --list                     # list the E2E classes and methods
+./scripts/e2e.sh LoginViewE2E               # run only what you name
 ```
 
 For the full E2E setup — the dedicated database, `DB_NAME`, headed mode and reading failure
