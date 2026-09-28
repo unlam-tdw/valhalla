@@ -49,6 +49,23 @@ public class WebPage {
     page.navigate(url);
   }
 
+  /**
+   * Brand text of the shared navbar, which every view carries. Anonymous state: the plain brand
+   * plus the Register and Login links.
+   */
+  public String getNavbarBrand() {
+    return this.getElementText("nav a.navbar-brand");
+  }
+
+  /**
+   * "Signed in as &lt;email&gt;", present only once a session exists. This is the branch of the
+   * navbar fragment that {@link #getNavbarBrand()} cannot see, because a logged-out visitor never
+   * renders it.
+   */
+  public String getNavbarSignedInAs() {
+    return this.getElementText("nav span.text-gray-300").replaceAll("\\s+", " ").trim();
+  }
+
   protected String getElementText(String cssSelector) {
     return this.getElement(cssSelector).textContent();
   }

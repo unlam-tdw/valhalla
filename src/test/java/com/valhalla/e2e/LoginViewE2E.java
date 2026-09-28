@@ -62,13 +62,13 @@ public class LoginViewE2E extends E2eBase {
     givenUserIsOnLoginPage();
     givenUserFillsLoginFormWith("juan@unlam.edu.ar", generatedPassword);
     whenUserClicksSignIn();
-    // AC-04: juan is a USER, so the landing is /plans and not /admin/home. Waiting for
+    // AC-04: juan is a USER, so the landing is / and not /admin/home. Waiting for
     // /admin/home here is what left this job red in CI (P-01).
-    thenShouldBeRedirectedToPlans();
+    thenShouldBeRedirectedToLanding();
   }
 
   private void thenShouldSeeUNLAMInNavbar() {
-    String text = loginPage.getNavbarText();
+    String text = loginPage.getNavbarBrand();
     assertThat("UNLAM", equalToIgnoringCase(text));
   }
 
@@ -106,10 +106,10 @@ public class LoginViewE2E extends E2eBase {
     loginPage.waitForSessionTimerToTick();
   }
 
-  private void thenShouldBeRedirectedToPlans() throws MalformedURLException {
-    loginPage.waitForPath("/plans");
+  private void thenShouldBeRedirectedToLanding() throws MalformedURLException {
+    loginPage.waitForPath("/");
     URL url = loginPage.getCurrentUrl();
-    assertThat(url.getPath(), matchesPattern("^/plans(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(url.getPath(), matchesPattern("^/(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   private void thenShouldSeeAnErrorMessage() {

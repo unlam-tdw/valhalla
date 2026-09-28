@@ -3,6 +3,7 @@ package com.valhalla.integration;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,9 +42,15 @@ public class SecurityConfigTest {
       .andExpect(redirectedUrlPattern("**/auth/login"));
   }
 
+  // --- S-03: a permitted path that no controller maps answers 404, not 403 and not a 200 page ---
+
   @Test
-  public void shouldAllowPublicAccessToSharePage() throws Exception {
-    this.mockMvc.perform(get("/share/abc123")).andExpect(status().isOk());
+  public void shouldReturnNotFoundForUnmappedPublicPath() throws Exception {
+    this.mockMvc.perform(get("/share/abc123"))
+      .andExpect(status().isNotFound())
+      // Proves the 404 came from GlobalExceptionHandler and not from the servlet container's own
+      // error page, which would answer 404 with an empty body.
+      .andExpect(model().attribute("error", "Page not found"));
   }
 
   @Test

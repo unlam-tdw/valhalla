@@ -14,10 +14,6 @@ public class LoginPage extends WebPage {
     page.navigate(baseUrl() + path);
   }
 
-  public String getNavbarText() {
-    return this.getElementText("nav a.navbar-brand");
-  }
-
   public String getErrorMessage() {
     return this.getElementText("p.alert.alert-danger.my-4");
   }

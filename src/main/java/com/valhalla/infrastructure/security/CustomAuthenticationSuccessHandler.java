@@ -29,7 +29,10 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
     if (isAdmin) {
       response.sendRedirect(request.getContextPath() + "/admin/home");
     } else {
-      response.sendRedirect(request.getContextPath() + "/plans");
+      // LandingController serves "/" and the landing page is public. It replaces "/plans", which
+      // no controller maps: the redirect used to land on a page that only looked broken because a
+      // missing route rendered the error view with HTTP 200.
+      response.sendRedirect(request.getContextPath() + "/");
     }
   }
 }

@@ -115,8 +115,12 @@ graph LR
 | POST | `/auth/register` | AuthController | redirect → /auth/login |
 | GET | `/auth/forgot-password` | AuthController | pages/auth/user/forgot-password |
 | POST | `/auth/recover` | AuthController | pages/auth/user/recovered |
-| POST | `/auth/validate-login` | Spring Security | redirect → /plans (USER) · /admin/home (ADMIN) |
+| POST | `/auth/validate-login` | Spring Security | redirect → / (USER) · /admin/home (ADMIN) |
 | POST | `/auth/logout` | Spring Security | redirect → /auth/login |
+
+> Divergencia consciente con la tabla de abajo: `/plans` figura como ruta de [PLN], pero ningún
+> controller la sirve todavía, así que el login de un `USER` cae hoy en `/` (la landing de
+> `LandingController`). Cuando exista `PlanController`, esta fila vuelve a decir `/plans`.
 
 ### Future Authenticated Routes
 

@@ -25,7 +25,7 @@ sin sesión redirigen a `/auth/login`.
 | AC-01 | Un visitante puede crear cuenta desde `/auth/register` con email + password. Queda activa inmediatamente con rol `USER` |
 | AC-02 | El email debe ser válido y la password mínimo 6 caracteres. Errores visibles en el form |
 | AC-03 | Un email ya registrado no puede volver a registrarse (error en `/auth/register`) |
-| AC-04 | Login en `/auth/login` con email + password correctos de una cuenta activa → inicia sesión y redirige a `/plans` (usuario `USER`). Un `ADMIN` va a `/admin/home` |
+| AC-04 | Login en `/auth/login` con email + password correctos de una cuenta activa → inicia sesión y redirige a `/` (usuario `USER`). Un `ADMIN` va a `/admin/home` |
 | AC-05 | Login con credenciales inválidas o cuenta desactivada → mensaje de error en `/auth/login` |
 | AC-06 | POST `/auth/validate-login` sin token CSRF → 403 Forbidden |
 | AC-07 | Recuperación de password: desde `/auth/login` hay link "Forgot password?" → `/auth/forgot-password`; con email válido la pantalla muestra una password temporal generada, y la password anterior deja de servir |
@@ -94,8 +94,8 @@ sobre el email mal formado).
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `shouldRegisterLoginAndLandOnPlans` | `/auth/register` → crear cuenta → `/auth/login` → `/plans` | AC-01, AC-04 |
-| E-02 | `shouldRecoverPasswordAndSignIn` | `/auth/forgot-password` → password temporal → login → `/plans` | AC-07, AC-08 |
+| E-01 | `shouldRegisterLoginAndLandOnTheLandingPage` | `/auth/register` → crear cuenta → `/auth/login` → `/` con el navbar mostrando la sesión | AC-01, AC-04 |
+| E-02 | `shouldRecoverPasswordAndSignIn` | `/auth/forgot-password` → password temporal → login → `/` | AC-07, AC-08 |
 | E-03 | `shouldSignOutAndReturnToLogin` | login → navbar "Logout" → `/auth/login` con el aviso de sesión cerrada | AC-09 |
 | E-04 | `shouldTellTheUserTheEmailIsAlreadyRegistered` | registrar dos veces el mismo email → alerta en el form | AC-03 |
 | E-05 | `shouldRejectAPasswordShorterThanSixCharacters` | password de 3 chars → error de campo, sin `minlength` que lo frene | AC-02 |
@@ -117,7 +117,10 @@ contra la página de error, así que no distingue un logout de un fallo de login
   service; uno bien formado que no existe responde "Email no encontrado". Son dos mensajes a
   propósito: el primero es un error de tipeo corregible, el segundo revela existencia y por eso
   solo aparece después de pasar la validación de formato.
-- **Landing post-login (AC-04)**: `USER` → `/plans`; `ADMIN` → `/admin/home` (por rol).
+- **Landing post-login (AC-04)**: `USER` → `/`; `ADMIN` → `/admin/home` (por rol). Apuntaba a
+  `/plans`, que ningún controller sirve: el login terminaba en la página de error devuelta con
+  HTTP 200, así que el destino roto era invisible. `/` sí existe (`LandingController`) y es
+  público. `/plans` sigue sin construirse: es el trabajo de 03-PLN, no de este spec.
 - **Registro (AC-01/02/03)**: solo email + password, con un DTO propio,
   `presentation/shared/RegisterRequest` (`@NotBlank` + `@Email` en email, `@Size(min = 6)` en
   password). **No** se reusa `NewUserRequest`: ese pide `firstName`/`lastName` y su `@NotBlank`
@@ -130,7 +133,14 @@ contra la página de error, así que no distingue un logout de un fallo de login
   de punta a punta.
 - **S-04 sin implementar**: el spec pide `GET /places` con sesión `USER` → 200, pero `/places` no
   lo sirve ningún controller. El unico test que toca `/places` es el de la redirección sin sesión
-  (`I-11`), que no depende de que la ruta exista. Corregirlo es parte del trabajo de `/plans`.
+  (`I-11`), que no depende de que la ruta exista. Con el 404 real (`GlobalExceptionHandler`)
+  una URL sin mapear responde 404, así que el 200 que pedía S-04 ya no es obtenible. Corregirlo
+  es parte del trabajo de `/plans`.
+- **404 real**: `GlobalExceptionHandler` devuelve 404 para `NoHandlerFoundException` y
+  `NoResourceFoundException`, y 500 para el catch-all. Antes respondía 200 en ambos casos
+  renderizando `pages/error`, lo que volvía indistinguible una URL inexistente de una válida.
+  Efecto directo sobre este spec: las aserciones que sólo miran la URL ya no pueden pasar por
+  alto una página de error, porque el status y el body-travel son lo que las distingue.
 
 ## Referencia de Implementacion
 
@@ -143,16 +153,16 @@ ordenadas (todo en `config/SecurityConfig.java`):
 
 | Chain | `securityMatcher` | loginPage / processingUrl | logout | Ruta éxito |
 |-------|-------------------|---------------------------|--------|------------|
-| 1 (`@Order(1)`) | `/auth/**` | `/auth/login` / `/auth/validate-login` | `/auth/logout` → `/auth/login` | según rol |
-| 2 (`@Order(2)`) | `/admin/**` | `/admin/login` / `/admin/validate-login` | `/admin/logout` → `/admin/login` | `/admin/home` |
-| 3 (default) | resto | `/auth/login` / `/auth/validate-login` | `/auth/logout` → `/auth/login` | según rol |
+| 1 (`@Order(1)`) | `/auth/**` | `/auth/login` / `/auth/validate-login` | `/auth/logout` → `/auth/login?logout=true` | según rol |
+| 2 (`@Order(2)`) | `/admin/**` | `/admin/login` / `/admin/validate-login` | `/admin/logout` → `/admin/login?logout=true` | `/admin/home` |
+| 3 (default) | resto | `/auth/login` / `/auth/validate-login` | `/auth/logout` → `/auth/login?logout=true` | según rol |
 
 - Las 3 comparten el mismo `UserDetailsService`, `PasswordEncoder` y `SessionRegistry`
   (max 1 sesión por usuario se mantiene).
 - Chain 3: `/` y `/share/**` permitAll (no cambia), `/places/**`, `/plans/**`, resto
   `authenticated()`.
 - Un `AuthenticationSuccessHandler` común: si `authorities` incluye `ROLE_ADMIN` →
-  `/admin/home`, si no → `/plans` (AC-04).
+  `/admin/home`, si no → `/` (AC-04).
 - Chain 2 queda con la config actual de LOG (solo cambia el `securityMatcher`).
 - `usernameParameter` de las cadenas 1 y 3 es `"username"`, no `"email"`: el input de
   `pages/auth/user/login.html` declara `name="username"` (con `id="email"`), mientras que las
@@ -181,7 +191,7 @@ public class SecurityConfig {
             .permitAll())
         .logout(logout -> logout
             .logoutUrl("/auth/logout")
-            .logoutSuccessUrl("/auth/login")
+            .logoutSuccessUrl("/auth/login?logout=true")
             .invalidateHttpSession(true)
             .deleteCookies("JSESSIONID"))
         .sessionManagement(s -> s.maximumSessions(1).sessionRegistry(registry).maxSessionsPreventsLogin(false));

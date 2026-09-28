@@ -2,12 +2,14 @@ package com.valhalla.presentation.shared;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.text.IsEqualIgnoringCase.equalToIgnoringCase;
 import static org.mockito.Mockito.mock;
 
 import com.valhalla.presentation.user.EditUserRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.ModelAndView;
 
 public class GlobalExceptionHandlerTest {
@@ -49,5 +51,22 @@ public class GlobalExceptionHandlerTest {
       modelAndView.getModel().get("error").toString(),
       equalToIgnoringCase("User not found")
     );
+  }
+
+  @Test
+  public void shouldAnswerNotFoundForAnUnmappedUrl() {
+    ModelAndView modelAndView = handler.handleNotFound();
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/error"));
+    assertThat(
+      modelAndView.getModel().get("error").toString(),
+      equalToIgnoringCase("Page not found")
+    );
+    assertThat(modelAndView.getStatus(), is(HttpStatus.NOT_FOUND));
+  }
+
+  @Test
+  public void shouldAnswerServerErrorForAnUnexpectedFailure() {
+    ModelAndView modelAndView = handler.handleUnexpectedError(new RuntimeException("boom"));
+    assertThat(modelAndView.getStatus(), is(HttpStatus.INTERNAL_SERVER_ERROR));
   }
 }

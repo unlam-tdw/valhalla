@@ -109,7 +109,7 @@ public class AuthControllerTest {
         post(VALIDATE_LOGIN).with(csrf()).param("username", email).param("password", PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/plans"));
+      .andExpect(redirectedUrl("/"));
   }
 
   // --- I-03 ---
@@ -149,7 +149,7 @@ public class AuthControllerTest {
           .param("password", USER_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/plans"));
+      .andExpect(redirectedUrl("/"));
   }
 
   @Test
@@ -219,9 +219,7 @@ public class AuthControllerTest {
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/auth/login?error=true"));
 
-    logIn(email, tempPassword)
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/plans"));
+    logIn(email, tempPassword).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/"));
   }
 
   // --- I-09 ---
@@ -247,7 +245,7 @@ public class AuthControllerTest {
           .param("username", USER_EMAIL)
           .param("password", USER_PASSWORD)
       )
-      .andExpect(redirectedUrl("/plans"));
+      .andExpect(redirectedUrl("/"));
 
     this.mockMvc.perform(post("/auth/logout").session(session).with(csrf()))
       .andExpect(status().is3xxRedirection())

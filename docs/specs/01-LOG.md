@@ -75,7 +75,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 |---|------|-------------|
 | S-01 | `GET /places` sin sesión → redirige a `/auth/login` | AC-07 |
 | S-02 | `GET /plans` sin sesión → redirige a `/auth/login` | AC-07 |
-| S-03 | `GET /share/abc123` sin sesión → 200 (público) | AC-08 |
+| S-03 | `GET /share/abc123` sin sesión → 404 (permitido pero no mapeado; 403 significaría que la cadena de seguridad lo rechazó) | AC-08 |
 | S-04 | `GET /` sin sesión → 200 (landing page, público) | AC-08 |
 
 ### E2E (mínimos, solo happy path completo)
@@ -117,6 +117,12 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
   de cualquier otro motivo de volver al login. El aviso de admin lo lee Vue de
   `location.search` y el de `/auth` lo lee Thymeleaf de `${param.logout}`, porque cada vista ya
   tenía un motor distinto; lo que se igualó es el comportamiento observable, no la implementación.
+- **404 real**: `GlobalExceptionHandler` responde 404 ante `NoHandlerFoundException` y
+  `NoResourceFoundException`, y 500 ante el catch-all. Antes respondía 200 en los tres casos
+  renderizando `pages/error`, así que una URL inexistente era indistinguible de una válida.
+  Esto reescribe S-03: `/share/abc123` es público pero ningún controller lo mapea, así que la
+  respuesta correcta es 404, no 200. El test afirma además el atributo `error` del model para
+  dejar claro que el 404 lo produce el handler y no la página de error del contenedor.
 - Tests extra con respecto a este spec: U-09, I-12, I-13, I-15, I-16, I-17 y E-05.
 - Tests de [AUT] (08-AUT.md), que no viven en este spec: escenarios U-01..U-10 e I-01..I-13 en
   `presentation/auth/AuthControllerTest` e `integration/AuthControllerTest`, la recuperacion de

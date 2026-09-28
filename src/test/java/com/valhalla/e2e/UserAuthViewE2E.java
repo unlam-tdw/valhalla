@@ -11,6 +11,7 @@ import com.valhalla.e2e.views.ForgotPasswordPage;
 import com.valhalla.e2e.views.LoginPage;
 import com.valhalla.e2e.views.RecoveredPasswordPage;
 import com.valhalla.e2e.views.RegisterPage;
+import com.valhalla.e2e.views.WebPage;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -32,12 +33,21 @@ public class UserAuthViewE2E extends E2eBase {
   private static final String UNKNOWN_EMAIL = "nadie@unlam.edu.ar";
 
   @Test
-  void shouldRegisterLoginAndLandOnPlans() throws MalformedURLException {
+  void shouldRegisterLoginAndLandOnTheLandingPage() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
 
     givenUserSignsInWith(EMAIL, PASSWORD);
 
-    thenShouldBeOnPath("/plans");
+    thenShouldBeOnPath("/");
+
+    // The navbar is one fragment shared by both chains, so its brand is covered once on the admin
+    // login page. What has no counterpart there is the signed-in half of the fragment, which only
+    // renders once a session exists and is what this chain exercises.
+    assertThat(
+      "the authenticated navbar names the signed-in user",
+      new WebPage(page).getNavbarSignedInAs(),
+      containsString(EMAIL)
+    );
   }
 
   @Test
@@ -49,7 +59,7 @@ public class UserAuthViewE2E extends E2eBase {
 
     givenUserSignsInWith(EMAIL, tempPassword);
 
-    thenShouldBeOnPath("/plans");
+    thenShouldBeOnPath("/");
   }
 
   @Test
@@ -167,6 +177,7 @@ public class UserAuthViewE2E extends E2eBase {
   }
 
   private void thenShouldBeOnPath(String path) throws MalformedURLException {
+    new WebPage(page).waitForPath(path);
     URL url = URI.create(page.url()).toURL();
     assertThat(
       "expected to land on " + path + " but landed on " + url,
