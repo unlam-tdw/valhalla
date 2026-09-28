@@ -1,12 +1,13 @@
 package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.text.IsEqualIgnoringCase.equalToIgnoringCase;
 
 import com.microsoft.playwright.*;
 import com.valhalla.e2e.views.LoginPage;
-import com.valhalla.e2e.views.NewUserPage;
+import com.valhalla.e2e.views.UserFormPage;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,18 +36,15 @@ public class LoginViewE2E extends E2eBase {
   }
 
   @Test
-  void shouldNavigateToHomeWhenUserExists() throws MalformedURLException {
-    givenUserFillsLoginFormWith("test@unlam.edu.ar", "password");
-    whenUserClicksSignIn();
-    thenShouldBeRedirectedToHome();
-  }
-
-  @Test
   void shouldLogoutAndReturnToLoginPage() throws MalformedURLException {
     givenUserFillsLoginFormWith("test@unlam.edu.ar", "password");
     whenUserClicksSignIn();
     thenShouldBeRedirectedToHome();
     whenUserClicksLogout();
+    // Notice before path: the locator auto-waits, which absorbs the redirect race, and it is the
+    // only assertion here that can tell a completed logout from any other reason to be back on
+    // the login form. A path check alone cannot.
+    thenShouldSeeSignedOutNotice();
     thenShouldBeRedirectedToLogin();
   }
 
@@ -57,11 +55,13 @@ public class LoginViewE2E extends E2eBase {
     givenUserIsOnLoginPage();
     givenUserFillsLoginFormWith("juan@unlam.edu.ar", generatedPassword);
     whenUserClicksSignIn();
-    thenShouldBeRedirectedToHome();
+    // AC-04: juan is a USER, so the landing is / and not /admin/home. Waiting for
+    // /admin/home here is what left this job red in CI (P-01).
+    thenShouldBeRedirectedToLanding();
   }
 
   private void thenShouldSeeUNLAMInNavbar() {
-    String text = loginPage.getNavbarText();
+    String text = loginPage.getNavbarBrand();
     assertThat("UNLAM", equalToIgnoringCase(text));
   }
 
@@ -84,11 +84,25 @@ public class LoginViewE2E extends E2eBase {
     assertThat(url.getPath(), matchesPattern("^/admin/login(?:;jsessionid=[^/\\s]+)?$"));
   }
 
+  private void thenShouldSeeSignedOutNotice() {
+    assertThat(
+      "the notice only renders on a completed logout",
+      loginPage.getLogoutNotice(),
+      containsString("You have been signed out")
+    );
+  }
+
   private void thenShouldBeRedirectedToHome() throws MalformedURLException {
     loginPage.waitForPath("/admin/home");
     URL url = loginPage.getCurrentUrl();
     assertThat(url.getPath(), matchesPattern("^/admin/home(?:;jsessionid=[^/\\s]+)?$"));
     loginPage.waitForSessionTimerToTick();
+  }
+
+  private void thenShouldBeRedirectedToLanding() throws MalformedURLException {
+    loginPage.waitForPath("/");
+    URL url = loginPage.getCurrentUrl();
+    assertThat(url.getPath(), matchesPattern("^/(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   private void thenShouldSeeAnErrorMessage() {
@@ -102,22 +116,17 @@ public class LoginViewE2E extends E2eBase {
   }
 
   private String givenAdminCreatesUser(String email) {
-    Page adminPage = context.newPage();
-    LoginPage adminLogin = new LoginPage(adminPage);
-    adminLogin.typeEmail("test@unlam.edu.ar");
-    adminLogin.typePassword("password");
-    adminLogin.clickSignIn();
-    adminLogin.waitForPath("/admin/home");
+    LoginPage adminLogin = signInAsAdmin();
     adminLogin.navigate(adminLogin.baseUrl() + "/admin/users/new");
-    NewUserPage newUserPage = new NewUserPage(adminPage);
-    newUserPage.typeFirstName("Juan");
-    newUserPage.typeLastName("Perez");
-    newUserPage.typeEmail(email);
-    newUserPage.selectRole("USER");
-    newUserPage.clickCreate();
-    newUserPage.waitForPath("/admin/users");
+    UserFormPage formPage = new UserFormPage(page);
+    formPage.typeFirstName("Juan");
+    formPage.typeLastName("Perez");
+    formPage.typeEmail(email);
+    formPage.selectRole("USER");
+    formPage.clickCreate();
+    formPage.waitForPath("/admin/users");
     // Read the generated password displayed on the users page
-    String generatedPassword = adminPage.locator("code").textContent();
+    String generatedPassword = page.locator("code").textContent();
     newContext();
     loginPage = new LoginPage(page);
     return generatedPassword;

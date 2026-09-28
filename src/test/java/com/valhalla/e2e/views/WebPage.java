@@ -5,6 +5,7 @@ import com.microsoft.playwright.Page;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class WebPage {
@@ -19,8 +20,22 @@ public class WebPage {
     return URI.create(page.url()).toURL();
   }
 
+  /**
+   * Waits until the browser sits on {@code path}. Tolerates a query string as well as the
+   * {@code ;jsessionid} suffix: Spring Security lands on {@code ?logout=true} and {@code
+   * ?error=true} after these flows, and a pattern that only allowed the session id would time out
+   * on them instead of matching.
+   *
+   * <p>The path has to start right after the authority, which is what {@code [^/]*} pins down. A
+   * bare {@code .*} prefix would let {@code waitForPath("/plans")} be satisfied by
+   * {@code /admin/plans}, so a wrong redirect would pass. That assumes the app is deployed at the
+   * context root, which is how failsafe starts Jetty; under a context path the caller has to pass
+   * {@code /context/...} too.
+   */
   public void waitForPath(String path) {
-    page.waitForURL(Pattern.compile(".*" + Pattern.quote(path) + "(;[^/?#]*)?$"));
+    page.waitForURL(
+      Pattern.compile("[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*" + Pattern.quote(path) + "(?:[?;][^#]*)?$")
+    );
   }
 
   /**
@@ -41,6 +56,41 @@ public class WebPage {
 
   public void navigate(String url) {
     page.navigate(url);
+  }
+
+  /**
+   * Brand text of the shared navbar, which every view carries. Anonymous state: the plain brand
+   * plus the Register and Login links.
+   */
+  public String getNavbarBrand() {
+    return this.getElementText("nav a.navbar-brand");
+  }
+
+  /**
+   * "Signed in as &lt;email&gt;", present only once a session exists. This is the branch of the
+   * navbar fragment that {@link #getNavbarBrand()} cannot see, because a logged-out visitor never
+   * renders it.
+   */
+  public String getNavbarSignedInAs() {
+    return this.getElementText("nav span.text-gray-300").replaceAll("\\s+", " ").trim();
+  }
+
+  /**
+   * Visible text of every navbar link and button, in document order. Pinned by the callers
+   * instead of filtered: a menu item pointing at a route nobody maps still renders perfectly,
+   * so the only way to catch it is to name the items the navbar is allowed to have.
+   *
+   * <p>Whitespace is collapsed the same way {@link #getNavbarSignedInAs()} does it, because
+   * {@code allTextContents()} returns the raw markup text and a template that wraps the label
+   * across lines would otherwise change the expected value.
+   */
+  public List<String> getNavbarItems() {
+    return page
+      .locator("nav a, nav button")
+      .allTextContents()
+      .stream()
+      .map(text -> text.replaceAll("\\s+", " ").trim())
+      .toList();
   }
 
   protected String getElementText(String cssSelector) {

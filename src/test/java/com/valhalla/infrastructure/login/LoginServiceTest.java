@@ -1,4 +1,4 @@
-package com.valhalla.domain.login;
+package com.valhalla.infrastructure.login;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
+import com.valhalla.domain.login.LoginService;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import java.util.Optional;
@@ -121,6 +122,27 @@ public class LoginServiceTest {
     assertThat(saved.getRole(), is(equalTo("USER")));
     assertThat(saved.getActive(), is(true));
     assertThat(saved.getPassword(), not(equalTo(password)));
+    assertThat(this.passwordEncoder.matches(password, saved.getPassword()), is(true));
+  }
+
+  @Test
+  public void shouldSaveANamelessUserWhenRegisteringSelfService() {
+    // given
+    String email = "autoservicio@test.com";
+    String password = "password123";
+    when(this.userRepositoryMock.findByEmail(email)).thenReturn(Optional.empty());
+
+    // when: the self-service overload collects no personal data (AC-01)
+    this.loginService.register(email, password);
+
+    // then
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(this.userRepositoryMock, times(1)).save(captor.capture());
+    User saved = captor.getValue();
+    assertThat(saved.getEmail(), is(equalTo(email)));
+    assertThat(saved.getFirstName(), is(nullValue()));
+    assertThat(saved.getLastName(), is(nullValue()));
+    assertThat(saved.getRole(), is(equalTo("USER")));
     assertThat(this.passwordEncoder.matches(password, saved.getPassword()), is(true));
   }
 

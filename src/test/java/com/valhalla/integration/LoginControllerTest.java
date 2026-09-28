@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.valhalla.domain.login.LoginService;
 import com.valhalla.domain.user.UserRepository;
+import com.valhalla.domain.user.UserService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,8 @@ public class LoginControllerTest {
 
   private static final String LOGIN_EMAIL = "login@unlam.edu.ar";
   private static final String LOGIN_PASSWORD = "secure-password";
+  private static final String ADMIN_EMAIL = "login.admin@unlam.edu.ar";
+  private static final String ADMIN_PASSWORD = "admin-password";
 
   private static final String ATTR_NEW_USER_DATA = "newUserData";
   private static final String BINDING_RESULT_NEW_USER =
@@ -46,6 +49,9 @@ public class LoginControllerTest {
 
   @Autowired
   private LoginService loginService;
+
+  @Autowired
+  private UserService userService;
 
   @Autowired
   private UserRepository userRepository;
@@ -63,6 +69,9 @@ public class LoginControllerTest {
     this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).apply(springSecurity()).build();
     if (userRepository.findByEmail(LOGIN_EMAIL).isEmpty()) {
       loginService.register(LOGIN_EMAIL, LOGIN_PASSWORD, "Login", "Test");
+    }
+    if (userRepository.findByEmail(ADMIN_EMAIL).isEmpty()) {
+      userService.create(ADMIN_EMAIL, ADMIN_PASSWORD, "ADMIN", "Admin", "Test");
     }
   }
 
@@ -84,7 +93,7 @@ public class LoginControllerTest {
   public void shouldShowLoginLinkInNavbarWhenAnonymous() throws Exception {
     this.mockMvc.perform(get("/admin/login"))
       .andExpect(status().isOk())
-      .andExpect(content().string(containsString("href=\"/admin/login\"")));
+      .andExpect(content().string(containsString("href=\"/auth/login\"")));
   }
 
   @Test
@@ -97,13 +106,12 @@ public class LoginControllerTest {
   }
 
   @Test
-  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
-  public void shouldRedirectToHomeWhenCredentialsAreCorrect() throws Exception {
+  public void shouldRedirectToAdminHomeWhenAdminCredentialsAreCorrect() throws Exception {
     this.mockMvc.perform(
         post("/admin/validate-login")
           .with(csrf())
-          .param("email", LOGIN_EMAIL)
-          .param("password", LOGIN_PASSWORD)
+          .param("email", ADMIN_EMAIL)
+          .param("password", ADMIN_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/home"));
@@ -219,7 +227,7 @@ public class LoginControllerTest {
     MockHttpSession session = new MockHttpSession();
     this.mockMvc.perform(post("/admin/logout").session(session).with(csrf()))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/admin/login"));
+      .andExpect(redirectedUrl("/admin/login?logout=true"));
     assertThat("session must be invalidated after logout", session.isInvalid(), is(true));
   }
 
@@ -231,7 +239,7 @@ public class LoginControllerTest {
 
   @Test
   public void shouldKeepOnlyTheMostRecentSessionPerUser() throws Exception {
-    UserDetails principal = userDetailsService.loadUserByUsername(LOGIN_EMAIL);
+    UserDetails principal = userDetailsService.loadUserByUsername(ADMIN_EMAIL);
 
     MockHttpSession firstSession = new MockHttpSession();
     performSuccessfulLogin(firstSession);
@@ -270,8 +278,8 @@ public class LoginControllerTest {
         post("/admin/validate-login")
           .session(session)
           .with(csrf())
-          .param("email", LOGIN_EMAIL)
-          .param("password", LOGIN_PASSWORD)
+          .param("email", ADMIN_EMAIL)
+          .param("password", ADMIN_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/home"));

@@ -5,16 +5,27 @@ import com.microsoft.playwright.Page;
 public class LoginPage extends WebPage {
 
   public LoginPage(Page page) {
-    super(page);
-    page.navigate(baseUrl() + "/admin/login");
+    this(page, "/admin/login");
   }
 
-  public String getNavbarText() {
-    return this.getElementText("nav a.navbar-brand");
+  /** @param path login page to open: {@code /admin/login} or {@code /auth/login} [AUT-01]. */
+  public LoginPage(Page page, String path) {
+    super(page);
+    page.navigate(baseUrl() + path);
   }
 
   public String getErrorMessage() {
     return this.getElementText("p.alert.alert-danger.my-4");
+  }
+
+  /**
+   * Notice shown after a successful logout. Spring Security redirects to {@code ?logout=true}, and
+   * the view keys the notice off that parameter, so its presence proves the whole round trip
+   * finished. A path assertion cannot: the redirect target carries a query string, which
+   * {@link #waitForPath} does not match.
+   */
+  public String getLogoutNotice() {
+    return this.getElementText("p.bg-green-100");
   }
 
   public void typeEmail(String email) {

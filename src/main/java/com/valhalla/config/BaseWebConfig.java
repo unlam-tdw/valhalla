@@ -23,9 +23,9 @@ import org.thymeleaf.templatemode.TemplateMode;
 @Configuration
 @EnableWebMvc
 @Import({ SecurityConfig.class, ValidationConfig.class })
-@ComponentScan(
-  { "com.valhalla.presentation", "com.valhalla.domain", "com.valhalla.infrastructure" }
-)
+// com.valhalla.domain is deliberately absent. Nothing in it is a component, and scanning it
+// would let the domain grow @Service classes again without anyone noticing the coupling.
+@ComponentScan({ "com.valhalla.presentation", "com.valhalla.infrastructure" })
 public abstract class BaseWebConfig implements WebMvcConfigurer {
 
   // Spring + Thymeleaf need this
