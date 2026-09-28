@@ -464,9 +464,17 @@
                                 <rule>
                                     <element>PACKAGE</element>
                                     <includes>
-                                        <include>com.valhalla.domain</include>
-                                        <include>com.valhalla.domain.exception</include>
-                                        <include>com.valhalla.presentation</include>
+                                        <!-- The trailing .* is load-bearing. JaCoCo matches PACKAGE
+                                             names exactly, and there is no com.valhalla.domain or
+                                             com.valhalla.presentation package: the code lives in
+                                             .login, .user, .auth and friends. Without the wildcard
+                                             this rule evaluated nothing and every build reported
+                                             "All coverage checks have been met" while domain and
+                                             presentation sat untested. The old explicit
+                                             com.valhalla.domain.exception entry is what the
+                                             wildcard now subsumes. -->
+                                        <include>com.valhalla.domain.*</include>
+                                        <include>com.valhalla.presentation.*</include>
                                     </includes>
                                     <limits>
                                         <limit>
