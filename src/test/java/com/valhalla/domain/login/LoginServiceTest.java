@@ -125,6 +125,27 @@ public class LoginServiceTest {
   }
 
   @Test
+  public void shouldSaveANamelessUserWhenRegisteringSelfService() {
+    // given
+    String email = "autoservicio@test.com";
+    String password = "password123";
+    when(this.userRepositoryMock.findByEmail(email)).thenReturn(Optional.empty());
+
+    // when: the self-service overload collects no personal data (AC-01)
+    this.loginService.register(email, password);
+
+    // then
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(this.userRepositoryMock, times(1)).save(captor.capture());
+    User saved = captor.getValue();
+    assertThat(saved.getEmail(), is(equalTo(email)));
+    assertThat(saved.getFirstName(), is(nullValue()));
+    assertThat(saved.getLastName(), is(nullValue()));
+    assertThat(saved.getRole(), is(equalTo("USER")));
+    assertThat(this.passwordEncoder.matches(password, saved.getPassword()), is(true));
+  }
+
+  @Test
   public void shouldThrowWhenUserAlreadyExists() {
     // given
     String email = "exists@test.com";
