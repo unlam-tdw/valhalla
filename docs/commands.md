@@ -103,12 +103,16 @@ mvn test
 docker compose up -d postgres
 mvn verify
 
-# Run E2E tests manually (requires Docker stack + server running)
-docker compose up -d postgres
+# Run E2E tests manually
+# Needs its own database first — see docs/testing.md, "E2E tests"
 mvn jetty:run &
 mvn failsafe:integration-test failsafe:verify
 mvn jetty:stop
 ```
+
+For the full E2E setup — the dedicated database, `DB_NAME`, headed mode and reading failure
+artifacts — see [testing.md](testing.md#e2e-tests). That section is canonical; this file only
+lists the one-line commands.
 
 ## CI/CD (GitHub Actions)
 
@@ -127,14 +131,15 @@ If any gate fails, the build fails.
 
 ### `e2e` , Playwright against a real stack
 
-1. Spins up a PostgreSQL service container
+1. Spins up a PostgreSQL service container holding a dedicated `valhalla_e2e` database
 2. Installs Playwright's Chromium, pinned to the version in `pom.xml`
 3. Packages the app (`mvn package -DskipTests` with the static-analysis gates skipped, since
    the `backend` job already enforced them and this job `needs: backend`)
 4. Starts Jetty against the local Postgres and waits up to 120s for the app root to answer
 5. Runs E2E tests (`LoginViewE2E`, `UserViewABME2E`) via
    `mvn failsafe:integration-test failsafe:verify`
-6. Uploads `target/failsafe-reports/` as an artifact, even when the run fails
+6. Uploads `target/failsafe-reports/` and `target/e2e-artifacts/` (per-test screenshot and
+   Playwright trace) as an artifact, even when the run fails
 
 **To run the full pipeline locally before pushing:**
 
