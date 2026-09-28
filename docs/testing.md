@@ -40,7 +40,6 @@ src/test/java/com/valhalla/
 │       ├── RegisterPage.java
 │       ├── ForgotPasswordPage.java
 │       ├── RecoveredPasswordPage.java
-│       ├── NewUserPage.java
 │       ├── UsersPage.java
 │       └── UserFormPage.java
 ├── infrastructure/                 # Tests for the *Impl classes
@@ -246,15 +245,20 @@ Playwright tests with a real browser. Requires PostgreSQL + app running.
 public class LoginViewE2E {
 
   @Test
-  public void shouldNavigateToHomeWhenUserExists() {
-    page.navigate(baseUrl + "/admin/login");
-    page.locator("#email").fill("test@unlam.edu.ar");
-    page.locator("#password").fill("test");
-    page.locator("#btn-login").click();
-    waitForPath("/admin/home");
+  public void shouldLogoutAndReturnToLoginPage() {
+    LoginPage loginPage = new LoginPage(page);
+    loginPage.typeEmail("test@unlam.edu.ar");
+    loginPage.typePassword("password");
+    loginPage.clickSignIn();
+    loginPage.waitForPath("/admin/home");
+    loginPage.clickLogout();
+    loginPage.waitForPath("/admin/login");
   }
 }
 ```
+
+`E2eBase.signInAsAdmin()` does the admin sign-in that the admin-facing suites use as arrange.
+Use it instead of writing the seed credentials again.
 
 ### What to test
 

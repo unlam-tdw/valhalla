@@ -79,9 +79,18 @@ public class WebPage {
    * Visible text of every navbar link and button, in document order. Pinned by the callers
    * instead of filtered: a menu item pointing at a route nobody maps still renders perfectly,
    * so the only way to catch it is to name the items the navbar is allowed to have.
+   *
+   * <p>Whitespace is collapsed the same way {@link #getNavbarSignedInAs()} does it, because
+   * {@code allTextContents()} returns the raw markup text and a template that wraps the label
+   * across lines would otherwise change the expected value.
    */
   public List<String> getNavbarItems() {
-    return page.locator("nav a, nav button").allTextContents();
+    return page
+      .locator("nav a, nav button")
+      .allTextContents()
+      .stream()
+      .map(text -> text.replaceAll("\\s+", " ").trim())
+      .toList();
   }
 
   protected String getElementText(String cssSelector) {

@@ -7,7 +7,7 @@ import static org.hamcrest.text.IsEqualIgnoringCase.equalToIgnoringCase;
 
 import com.microsoft.playwright.*;
 import com.valhalla.e2e.views.LoginPage;
-import com.valhalla.e2e.views.NewUserPage;
+import com.valhalla.e2e.views.UserFormPage;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,13 +33,6 @@ public class LoginViewE2E extends E2eBase {
     givenUserFillsLoginFormWith("damian@unlam.edu.ar", "unlam");
     whenUserClicksSignIn();
     thenShouldSeeAnErrorMessage();
-  }
-
-  @Test
-  void shouldNavigateToHomeWhenUserExists() throws MalformedURLException {
-    givenUserFillsLoginFormWith("test@unlam.edu.ar", "password");
-    whenUserClicksSignIn();
-    thenShouldBeRedirectedToHome();
   }
 
   @Test
@@ -123,22 +116,17 @@ public class LoginViewE2E extends E2eBase {
   }
 
   private String givenAdminCreatesUser(String email) {
-    Page adminPage = context.newPage();
-    LoginPage adminLogin = new LoginPage(adminPage);
-    adminLogin.typeEmail("test@unlam.edu.ar");
-    adminLogin.typePassword("password");
-    adminLogin.clickSignIn();
-    adminLogin.waitForPath("/admin/home");
+    LoginPage adminLogin = signInAsAdmin();
     adminLogin.navigate(adminLogin.baseUrl() + "/admin/users/new");
-    NewUserPage newUserPage = new NewUserPage(adminPage);
-    newUserPage.typeFirstName("Juan");
-    newUserPage.typeLastName("Perez");
-    newUserPage.typeEmail(email);
-    newUserPage.selectRole("USER");
-    newUserPage.clickCreate();
-    newUserPage.waitForPath("/admin/users");
+    UserFormPage formPage = new UserFormPage(page);
+    formPage.typeFirstName("Juan");
+    formPage.typeLastName("Perez");
+    formPage.typeEmail(email);
+    formPage.selectRole("USER");
+    formPage.clickCreate();
+    formPage.waitForPath("/admin/users");
     // Read the generated password displayed on the users page
-    String generatedPassword = adminPage.locator("code").textContent();
+    String generatedPassword = page.locator("code").textContent();
     newContext();
     loginPage = new LoginPage(page);
     return generatedPassword;

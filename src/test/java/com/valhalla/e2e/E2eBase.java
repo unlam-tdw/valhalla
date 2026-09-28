@@ -6,6 +6,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.Tracing;
+import com.valhalla.e2e.views.LoginPage;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterAll;
@@ -98,6 +99,21 @@ abstract class E2eBase {
     context = browser.newContext();
     context.tracing().start(new Tracing.StartOptions().setScreenshots(true).setSnapshots(true));
     page = context.newPage();
+  }
+
+  /**
+   * Signs the current page in as the seed admin and returns the page object already sitting on
+   * {@code /admin/home}. Both admin-facing suites need this as arrange, so the credentials live
+   * here instead of twice: {@code openContext} wipes the database, which makes the seed the only
+   * account guaranteed to exist.
+   */
+  LoginPage signInAsAdmin() {
+    LoginPage login = new LoginPage(page);
+    login.typeEmail("test@unlam.edu.ar");
+    login.typePassword("password");
+    login.clickSignIn();
+    login.waitForPath("/admin/home");
+    return login;
   }
 
   private void saveFailureArtifacts(ExtensionContext test) {

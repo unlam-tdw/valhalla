@@ -7,7 +7,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 
 import com.microsoft.playwright.*;
-import com.valhalla.e2e.views.LoginPage;
 import com.valhalla.e2e.views.UserFormPage;
 import com.valhalla.e2e.views.UsersPage;
 import java.net.MalformedURLException;
@@ -21,11 +20,7 @@ public class UserViewABME2E extends E2eBase {
 
   @BeforeEach
   void loginAsAdmin() {
-    LoginPage loginPage = new LoginPage(page);
-    loginPage.typeEmail("test@unlam.edu.ar");
-    loginPage.typePassword("password");
-    loginPage.clickSignIn();
-    loginPage.waitForPath("/admin/home");
+    signInAsAdmin();
     usersPage = new UsersPage(page);
     usersPage.navigateToUsers();
   }
