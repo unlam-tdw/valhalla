@@ -9,43 +9,16 @@ import com.valhalla.e2e.views.LoginPage;
 import com.valhalla.e2e.views.NewUserPage;
 import java.net.MalformedURLException;
 import java.net.URL;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class LoginViewE2E {
+public class LoginViewE2E extends E2eBase {
 
-  static Playwright playwright;
-  static Browser browser;
-  BrowserContext context;
   LoginPage loginPage;
 
-  @BeforeAll
-  static void openBrowser() {
-    playwright = Playwright.create();
-    browser = playwright.chromium().launch();
-    //browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(false).setSlowMo(500));
-  }
-
-  @AfterAll
-  static void closeBrowser() {
-    playwright.close();
-  }
-
   @BeforeEach
-  void createContextAndPage() {
-    ResetDatabase.cleanDatabase();
-
-    context = browser.newContext();
-    Page page = context.newPage();
+  void openLoginPage() {
     loginPage = new LoginPage(page);
-  }
-
-  @AfterEach
-  void closeContext() {
-    context.close();
   }
 
   @Test
@@ -145,9 +118,8 @@ public class LoginViewE2E {
     newUserPage.waitForPath("/admin/users");
     // Read the generated password displayed on the users page
     String generatedPassword = adminPage.locator("code").textContent();
-    context.close();
-    context = browser.newContext();
-    loginPage = new LoginPage(context.newPage());
+    newContext();
+    loginPage = new LoginPage(page);
     return generatedPassword;
   }
 }
