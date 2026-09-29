@@ -120,3 +120,26 @@ Remove-Item -Recurse -Force .code-quality/jacoco; mvn clean test
 ```cmd
 rd /s /q .code-quality\jacoco & mvn clean test
 ```
+
+## Running the gates
+
+`scripts/gate.ps1` is the single entry point for every tool on this page.
+
+```powershell
+.\scripts\gate.ps1 check       # Checkstyle + PMD + CPD + Prettier, changes no files
+.\scripts\gate.ps1 check -Fix  # same, but Prettier is allowed to rewrite the files
+.\scripts\gate.ps1 coverage    # run the whole suite, print line coverage per package
+```
+
+`check` invokes `prettier:check`, so it never reformats your tree — `-Fix` is the explicit
+opt-in for that.
+
+That matters when comparing with Maven. `mvn validate` on its own is safe (it stops at the
+`validate` phase, before Prettier's `write` at `process-sources`), but every longer goal —
+`mvn test`, `mvn package`, `mvn verify` — reaches `process-sources` and **rewrites your
+files**. Use `gate.ps1 check` when you want to look at a style problem without losing an
+unrelated change.
+
+`-Fast` on any test command skips these gates along with JaCoCo (it turns on the `dev`
+profile). `coverage` ignores `-Fast`, since that profile disables JaCoCo and there would be
+nothing left to report.

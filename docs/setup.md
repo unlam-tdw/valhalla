@@ -66,7 +66,7 @@ The app connects to PostgreSQL via environment variables. Copy `.env.example` to
 
 Compose passes `APP_DB_HOST` to the app as `DB_HOST`. The two names are deliberately different: Compose prefers the shell environment over this file, so a single `DB_HOST` carrying both the container value and the host value would let any host-side `DB_HOST=localhost` silently repoint the container at itself.
 
-When you run the app **outside** Docker (`mvn jetty:run`, `mvn verify` via `scripts/e2e.ps1`), it reads `DB_*` from the process environment instead. Set only what differs from the built-in defaults -- the host needs no `DB_HOST` at all, because `EnvironmentConfig.DEFAULT_DB_HOST` is already `localhost`.
+When you run the app **outside** Docker (`mvn jetty:run`, `mvn verify` via `scripts/gate.ps1 e2e` or `scripts/gate.ps1 all`), it reads `DB_*` from the process environment instead. Set only what differs from the built-in defaults -- the host needs no `DB_HOST` at all, because `EnvironmentConfig.DEFAULT_DB_HOST` is already `localhost`.
 
 `DB_*` variables are read by the Java app at runtime. `POSTGRES_*` variables are only used by the Postgres Docker container on first boot.
 

@@ -102,15 +102,23 @@ mvn test
 # Same, skipping Checkstyle/PMD/CPD/Prettier/JaCoCo -- fastest loop
 mvn test -Pdev
 
-# Run everything (unit + integration + E2E) -- one command, sets up the E2E database
-.\scripts\e2e.ps1                           # everything
-.\scripts\e2e.ps1 -Headed -SlowMo 300       # watch the browser
-.\scripts\e2e.ps1 -List                     # list the E2E classes and methods
-.\scripts\e2e.ps1 LoginViewE2E              # run only what you name
-
-# Same from Git Bash
-./scripts/e2e.sh --headed --slowmo 300
+# One entry point for every gate: .\scripts\gate.ps1 <command>[=<target>] [options]
+.\scripts\gate.ps1 list                     # every class per layer, with test counts
+.\scripts\gate.ps1 list UserServiceTest     # the methods in one class, fully qualified
+.\scripts\gate.ps1 unit                     # unit tests only
+.\scripts\gate.ps1 integration              # MockMvc integration tests only
+.\scripts\gate.ps1 e2e                      # E2E only, brings up PostgreSQL + Chromium
+.\scripts\gate.ps1 e2e -Headed -SlowMo 300   # watch the browser
+.\scripts\gate.ps1 e2e=LoginViewE2E         # run only what you name
+.\scripts\gate.ps1 all                      # unit + integration + E2E in one `mvn verify`
+.\scripts\gate.ps1 check                    # Checkstyle, PMD, CPD, Prettier; changes no files
+.\scripts\gate.ps1 coverage                 # the whole suite, then the line coverage table
+.\scripts\gate.ps1 unit -Fast               # skip the static-analysis gates
 ```
+
+Bare `.\scripts\gate.ps1` prints help. Nothing runs unless you name a layer.
+
+Git Bash runs the same thing: `pwsh -c '.\scripts\gate.ps1 e2e -Headed -SlowMo 300'`.
 
 For the full E2E setup — the dedicated database, `DB_NAME`, headed mode and reading failure
 artifacts — see [testing.md](testing.md#e2e-tests). That section is canonical; this file only

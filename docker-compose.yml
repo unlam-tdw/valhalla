@@ -33,7 +33,7 @@ services:
       - valhalla
     environment:
       # APP_DB_HOST, not DB_HOST: the app still receives DB_HOST, but Compose must not read
-      # it from the shell env, or a host-side DB_HOST=localhost (Jetty, scripts/e2e.ps1)
+      # it from the shell env, or a host-side DB_HOST=localhost (Jetty, scripts/gate.ps1)
       # would point this container at itself instead of at the postgres service.
       DB_HOST: ${APP_DB_HOST:-postgres}
       DB_PORT: ${DB_PORT}
