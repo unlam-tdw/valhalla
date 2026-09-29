@@ -183,12 +183,10 @@
             <label>Visibilidad</label>
 
             <div class="checkbox">
-                <input type="hidden" name="isPublic" value="false">
                 <input
                         type="checkbox"
                         id="isPublic"
-                        name="isPublic"
-                        value="true">
+                        th:field="*{isPublic}" />
 
                 <label for="isPublic">
                     Hacer público este plan
