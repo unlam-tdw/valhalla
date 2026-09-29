@@ -6,11 +6,26 @@ import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
-@RequestMapping("/plans")
+@RequestMapping(PlanController.ROUTE_PLANS)
 public class PlanController {
+
+  public static final String ROUTE_PLANS = "/plans";
+  public static final String ROUTE_NEW = "/new";
+  public static final String ROUTE_ID = "/{id}";
+  private static final String MODEL_PLAN = "plan";
+  private static final String VIEW_PLANS_LIST = "pages/plans/list";
+  private static final String VIEW_PLANS_CREATE = "pages/plans";
+  private static final String VIEW_PLANS_DETAIL = "pages/plans/detail";
+  private static final String REDIRECT_PLANS = "redirect:/plans/";
 
   private final PlanService planService;
 
@@ -21,50 +36,50 @@ public class PlanController {
   @GetMapping
   public String planList(Model model) {
     model.addAttribute("plans", planService.getAllPlans());
-    return "pages/plans/list";
+    return VIEW_PLANS_LIST;
   }
 
-  @GetMapping("/new")
+  @GetMapping(ROUTE_NEW)
   public String planCreate(Model model) {
-    model.addAttribute("plan", new Plan());
-    return "pages/plans";
+    model.addAttribute(MODEL_PLAN, new Plan());
+    return VIEW_PLANS_CREATE;
   }
 
-  @GetMapping("/{id}")
+  @GetMapping(ROUTE_ID)
   public String planDetail(@PathVariable Long id, Model model) {
-    planService.getPlanById(id).ifPresent(plan -> model.addAttribute("plan", plan));
-    return "pages/plans/detail";
+    planService.getPlanById(id).ifPresent(plan -> model.addAttribute(MODEL_PLAN, plan));
+    return VIEW_PLANS_DETAIL;
   }
 
   @PostMapping
   public String planGenerate(
-          @Valid @ModelAttribute("plan") Plan plan,
+          @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
           BindingResult bindingResult) {
 
     if (bindingResult.hasErrors()) {
-      return "pages/plans";
+      return VIEW_PLANS_CREATE;
     }
 
     planService.createPlan(plan);
-    return "redirect:/plans/" + plan.getIdPlan();
+    return REDIRECT_PLANS + plan.getIdPlan();
   }
 
-  @PutMapping("/{id}")
+  @PutMapping(ROUTE_ID)
   public String planUpdate(
           @PathVariable Long id,
-          @Valid @ModelAttribute("plan") Plan plan,
+          @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
           BindingResult bindingResult) {
 
     if (bindingResult.hasErrors()) {
-      return "pages/plans/detail";
+      return VIEW_PLANS_DETAIL;
     }
 
     plan.setIdPlan(id);
     planService.updatePlan(plan);
-    return "redirect:/plans/" + id;
+    return REDIRECT_PLANS + id;
   }
 
-  @DeleteMapping("/{id}")
+  @DeleteMapping(ROUTE_ID)
   public String planDelete(@PathVariable Long id) {
     planService.deletePlan(id);
     return "redirect:/plans";
