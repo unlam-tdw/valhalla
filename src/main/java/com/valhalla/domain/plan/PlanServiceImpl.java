@@ -1,5 +1,6 @@
 package com.valhalla.domain.plan;
 
+import com.valhalla.domain.user.UserRepository;
 import com.valhalla.infrastructure.plan.JpaPlanRepository;
 import java.util.List;
 import java.util.Locale;
@@ -13,9 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlanServiceImpl implements PlanService {
 
   private final JpaPlanRepository planRepository;
+  private final UserRepository userRepository;
 
-  public PlanServiceImpl(JpaPlanRepository planRepository) {
+  public PlanServiceImpl(JpaPlanRepository planRepository, UserRepository userRepository) {
     this.planRepository = planRepository;
+    this.userRepository = userRepository;
   }
 
   @Override
@@ -48,7 +51,9 @@ public class PlanServiceImpl implements PlanService {
   @Override
   @Transactional(readOnly = true)
   public List<Plan> getPlansByUserEmail(String email) {
-    return List.of();
+    return userRepository.findByEmail(email)
+            .map(user -> planRepository.findByAdministratorId(user.getId()))
+            .orElse(List.of());
   }
 
   @Override

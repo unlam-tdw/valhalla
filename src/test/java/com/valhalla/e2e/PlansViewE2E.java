@@ -53,23 +53,23 @@ public class PlansViewE2E {
 
   @Test
   void T_PLN_014_crearPlan_verEnListaYEnDetalle() {
-    page.navigate("http://localhost:8080/planes/crear");
+    page.navigate("http://localhost:8080/plans/new");
 
     page.fill("input[name=name]", "Viaje E2E de prueba");
     page.click("button[type=submit]");
 
-    page.waitForURL("**/planes");
+    page.waitForURL("**/plans");
     assertThat(page.content(), containsString("Viaje E2E de prueba"));
 
     page.click("a.detail-button");
     assertThat(page.content(), containsString("Viaje E2E de prueba"));
 
-    page.navigate("http://localhost:8080/planes");
+    page.navigate("http://localhost:8080/plans");
 
     page.onDialog(dialog -> dialog.accept());
     page.click("button.delete-button");
 
-    page.waitForURL("**/planes");
+    page.waitForURL("**/plans");
     assertThat(page.content(), not(containsString("Viaje E2E de prueba")));
   }
 }

@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.valhalla.domain.user.UserRepository;
 import com.valhalla.infrastructure.plan.JpaPlanRepository;
 import java.util.List;
 import java.util.Optional;
@@ -21,11 +22,13 @@ public class PlanServiceImplTest {
 
   private PlanServiceImpl planService;
   private JpaPlanRepository planRepositoryMock;
+  private UserRepository userRepositoryMock;
 
   @BeforeEach
   public void init() {
     this.planRepositoryMock = mock(JpaPlanRepository.class);
-    this.planService = new PlanServiceImpl(this.planRepositoryMock);
+    this.userRepositoryMock = mock(UserRepository.class);
+    this.planService = new PlanServiceImpl(this.planRepositoryMock, this.userRepositoryMock);
   }
 
   @Test

@@ -2,12 +2,14 @@ package com.valhalla.presentation.plan;
 
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 @Controller
-@RequestMapping("/planes")
+@RequestMapping("/plans")
 public class PlanController {
 
   private final PlanService planService;
@@ -22,30 +24,49 @@ public class PlanController {
     return "pages/plans/list";
   }
 
+  @GetMapping("/new")
+  public String planCreate(Model model) {
+    model.addAttribute("plan", new Plan());
+    return "pages/plans";
+  }
+
   @GetMapping("/{id}")
   public String planDetail(@PathVariable Long id, Model model) {
-    Plan plan = planService
-      .getPlanById(id)
-      .orElseThrow(() -> new IllegalArgumentException("Plan no encontrado"));
-    model.addAttribute("plan", plan);
+    planService.getPlanById(id).ifPresent(plan -> model.addAttribute("plan", plan));
     return "pages/plans/detail";
   }
 
-  @GetMapping("/crear")
-  public String planCreate(Model model) {
-    model.addAttribute("plan", new Plan());
-    return "pages/plans/create";
-  }
+  @PostMapping
+  public String planGenerate(
+          @Valid @ModelAttribute("plan") Plan plan,
+          BindingResult bindingResult) {
 
-  @PostMapping("/crear")
-  public String planGenerate(@ModelAttribute Plan plan) {
+    if (bindingResult.hasErrors()) {
+      return "pages/plans";
+    }
+
     planService.createPlan(plan);
-    return "redirect:/planes";
+    return "redirect:/plans/" + plan.getIdPlan();
   }
 
-  @PostMapping("/delete/{id}")
+  @PutMapping("/{id}")
+  public String planUpdate(
+          @PathVariable Long id,
+          @Valid @ModelAttribute("plan") Plan plan,
+          BindingResult bindingResult) {
+
+    if (bindingResult.hasErrors()) {
+      return "pages/plans/detail";
+    }
+
+    plan.setIdPlan(id);
+    planService.updatePlan(plan);
+    return "redirect:/plans/" + id;
+  }
+
+  @DeleteMapping("/{id}")
   public String planDelete(@PathVariable Long id) {
     planService.deletePlan(id);
-    return "redirect:/planes";
+    return "redirect:/plans";
   }
 }
