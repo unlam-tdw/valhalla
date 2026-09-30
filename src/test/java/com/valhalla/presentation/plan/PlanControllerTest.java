@@ -6,10 +6,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,6 +21,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.BindingResult;
 
 public class PlanControllerTest {
 
@@ -98,5 +97,29 @@ public class PlanControllerTest {
 
     verify(this.planServiceMock, times(1)).deletePlan(1L);
     assertThat(vista, is(equalTo("redirect:/plans")));
+  }
+
+  @Test
+  public void T_PLN_006_planUpdate_actualizaYRedirige() {
+    Plan plan = new Plan();
+    BindingResult errores = new BeanPropertyBindingResult(plan, "plan");
+
+    String vista = this.controller.planUpdate(1L, plan, errores);
+
+    verify(this.planServiceMock, times(1)).updatePlan(plan);
+    assertThat(plan.getIdPlan(), is(equalTo(1L)));
+    assertThat(vista, is(equalTo("redirect:/plans/1")));
+  }
+
+  @Test
+  public void T_PLN_006_planUpdate_conErrores_muestraDetalle() {
+    Plan plan = new Plan();
+    BindingResult errores = new BeanPropertyBindingResult(plan, "plan");
+    errores.reject("invalido");
+
+    String vista = this.controller.planUpdate(1L, plan, errores);
+
+    verify(this.planServiceMock, never()).updatePlan(any(Plan.class));
+    assertThat(vista, is(equalTo("pages/plans/detail")));
   }
 }
