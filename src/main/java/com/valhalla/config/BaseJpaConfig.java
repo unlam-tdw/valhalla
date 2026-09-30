@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(basePackages = "com.valhalla.infrastructure")
-@ComponentScan("com.valhalla.infrastructure")
+@ComponentScan({ "com.valhalla.infrastructure", "com.valhalla.domain.plan" })
 public abstract class BaseJpaConfig {
 
   @Bean
