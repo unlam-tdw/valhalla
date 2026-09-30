@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 
@@ -109,6 +108,12 @@
             background-color: #e5e7eb;
             color: #222;
         }
+
+        .error {
+            color: #b91c1c;
+            font-size: 14px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 
@@ -122,23 +127,23 @@
         Completá los datos para crear tu plan.
     </p>
 
-    <form th:action="@{/planes/crear}" method="post">
+    <form th:action="@{/plans}" th:object="${plan}" method="post">
 
         <div class="form-group">
             <label for="name">Nombre del plan</label>
             <input
                     type="text"
                     id="name"
-                    name="name"
-                    placeholder="Ej: Salida por Buenos Aires"
-                    required>
+                    th:field="*{name}"
+                    placeholder="Ej: Salida por Buenos Aires">
+            <p class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></p>
         </div>
 
         <div class="form-group">
             <label for="description">Descripción</label>
             <textarea
                     id="description"
-                    name="description"
+                    th:field="*{description}"
                     placeholder="Contá brevemente de qué se trata el plan..."></textarea>
         </div>
 
@@ -149,7 +154,7 @@
                 <input
                         type="date"
                         id="eventDate"
-                        name="eventDate">
+                        th:field="*{eventDate}">
             </div>
 
             <div class="form-group">
@@ -157,7 +162,7 @@
                 <input
                         type="time"
                         id="startTime"
-                        name="startTime">
+                        th:field="*{startTime}">
             </div>
 
             <div class="form-group">
@@ -165,7 +170,7 @@
                 <input
                         type="time"
                         id="endTime"
-                        name="endTime">
+                        th:field="*{endTime}">
             </div>
 
         </div>
@@ -175,7 +180,7 @@
             <input
                     type="text"
                     id="codigo"
-                    name="codigo"
+                    th:field="*{codigo}"
                     placeholder="Código para compartir el plan">
         </div>
 
@@ -196,7 +201,7 @@
 
         <div class="buttons">
 
-            <a href="/planes" class="cancel">
+            <a th:href="@{/plans}" class="cancel">
                 Cancelar
             </a>
 
@@ -212,4 +217,3 @@
 
 </body>
 </html>
-```

@@ -51,9 +51,10 @@ public class PlanServiceImpl implements PlanService {
   @Override
   @Transactional(readOnly = true)
   public List<Plan> getPlansByUserEmail(String email) {
-    return userRepository.findByEmail(email)
-            .map(user -> planRepository.findByAdministratorId(user.getId()))
-            .orElse(List.of());
+    return userRepository
+      .findByEmail(email)
+      .map(user -> planRepository.findByAdministratorId(user.getId()))
+      .orElse(List.of());
   }
 
   @Override

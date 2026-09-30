@@ -11,7 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.valhalla.domain.plan.Plan;
@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
 
@@ -30,12 +30,14 @@ public class PlanControllerTest {
   private PlanController controller;
   private PlanService planServiceMock;
   private Model model;
+  private MockMvc mockMvc;
 
   @BeforeEach
   public void init() {
     this.planServiceMock = mock(PlanService.class);
     this.controller = new PlanController(this.planServiceMock);
     this.model = new ExtendedModelMap();
+    this.mockMvc = MockMvcBuilders.standaloneSetup(this.controller).build();
   }
 
   @Test
@@ -55,19 +57,15 @@ public class PlanControllerTest {
   public void T_PLN_002_planCreate_retornaFormulario() {
     String vista = this.controller.planCreate(this.model);
 
-    assertThat(vista, is(equalTo("pages/plans/create")));
+    assertThat(vista, is(equalTo("pages/plans/new")));
     assertThat(this.model.getAttribute("plan"), is(instanceOf(Plan.class)));
   }
 
-  @Autowired
-  private MockMvc mockMvc;
-
   @Test
   public void T_PLN_003_planGenerate_creaYRedirige() throws Exception {
-    mockMvc.perform(post("/planes/new")
-                    .param("name", "Viaje a Bariloche"))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/planes"));
+    this.mockMvc.perform(post("/plans").param("name", "Viaje a Bariloche"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("/plans/*"));
 
     verify(this.planServiceMock, times(1)).createPlan(any(Plan.class));
   }
@@ -88,13 +86,17 @@ public class PlanControllerTest {
   public void T_PLN_004_planDetail_idInvalido_noEncontrado() {
     when(this.planServiceMock.getPlanById(999L)).thenReturn(Optional.empty());
 
-    assertThrows(IllegalArgumentException.class, () -> this.controller.planDetail(999L, this.model));
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> this.controller.planDetail(999L, this.model)
+    );
   }
 
   @Test
   public void T_PLN_005_planDelete_borraYRedirige() {
     String vista = this.controller.planDelete(1L);
+
     verify(this.planServiceMock, times(1)).deletePlan(1L);
-    assertThat(vista, is(equalTo("redirect:/planes")));
+    assertThat(vista, is(equalTo("redirect:/plans")));
   }
 }

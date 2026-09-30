@@ -23,7 +23,7 @@ public class PlanController {
   public static final String ROUTE_ID = "/{id}";
   private static final String MODEL_PLAN = "plan";
   private static final String VIEW_PLANS_LIST = "pages/plans/list";
-  private static final String VIEW_PLANS_CREATE = "pages/plans";
+  private static final String VIEW_PLANS_CREATE = "pages/plans/new";
   private static final String VIEW_PLANS_DETAIL = "pages/plans/detail";
   private static final String REDIRECT_PLANS = "redirect:/plans/";
 
@@ -47,15 +47,18 @@ public class PlanController {
 
   @GetMapping(ROUTE_ID)
   public String planDetail(@PathVariable Long id, Model model) {
-    planService.getPlanById(id).ifPresent(plan -> model.addAttribute(MODEL_PLAN, plan));
+    Plan plan = planService
+      .getPlanById(id)
+      .orElseThrow(() -> new IllegalArgumentException("Plan no encontrado: " + id));
+    model.addAttribute(MODEL_PLAN, plan);
     return VIEW_PLANS_DETAIL;
   }
 
   @PostMapping
   public String planGenerate(
-          @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
-          BindingResult bindingResult) {
-
+    @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
+    BindingResult bindingResult
+  ) {
     if (bindingResult.hasErrors()) {
       return VIEW_PLANS_CREATE;
     }
@@ -66,10 +69,10 @@ public class PlanController {
 
   @PutMapping(ROUTE_ID)
   public String planUpdate(
-          @PathVariable Long id,
-          @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
-          BindingResult bindingResult) {
-
+    @PathVariable Long id,
+    @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
+    BindingResult bindingResult
+  ) {
     if (bindingResult.hasErrors()) {
       return VIEW_PLANS_DETAIL;
     }
