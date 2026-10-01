@@ -13,8 +13,12 @@
         Error
       </p>
 
-      <form th:action="@{/plans}" th:object="${plan}" method="POST">
+      <!-- Re-rendered after a rejected PUT as well as after a rejected POST: with planId in the
+           model the form must retry the update instead of creating a second plan. -->
+      <form th:action="${planId != null} ? @{/plans/{id}(id=${planId})} : @{/plans}" th:object="${plan}"
+        method="POST">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" name="_method" th:if="${planId != null}" value="PUT" />
 
         <div class="mt-4">
           <label for="name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del plan</label>

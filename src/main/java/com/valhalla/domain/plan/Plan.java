@@ -22,7 +22,9 @@ public class Plan {
   @Column(nullable = false)
   private String name;
 
-  @Column(columnDefinition = "TEXT")
+  // No columnDefinition: main's entities rely on the default mapping, and an explicit TEXT breaks
+  // the HSQLDB instance the integration tests run against.
+  @Column
   private String description;
 
   private LocalDate eventDate;

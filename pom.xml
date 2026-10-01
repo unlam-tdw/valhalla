@@ -416,6 +416,8 @@
                         <exclude>com/valhalla/config/*</exclude>
                         <exclude>com/valhalla/MyServletInitializer.class</exclude>
                         <exclude>com/valhalla/domain/user/User.class</exclude>
+                        <exclude>com/valhalla/domain/plan/Plan.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanRequest.class</exclude>
                         <exclude>com/valhalla/presentation/user/*Request.class</exclude>
                         <exclude>com/valhalla/presentation/shared/*Request.class</exclude>
                         <exclude>com/valhalla/presentation/shared/UserSession.class</exclude>
