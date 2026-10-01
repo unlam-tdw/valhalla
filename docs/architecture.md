@@ -136,11 +136,17 @@ graph LR
 | POST | `/plans/{id}/share` | PlanController | JSON { url } |
 | POST | `/plans/{id}/visibility` | PlanController | JSON { visibility } |
 
-> `/plans/{id}` y `/plans/{id}/delete` registran POST además de su verbo propio porque la app se
-> levanta con `MyServletInitializer`, un `AbstractAnnotationConfigDispatcherServletInitializer` a
-> pelo: el bean `HiddenHttpMethodFilter` nunca se registra con el contenedor, así que el `_method`
-> de los forms no se respeta en runtime y el POST crudo es lo que llega. Por eso el borrado va en
-> un sub-path en vez de competir con el update por `POST /plans/{id}`.
+> `/plans/{id}` y `/plans/{id}/delete` registran POST además de su verbo propio para que el mismo
+> handler atienda el POST crudo y el verbo que reescribe el `HiddenHttpMethodFilter`. El borrado va
+> en un sub-path, y no compitiendo con el update por `POST /plans/{id}`, porque su form manda
+> `_method=DELETE`: si compartieran ruta, el update —que solo registra POST y PUT— se quedaría sin
+> handler en el contenedor real mientras el test de integración, que registra el filtro por su cuenta,
+> daría verde. Es el mismo criterio que usa `UserController` con `/admin/users/{id}/delete`.
+>
+> El filtro lo instala `MyServletInitializer` con `servletContext.addFilter`. No alcanza con
+> declararlo como `@Bean`: el auto-registro de beans `Filter` es de Spring Boot, y esto es un WAR de
+> Spring MVC plano. Un `@Bean` de filtro ahí es código muerto que en MockMvc —que sí levanta los
+> filtros del contexto— aparenta funcionar.
 >
 > `/share` y `/visibility` siguen sin servirse: pertenecen al ticket de compartir, no a este.
 
