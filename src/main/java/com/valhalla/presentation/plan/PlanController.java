@@ -85,7 +85,12 @@ public class PlanController {
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }
 
-  @RequestMapping(value = "/{id}", method = { RequestMethod.POST, RequestMethod.DELETE })
+  /**
+   * DELETE only: a bare POST on /{id} must reach the update handler above, so the delete form
+   * carries {@code _method=DELETE} and HiddenHttpMethodFilter rewrites it. Registering POST here
+   * too would make Spring route POST /plans/{id} to whichever handler sorts first.
+   */
+  @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
   public ModelAndView deletePlan(@PathVariable Long id, Authentication authentication) {
     planService.deleteOwnedPlan(id, authentication.getName());
     return new ModelAndView(REDIRECT_PLANS);
