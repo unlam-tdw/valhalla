@@ -1,173 +1,69 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis planes</title>
+<head th:replace="~{layouts/base :: head('Mis planes')}"></head>
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+<body th:replace="~{layouts/base :: layout(~{::main})}">
 
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f5f7;
-            color: #222;
-        }
+  <main class="flex-1 p-4">
+    <div class="mx-auto max-w-4xl">
+      <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-2xl font-semibold text-gray-900">Mis planes</h2>
+        <a th:href="@{/plans/new}"
+          class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
+          + Crear plan
+        </a>
+      </div>
 
-        .container {
-            max-width: 900px;
-            margin: 50px auto;
-            padding: 30px;
-        }
+      <table class="w-full border-collapse bg-white shadow-md">
+        <thead>
+          <tr class="border-b border-gray-200 bg-gray-50 text-left text-sm font-medium text-gray-600">
+            <th class="px-4 py-3">Nombre</th>
+            <th class="px-4 py-3">Descripción</th>
+            <th class="px-4 py-3">Fecha</th>
+            <th class="px-4 py-3">Visibilidad</th>
+            <th class="px-4 py-3 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="plan : ${plans}" class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm text-gray-900" th:text="${plan.name}">nombre</td>
+            <td class="px-4 py-3 text-sm text-gray-900" th:text="${plan.description}">descripción</td>
+            <td class="px-4 py-3 text-sm text-gray-700" th:text="${plan.eventDate}">00/00/0000</td>
+            <td class="px-4 py-3 text-sm">
+              <span th:if="${plan.isPublic}"
+                class="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                Público
+              </span>
+              <span th:unless="${plan.isPublic}"
+                class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                Privado
+              </span>
+            </td>
+            <td class="flex justify-end gap-2 px-4 py-3">
+              <a th:href="@{/plans/{id}(id=${plan.id})}"
+                class="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-300">
+                Ver detalle
+              </a>
+              <form th:action="@{/plans/{id}(id=${plan.id})}" method="POST">
+                <input type="hidden" name="_method" value="DELETE" />
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <button type="submit"
+                  class="rounded bg-red-100 px-3 py-1 text-sm font-medium text-red-700 transition hover:bg-red-200">
+                  Eliminar
+                </button>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            margin-bottom: 5px;
-        }
-
-        .subtitle {
-            color: #666;
-        }
-
-        .create-button {
-            padding: 11px 20px;
-            border-radius: 7px;
-            background-color: #2563eb;
-            color: white;
-            text-decoration: none;
-        }
-
-        .plans {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .plan {
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .plan-info h2 {
-            font-size: 20px;
-            margin-bottom: 7px;
-        }
-
-        .plan-description {
-            color: #666;
-            margin-bottom: 10px;
-        }
-
-        .plan-date {
-            font-size: 14px;
-            color: #777;
-        }
-
-        .visibility {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 4px 9px;
-            border-radius: 5px;
-            background-color: #eee;
-            font-size: 13px;
-        }
-
-        .plan-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .detail-button {
-            padding: 9px 15px;
-            border-radius: 7px;
-            background-color: #e5e7eb;
-            color: #222;
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .delete-button {
-            padding: 9px 15px;
-            border-radius: 7px;
-            background-color: #fee2e2;
-            color: #dc2626;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .delete-button:hover {
-            background-color: #fecaca;
-        }
-
-        .empty {
-            background-color: white;
-            padding: 40px;
-            border-radius: 10px;
-            text-align: center;
-            color: #666;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="container">
-
-    <div class="header">
-        <div>
-            <h1>Mis planes</h1>
-            <p class="subtitle">Todos tus planes creados.</p>
-        </div>
-        <a href="/planes/crear" class="create-button">Crear plan</a>
+      <p th:if="${#lists.isEmpty(plans)}" class="mt-8 text-center text-gray-500">
+        Todavía no creaste ningún plan.
+      </p>
     </div>
-
-    <div class="plans">
-        <div class="plan" th:each="plan : ${plans}">
-            <div class="plan-info">
-                <h2 th:text="${plan.name}">Nombre del plan</h2>
-                <p class="plan-description" th:text="${plan.description}">Descripción del plan</p>
-                <p class="plan-date">
-                    Fecha: <span th:text="${plan.eventDate}">00/00/0000</span>
-                </p>
-                <span class="visibility" th:text="${plan.isPublic != null and plan.isPublic ? 'Público' : 'Privado'}"></span>
-            </div>
-
-            <div class="plan-actions">
-                <a class="detail-button" th:href="@{/plans/{id}(id=${plan.id})}">
-                    Ver detalle
-                </a>
-
-                <form th:action="@{/plans/{id}(id=${plan.id})}" method="post" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este plan?');">
-                    <input type="hidden" name="_method" value="DELETE" />
-                    <button type="submit" class="delete-button">Eliminar</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="empty" th:if="${#lists.isEmpty(plans)}">
-        <p>Todavía no tenés ningún plan creado.</p>
-    </div>
-
-</div>
+  </main>
 
 </body>
+
 </html>

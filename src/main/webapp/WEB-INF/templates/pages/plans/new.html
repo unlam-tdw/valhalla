@@ -1,194 +1,63 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<head th:replace="~{layouts/base :: head('Crear plan')}"></head>
 
-    <title>Crear plan</title>
+<body th:replace="~{layouts/base :: layout(~{::main})}">
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+  <main class="flex flex-1 items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
+      <h1 class="mb-6 text-2xl font-semibold text-gray-900">Crear plan</h1>
 
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f5f7;
-            color: #222;
-        }
+      <p th:if="${error}" class="mb-4 rounded-md bg-red-100 px-4 py-3 text-sm text-red-700" th:text="${error}">
+        Error
+      </p>
 
-        .container {
-            max-width: 700px;
-            margin: 50px auto;
-            padding: 30px;
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        }
+      <form th:action="@{/plans}" th:object="${plan}" method="POST">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
-        h1 {
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 7px;
-            font-weight: bold;
-        }
-
-        input,
-        textarea,
-        select {
-            width: 100%;
-            padding: 11px;
-            border: 1px solid #ccc;
-            border-radius: 7px;
-            font-size: 15px;
-        }
-
-        textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-
-        .row {
-            display: flex;
-            gap: 15px;
-        }
-
-        .row .form-group {
-            flex: 1;
-        }
-
-        .checkbox {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .checkbox input {
-            width: auto;
-        }
-
-        .buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 30px;
-        }
-
-        button,
-        .cancel {
-            padding: 11px 20px;
-            border-radius: 7px;
-            border: none;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 15px;
-        }
-
-        button {
-            background-color: #2563eb;
-            color: white;
-        }
-
-        .cancel {
-            background-color: #e5e7eb;
-            color: #222;
-        }
-
-        .error {
-            color: #b91c1c;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="container">
-
-    <h1>Crear nuevo plan</h1>
-
-    <p class="subtitle">
-        Completá los datos para crear tu plan.
-    </p>
-
-    <form th:action="@{/plans}" th:object="${plan}" method="post">
-
-        <div class="form-group">
-            <label for="name">Nombre del plan</label>
-            <input
-                    type="text"
-                    id="name"
-                    th:field="*{name}"
-                    placeholder="Ej: Salida por Buenos Aires">
-            <p class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></p>
+        <div class="mt-4">
+          <label for="name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del plan</label>
+          <input type="text" id="name" th:field="*{name}" placeholder="Ej: Salida por Buenos Aires" required
+            class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+          <p class="mt-1 text-sm text-red-600" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">
+            Plan name is required
+          </p>
         </div>
 
-        <div class="form-group">
-            <label for="description">Descripción</label>
-            <textarea
-                    id="description"
-                    th:field="*{description}"
-                    placeholder="Contá brevemente de qué se trata el plan..."></textarea>
+        <div class="mt-4">
+          <label for="description" class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+          <textarea id="description" th:field="*{description}" rows="4"
+            placeholder="Contá brevemente de qué se trata el plan"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"></textarea>
         </div>
 
-        <div class="row">
-
-            <div class="form-group">
-                <label for="eventDate">Fecha</label>
-                <input
-                        type="date"
-                        id="eventDate"
-                        th:field="*{eventDate}">
-            </div>
-
+        <div class="mt-4">
+          <label for="eventDate" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
+          <input type="date" id="eventDate" th:field="*{eventDate}"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
         </div>
 
-        <div class="form-group">
-            <label>Visibilidad</label>
-
-            <div class="checkbox">
-                <input
-                        type="checkbox"
-                        id="isPublic"
-                        th:field="*{isPublic}" />
-
-                <label for="isPublic">
-                    Hacer público este plan
-                </label>
-            </div>
+        <div class="mt-4 flex items-center gap-2">
+          <input type="checkbox" id="isPublic" th:field="*{isPublic}"
+            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+          <label for="isPublic" class="text-sm font-medium text-gray-700">Hacer público este plan</label>
         </div>
 
-        <div class="buttons">
-
-            <a th:href="@{/plans}" class="cancel">
-                Cancelar
-            </a>
-
-            <button type="submit">
-                Crear plan
-            </button>
-
+        <div class="mt-6 flex justify-end gap-2">
+          <a th:href="@{/plans}"
+            class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
+            Cancelar
+          </a>
+          <button type="submit"
+            class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
+            Crear plan
+          </button>
         </div>
-
-    </form>
-
-</div>
+      </form>
+    </div>
+  </main>
 
 </body>
+
 </html>
