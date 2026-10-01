@@ -1,5 +1,9 @@
-package com.valhalla.domain.place;
+package com.valhalla.infrastructure.place;
 
+import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCategory;
+import com.valhalla.domain.place.PlaceRepository;
+import com.valhalla.domain.place.PlaceService;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
