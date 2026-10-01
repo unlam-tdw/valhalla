@@ -66,7 +66,14 @@ docker compose up
 
 # Stop and remove containers + volumes
 docker compose down --rmi local
+
+# Throw the local database away and rebuild it -- DESTROYS ALL LOCAL DATA
+.\scripts\gate.ps1 reset-db
 ```
+
+`reset-db` is the local remedy for a schema that no longer matches the entities, because
+`hibernate.hbm2ddl.auto=update` never drops a column. See
+[setup.md](setup.md#database-schema).
 
 ### Common commands
 

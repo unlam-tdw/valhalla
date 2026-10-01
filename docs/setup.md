@@ -76,3 +76,38 @@ cp .env.example .env
 ```
 
 **Tip:** the defaults work out of the box , you only need to edit `.env` if you want custom credentials.
+
+## Database schema
+
+**The schema does not migrate. It is rebuilt from the entities, once, on a database that has
+never seen them before.**
+
+`JpaConfig` sets `hibernate.hbm2ddl.auto=update`, and there is no Flyway and no Liquibase in
+`pom.xml`. `update` **adds** missing columns; it never drops and never renames one. That has one
+consequence worth stating plainly:
+
+**Renaming or removing a column silently breaks every database that already exists.** The old
+column survives, the rows that already had data in it keep it, and they land `NULL` in the new
+column — including the primary key, when the id column itself is the one that changed. Those rows
+become unreachable through the app: nothing selects them, nothing deletes them, and the orphan
+tables and columns accumulate for every such change.
+
+On a database created before ticket `02-PLN`, the stale `plans` columns `id_plan`,
+`event_date_created`, `start_time`, `end_time`, `codigo` and `selected_place_id` are still there,
+and so is the whole `plan_places` table — **including its `position NOT NULL` column**. A fresh
+database has neither. That difference is the time bomb for whoever implements the itinerary under
+`04-APL-BE`: the same insert succeeds locally and fails against a database that predates it, with
+a constraint violation on a column the code no longer even mentions.
+
+The only remedy for a local database is to throw it away:
+
+```shell
+pwsh -File scripts/gate.ps1 reset-db
+```
+
+**That destroys all local data, and losing the data is the point**: the volume goes away and
+Hibernate builds the schema again from the entities. There is no way to clean this up in place.
+
+Adopting Flyway (or Liquibase) is the durable fix — versioned, reviewable, reversible migrations.
+It is a project-wide decision, and this ticket deliberately does not make it.
+
