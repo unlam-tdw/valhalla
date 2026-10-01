@@ -2,6 +2,7 @@ package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 
 import com.microsoft.playwright.Browser;
@@ -10,7 +11,6 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
-import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -50,23 +50,79 @@ public class PlacesViewE2E {
   }
 
   @Test
-  void shouldRenderPlacesAndFilterByCategory() {
+  void shouldRenderMapWithMarkersAndFilterByCategory() {
     page.navigate(
       "http://127.0.0.1:8080/places",
       new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT)
     );
 
+    // Wait for Vue to mount and Leaflet to load
+    page.waitForSelector(
+      "#map.leaflet-container",
+      new Page.WaitForSelectorOptions().setTimeout(10000)
+    );
+    page.waitForSelector(
+      ".leaflet-interactive",
+      new Page.WaitForSelectorOptions().setTimeout(10000)
+    );
+
+    // AC-01: Map loads centered on Buenos Aires
+    assertThat(page.locator("#map.leaflet-container").count(), is(equalTo(1)));
+
+    // AC-02: All places shown as markers (10 places seeded)
+    assertThat(page.locator(".leaflet-interactive").count(), is(equalTo(10)));
+
+    // AC-05: Sidebar shows all place cards
     assertThat(placeCards().count(), is(equalTo(10)));
 
-    page.locator("select[name='category']").selectOption("RESTAURANT");
-    page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Apply Filters")).click();
-    page.waitForURL("**/places?*");
+    // AC-06: Filter by category updates markers AND sidebar
+    page.locator("aside select").selectOption("RESTAURANT");
+    page.waitForTimeout(500);
 
+    assertThat(page.locator(".leaflet-interactive").count(), is(equalTo(2)));
     assertThat(placeCards().count(), is(equalTo(2)));
     assertThat(
       placeCards().allTextContents().stream().allMatch(cardText -> cardText.contains("RESTAURANT")),
       is(true)
     );
+
+    // AC-07: Search by name filters markers AND sidebar
+    page.locator("aside select").selectOption("");
+    page.locator("aside input[type='text']").fill("Don");
+    page.waitForTimeout(500);
+
+    assertThat(page.locator(".leaflet-interactive").count(), is(equalTo(1)));
+    assertThat(placeCards().count(), is(equalTo(1)));
+    assertThat(placeCards().first().textContent().contains("Don"), is(true));
+
+    // Clear filters restores all results
+    page.locator("button:has-text('Clear Filters')").click();
+    page.waitForTimeout(500);
+
+    assertThat(page.locator(".leaflet-interactive").count(), is(equalTo(10)));
+    assertThat(placeCards().count(), is(equalTo(10)));
+  }
+
+  @Test
+  void shouldShowPopupOnMarkerClick() {
+    page.navigate(
+      "http://127.0.0.1:8080/places",
+      new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT)
+    );
+
+    page.waitForSelector(
+      ".leaflet-interactive",
+      new Page.WaitForSelectorOptions().setTimeout(10000)
+    );
+
+    // AC-04: Click marker shows popup with name, category, and link
+    page.locator(".leaflet-interactive").first().click();
+    page.waitForSelector(".leaflet-popup", new Page.WaitForSelectorOptions().setTimeout(5000));
+
+    Locator popup = page.locator(".leaflet-popup");
+    assertThat(popup.count(), is(equalTo(1)));
+    assertThat(popup.textContent().length(), is(greaterThan(0)));
+    assertThat(popup.locator("a[href*='/places/']").count(), is(greaterThan(0)));
   }
 
   private void loginAsAdmin() {
@@ -81,6 +137,6 @@ public class PlacesViewE2E {
   }
 
   private Locator placeCards() {
-    return page.locator("main a[href*='/places/']");
+    return page.locator("aside a[href*='/places/']");
   }
 }

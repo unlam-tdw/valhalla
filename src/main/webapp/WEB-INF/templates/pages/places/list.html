@@ -5,41 +5,220 @@
 
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
-  <main class="flex-1 w-full max-w-5xl mx-auto p-4 flex flex-col gap-6">
-    <h1 class="text-3xl font-semibold text-gray-900">Places</h1>
+  <main class="flex-1 w-full h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
-    <form th:action="@{/places}" method="get" class="flex flex-wrap gap-3">
-      <input type="text" name="search" th:value="${search}" placeholder="Search by name"
-        class="flex-1 min-w-[12rem] rounded-md border-gray-300 bg-white border px-3 py-2" />
-      <select name="category" class="flex-1 min-w-[10rem] rounded-md border-gray-300 bg-white border px-3 py-2">
-        <option value="" th:selected="${category == null or category == ''}">All categories</option>
-        <option th:each="placeCategory : ${categories}" th:value="${placeCategory.name()}"
-          th:text="${#strings.capitalize(#strings.toLowerCase(placeCategory.name()))}"
-          th:selected="${category == placeCategory.name()}"></option>
-      </select>
-      <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700">Apply
-        Filters</button>
-      <a th:href="@{/places}"
-        class="rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 font-medium hover:bg-gray-50">Clear
-        Filters</a>
-    </form>
+    <div id="app" class="flex-1 flex overflow-hidden">
+      <!-- Sidebar -->
+      <aside class="w-80 min-w-[20rem] overflow-y-auto bg-white border-r border-gray-200 p-4 flex flex-col gap-4">
+        <h1 class="text-2xl font-semibold text-gray-900">Places</h1>
 
-    <p th:if="${#lists.isEmpty(places)}" class="text-gray-600">No places found.</p>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      <a th:each="place : ${places}" th:href="@{/places/{id}(id=${place.id})}"
-        class="block rounded-lg bg-white shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-        <img th:if="${place.imageUrl}" th:src="${place.imageUrl}" th:alt="${place.name}"
-          class="w-full h-40 object-cover" />
-        <img th:unless="${place.imageUrl}" th:src="@{/images/place-placeholder.svg}"
-          th:alt="|Image unavailable for ${place.name}|" class="w-full h-40 object-cover" />
-        <div class="p-4 flex flex-col gap-1">
-          <h2 class="text-lg font-medium text-gray-900" th:text="${place.name}">Place name</h2>
-          <span class="text-sm text-blue-600 font-semibold" th:text="${place.category}">Category</span>
-          <p class="text-sm text-gray-600 line-clamp-2" th:text="${place.address}">Address</p>
+        <!-- Filters -->
+        <div class="flex flex-col gap-3">
+          <select v-model="selectedCategory" @change="applyFilters"
+            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option value="">All categories</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">
+              {{ capitalize(cat) }}
+            </option>
+          </select>
+          <input v-model="searchQuery" @input="applyFilters" type="text" placeholder="Search by name..."
+            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
+          <button @click="clearFilters"
+            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 font-medium hover:bg-gray-50">
+            Clear Filters
+          </button>
         </div>
-      </a>
+
+        <!-- Results count -->
+        <p class="text-sm text-gray-500">{{ filteredPlaces.length }} place(s) found</p>
+
+        <!-- Place cards -->
+        <div class="flex flex-col gap-3">
+          <a v-for="place in filteredPlaces" :key="place.id" :href="'/places/' + place.id"
+            class="block rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+            :style="{ borderLeftWidth: '4px', borderLeftColor: categoryColor(place.category) }">
+            <div class="p-4 flex flex-col gap-1">
+              <h2 class="text-base font-medium text-gray-900">{{ place.name }}</h2>
+              <span class="text-xs font-semibold" :style="{ color: categoryColor(place.category) }">{{ place.category }}</span>
+              <p class="text-sm text-gray-600 line-clamp-2">{{ place.address }}</p>
+            </div>
+          </a>
+        </div>
+
+        <p v-if="filteredPlaces.length === 0" class="text-gray-500 text-sm">No places found.</p>
+      </aside>
+
+      <!-- Map -->
+      <div class="flex-1 relative">
+        <div id="map" class="absolute inset-0 w-full h-full"></div>
+      </div>
     </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Vue.js app (Vue is already loaded by the layout) -->
+    <script>
+      const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+      createApp({
+        setup() {
+          const places = ref([]);
+          const selectedCategory = ref('');
+          const searchQuery = ref('');
+          const categories = ref([]);
+          let map = null;
+          let markers = [];
+
+          const categoryColors = {
+            'RESTAURANT': '#e74c3c',
+            'BAR': '#9b59b6',
+            'CAFE': '#e67e22',
+            'MUSEUM': '#3498db',
+            'PARK': '#2ecc71',
+            'SHOPPING': '#f39c12',
+            'NIGHTLIFE': '#1abc9c',
+            'CULTURE': '#34495e',
+            'SPORT': '#e91e63',
+            'OTHER': '#95a5a6'
+          };
+
+          const filteredPlaces = computed(() => {
+            return places.value.filter(place => {
+              const matchCategory = !selectedCategory.value || place.category === selectedCategory.value;
+              const matchSearch = !searchQuery.value ||
+                place.name.toLowerCase().includes(searchQuery.value.toLowerCase());
+              return matchCategory && matchSearch;
+            });
+          });
+
+          const capitalize = (str) => {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+          };
+
+          const categoryColor = (category) => {
+            const colors = {
+              'RESTAURANT': '#e74c3c',
+              'BAR': '#9b59b6',
+              'CAFE': '#e67e22',
+              'MUSEUM': '#3498db',
+              'PARK': '#2ecc71',
+              'SHOPPING': '#f39c12',
+              'NIGHTLIFE': '#1abc9c',
+              'CULTURE': '#34495e',
+              'SPORT': '#e91e63',
+              'OTHER': '#95a5a6'
+            };
+            return colors[category] || '#95a5a6';
+          };
+
+          const categoryIcon = (category) => {
+            const icons = {
+              'RESTAURANT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
+              'BAR': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M10 2v3.5c0 .5-.2 1-.6 1.4C8.6 7.6 8 8.6 8 9.7V20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9.7c0-1.1-.6-2.1-1.4-2.8-.4-.4-.6-.9-.6-1.4V2"/><path d="M8 12h8"/></svg>',
+              'CAFE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>',
+              'MUSEUM': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>',
+              'PARK': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-7"/><path d="M9 8h6l-3-5z"/><path d="M5 15c-1.5 0-3-1.5-3-3 0-1.5 1.5-3 3-3 0-1.5 1.5-3 3-3 1.5 0 3 1.5 3 3 1.5 0 3 1.5 3 3 0 1.5-1.5 3-3 3"/></svg>',
+              'SHOPPING': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+              'NIGHTLIFE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+              'CULTURE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+              'SPORT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+              'OTHER': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+            };
+            return icons[category] || icons['OTHER'];
+          };
+
+          const clearFilters = () => {
+            selectedCategory.value = '';
+            searchQuery.value = '';
+          };
+
+          const applyFilters = () => {
+            updateMarkers();
+          };
+
+          const updateMarkers = () => {
+            if (!map) return;
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            filteredPlaces.value.forEach(place => {
+              if (place.latitude && place.longitude) {
+                const color = categoryColor(place.category);
+                const icon = categoryIcon(place.category);
+
+                const divIcon = L.divIcon({
+                  className: 'custom-marker',
+                  html: '<div style="background-color:' + color + '; width:32px; height:32px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:16px;">' + icon + '</div>',
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16],
+                  popupAnchor: [0, -16]
+                });
+
+                const marker = L.marker([place.latitude, place.longitude], { icon: divIcon }).addTo(map);
+
+                marker.bindPopup(
+                  '<strong>' + place.name + '</strong><br>' +
+                  place.category + '<br>' +
+                  '<a href="/places/' + place.id + '">View details</a>'
+                );
+                markers.push(marker);
+              }
+            });
+          };
+
+          onMounted(async () => {
+            await nextTick();
+
+            // Initialize map centered on Buenos Aires
+            map = L.map('map', {
+              center: [-34.6037, -58.3816],
+              zoom: 13
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Fetch places from API
+            const response = await fetch('/api/places');
+            places.value = await response.json();
+
+            // Extract unique categories
+            const cats = new Set(places.value.map(p => p.category));
+            categories.value = Array.from(cats).sort();
+
+            // Add markers
+            updateMarkers();
+
+            // Force Leaflet to recalculate container dimensions
+            setTimeout(() => map.invalidateSize(), 200);
+          });
+
+          watch(filteredPlaces, () => {
+            updateMarkers();
+          });
+
+          return {
+            places,
+            selectedCategory,
+            searchQuery,
+            categories,
+            filteredPlaces,
+            capitalize,
+            categoryColor,
+            categoryIcon,
+            clearFilters,
+            applyFilters
+          };
+        }
+      }).mount('#app');
+    </script>
   </main>
 
 </body>
