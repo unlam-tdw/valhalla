@@ -23,7 +23,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | AC-04 | Un usuario registrado puede iniciar sesión con email + password correctos |
 | AC-05 | Login con credenciales inválidas muestra error |
 | AC-06 | Al hacer logout, la sesión se invalida y redirige a /admin/login |
-| AC-07 | Rutas protegidas (/admin/home, /admin/users, /places, /plans) redirigen a /admin/login sin sesión |
+| AC-07 | Rutas protegidas: `/places` y `/plans` redirigen a `/auth/login` sin sesión; `/admin/home` y `/admin/users` siguen redirigiendo a `/admin/login` (cadena admin intacta) |
 | AC-08 | Rutas públicas (/, /admin/login, /share/**) no requieren sesión |
 | AC-09 | El header muestra el email del usuario logueado |
 | AC-10 | El header muestra link de login cuando no hay sesión |
@@ -62,7 +62,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 | I-09 | `POST /admin/validate-login` con credenciales inválidas → redirige a `/admin/login?error=true` | AC-05 |
 | I-10 | `GET /admin/home` sin sesión → redirige a `/admin/login` | AC-07 |
 | I-11 | `GET /admin/home` con sesión → 200, vista home | AC-09 |
-| I-12 | `POST /admin/logout` → redirige a `/admin/login`, sesión invalidada | AC-06 |
+| I-12 | `POST /admin/logout` → redirige a `/admin/login?logout=true`, sesión invalidada | AC-06 |
 | I-13 | `POST /api/something` sin CSRF → no devuelve 403 (CSRF exempt) | AC-12 |
 | I-14 | `POST /admin/validate-login` sin CSRF → 403 Forbidden | AC-11 |
 | I-15 | `POST /admin/validate-login` con email inexistente → redirige a `/admin/login?error=true` | AC-05 |
@@ -73,9 +73,9 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| S-01 | `GET /places` sin sesión → redirige a `/admin/login` | AC-07 |
-| S-02 | `GET /plans` sin sesión → redirige a `/admin/login` | AC-07 |
-| S-03 | `GET /share/abc123` sin sesión → 200 (público) | AC-08 |
+| S-01 | `GET /places` sin sesión → redirige a `/auth/login` | AC-07 |
+| S-02 | `GET /plans` sin sesión → redirige a `/auth/login` | AC-07 |
+| S-03 | `GET /share/abc123` sin sesión → 404 (permitido pero no mapeado; 403 significaría que la cadena de seguridad lo rechazó) | AC-08 |
 | S-04 | `GET /` sin sesión → 200 (landing page, público) | AC-08 |
 
 ### E2E (mínimos, solo happy path completo)
@@ -84,24 +84,53 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 |---|------|-------|-------------|
 | E-01 | `shouldShowUNLAMInTheNavbar` | Abre `/admin/login` → navbar muestra UNLAM | n/a |
 | E-02 | `shouldShowErrorWhenSigningInWithAnUnknownUser` | Login con usuario desconocido → mensaje de error | AC-05 |
-| E-03 | `shouldNavigateToHomeWhenUserExists` | Login admin seed → home | AC-04, AC-09 |
+| E-03 | — | *borrado*: `shouldNavigateToHomeWhenUserExists` era subconjunto de E-05 (mismas 3 aserciones y nada más). Sus AC quedaron en E-05. | AC-04, AC-09 → E-05 |
 | E-04 | `shouldRegisterAUserAndSignInSuccessfully` | Admin crea usuario → se loguea con la password generada → home | AC-01, AC-04 |
-| E-05 | `shouldLogoutAndReturnToLoginPage` | Login → Home → Logout → vuelve a `/admin/login` | AC-06 |
+| E-05 | `shouldLogoutAndReturnToLoginPage` | Login → Home → Logout → vuelve a `/admin/login` con el aviso de sesión cerrada | AC-04, AC-06, AC-09 |
 
 ## Notas de implementación (desviaciones acordadas vs este spec)
 
 - **Registro admin-only**: AC-01/02/03 se implementaron solo en el flujo admin — `/admin/login`,
   `/admin/new-user` y `/admin/register` requieren rol `ADMIN` (SecurityConfig). El auto-registro
   público del spec quedó descartado por decisión de equipo (commit `e80d1c3`); el login final para
-  usuarios será otra card. Por eso `adminIndex()` (U-09) redirige a `/admin/login`.
+  usuarios será otra card. Por eso `adminIndex()` (U-09) redirige a `/admin/login`. **AUT
+  (08-AUT.md) revierte esa decisión**: el auto-registro público volvió en `/auth/register`
+  (solo email + password) y el login de usuarios quedó en `/auth/login`.
 - **AC-07 reemplazado parcialmente por [AUT]** (08-AUT.md): `/places` y `/plans` sin sesión pasan
   a redirigir a `/auth/login` (AC-11 de 08-AUT). `/admin/**` sigue redirigiendo a `/admin/login`.
-- **`email` como username**: el form de login usa `email`/`password` como parámetros
-  (`usernameParameter("email")` en SecurityConfig), no `username` como figura en la sección de
-  referencia. La UI (Vue) y los tests/E2E usan `#email`.
+- **`email` como username**: los forms de login usan el campo visible `#email` en las 3 cadenas,
+  pero el parámetro que viaja es distinto. Las cadenas admin (2 y 3) usan
+  `usernameParameter("email")`; la cadena de usuarios (1, `/auth/validate-login`) usa
+  `usernameParameter("username")`, que es lo que el `input` de `pages/auth/user/login.html`
+  declara. La UI (Vue) y los tests/E2E usan `#email`.
 - **AC-13**: requiere `HttpSessionEventPublisher` (registrado en `MyServletInitializer`) + el bean
   `SessionRegistry` (SecurityConfig) para que `maximumSessions(1)` funcione de verdad.
+- **Dos cadenas, dos superficies**: `/admin/**` es el ABM de usuarios y `/auth/**` es el
+  self-service. Ambas existen y ambas llevan cobertura completa de lo que les corresponde, pero
+  no los mismos escenarios: un usuario self-service no puede editar ni borrar cuentas, así que
+  `shouldEditExistingUser` y `shouldDeactivateAndThenDeleteUser` no tienen contraparte en `/auth`.
+  Editar, desactivar, borrar, listar y recuperar clave son de `/admin`; registrarse, recuperar
+  clave propia y el logout de usuario son de `/auth`.
+- **Logout simétrico**: las dos cadenas pasan `?logout=true` al login
+  (`SecurityConfig` líneas 51 y 95) y las dos vistas lo renderizan. Antes solo `/auth` lo hacía:
+  el logout de admin era mudo y su E-05 solo podía assertar el path, que no distingue un logout
+  de cualquier otro motivo de volver al login. El aviso de admin lo lee Vue de
+  `location.search` y el de `/auth` lo lee Thymeleaf de `${param.logout}`, porque cada vista ya
+  tenía un motor distinto; lo que se igualó es el comportamiento observable, no la implementación.
+- **404 real**: `GlobalExceptionHandler` responde 404 ante `NoHandlerFoundException` y
+  `NoResourceFoundException`, y 500 ante el catch-all. Antes respondía 200 en los tres casos
+  renderizando `pages/error`, así que una URL inexistente era indistinguible de una válida.
+  Esto reescribe S-03: `/share/abc123` es público pero ningún controller lo mapea, así que la
+  respuesta correcta es 404, no 200. El test afirma además el atributo `error` del model para
+  dejar claro que el 404 lo produce el handler y no la página de error del contenedor.
+- **El navbar ya no promete `/plans`**: el item "Planes" se quitó porque la ruta no tiene
+  controller, así que con el 404 real pasó a ser un link visible a una página inexistente.
+  Apuntarlo a `/` no lo arreglaba: el rótulo diría "Planes" y llevaría a la landing. 03-PLN
+  repone el item junto con la página. `/places` nunca llegó a tener link.
 - Tests extra con respecto a este spec: U-09, I-12, I-13, I-15, I-16, I-17 y E-05.
+- Tests de [AUT] (08-AUT.md), que no viven en este spec: escenarios U-01..U-10 e I-01..I-13 en
+  `presentation/auth/AuthControllerTest` e `integration/AuthControllerTest`, la recuperacion de
+  clave en `domain/user/RecoverPasswordServiceTest`, y E-01..E-08 en `e2e/UserAuthViewE2E`.
 
 ## Referencia de Implementacion
 
@@ -173,7 +202,7 @@ public class SecurityConfig {
             )
             .logout(logout -> logout
                 .logoutUrl("/admin/logout")
-                .logoutSuccessUrl("/admin/login")
+                .logoutSuccessUrl("/admin/login?logout=true")
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
             )

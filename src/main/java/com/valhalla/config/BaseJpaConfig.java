@@ -19,6 +19,10 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableJpaRepositories(basePackages = "com.valhalla.infrastructure")
 @ComponentScan({ "com.valhalla.infrastructure", "com.valhalla.domain.plan" })
 public abstract class BaseJpaConfig {
+  static {
+    // Runs for every subclass (production and test) before any DataSource is built.
+    EnvironmentConfig.pinTimeZoneToUtc();
+  }
 
   @Bean
   public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource) {
