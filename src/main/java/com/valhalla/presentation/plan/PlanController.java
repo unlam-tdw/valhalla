@@ -86,11 +86,16 @@ public class PlanController {
   }
 
   /**
-   * DELETE only: a bare POST on /{id} must reach the update handler above, so the delete form
-   * carries {@code _method=DELETE} and HiddenHttpMethodFilter rewrites it. Registering POST here
-   * too would make Spring route POST /plans/{id} to whichever handler sorts first.
+   * Delete lives on its own sub-path and accepts POST, the same way UserController's
+   * /admin/users/{id}/delete does. The reason is not cosmetic: the app is wired through
+   * MyServletInitializer, a plain AbstractAnnotationConfigDispatcherServletInitializer, so the
+   * HiddenHttpMethodFilter bean is never registered with the servlet container and {@code _method}
+   * is never honoured at runtime. It only appears to work under MockMvc, because
+   * webAppContextSetup picks Filter beans up from the context. A delete form posted to /{id}
+   * therefore arrived as a POST and landed on the update handler above, which rejected the empty
+   * name and re-rendered the form. Registering POST here is what makes the button work for real.
    */
-  @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
+  @RequestMapping(value = "/{id}/delete", method = { RequestMethod.POST, RequestMethod.DELETE })
   public ModelAndView deletePlan(@PathVariable Long id, Authentication authentication) {
     planService.deleteOwnedPlan(id, authentication.getName());
     return new ModelAndView(REDIRECT_PLANS);

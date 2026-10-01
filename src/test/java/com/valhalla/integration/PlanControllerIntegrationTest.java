@@ -35,7 +35,7 @@ import org.springframework.web.filter.HiddenHttpMethodFilter;
 
 /**
  * End-to-end HTTP coverage of the plan contract against HSQLDB: ownership by user, the generated
- * share code, the {@code _method} verbs and the {@code PlanNotFoundException} redirect.
+ * share code, the form-verb routing and the {@code PlanNotFoundException} redirect.
  *
  * <p>Every negative case asserts the effect — the repository state before and after — not only the
  * redirect, so a handler that swallowed the rejection would still fail here.
@@ -293,17 +293,18 @@ public class PlanControllerIntegrationTest {
     assertThat(untouched.getAdministrator().getId(), is(equalTo(this.otherId)));
   }
 
-  // --- DELETE /plans/{id} ---
+  // --- POST /plans/{id}/delete ---
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void T_PLN_082_postPlansId_methodDeleteBorraYRedirige() throws Exception {
+  public void T_PLN_082_postPlansIdDeleteBorraYRedirige() throws Exception {
     // given
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
     givenPlanFor(this.ownerId, OTHER_PLAN_NAME);
 
-    // when
-    this.mockMvc.perform(post("/plans/" + planId).with(csrf()).param("_method", "DELETE"))
+    // when: a plain form POST, exactly what list.html and detail.html send. No _method, because
+    // the filter that would honour it is not registered in the servlet container.
+    this.mockMvc.perform(post("/plans/" + planId + "/delete").with(csrf()))
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/plans"));
 
@@ -314,12 +315,12 @@ public class PlanControllerIntegrationTest {
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void T_PLN_083_postPlansId_deleteDeOtroUsuarioNoBorraNada() throws Exception {
+  public void T_PLN_083_postPlansIdDeleteDeOtroUsuarioNoBorraNada() throws Exception {
     // given
     Long planId = givenPlanFor(this.otherId, OTHER_PLAN_NAME);
 
     // when
-    this.mockMvc.perform(post("/plans/" + planId).with(csrf()).param("_method", "DELETE"))
+    this.mockMvc.perform(post("/plans/" + planId + "/delete").with(csrf()))
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
 
