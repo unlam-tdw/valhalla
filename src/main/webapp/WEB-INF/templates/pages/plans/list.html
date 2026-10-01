@@ -15,6 +15,13 @@
         </a>
       </div>
 
+      <!-- GlobalExceptionHandler redirects here with ?error=... when the plan is not found or not
+           owned, so without this block the message the handler sets would never be seen. -->
+      <p th:if="${error}" th:text="${error}"
+        class="mb-4 rounded-md bg-red-100 px-4 py-3 text-sm text-red-700">
+        Error
+      </p>
+
       <table class="w-full border-collapse bg-white shadow-md">
         <thead>
           <tr class="border-b border-gray-200 bg-gray-50 text-left text-sm font-medium text-gray-600">
