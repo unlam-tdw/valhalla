@@ -72,7 +72,7 @@ public class PlansPage extends WebPage {
     this.rowWith(name).locator("a:has-text('Ver detalle')").click();
   }
 
-  /** The per-row delete form, which posts {@code _method=DELETE} to {@code /plans/{id}}. */
+  /** The per-row delete form, which posts {@code _method=DELETE} to {@code /plans/{id}/delete}. */
   public void deletePlanNamed(String name) {
     this.rowWith(name).locator("form button[type=submit]").click();
   }
