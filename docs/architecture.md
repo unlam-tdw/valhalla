@@ -118,9 +118,8 @@ graph LR
 | POST | `/auth/validate-login` | Spring Security | redirect → / (USER) · /admin/home (ADMIN) |
 | POST | `/auth/logout` | Spring Security | redirect → /auth/login |
 
-> Divergencia consciente con la tabla de abajo: `/plans` figura como ruta de [PLN], pero ningún
-> controller la sirve todavía, así que el login de un `USER` cae hoy en `/` (la landing de
-> `LandingController`). Cuando exista `PlanController`, esta fila vuelve a decir `/plans`.
+> `/plans` ya tiene `PlanController` (03-PLN), así que el login de un `USER` cae en el listado de
+> sus planes.
 
 ### Future Authenticated Routes
 
@@ -131,11 +130,19 @@ graph LR
 | GET | `/plans` | PlanController | pages/plans/list |
 | GET | `/plans/new` | PlanController | pages/plans/new |
 | POST | `/plans` | PlanController | redirect → /plans/{id} |
-| GET | `/plans/{id}` | PlanController | pages/places/detail |
-| PUT | `/plans/{id}` | PlanController | redirect → /plans/{id} |
-| DELETE | `/plans/{id}` | PlanController | redirect → /plans |
+| GET | `/plans/{id}` | PlanController | pages/plans/detail |
+| POST, PUT | `/plans/{id}` | PlanController | redirect → /plans/{id} |
+| POST, DELETE | `/plans/{id}/delete` | PlanController | redirect → /plans |
 | POST | `/plans/{id}/share` | PlanController | JSON { url } |
 | POST | `/plans/{id}/visibility` | PlanController | JSON { visibility } |
+
+> `/plans/{id}` y `/plans/{id}/delete` registran POST además de su verbo propio porque la app se
+> levanta con `MyServletInitializer`, un `AbstractAnnotationConfigDispatcherServletInitializer` a
+> pelo: el bean `HiddenHttpMethodFilter` nunca se registra con el contenedor, así que el `_method`
+> de los forms no se respeta en runtime y el POST crudo es lo que llega. Por eso el borrado va en
+> un sub-path en vez de competir con el update por `POST /plans/{id}`.
+>
+> `/share` y `/visibility` siguen sin servirse: pertenecen al ticket de compartir, no a este.
 
 ### REST API Routes (CSRF exempt)
 
