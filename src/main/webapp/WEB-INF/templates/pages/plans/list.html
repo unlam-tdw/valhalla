@@ -1,0 +1,76 @@
+<!DOCTYPE HTML>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{layouts/base :: head('Mis planes')}"></head>
+
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+
+  <main class="flex-1 p-4">
+    <div class="mx-auto max-w-4xl">
+      <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-2xl font-semibold text-gray-900">Mis planes</h2>
+        <a th:href="@{/plans/new}"
+          class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
+          + Crear plan
+        </a>
+      </div>
+
+      <!-- GlobalExceptionHandler redirects here with ?error=... when the plan is not found or not
+           owned, so without this block the message the handler sets would never be seen. -->
+      <p th:if="${error}" th:text="${error}"
+        class="mb-4 rounded-md bg-red-100 px-4 py-3 text-sm text-red-700">
+        Error
+      </p>
+
+      <table class="w-full border-collapse bg-white shadow-md">
+        <thead>
+          <tr class="border-b border-gray-200 bg-gray-50 text-left text-sm font-medium text-gray-600">
+            <th class="px-4 py-3">Nombre</th>
+            <th class="px-4 py-3">Descripción</th>
+            <th class="px-4 py-3">Fecha</th>
+            <th class="px-4 py-3">Visibilidad</th>
+            <th class="px-4 py-3 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="plan : ${plans}" class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm text-gray-900" th:text="${plan.name}">nombre</td>
+            <td class="px-4 py-3 text-sm text-gray-900" th:text="${plan.description}">descripción</td>
+            <td class="px-4 py-3 text-sm text-gray-700" th:text="${plan.eventDate}">00/00/0000</td>
+            <td class="px-4 py-3 text-sm">
+              <span th:if="${plan.isPublic}"
+                class="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                Público
+              </span>
+              <span th:unless="${plan.isPublic}"
+                class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                Privado
+              </span>
+            </td>
+            <td class="flex justify-end gap-2 px-4 py-3">
+              <a th:href="@{/plans/{id}(id=${plan.id})}"
+                class="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-300">
+                Ver detalle
+              </a>
+              <form th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST">
+                <input type="hidden" name="_method" value="DELETE" />
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <button type="submit"
+                  class="rounded bg-red-100 px-3 py-1 text-sm font-medium text-red-700 transition hover:bg-red-200">
+                  Eliminar
+                </button>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p th:if="${#lists.isEmpty(plans)}" class="mt-8 text-center text-gray-500">
+        Todavía no creaste ningún plan.
+      </p>
+    </div>
+  </main>
+
+</body>
+
+</html>

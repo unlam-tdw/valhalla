@@ -52,11 +52,12 @@ public class UserAuthViewE2E extends E2eBase {
     );
     // Naming the whole set, not just the presence of the items: the navbar used to offer a
     // "Planes" link to /plans, which had no controller. It rendered fine, so no other assertion
-    // could see the difference between a live item and a 404 waiting to be clicked.
+    // could see the difference between a live item and a 404 waiting to be clicked. PlanController
+    // landed in 03-PLN, so "Plans" belongs back in the set and now has somewhere to resolve to.
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("UNLAM", "Logout")
+      contains("UNLAM", "Plans", "Logout")
     );
   }
 

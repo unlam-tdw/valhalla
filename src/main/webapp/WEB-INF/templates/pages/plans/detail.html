@@ -1,0 +1,102 @@
+<!DOCTYPE HTML>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{layouts/base :: head('Detalle del plan')}"></head>
+
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+
+  <main class="flex-1 p-4">
+    <div class="mx-auto max-w-2xl">
+      <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-2xl font-semibold text-gray-900" th:text="${plan.name}">Nombre del plan</h2>
+        <a th:href="@{/plans}"
+          class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
+          Volver a planes
+        </a>
+      </div>
+
+      <section class="mb-6 rounded-lg bg-white p-6 shadow-md">
+        <p class="text-gray-600" th:text="${plan.description}">Descripción del plan</p>
+
+        <dl class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="rounded-md bg-gray-50 p-3">
+            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Fecha</dt>
+            <dd class="mt-1 text-sm text-gray-900" th:text="${plan.eventDate}">00/00/0000</dd>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Visibilidad</dt>
+            <dd class="mt-1 text-sm text-gray-900" th:text="${plan.isPublic} ? 'Público' : 'Privado'">Público</dd>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Administrador</dt>
+            <dd class="mt-1 text-sm text-gray-900"
+              th:text="${(plan.administrator?.firstName ?: '') + ' ' + (plan.administrator?.lastName ?: '')}">
+              Usuario
+            </dd>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Código</dt>
+            <dd class="mt-1 font-mono text-sm text-gray-900" th:text="${plan.shortCode}">ABCD1234</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="mb-6 rounded-lg bg-white p-6 shadow-md">
+        <h3 class="mb-4 text-lg font-semibold text-gray-900">Editar plan</h3>
+
+        <form th:action="@{/plans/{id}(id=${plan.id})}" th:object="${plan}" method="POST">
+          <input type="hidden" name="_method" value="PUT" />
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+          <div>
+            <label for="name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del plan</label>
+            <input type="text" id="name" th:field="*{name}"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+          </div>
+
+          <div class="mt-4">
+            <label for="description" class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+            <textarea id="description" th:field="*{description}" rows="4"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"></textarea>
+          </div>
+
+          <div class="mt-4">
+            <label for="eventDate" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
+            <input type="date" id="eventDate" th:field="*{eventDate}"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+          </div>
+
+          <div class="mt-4 flex items-center gap-2">
+            <input type="checkbox" id="isPublic" th:field="*{isPublic}"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <label for="isPublic" class="text-sm font-medium text-gray-700">Hacer público este plan</label>
+          </div>
+
+          <div class="mt-6 flex justify-end">
+            <button type="submit"
+              class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
+              Guardar cambios
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="rounded-lg bg-white p-6 shadow-md">
+        <h3 class="mb-2 text-lg font-semibold text-gray-900">Eliminar plan</h3>
+        <p class="text-sm text-gray-600">La eliminación no se puede deshacer.</p>
+
+        <form th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST" class="mt-4 flex justify-end">
+          <input type="hidden" name="_method" value="DELETE" />
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+          <button type="submit"
+            class="rounded-md bg-red-600 px-4 py-2 font-medium text-white transition hover:bg-red-700">
+            Eliminar plan
+          </button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+</body>
+
+</html>

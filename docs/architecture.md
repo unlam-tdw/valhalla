@@ -118,9 +118,8 @@ graph LR
 | POST | `/auth/validate-login` | Spring Security | redirect → / (USER) · /admin/home (ADMIN) |
 | POST | `/auth/logout` | Spring Security | redirect → /auth/login |
 
-> Divergencia consciente con la tabla de abajo: `/plans` figura como ruta de [PLN], pero ningún
-> controller la sirve todavía, así que el login de un `USER` cae hoy en `/` (la landing de
-> `LandingController`). Cuando exista `PlanController`, esta fila vuelve a decir `/plans`.
+> `/plans` ya tiene `PlanController` (03-PLN), así que el login de un `USER` cae en el listado de
+> sus planes.
 
 ### Future Authenticated Routes
 
@@ -131,11 +130,25 @@ graph LR
 | GET | `/plans` | PlanController | pages/plans/list |
 | GET | `/plans/new` | PlanController | pages/plans/new |
 | POST | `/plans` | PlanController | redirect → /plans/{id} |
-| GET | `/plans/{id}` | PlanController | pages/places/detail |
-| PUT | `/plans/{id}` | PlanController | redirect → /plans/{id} |
-| DELETE | `/plans/{id}` | PlanController | redirect → /plans |
+| GET | `/plans/{id}` | PlanController | pages/plans/detail |
+| POST, PUT | `/plans/{id}` | PlanController | redirect → /plans/{id} |
+| POST, DELETE | `/plans/{id}/delete` | PlanController | redirect → /plans |
 | POST | `/plans/{id}/share` | PlanController | JSON { url } |
 | POST | `/plans/{id}/visibility` | PlanController | JSON { visibility } |
+
+> `/plans/{id}` y `/plans/{id}/delete` registran POST además de su verbo propio para que el mismo
+> handler atienda el POST crudo y el verbo que reescribe el `HiddenHttpMethodFilter`. El borrado va
+> en un sub-path, y no compitiendo con el update por `POST /plans/{id}`, porque su form manda
+> `_method=DELETE`: si compartieran ruta, el update —que solo registra POST y PUT— se quedaría sin
+> handler en el contenedor real mientras el test de integración, que registra el filtro por su cuenta,
+> daría verde. Es el mismo criterio que usa `UserController` con `/admin/users/{id}/delete`.
+>
+> El filtro lo instala `MyServletInitializer` con `servletContext.addFilter`. No alcanza con
+> declararlo como `@Bean`: el auto-registro de beans `Filter` es de Spring Boot, y esto es un WAR de
+> Spring MVC plano. Un `@Bean` de filtro ahí es código muerto que en MockMvc —que sí levanta los
+> filtros del contexto— aparenta funcionar.
+>
+> `/share` y `/visibility` siguen sin servirse: pertenecen al ticket de compartir, no a este.
 
 ### REST API Routes (CSRF exempt)
 

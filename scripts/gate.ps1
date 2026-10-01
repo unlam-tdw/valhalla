@@ -18,6 +18,7 @@
       .\scripts\gate.ps1 e2e=LoginViewE2E -Headed one E2E class
       .\scripts\gate.ps1 all                      everything, one `mvn verify`
       .\scripts\gate.ps1 all=UserServiceTest+LoginViewE2E
+      .\scripts\gate.ps1 reset-db                 throws the local database away and rebuilds it
       .\scripts\gate.ps1 check                    Checkstyle, PMD, CPD, Prettier
       .\scripts\gate.ps1 coverage                 runs the suite, prints coverage per package
 
@@ -71,6 +72,7 @@ Commands
   all=<a>+<b>           a mix; + separates, e2e names go to failsafe, the rest to surefire
   check                 Checkstyle, PMD, CPD, Prettier. Changes nothing
   coverage              runs the whole suite, prints line coverage per package
+  reset-db              DESTROYS every local database and rebuilds it. See below
 
   No command means help. Nothing runs unless you name a layer.
 
@@ -100,6 +102,15 @@ Examples
   .\scripts\gate.ps1 check -Fix
   .\scripts\gate.ps1 coverage
   .\scripts\gate.ps1 list=e2e
+  .\scripts\gate.ps1 reset-db
+
+reset-db DESTROYS ALL LOCAL DATA
+  JpaConfig sets hibernate.hbm2ddl.auto=update and there is no Flyway or Liquibase in the pom.
+  `update` adds missing columns but never drops or renames one, so a renamed or removed column
+  stays in the database: old rows keep it and land NULL in the new primary key, unreachable
+  through the app, and the orphans pile up. The only local remedy is to throw the volume away
+  and let Hibernate build the schema again -- which is what this command does. The data is
+  expected to be lost; the stale schema is not.
 '@
 
 # Whole-file, not line-by-line, and anchored on `@Test` rather than with `@Test` optional:
@@ -126,7 +137,7 @@ $unitPatterns = "!**/e2e/**,!**/integration/**"
 # disarm it, letting a bogus -Dit.test name report a green build over zero tests.
 $surefireNone = '__NoUnitGate__'
 
-$commands = 'help', 'list', 'unit', 'integration', 'e2e', 'all', 'check', 'coverage'
+$commands = 'help', 'list', 'unit', 'integration', 'e2e', 'all', 'check', 'coverage', 'reset-db'
 
 # Resolve before listing: Get-ChildItem echoes back the path it was given, and the package
 # is computed by cutting a fixed prefix off it, so the prefix has to be the same string
@@ -249,7 +260,7 @@ if ($fix -and $command -ne 'check') {
     Stop-With "-Fix only applies to 'check'."
 }
 # list is absent on purpose: `list=e2e` is a scope, and the block below validates it.
-if ($targets.Count -gt 0 -and $command -in 'help', 'check', 'coverage') {
+if ($targets.Count -gt 0 -and $command -in 'help', 'check', 'coverage', 'reset-db') {
     Stop-With "'$command' does not take a target. Targets apply to unit, integration, e2e and all."
 }
 if ($targets -match 'E2E' -and $command -in 'unit', 'integration') {
@@ -387,6 +398,46 @@ if ($command -eq 'check') {
     $exitCode = $LASTEXITCODE
     Set-Location $originalLocation
     exit $exitCode
+}
+
+# ---- reset-db -------------------------------------------------------------------------
+if ($command -eq 'reset-db') {
+    if ($fast) {
+        Write-Host "[reset-db] -Fast ignored: nothing here runs Maven."
+    }
+
+    # Said before anything is destroyed, not after: the point of this command is to throw data
+    # away, and a user who ran it on the wrong database deserves to have read that first.
+    Write-Host '[reset-db] DESTROYS ALL LOCAL DATA: every row in every local database is deleted.'
+    Write-Host '[reset-db] Needed because JpaConfig sets hibernate.hbm2ddl.auto=update with no'
+    Write-Host '[reset-db] migration tool: `update` adds columns but never drops or renames them,'
+    Write-Host '[reset-db] so a renamed or removed column survives and old rows become unreachable.'
+    Write-Host ''
+
+    # -v, not `stop`: the schema lives in the volume, so stopping the container would keep the
+    # very columns this command exists to remove. The maven_cache volume goes with it, which only
+    # costs a re-download.
+    Write-Host '[reset-db] docker compose down -v'
+    docker compose down -v
+    if ($LASTEXITCODE -ne 0) { Stop-With '[reset-db] docker compose down -v failed; nothing was rebuilt.' }
+
+    Write-Host '[reset-db] starting an empty postgres'
+    docker compose up -d postgres
+    if ($LASTEXITCODE -ne 0) { Stop-With '[reset-db] docker compose up failed.' }
+
+    # Same readiness probe the e2e gate uses, retried: a brand new container has not finished
+    # initdb yet, and `up -d` returns the moment the container starts.
+    $ready = $false
+    foreach ($attempt in 1..20) {
+        docker compose exec -T postgres psql -U user -d postgres -tAc 'SELECT 1' | Out-Null
+        if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $ready) { Stop-With '[reset-db] postgres never answered; is the image pulled?' }
+
+    Write-Host '[reset-db] done. Hibernate rebuilds the schema on the next start.'
+    Set-Location $originalLocation
+    exit 0
 }
 
 # ---- coverage ------------------------------------------------------------------------

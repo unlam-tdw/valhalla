@@ -20,8 +20,12 @@
       Users
     </a>
 
-    <!-- Sin links para USER: /plans todavia no tiene controller (spec 03-PLN). Un item de menu
-         que apunte ahi devuelve 404; 03-PLN lo repone junto con la pagina. -->
+    <!-- Link a los planes del usuario: /plans ya tiene controller (PlanController). 04a453d lo
+         habia sacar para no dejar un item de menu apuntando a un 404. -->
+    <a th:href="@{/plans}" sec:authorize="!hasRole('ADMIN')"
+      class="rounded-md bg-gray-700 px-3 py-2 font-medium hover:bg-gray-600">
+      Plans
+    </a>
 
     <span class="text-gray-300">Signed in as
       <span class="font-medium text-white" sec:authentication="name">user</span>

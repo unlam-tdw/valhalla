@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.web.filter.HiddenHttpMethodFilter;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -53,11 +52,8 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
     }
   }
 
-  @Bean
-  public HiddenHttpMethodFilter hiddenHttpMethodFilter() {
-    return new HiddenHttpMethodFilter();
-  }
-
+  // No HiddenHttpMethodFilter bean on purpose: a Filter bean is never installed in this plain Spring
+  // MVC WAR. MyServletInitializer registers the filter with the servlet container instead.
   @Bean
   public DevReloadController devReloadController() {
     return new DevReloadController();
