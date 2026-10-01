@@ -1,79 +1,49 @@
 package com.valhalla.domain.plan;
 
-import com.valhalla.domain.place.Place;
 import com.valhalla.domain.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
-import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Entity
 @Table(name = "plans")
-@SuppressWarnings("PMD.TooManyFields")
 public class Plan {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long IdPlan;
+  private Long id;
 
-  @NotBlank(message = "Plan name is required")
   @Column(nullable = false)
   private String name;
 
+  @Column(columnDefinition = "TEXT")
   private String description;
 
   private LocalDate eventDate;
 
+  private Boolean isPublic = false;
+
+  @Column(unique = true)
+  private String shortCode;
+
+  // Not nullable: an existing dev database already holds rows without an owner and hbm2ddl never
+  // tightens a column, so a NOT NULL here fails the schema update on upgrade.
   @ManyToOne
   @JoinColumn(name = "administrator_id")
   private User administrator;
 
-  private LocalDate eventDateCreated;
-
-  private LocalTime startTime;
-
-  private LocalTime endTime;
-
-  private String codigo;
-
-  private Boolean isPublic = false;
-
-  @ManyToMany(fetch = FetchType.EAGER)
-  @JoinTable(
-    name = "plan_places",
-    joinColumns = @JoinColumn(name = "plan_id"),
-    inverseJoinColumns = @JoinColumn(name = "place_id")
-  )
-  private List<Place> places = new ArrayList<>();
-
-  @ManyToOne
-  @JoinColumn(name = "selected_place_id")
-  private Place selectedPlace;
-
-  @Transient
-  private Map<User, Long> participants = new HashMap<>();
-
-  public Long getIdPlan() {
-    return IdPlan;
+  public Long getId() {
+    return id;
   }
 
-  public void setIdPlan(Long idPlan) {
-    IdPlan = idPlan;
+  public void setId(Long id) {
+    this.id = id;
   }
 
   public String getName() {
@@ -84,6 +54,14 @@ public class Plan {
     this.name = name;
   }
 
+  public String getDescription() {
+    return description;
+  }
+
+  public void setDescription(String description) {
+    this.description = description;
+  }
+
   public LocalDate getEventDate() {
     return eventDate;
   }
@@ -92,12 +70,20 @@ public class Plan {
     this.eventDate = eventDate;
   }
 
-  public String getDescription() {
-    return description;
+  public Boolean getIsPublic() {
+    return isPublic != null ? isPublic : false;
   }
 
-  public void setDescription(String description) {
-    this.description = description;
+  public void setIsPublic(Boolean isPublic) {
+    this.isPublic = isPublic;
+  }
+
+  public String getShortCode() {
+    return shortCode;
+  }
+
+  public void setShortCode(String shortCode) {
+    this.shortCode = shortCode;
   }
 
   public User getAdministrator() {
@@ -108,67 +94,15 @@ public class Plan {
     this.administrator = administrator;
   }
 
-  public LocalDate getEventDateCreated() {
-    return eventDateCreated;
-  }
-
-  public void setEventDateCreated(LocalDate eventDateCreated) {
-    this.eventDateCreated = eventDateCreated;
-  }
-
-  public LocalTime getStartTime() {
-    return startTime;
-  }
-
-  public void setStartTime(LocalTime startTime) {
-    this.startTime = startTime;
-  }
-
-  public LocalTime getEndTime() {
-    return endTime;
-  }
-
-  public void setEndTime(LocalTime endTime) {
-    this.endTime = endTime;
-  }
-
-  public String getCodigo() {
-    return codigo;
-  }
-
-  public void setCodigo(String codigo) {
-    this.codigo = codigo;
-  }
-
-  public Boolean getIsPublic() {
-    return isPublic != null ? isPublic : false;
-  }
-
-  public void setIsPublic(Boolean aPublic) {
-    isPublic = aPublic;
-  }
-
-  public List<Place> getPlaces() {
-    return places;
-  }
-
-  public void setPlaces(List<Place> places) {
-    this.places = places;
-  }
-
-  public Place getSelectedPlace() {
-    return selectedPlace;
-  }
-
-  public void setSelectedPlace(Place selectedPlace) {
-    this.selectedPlace = selectedPlace;
-  }
-
-  public Map<User, Long> getParticipants() {
-    return participants;
-  }
-
-  public void setParticipants(Map<User, Long> participants) {
-    this.participants = participants;
+  /**
+   * Copies only the fields the form owns. {@code id}, {@code shortCode} and {@code administrator}
+   * are deliberately left alone: a form post never carries them, so copying them would blank the
+   * owner and the share code on every update.
+   */
+  public void updateFrom(Plan changes) {
+    this.name = changes.getName();
+    this.description = changes.getDescription();
+    this.eventDate = changes.getEventDate();
+    this.isPublic = changes.getIsPublic();
   }
 }

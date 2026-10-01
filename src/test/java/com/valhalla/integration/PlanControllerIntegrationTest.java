@@ -81,13 +81,13 @@ public class PlanControllerIntegrationTest {
       .andExpect(status().is3xxRedirection());
 
     Plan plan = planService
-      .getAllPlans()
+      .getPlansByUserEmail("user@test.com")
       .stream()
       .filter(p -> "Plan para detalle".equals(p.getName()))
       .findFirst()
       .orElseThrow();
 
-    this.mockMvc.perform(get("/plans/" + plan.getIdPlan()))
+    this.mockMvc.perform(get("/plans/" + plan.getId()))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/plans/detail"))
       .andExpect(model().attributeExists("plan"));
@@ -106,13 +106,13 @@ public class PlanControllerIntegrationTest {
       .andExpect(status().is3xxRedirection());
 
     Plan plan = planService
-      .getAllPlans()
+      .getPlansByUserEmail("user@test.com")
       .stream()
       .filter(p -> "Plan a borrar".equals(p.getName()))
       .findFirst()
       .orElseThrow();
 
-    Long planId = plan.getIdPlan();
+    Long planId = plan.getId();
 
     this.mockMvc.perform(delete("/plans/" + planId).with(csrf()))
       .andExpect(status().is3xxRedirection())

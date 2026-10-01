@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(basePackages = "com.valhalla.infrastructure")
-@ComponentScan({ "com.valhalla.infrastructure", "com.valhalla.domain.plan" })
+@ComponentScan("com.valhalla.infrastructure")
 public abstract class BaseJpaConfig {
   static {
     // Runs for every subclass (production and test) before any DataSource is built.
@@ -29,11 +29,7 @@ public abstract class BaseJpaConfig {
     LocalContainerEntityManagerFactoryBean entityManagerFactory =
       new LocalContainerEntityManagerFactoryBean();
     entityManagerFactory.setDataSource(dataSource);
-    entityManagerFactory.setPackagesToScan(
-      "com.valhalla.domain",
-      "com.valhalla.domain.place",
-      "com.valhalla.domain.ubicacion"
-    );
+    entityManagerFactory.setPackagesToScan("com.valhalla.domain");
     entityManagerFactory.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
     entityManagerFactory.setJpaProperties(jpaProperties());
     return entityManagerFactory;

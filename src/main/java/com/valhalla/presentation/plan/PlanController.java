@@ -3,88 +3,111 @@ package com.valhalla.presentation.plan;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import jakarta.validation.Valid;
+import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.ModelAndView;
 
 @Controller
-@RequestMapping(PlanController.ROUTE_PLANS)
+@RequestMapping("/plans")
 public class PlanController {
 
-  public static final String ROUTE_PLANS = "/plans";
-  public static final String ROUTE_NEW = "/new";
-  public static final String ROUTE_ID = "/{id}";
-  private static final String MODEL_PLAN = "plan";
   private static final String VIEW_PLANS_LIST = "pages/plans/list";
-  private static final String VIEW_PLANS_CREATE = "pages/plans/new";
-  private static final String VIEW_PLANS_DETAIL = "pages/plans/detail";
-  private static final String REDIRECT_PLANS = "redirect:/plans/";
+  private static final String VIEW_PLAN_FORM = "pages/plans/new";
+  private static final String VIEW_PLAN_DETAIL = "pages/plans/detail";
+  private static final String REDIRECT_PLANS = "redirect:/plans";
+  private static final String REDIRECT_PLAN_DETAIL = "redirect:/plans/";
+  private static final String ATTR_PLANS = "plans";
+  private static final String ATTR_PLAN = "plan";
+  private static final String ATTR_PLAN_ID = "planId";
 
   private final PlanService planService;
 
+  @Autowired
   public PlanController(PlanService planService) {
     this.planService = planService;
   }
 
   @GetMapping
-  public String planList(Model model) {
-    model.addAttribute("plans", planService.getAllPlans());
-    return VIEW_PLANS_LIST;
+  public ModelAndView listPlans(Authentication authentication) {
+    Map<String, Object> model = new ModelMap();
+    model.put(ATTR_PLANS, planService.getPlansByUserEmail(authentication.getName()));
+    return new ModelAndView(VIEW_PLANS_LIST, model);
   }
 
-  @GetMapping(ROUTE_NEW)
-  public String planCreate(Model model) {
-    model.addAttribute(MODEL_PLAN, new Plan());
-    return VIEW_PLANS_CREATE;
+  @GetMapping("/new")
+  public ModelAndView showNewPlanForm() {
+    Map<String, Object> model = new ModelMap();
+    model.put(ATTR_PLAN, new PlanRequest());
+    return new ModelAndView(VIEW_PLAN_FORM, model);
   }
 
-  @GetMapping(ROUTE_ID)
-  public String planDetail(@PathVariable Long id, Model model) {
-    Plan plan = planService
-      .getPlanById(id)
-      .orElseThrow(() -> new IllegalArgumentException("Plan no encontrado: " + id));
-    model.addAttribute(MODEL_PLAN, plan);
-    return VIEW_PLANS_DETAIL;
+  @GetMapping("/{id}")
+  public ModelAndView showPlan(@PathVariable Long id, Authentication authentication) {
+    Map<String, Object> model = new ModelMap();
+    model.put(ATTR_PLAN, planService.getOwnedPlan(id, authentication.getName()));
+    return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }
 
   @PostMapping
-  public String planGenerate(
-    @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
-    BindingResult bindingResult
+  public ModelAndView createPlan(
+    @Valid @ModelAttribute(ATTR_PLAN) PlanRequest planForm,
+    BindingResult bindingResult,
+    Authentication authentication
   ) {
     if (bindingResult.hasErrors()) {
-      return VIEW_PLANS_CREATE;
+      return renderFormWithError(planForm, null);
     }
-
-    planService.createPlan(plan);
-    return REDIRECT_PLANS + plan.getIdPlan();
+    Plan created = planService.createPlan(toPlan(planForm), authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + created.getId());
   }
 
-  @PutMapping(ROUTE_ID)
-  public String planUpdate(
+  @RequestMapping(value = "/{id}", method = { RequestMethod.POST, RequestMethod.PUT })
+  public ModelAndView updatePlan(
     @PathVariable Long id,
-    @Valid @ModelAttribute(MODEL_PLAN) Plan plan,
-    BindingResult bindingResult
+    @Valid @ModelAttribute(ATTR_PLAN) PlanRequest planForm,
+    BindingResult bindingResult,
+    Authentication authentication
   ) {
     if (bindingResult.hasErrors()) {
-      return VIEW_PLANS_DETAIL;
+      return renderFormWithError(planForm, id);
     }
-
-    plan.setIdPlan(id);
-    planService.updatePlan(plan);
-    return REDIRECT_PLANS + id;
+    planService.updatePlan(id, toPlan(planForm), authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }
 
-  @DeleteMapping(ROUTE_ID)
-  public String planDelete(@PathVariable Long id) {
-    planService.deletePlan(id);
-    return "redirect:/plans";
+  @RequestMapping(value = "/{id}", method = { RequestMethod.POST, RequestMethod.DELETE })
+  public ModelAndView deletePlan(@PathVariable Long id, Authentication authentication) {
+    planService.deleteOwnedPlan(id, authentication.getName());
+    return new ModelAndView(REDIRECT_PLANS);
+  }
+
+  /** The form owns these four fields only: id, shortCode and administrator never come from a post. */
+  private Plan toPlan(PlanRequest planForm) {
+    Plan plan = new Plan();
+    plan.setName(planForm.getName());
+    plan.setDescription(planForm.getDescription());
+    plan.setEventDate(planForm.getEventDate());
+    plan.setIsPublic(planForm.getIsPublic());
+    return plan;
+  }
+
+  private ModelAndView renderFormWithError(PlanRequest planForm, Long id) {
+    Map<String, Object> model = new ModelMap();
+    model.put(ATTR_PLAN, planForm);
+    if (id != null) {
+      model.put(ATTR_PLAN_ID, id);
+    }
+    model.put("error", "Invalid plan data");
+    return new ModelAndView(VIEW_PLAN_FORM, model);
   }
 }

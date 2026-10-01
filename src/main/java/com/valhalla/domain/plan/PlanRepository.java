@@ -4,9 +4,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PlanRepository {
-  Plan save(Plan plan);
+  List<Plan> findAll();
   Optional<Plan> findById(Long id);
+  List<Plan> findByAdministratorId(Long administratorId);
   Optional<Plan> findByShortCode(String shortCode);
-  List<Plan> findByUserId(Long userId);
+  boolean existsByShortCode(String shortCode);
+  Plan save(Plan plan);
   void deleteById(Long id);
 }

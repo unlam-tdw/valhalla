@@ -1,5 +1,6 @@
 package com.valhalla.presentation.shared;
 
+import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.exception.UserNotFoundException;
 import com.valhalla.presentation.user.EditUserRequest;
@@ -34,6 +35,13 @@ public class GlobalExceptionHandler {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "User not found");
     return new ModelAndView("redirect:/admin/users", model);
+  }
+
+  @ExceptionHandler(PlanNotFoundException.class)
+  public ModelAndView handlePlanNotFound() {
+    Map<String, Object> model = new ModelMap();
+    model.put(ERROR_KEY, "Plan not found");
+    return new ModelAndView("redirect:/plans", model);
   }
 
   /**

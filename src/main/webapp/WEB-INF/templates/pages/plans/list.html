@@ -151,11 +151,12 @@
             </div>
 
             <div class="plan-actions">
-                <a class="detail-button" th:href="@{/planes/{id}(id=${plan.IdPlan})}">
+                <a class="detail-button" th:href="@{/plans/{id}(id=${plan.id})}">
                     Ver detalle
                 </a>
 
-                <form th:action="@{/planes/delete/{id}(id=${plan.IdPlan})}" method="post" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este plan?');">
+                <form th:action="@{/plans/{id}(id=${plan.id})}" method="post" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este plan?');">
+                    <input type="hidden" name="_method" value="DELETE" />
                     <button type="submit" class="delete-button">Eliminar</button>
                 </form>
             </div>

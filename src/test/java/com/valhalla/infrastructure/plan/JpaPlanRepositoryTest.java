@@ -11,6 +11,7 @@ import com.valhalla.domain.user.User;
 import com.valhalla.infrastructure.user.JpaUserRepository;
 import com.valhalla.integration.JpaIntegrationTest;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.annotation.Rollback;
@@ -31,23 +32,23 @@ public class JpaPlanRepositoryTest {
   public void T_PLN_013_save_guardaYAsignaId() {
     Plan plan = new Plan();
     plan.setName("Viaje a Bariloche");
-    plan.setCodigo("ABC12345");
+    plan.setShortCode("ABC12345");
 
     Plan guardado = this.planRepository.save(plan);
 
-    assertThat(guardado.getIdPlan(), is(notNullValue()));
+    assertThat(guardado.getId(), is(notNullValue()));
   }
 
   @Test
   @Transactional
   @Rollback
-  public void T_PLN_013_findByCodigo_existente() {
+  public void T_PLN_013_findByShortCode_existente() {
     Plan plan = new Plan();
     plan.setName("Viaje a Bariloche");
-    plan.setCodigo("XYZ78901");
+    plan.setShortCode("XYZ78901");
     this.planRepository.save(plan);
 
-    Plan encontrado = this.planRepository.findByCodigo("XYZ78901");
+    Plan encontrado = this.planRepository.findByShortCode("XYZ78901").orElse(null);
 
     assertThat(encontrado, is(notNullValue()));
     assertThat(encontrado.getName(), is(equalTo("Viaje a Bariloche")));
@@ -55,8 +56,8 @@ public class JpaPlanRepositoryTest {
 
   @Test
   @Transactional
-  public void T_PLN_013_findByCodigo_inexistente() {
-    Plan encontrado = this.planRepository.findByCodigo("NOEXISTE");
+  public void T_PLN_013_findByShortCode_inexistente() {
+    Optional<Plan> encontrado = this.planRepository.findByShortCode("NOEXISTE");
 
     assertThat(encontrado, is(nullValue()));
   }
@@ -67,12 +68,12 @@ public class JpaPlanRepositoryTest {
   public void T_PLN_013_delete_borraElPlan() {
     Plan plan = new Plan();
     plan.setName("Plan a borrar");
-    plan.setCodigo("DEL12345");
+    plan.setShortCode("DEL12345");
     Plan guardado = this.planRepository.save(plan);
 
-    this.planRepository.deleteById(guardado.getIdPlan());
+    this.planRepository.deleteById(guardado.getId());
 
-    assertThat(this.planRepository.findById(guardado.getIdPlan()).isPresent(), is(false));
+    assertThat(this.planRepository.findById(guardado.getId()).isPresent(), is(false));
   }
 
   @Test
@@ -89,13 +90,13 @@ public class JpaPlanRepositoryTest {
 
     Plan planDeUser1 = new Plan();
     planDeUser1.setName("Plan de user1");
-    planDeUser1.setCodigo("USR00001");
+    planDeUser1.setShortCode("USR00001");
     planDeUser1.setAdministrator(user1);
     this.planRepository.save(planDeUser1);
 
     Plan planDeUser2 = new Plan();
     planDeUser2.setName("Plan de user2");
-    planDeUser2.setCodigo("USR00002");
+    planDeUser2.setShortCode("USR00002");
     planDeUser2.setAdministrator(user2);
     this.planRepository.save(planDeUser2);
 

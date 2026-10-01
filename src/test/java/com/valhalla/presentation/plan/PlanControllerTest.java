@@ -6,37 +6,47 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.presentation.shared.GlobalExceptionHandler;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.ui.ExtendedModelMap;
-import org.springframework.ui.Model;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.servlet.ModelAndView;
 
 public class PlanControllerTest {
 
+  private static final String OWNER_EMAIL = "user@test.com";
+
   private PlanController controller;
   private PlanService planServiceMock;
-  private Model model;
+  private Authentication authentication;
   private MockMvc mockMvc;
 
   @BeforeEach
   public void init() {
     this.planServiceMock = mock(PlanService.class);
     this.controller = new PlanController(this.planServiceMock);
-    this.model = new ExtendedModelMap();
-    this.mockMvc = MockMvcBuilders.standaloneSetup(this.controller).build();
+    this.authentication = new UsernamePasswordAuthenticationToken(OWNER_EMAIL, null);
+    this.mockMvc =
+      MockMvcBuilders
+        .standaloneSetup(this.controller)
+        .setControllerAdvice(new GlobalExceptionHandler())
+        .build();
   }
 
   @Test
@@ -44,20 +54,20 @@ public class PlanControllerTest {
     Plan plan1 = new Plan();
     Plan plan2 = new Plan();
     List<Plan> planesFalsos = List.of(plan1, plan2);
-    when(this.planServiceMock.getAllPlans()).thenReturn(planesFalsos);
+    when(this.planServiceMock.getPlansByUserEmail(OWNER_EMAIL)).thenReturn(planesFalsos);
 
-    String vista = this.controller.planList(this.model);
+    ModelAndView vista = this.controller.listPlans(this.authentication);
 
-    assertThat(vista, is(equalTo("pages/plans/list")));
-    assertThat(this.model.getAttribute("plans"), is(equalTo(planesFalsos)));
+    assertThat(vista.getViewName(), is(equalTo("pages/plans/list")));
+    assertThat(vista.getModel().get("plans"), is(equalTo(planesFalsos)));
   }
 
   @Test
   public void T_PLN_002_planCreate_retornaFormulario() {
-    String vista = this.controller.planCreate(this.model);
+    ModelAndView vista = this.controller.showNewPlanForm();
 
-    assertThat(vista, is(equalTo("pages/plans/new")));
-    assertThat(this.model.getAttribute("plan"), is(instanceOf(Plan.class)));
+    assertThat(vista.getViewName(), is(equalTo("pages/plans/new")));
+    assertThat(vista.getModel().get("plan"), is(instanceOf(PlanRequest.class)));
   }
 
   @Test
@@ -66,60 +76,60 @@ public class PlanControllerTest {
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrlPattern("/plans/*"));
 
-    verify(this.planServiceMock, times(1)).createPlan(any(Plan.class));
+    verify(this.planServiceMock, times(1)).createPlan(any(Plan.class), anyString());
   }
 
   @Test
   public void T_PLN_004_planDetail_idValido_muestraDetalle() {
     Plan plan = new Plan();
     plan.setName("Viaje a Bariloche");
-    when(this.planServiceMock.getPlanById(1L)).thenReturn(Optional.of(plan));
+    when(this.planServiceMock.getOwnedPlan(1L, OWNER_EMAIL)).thenReturn(plan);
 
-    String vista = this.controller.planDetail(1L, this.model);
+    ModelAndView vista = this.controller.showPlan(1L, this.authentication);
 
-    assertThat(vista, is(equalTo("pages/plans/detail")));
-    assertThat(this.model.getAttribute("plan"), is(equalTo(plan)));
+    assertThat(vista.getViewName(), is(equalTo("pages/plans/detail")));
+    assertThat(vista.getModel().get("plan"), is(equalTo(plan)));
   }
 
   @Test
   public void T_PLN_004_planDetail_idInvalido_noEncontrado() {
-    when(this.planServiceMock.getPlanById(999L)).thenReturn(Optional.empty());
+    when(this.planServiceMock.getOwnedPlan(999L, OWNER_EMAIL))
+      .thenThrow(new PlanNotFoundException());
 
     assertThrows(
-      IllegalArgumentException.class,
-      () -> this.controller.planDetail(999L, this.model)
+      PlanNotFoundException.class,
+      () -> this.controller.showPlan(999L, this.authentication)
     );
   }
 
   @Test
   public void T_PLN_005_planDelete_borraYRedirige() {
-    String vista = this.controller.planDelete(1L);
+    ModelAndView vista = this.controller.deletePlan(1L, this.authentication);
 
-    verify(this.planServiceMock, times(1)).deletePlan(1L);
-    assertThat(vista, is(equalTo("redirect:/plans")));
+    verify(this.planServiceMock, times(1)).deleteOwnedPlan(anyLong(), anyString());
+    assertThat(vista.getViewName(), is(equalTo("redirect:/plans")));
   }
 
   @Test
   public void T_PLN_006_planUpdate_actualizaYRedirige() {
-    Plan plan = new Plan();
-    BindingResult errores = new BeanPropertyBindingResult(plan, "plan");
+    PlanRequest form = new PlanRequest();
+    BindingResult errores = new BeanPropertyBindingResult(form, "plan");
 
-    String vista = this.controller.planUpdate(1L, plan, errores);
+    ModelAndView vista = this.controller.updatePlan(1L, form, errores, this.authentication);
 
-    verify(this.planServiceMock, times(1)).updatePlan(plan);
-    assertThat(plan.getIdPlan(), is(equalTo(1L)));
-    assertThat(vista, is(equalTo("redirect:/plans/1")));
+    verify(this.planServiceMock, times(1)).updatePlan(anyLong(), any(Plan.class), anyString());
+    assertThat(vista.getViewName(), is(equalTo("redirect:/plans/1")));
   }
 
   @Test
-  public void T_PLN_006_planUpdate_conErrores_muestraDetalle() {
-    Plan plan = new Plan();
-    BindingResult errores = new BeanPropertyBindingResult(plan, "plan");
+  public void T_PLN_006_planUpdate_conErrores_muestraForm() {
+    PlanRequest form = new PlanRequest();
+    BindingResult errores = new BeanPropertyBindingResult(form, "plan");
     errores.reject("invalido");
 
-    String vista = this.controller.planUpdate(1L, plan, errores);
+    ModelAndView vista = this.controller.updatePlan(1L, form, errores, this.authentication);
 
-    verify(this.planServiceMock, never()).updatePlan(any(Plan.class));
-    assertThat(vista, is(equalTo("pages/plans/detail")));
+    verify(this.planServiceMock, never()).updatePlan(anyLong(), any(Plan.class), anyString());
+    assertThat(vista.getViewName(), is(equalTo("pages/plans/new")));
   }
 }
