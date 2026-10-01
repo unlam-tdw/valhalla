@@ -4,27 +4,51 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
+import com.valhalla.domain.exception.UserNotFoundException;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Unit tests of {@link PlanServiceImpl} against mocked ports.
+ *
+ * <p><b>Anti-vacuity rule.</b> Every test asserts the interaction with the repository, not just the
+ * returned value. The test this file replaces passed because Mockito answered {@code
+ * Optional.empty()} by default, so the line it claimed to cover never ran. Each negative case here
+ * additionally proves the effect: a {@code never()} on the destructive call, or the entity left
+ * untouched.
+ */
 public class PlanServiceImplTest {
 
-  private static final String OWNER_EMAIL = "user@test.com";
+  private static final String OWNER_EMAIL = "dueno@test.com";
+  private static final String OTHER_EMAIL = "otro@test.com";
+  private static final String UNKNOWN_EMAIL = "nadie@test.com";
+  private static final Long OWNER_ID = 7L;
+  private static final Long PLAN_ID = 42L;
+
+  /** The backend generates an 8 character uppercase alphanumeric code out of a UUID. */
+  private static final String SHORT_CODE_PATTERN = "[A-Z0-9]{8}";
 
   private PlanServiceImpl planService;
   private PlanRepository planRepositoryMock;
@@ -37,88 +61,297 @@ public class PlanServiceImplTest {
     this.planService = new PlanServiceImpl(this.planRepositoryMock, this.userRepositoryMock);
   }
 
+  // --- createPlan ---
+
   @Test
-  public void T_PLN_006_createPlan_generaShortCode() {
-    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner()));
+  public void T_PLN_020_createPlan_asignaElDuenoResueltoYGardaElPlan() {
+    // given
+    User owner = owner(OWNER_ID, OWNER_EMAIL);
     Plan plan = new Plan();
     plan.setName("Viaje a Bariloche");
-    when(this.planRepositoryMock.save(any(Plan.class))).thenReturn(plan);
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner));
+    when(this.planRepositoryMock.save(plan)).thenReturn(plan);
 
-    this.planService.createPlan(plan, OWNER_EMAIL);
+    // when
+    Plan created = this.planService.createPlan(plan, OWNER_EMAIL);
 
+    // then
+    assertThat(created, is(sameInstance(plan)));
+    assertThat(plan.getAdministrator(), is(sameInstance(owner)));
     assertThat(plan.getShortCode(), is(notNullValue()));
-    assertThat(plan.getShortCode().length(), is(equalTo(8)));
+    assertThat(plan.getShortCode(), matchesPattern(SHORT_CODE_PATTERN));
+    verify(this.planRepositoryMock, times(1)).existsByShortCode(plan.getShortCode());
     verify(this.planRepositoryMock, times(1)).save(plan);
   }
 
   @Test
-  public void T_PLN_006_createPlan_respetaShortCodeExistente() {
-    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner()));
+  public void T_PLN_021_createPlan_ignoraElShortCodeQueMandaElForm() {
+    // given
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
     Plan plan = new Plan();
-    plan.setShortCode("MIOWN123");
-    when(this.planRepositoryMock.save(any(Plan.class))).thenReturn(plan);
+    plan.setName("Viaje a Bariloche");
+    plan.setShortCode("HACKED01");
+    when(this.planRepositoryMock.save(plan)).thenReturn(plan);
 
+    // when
     this.planService.createPlan(plan, OWNER_EMAIL);
 
-    assertThat(plan.getShortCode(), is(notNullValue()));
+    // then: the incoming code never reaches the repository, not even as a lookup
+    assertThat(plan.getShortCode(), is(not(equalTo("HACKED01"))));
+    assertThat(plan.getShortCode(), matchesPattern(SHORT_CODE_PATTERN));
+    verify(this.planRepositoryMock, never()).findByShortCode(anyString());
+    verify(this.planRepositoryMock, times(1)).save(plan);
   }
 
   @Test
-  public void T_PLN_007_getPlansByUserEmail_devuelveLista() {
-    List<Plan> resultado = this.planService.getPlansByUserEmail(OWNER_EMAIL);
+  public void T_PLN_022_createPlan_reintentaHastaQueElShortCodeEsteLibre() {
+    // given: the first three candidates are taken, the fourth is free
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.existsByShortCode(anyString()))
+      .thenReturn(true, true, true, false);
+    Plan plan = new Plan();
+    plan.setName("Viaje a Bariloche");
+    when(this.planRepositoryMock.save(plan)).thenReturn(plan);
 
-    assertThat(resultado, is(empty()));
+    // when
+    this.planService.createPlan(plan, OWNER_EMAIL);
+
+    // then
+    assertThat(plan.getShortCode(), matchesPattern(SHORT_CODE_PATTERN));
+    verify(this.planRepositoryMock, times(4)).existsByShortCode(anyString());
+    verify(this.planRepositoryMock, times(1)).save(plan);
   }
 
   @Test
-  public void T_PLN_007_getOwnedPlan_existente() {
-    Plan plan = ownedPlan();
-    when(this.planRepositoryMock.findById(1L)).thenReturn(Optional.of(plan));
+  public void T_PLN_023_createPlan_agotaLosDiezIntentosYNoGuardaNada() {
+    // given
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(true);
 
-    Plan resultado = this.planService.getOwnedPlan(1L, OWNER_EMAIL);
-
-    assertThat(resultado, is(equalTo(plan)));
+    // when and then
+    assertThrows(
+      IllegalStateException.class,
+      () -> this.planService.createPlan(new Plan(), OWNER_EMAIL)
+    );
+    verify(this.planRepositoryMock, times(10)).existsByShortCode(anyString());
+    verify(this.planRepositoryMock, never()).save(any(Plan.class));
   }
 
   @Test
-  public void T_PLN_007_getOwnedPlan_inexistente() {
-    when(this.planRepositoryMock.findById(999L)).thenReturn(Optional.empty());
+  public void T_PLN_024_createPlan_fallaSiElDuenoNoExisteYTocandoPlanes() {
+    // given
+    when(this.userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.empty());
 
+    // when and then
+    assertThrows(
+      UserNotFoundException.class,
+      () -> this.planService.createPlan(new Plan(), UNKNOWN_EMAIL)
+    );
+    verifyNoInteractions(this.planRepositoryMock);
+  }
+
+  // --- getPlansByUserEmail ---
+
+  @Test
+  public void T_PLN_025_getPlansByUserEmail_buscaPorElIdDelDuenoResuelto() {
+    // given
+    User owner = owner(OWNER_ID, OWNER_EMAIL);
+    List<Plan> planes = List.of(ownedPlan(PLAN_ID, owner), ownedPlan(PLAN_ID + 1, owner));
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner));
+    when(this.planRepositoryMock.findByAdministratorId(OWNER_ID)).thenReturn(planes);
+
+    // when
+    List<Plan> result = this.planService.getPlansByUserEmail(OWNER_EMAIL);
+
+    // then
+    assertThat(result, is(equalTo(planes)));
+    verify(this.userRepositoryMock, times(1)).findByEmail(OWNER_EMAIL);
+    verify(this.planRepositoryMock, times(1)).findByAdministratorId(OWNER_ID);
+  }
+
+  @Test
+  public void T_PLN_026_getPlansByUserEmail_devuelveListaVaciaSiElDuenoNoExiste() {
+    // given
+    when(this.userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.empty());
+
+    // when
+    List<Plan> result = this.planService.getPlansByUserEmail(UNKNOWN_EMAIL);
+
+    // then
+    assertThat(result, is(empty()));
+    verify(this.planRepositoryMock, never()).findByAdministratorId(any());
+  }
+
+  // --- getOwnedPlan ---
+
+  @Test
+  public void T_PLN_027_getOwnedPlan_devuelveElPlanPropio() {
+    // given
+    User owner = owner(OWNER_ID, OWNER_EMAIL);
+    Plan plan = ownedPlan(PLAN_ID, owner);
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
+
+    // when
+    Plan result = this.planService.getOwnedPlan(PLAN_ID, OWNER_EMAIL);
+
+    // then
+    assertThat(result, is(sameInstance(plan)));
+    verify(this.planRepositoryMock, times(1)).findById(PLAN_ID);
+  }
+
+  @Test
+  public void T_PLN_028_getOwnedPlan_fallaSiElPlanNoExiste() {
+    // given
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.empty());
+
+    // when and then
     assertThrows(
       PlanNotFoundException.class,
-      () -> this.planService.getOwnedPlan(999L, OWNER_EMAIL)
+      () -> this.planService.getOwnedPlan(PLAN_ID, OWNER_EMAIL)
     );
+    assertNothingWasMutated();
   }
 
   @Test
-  public void T_PLN_008_updatePlan_guarda() {
-    Plan plan = ownedPlan();
-    when(this.planRepositoryMock.findById(1L)).thenReturn(Optional.of(plan));
+  public void T_PLN_029_getOwnedPlan_fallaIgualSiElPlanEsDeOtroUsuario() {
+    // given
+    Plan planOfSomebodyElse = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    planOfSomebodyElse.setName("Plan ajeno");
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(planOfSomebodyElse));
 
-    this.planService.updatePlan(1L, new Plan(), OWNER_EMAIL);
-
-    verify(this.planRepositoryMock, times(1)).save(plan);
+    // when and then
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> this.planService.getOwnedPlan(PLAN_ID, OWNER_EMAIL)
+    );
+    // the exception must not leak whether the id exists: same type as the missing-plan case
+    assertThat(planOfSomebodyElse.getName(), is(equalTo("Plan ajeno")));
+    assertNothingWasMutated();
   }
 
   @Test
-  public void T_PLN_008_deleteOwnedPlan_borraPorId() {
-    when(this.planRepositoryMock.findById(1L)).thenReturn(Optional.of(ownedPlan()));
+  public void T_PLN_030_getOwnedPlan_fallaSiElPlanNoTieneDueno() {
+    // given
+    Plan orphan = new Plan();
+    orphan.setId(PLAN_ID);
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(orphan));
 
-    this.planService.deleteOwnedPlan(1L, OWNER_EMAIL);
-
-    verify(this.planRepositoryMock, times(1)).deleteById(1L);
+    // when and then
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> this.planService.getOwnedPlan(PLAN_ID, OWNER_EMAIL)
+    );
+    assertNothingWasMutated();
   }
 
-  private User owner() {
+  // --- updatePlan ---
+
+  @Test
+  public void T_PLN_031_updatePlan_cambiaSoloLosCuatroCamposQueMandaElForm() {
+    // given
+    User owner = owner(OWNER_ID, OWNER_EMAIL);
+    Plan existing = ownedPlan(PLAN_ID, owner);
+    existing.setName("Nombre viejo");
+    existing.setDescription("Descripcion vieja");
+    existing.setEventDate(LocalDate.of(2026, 1, 1));
+    existing.setIsPublic(false);
+    existing.setShortCode("ABCD1234");
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(existing));
+    when(this.planRepositoryMock.save(existing)).thenReturn(existing);
+
+    Plan changes = new Plan();
+    changes.setName("Nombre nuevo");
+    changes.setDescription("Descripcion nueva");
+    changes.setEventDate(LocalDate.of(2026, 12, 31));
+    changes.setIsPublic(true);
+    // A hostile post would carry these; the form never does and they must not be copied.
+    changes.setShortCode("IGNORADO");
+    changes.setAdministrator(owner(OWNER_ID + 1, OTHER_EMAIL));
+
+    // when
+    Plan updated = this.planService.updatePlan(PLAN_ID, changes, OWNER_EMAIL);
+
+    // then
+    assertThat(updated, is(sameInstance(existing)));
+    assertThat(updated.getName(), is(equalTo("Nombre nuevo")));
+    assertThat(updated.getDescription(), is(equalTo("Descripcion nueva")));
+    assertThat(updated.getEventDate(), is(equalTo(LocalDate.of(2026, 12, 31))));
+    assertThat(updated.getIsPublic(), is(true));
+    assertThat(updated.getShortCode(), is(equalTo("ABCD1234")));
+    assertThat(updated.getAdministrator(), is(sameInstance(owner)));
+    assertThat(updated.getId(), is(equalTo(PLAN_ID)));
+    verify(this.planRepositoryMock, times(1)).save(existing);
+  }
+
+  @Test
+  public void T_PLN_032_updatePlan_fallaSiNoEsElDuenoYNoGuardaNiTocaElPlan() {
+    // given
+    Plan planOfSomebodyElse = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    planOfSomebodyElse.setName("Intocable");
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(planOfSomebodyElse));
+
+    // when and then
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> this.planService.updatePlan(PLAN_ID, new Plan(), OWNER_EMAIL)
+    );
+    assertThat(planOfSomebodyElse.getName(), is(equalTo("Intocable")));
+    verify(this.planRepositoryMock, never()).save(any(Plan.class));
+  }
+
+  // --- deleteOwnedPlan ---
+
+  @Test
+  public void T_PLN_033_deleteOwnedPlan_borraElPlanDelDueno() {
+    // given
+    when(this.planRepositoryMock.findById(PLAN_ID))
+      .thenReturn(Optional.of(ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL))));
+
+    // when
+    this.planService.deleteOwnedPlan(PLAN_ID, OWNER_EMAIL);
+
+    // then
+    verify(this.planRepositoryMock, times(1)).deleteById(PLAN_ID);
+  }
+
+  @Test
+  public void T_PLN_034_deleteOwnedPlan_noBorraSiElPlanEsDeOtroUsuario() {
+    // given
+    when(this.planRepositoryMock.findById(PLAN_ID))
+      .thenReturn(Optional.of(ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL))));
+
+    // when and then
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> this.planService.deleteOwnedPlan(PLAN_ID, OWNER_EMAIL)
+    );
+    verify(this.planRepositoryMock, never()).deleteById(any());
+    verify(this.planRepositoryMock, never()).save(any(Plan.class));
+  }
+
+  // --- fixtures ---
+
+  /** Effect check shared by every read-path rejection: nothing was written or deleted. */
+  private void assertNothingWasMutated() {
+    verify(this.planRepositoryMock, never()).save(any(Plan.class));
+    verify(this.planRepositoryMock, never()).deleteById(any());
+  }
+
+  private User owner(Long id, String email) {
     User user = new User();
-    user.setEmail(OWNER_EMAIL);
+    user.setId(id);
+    user.setEmail(email);
     return user;
   }
 
-  private Plan ownedPlan() {
+  private Plan ownedPlan(Long id, User administrator) {
     Plan plan = new Plan();
-    plan.setId(1L);
-    plan.setAdministrator(owner());
+    plan.setId(id);
+    plan.setName("Viaje a Bariloche");
+    plan.setAdministrator(administrator);
     return plan;
   }
 }

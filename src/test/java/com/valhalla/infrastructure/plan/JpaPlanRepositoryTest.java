@@ -4,7 +4,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.user.User;
@@ -57,9 +56,11 @@ public class JpaPlanRepositoryTest {
   @Test
   @Transactional
   public void T_PLN_013_findByShortCode_inexistente() {
+    // An unknown code answers Optional.empty(), not null: the earlier assertion compared the
+    // Optional against nullValue() and failed on every run.
     Optional<Plan> encontrado = this.planRepository.findByShortCode("NOEXISTE");
 
-    assertThat(encontrado, is(nullValue()));
+    assertThat(encontrado.isPresent(), is(false));
   }
 
   @Test

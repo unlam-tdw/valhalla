@@ -1,8 +1,13 @@
 package com.valhalla.integration;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -12,112 +17,342 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import com.valhalla.domain.plan.Plan;
-import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.user.User;
+import com.valhalla.domain.user.UserRepository;
+import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.filter.HiddenHttpMethodFilter;
 
+/**
+ * End-to-end HTTP coverage of the plan contract against HSQLDB: ownership by user, the generated
+ * share code, the {@code _method} verbs and the {@code PlanNotFoundException} redirect.
+ *
+ * <p>Every negative case asserts the effect — the repository state before and after — not only the
+ * redirect, so a handler that swallowed the rejection would still fail here.
+ */
 @WebIntegrationTest
 @Transactional
 public class PlanControllerIntegrationTest {
+
+  private static final String OWNER_EMAIL = "dueno@test.com";
+  private static final String OTHER_EMAIL = "ajeno@test.com";
+  private static final String PLAN_NAME = "Plan de integración";
+  private static final String OTHER_PLAN_NAME = "Plan del otro usuario";
+
+  /**
+   * Where {@code GlobalExceptionHandler} sends a {@code PlanNotFoundException}: the plans listing,
+   * never {@code pages/error}, and never a different plan's detail page. The message travels as a
+   * query parameter because a {@code redirect:} {@code ModelAndView} carries its model into the
+   * target URL — the same shape the {@code UserNotFoundException} handler already produces.
+   */
+  private static final String NOT_FOUND_REDIRECT = "/plans?error=Plan+not+found";
 
   @Autowired
   private WebApplicationContext wac;
 
   @Autowired
-  private PlanService planService;
+  private UserRepository userRepository;
+
+  @Autowired
+  private PlanRepository planRepository;
 
   private MockMvc mockMvc;
 
+  private Long ownerId;
+  private Long otherId;
+
   @BeforeEach
   public void setUp() {
-    this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).apply(springSecurity()).build();
+    this.mockMvc =
+      MockMvcBuilders
+        .webAppContextSetup(this.wac)
+        .apply(springSecurity())
+        .addFilter(new HiddenHttpMethodFilter())
+        .build();
+    this.ownerId = givenUser(OWNER_EMAIL);
+    this.otherId = givenUser(OTHER_EMAIL);
+  }
+
+  // --- listado ---
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_070_getPlans_muestraLosPlanesDelDueno() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(get("/plans"))
+        .andExpect(status().isOk())
+        .andExpect(view().name("pages/plans/list"))
+        .andExpect(model().attributeExists("plans"))
+        .andReturn();
+
+    // then
+    List<?> plans = plansOf(result);
+    assertThat(plans, hasSize(1));
+    assertThat(((Plan) plans.get(0)).getId(), is(equalTo(planId)));
   }
 
   @Test
-  @WithMockUser(username = "user@test.com")
-  public void T_PLN_009_getPlanes_muestraLista() throws Exception {
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_071_getPlans_noMuestraLosPlanesDeOtroUsuario() throws Exception {
+    // given: the plan belongs to somebody else, so it must not reach this user's listing
+    givenPlanFor(this.otherId, OTHER_PLAN_NAME);
+
+    // when
+    MvcResult result = this.mockMvc.perform(get("/plans")).andExpect(status().isOk()).andReturn();
+
+    // then
+    assertThat(plansOf(result), is(empty()));
+  }
+
+  @Test
+  public void T_PLN_072_getPlansSinSesionRedirige() throws Exception {
     this.mockMvc.perform(get("/plans"))
-      .andExpect(status().isOk())
-      .andExpect(view().name("pages/plans/list"))
-      .andExpect(model().attributeExists("plans"));
-  }
-
-  @Test
-  @WithMockUser(username = "user@test.com")
-  public void T_PLN_009_getPlanesCrear_muestraFormulario() throws Exception {
-    this.mockMvc.perform(get("/plans/new"))
-      .andExpect(status().isOk())
-      .andExpect(view().name("pages/plans/new"))
-      .andExpect(model().attributeExists("plan"));
-  }
-
-  @Test
-  @WithMockUser(username = "user@test.com")
-  public void T_PLN_010_postPlanesCrear_creaYRedirige() throws Exception {
-    this.mockMvc.perform(post("/plans").with(csrf()).param("name", "Viaje de integración"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrlPattern("/plans/*"));
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  // --- POST /plans ---
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_073_postPlans_asignaElDuenoYGeneraElShortCode() throws Exception {
+    // when
+    MvcResult result =
+      this.mockMvc.perform(
+          post("/plans").with(csrf()).param("name", PLAN_NAME).param("eventDate", "2026-12-31")
+        )
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+
+    // then
+    String location = result.getResponse().getRedirectedUrl();
+    assertThat(location, matchesPattern("^/plans/\\d+$"));
+
+    Plan saved = this.planRepository.findById(planIdOf(location)).orElseThrow();
+    assertThat(saved.getName(), is(equalTo(PLAN_NAME)));
+    assertThat(saved.getEventDate(), is(equalTo(LocalDate.of(2026, 12, 31))));
+    assertThat(saved.getAdministrator().getId(), is(equalTo(this.ownerId)));
+    assertThat(saved.getAdministrator().getEmail(), is(equalTo(OWNER_EMAIL)));
+    assertThat(saved.getShortCode(), matchesPattern("[A-Z0-9]{8}"));
+    // An unchecked checkbox posts nothing, so visibility defaults to private (AC-04)
+    assertThat(saved.getIsPublic(), is(false));
   }
 
   @Test
-  @WithMockUser(username = "user@test.com")
-  public void T_PLN_010_postPlanesCrear_nombreVacio_muestraError() throws Exception {
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_074_postPlans_guardaIsPublicCuandoVieneMarcado() throws Exception {
+    // when
+    MvcResult result =
+      this.mockMvc.perform(
+          post("/plans").with(csrf()).param("name", PLAN_NAME).param("isPublic", "true")
+        )
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+
+    // then
+    Plan saved =
+      this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
+    assertThat(saved.getIsPublic(), is(true));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_075_postPlans_conNombreVacioVuelveAlFormYNoCreaNada() throws Exception {
+    // when
     this.mockMvc.perform(post("/plans").with(csrf()).param("name", ""))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/plans/new"))
       .andExpect(model().attributeHasFieldErrors("plan", "name"));
+
+    // then
+    assertThat(this.planRepository.findAll(), is(empty()));
   }
 
+  // --- GET /plans/{id} ---
+
   @Test
-  @WithMockUser(username = "user@test.com")
-  public void T_PLN_011_getPlanesId_muestraDetalle() throws Exception {
-    this.mockMvc.perform(post("/plans").with(csrf()).param("name", "Plan para detalle"))
-      .andExpect(status().is3xxRedirection());
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_076_getPlansId_cargaElPlanPropio() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
 
-    Plan plan = planService
-      .getPlansByUserEmail("user@test.com")
-      .stream()
-      .filter(p -> "Plan para detalle".equals(p.getName()))
-      .findFirst()
-      .orElseThrow();
-
-    this.mockMvc.perform(get("/plans/" + plan.getId()))
+    // when
+    this.mockMvc.perform(get("/plans/" + planId))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/plans/detail"))
       .andExpect(model().attributeExists("plan"));
   }
 
   @Test
-  @WithMockUser(username = "user@test.com")
-  public void T_PLN_011_getPlanesId_idInexistente() throws Exception {
-    this.mockMvc.perform(get("/plans/999999")).andExpect(view().name("pages/error"));
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_077_getPlansId_inexistenteRedirigeAlListado() throws Exception {
+    this.mockMvc.perform(get("/plans/999999"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
   }
 
   @Test
-  @WithMockUser(username = "user@test.com")
-  public void T_PLN_012_postPlanesDelete_borraYRedirige() throws Exception {
-    this.mockMvc.perform(post("/plans").with(csrf()).param("name", "Plan a borrar"))
-      .andExpect(status().is3xxRedirection());
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_078_getPlansId_deOtroUsuarioRedirigeYNoLoBorra() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.otherId, OTHER_PLAN_NAME);
 
-    Plan plan = planService
-      .getPlansByUserEmail("user@test.com")
-      .stream()
-      .filter(p -> "Plan a borrar".equals(p.getName()))
-      .findFirst()
-      .orElseThrow();
+    // when
+    this.mockMvc.perform(get("/plans/" + planId))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
 
-    Long planId = plan.getId();
+    // then: the redirect must not have been a delete in disguise
+    assertThat(this.planRepository.findById(planId).isPresent(), is(true));
+  }
 
-    this.mockMvc.perform(delete("/plans/" + planId).with(csrf()))
+  // --- PUT /plans/{id} ---
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_079_postPlansId_putConservaShortCodeYAdministrator() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    String shortCode = this.planRepository.findById(planId).orElseThrow().getShortCode();
+
+    // when
+    this.mockMvc.perform(
+        post("/plans/" + planId)
+          .with(csrf())
+          .param("_method", "PUT")
+          .param("name", "Plan renombrado")
+          .param("description", "Descripcion nueva")
+          .param("eventDate", "2026-06-15")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/plans/" + planId));
+
+    // then
+    Plan updated = this.planRepository.findById(planId).orElseThrow();
+    assertThat(updated.getName(), is(equalTo("Plan renombrado")));
+    assertThat(updated.getDescription(), is(equalTo("Descripcion nueva")));
+    assertThat(updated.getEventDate(), is(equalTo(LocalDate.of(2026, 6, 15))));
+    assertThat(updated.getShortCode(), is(equalTo(shortCode)));
+    assertThat(updated.getAdministrator().getId(), is(equalTo(this.ownerId)));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_080_postPlansId_putConErroresVuelveAlFormYNoModifica() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+
+    // when
+    this.mockMvc.perform(
+        post("/plans/" + planId).with(csrf()).param("_method", "PUT").param("name", "")
+      )
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/plans/new"))
+      .andExpect(model().attribute("planId", planId))
+      .andExpect(model().attributeHasFieldErrors("plan", "name"));
+
+    // then
+    assertThat(
+      this.planRepository.findById(planId).orElseThrow().getName(),
+      is(equalTo(PLAN_NAME))
+    );
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_081_postPlansId_putDeOtroUsuarioNoModificaNada() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.otherId, OTHER_PLAN_NAME);
+    String shortCode = this.planRepository.findById(planId).orElseThrow().getShortCode();
+
+    // when
+    this.mockMvc.perform(
+        post("/plans/" + planId).with(csrf()).param("_method", "PUT").param("name", "Hackeado")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    // then
+    Plan untouched = this.planRepository.findById(planId).orElseThrow();
+    assertThat(untouched.getName(), is(equalTo(OTHER_PLAN_NAME)));
+    assertThat(untouched.getShortCode(), is(equalTo(shortCode)));
+    assertThat(untouched.getAdministrator().getId(), is(equalTo(this.otherId)));
+  }
+
+  // --- DELETE /plans/{id} ---
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_082_postPlansId_methodDeleteBorraYRedirige() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    givenPlanFor(this.ownerId, OTHER_PLAN_NAME);
+
+    // when
+    this.mockMvc.perform(post("/plans/" + planId).with(csrf()).param("_method", "DELETE"))
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/plans"));
 
-    this.mockMvc.perform(get("/plans/" + planId)).andExpect(view().name("pages/error"));
+    // then
+    assertThat(this.planRepository.findById(planId).isPresent(), is(false));
+    assertThat(this.planRepository.findAll(), hasSize(1));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_083_postPlansId_deleteDeOtroUsuarioNoBorraNada() throws Exception {
+    // given
+    Long planId = givenPlanFor(this.otherId, OTHER_PLAN_NAME);
+
+    // when
+    this.mockMvc.perform(post("/plans/" + planId).with(csrf()).param("_method", "DELETE"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    // then
+    assertThat(this.planRepository.findById(planId).isPresent(), is(true));
+  }
+
+  // --- fixtures ---
+
+  private Long givenUser(String email) {
+    User user = new User();
+    user.setEmail(email);
+    user.setPassword("password123");
+    user.setRole("USER");
+    user.setFirstName("Test");
+    user.setLastName("User");
+    user.activate();
+    this.userRepository.save(user);
+    return this.userRepository.findByEmail(email).orElseThrow().getId();
+  }
+
+  private Long givenPlanFor(Long administratorId, String name) {
+    Plan plan = new Plan();
+    plan.setName(name);
+    plan.setAdministrator(this.userRepository.findById(administratorId).orElseThrow());
+    return this.planRepository.save(plan).getId();
+  }
+
+  private static List<?> plansOf(MvcResult result) {
+    return (List<?>) result.getModelAndView().getModel().get("plans");
+  }
+
+  private static Long planIdOf(String redirectUrl) {
+    return Long.valueOf(redirectUrl.substring("/plans/".length()));
   }
 }

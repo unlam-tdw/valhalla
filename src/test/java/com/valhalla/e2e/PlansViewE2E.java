@@ -2,74 +2,75 @@ package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.is;
 
-import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Playwright;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import com.valhalla.e2e.views.PlansPage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class PlansViewE2E {
+/**
+ * Browser coverage of the plan CRUD.
+ *
+ * <p>E2eBase wipes the database before every test, so the seeded admin is the only account that
+ * exists and it owns everything it creates. The session comes from {@link E2eBase#signInAsAdmin()}
+ * instead of hardcoded URLs: {@code /plans} is behind Spring Security, and the old suite navigated
+ * to it straight from {@code about:blank} and then asserted on whatever page it got.
+ */
+public class PlansViewE2E extends E2eBase {
 
-  static Playwright playwright;
-  static Browser browser;
-  BrowserContext context;
-  Page page;
+  private static final String PLAN_NAME = "Viaje E2E de prueba";
 
-  @BeforeAll
-  static void openBrowser() {
-    playwright = Playwright.create();
-    browser = playwright.chromium().launch();
-  }
-
-  @AfterAll
-  static void closeBrowser() {
-    playwright.close();
-  }
+  private PlansPage plans;
 
   @BeforeEach
-  void createContextAndLogin() {
-    ResetDatabase.cleanDatabase();
-
-    context = browser.newContext();
-    page = context.newPage();
-
-    page.navigate("http://localhost:8080/admin/login");
-    page.fill("input[name=email]", "test@unlam.edu.ar");
-    page.fill("input[name=password]", "password");
-    page.click("button[type=submit]");
-    page.waitForURL("**/admin/home");
-  }
-
-  @AfterEach
-  void closeContext() {
-    context.close();
+  void signInAndOpenPlans() {
+    signInAsAdmin();
+    this.plans = new PlansPage(page);
   }
 
   @Test
-  void T_PLN_014_crearPlan_verEnListaYEnDetalle() {
-    page.navigate("http://localhost:8080/plans/new");
+  void T_PLN_014_crearPlan_loMuestraEnElListadoYEnElDetalle() {
+    givenAPlanExists();
 
-    page.fill("input[name=name]", "Viaje E2E de prueba");
-    page.click("button[type=submit]");
+    this.plans.navigateToPlans();
+    this.plans.waitForPath("/plans");
+    assertThat(this.plans.getPlanCount(), is(1));
+    assertThat(this.plans.hasPlanNamed(PLAN_NAME), is(true));
 
-    page.waitForURL("**/plans");
-    assertThat(page.content(), containsString("Viaje E2E de prueba"));
+    this.plans.clickDetailOnRow(PLAN_NAME);
+    this.plans.waitForDetailPath();
+    assertThat(this.plans.getDetailHeading(), containsString(PLAN_NAME));
+  }
 
-    page.click("a.detail-button");
-    assertThat(page.content(), containsString("Viaje E2E de prueba"));
+  @Test
+  void T_PLN_015_borrarDesdeLaListado_haceDesaparecerElPlan() {
+    givenAPlanExists();
 
-    page.navigate("http://localhost:8080/plans");
+    this.plans.navigateToPlans();
+    this.plans.waitForPath("/plans");
+    assertThat(
+      "the delete button is only meaningful with a row to delete",
+      this.plans.getPlanCount(),
+      is(1)
+    );
 
-    page.onDialog(dialog -> dialog.accept());
-    page.click("button.delete-button");
+    this.plans.deletePlanNamed(PLAN_NAME);
+    this.plans.waitForPath("/plans");
 
-    page.waitForURL("**/plans");
-    assertThat(page.content(), not(containsString("Viaje E2E de prueba")));
+    // Counting rows instead of grepping the markup: the plan name is also in the delete form's
+    // action URL, so the old "the page does not contain the name" assertion passed even when the
+    // row was still on screen.
+    assertThat(this.plans.getPlanCount(), is(0));
+    assertThat(this.plans.hasPlanNamed(PLAN_NAME), is(false));
+  }
+
+  private void givenAPlanExists() {
+    this.plans.navigateToNewPlan();
+    this.plans.waitForPath("/plans/new");
+    this.plans.typeName(PLAN_NAME);
+    this.plans.typeDescription("Un viaje de prueba");
+    this.plans.typeEventDate("2026-12-31");
+    this.plans.clickCreate();
+    this.plans.waitForDetailPath();
   }
 }
