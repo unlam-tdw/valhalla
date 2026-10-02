@@ -8,7 +8,10 @@ public class LoginPage extends WebPage {
     this(page, "/admin/login");
   }
 
-  /** @param path login page to open: {@code /admin/login} or {@code /auth/login} [AUT-01]. */
+  /**
+   * @param path login page to open: {@code /admin/login} or {@code /auth/login}
+   *             [AUT-01].
+   */
   public LoginPage(Page page, String path) {
     super(page);
     page.navigate(baseUrl() + path);
@@ -19,9 +22,12 @@ public class LoginPage extends WebPage {
   }
 
   /**
-   * Notice shown after a successful logout. Spring Security redirects to {@code ?logout=true}, and
-   * the view keys the notice off that parameter, so its presence proves the whole round trip
-   * finished. A path assertion cannot: the redirect target carries a query string, which
+   * Notice shown after a successful logout. Spring Security redirects to
+   * {@code ?logout=true}, and
+   * the view keys the notice off that parameter, so its presence proves the whole
+   * round trip
+   * finished. A path assertion cannot: the redirect target carries a query
+   * string, which
    * {@link #waitForPath} does not match.
    */
   public String getLogoutNotice() {

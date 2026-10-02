@@ -59,6 +59,21 @@ public class PlaceServiceImplTest {
   }
 
   @Test
+  public void shouldSearchPlacesByNameWithinCategory() {
+    List<Place> places = List.of(place("Parrilla Don Julio", PlaceCategory.RESTAURANT));
+    when(
+      placeRepositoryMock.findByCategoryAndNameContainingIgnoreCase(PlaceCategory.RESTAURANT, "Don")
+    )
+      .thenReturn(places);
+
+    List<Place> result = placeService.searchPlaces("Don", PlaceCategory.RESTAURANT);
+
+    assertThat(result, is(sameInstance(places)));
+    verify(placeRepositoryMock)
+      .findByCategoryAndNameContainingIgnoreCase(PlaceCategory.RESTAURANT, "Don");
+  }
+
+  @Test
   public void shouldReturnPlaceWhenIdExists() {
     Place expectedPlace = place("MALBA", PlaceCategory.MUSEUM);
     expectedPlace.setId(1L);

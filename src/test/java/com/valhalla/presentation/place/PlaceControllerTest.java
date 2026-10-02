@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.place.Place;
@@ -70,6 +71,14 @@ public class PlaceControllerTest {
 
     assertThat(result.getModel().get("places"), is(sameInstance(places)));
     verify(placeServiceMock).searchPlaces("Don");
+  }
+
+  @Test
+  public void shouldReturnNoPlacesForUnknownCategory() {
+    ModelAndView result = controller.listPlaces("UNKNOWN", "Don");
+
+    assertThat(result.getModel().get("places"), is(equalTo(List.of())));
+    verifyNoInteractions(placeServiceMock);
   }
 
   private Place place(Long id, String name, PlaceCategory category) {
