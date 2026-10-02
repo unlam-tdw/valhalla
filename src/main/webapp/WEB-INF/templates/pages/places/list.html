@@ -210,7 +210,9 @@
             if (!map || !marker) return;
 
             map.stop();
-            map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
+            // Instant: a second animated setView issued mid-zoom-animation is superseded by
+            // the first one's target, so rapid card clicks would land on the wrong marker.
+            map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: false });
             marker.openPopup();
           };
 
@@ -261,6 +263,16 @@
 
           onMounted(async () => {
             await nextTick();
+
+            // The vendored Tailwind compiler runs deferred, so this can execute before any
+            // stylesheet exists: L.map() inside that 1280x0 box bakes an offset center which
+            // invalidateSize({ pan: false }) then preserves, leaving the opening view shifted
+            // and the markers outside the window. Wait for the layout to settle first.
+            const mapContainer = document.getElementById('map');
+            const layoutDeadline = performance.now() + 2000;
+            while (!mapContainer.clientHeight && performance.now() < layoutDeadline) {
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+            }
 
             // Initialize map centered on Buenos Aires
             map = L.map('map', {
