@@ -77,7 +77,9 @@ jobs:
       - name: Install Playwright Chromium
         # Pinned to ${playwright.version} in pom.xml: an unpinned `npx playwright` resolves the
         # latest npm release, which can demand a different Chromium revision than the Java driver.
-        run: npx -y playwright@1.61.0 install chromium
+        # --with-deps installs the host libraries Chromium needs (libgtk-4, harfbuzz, GL...);
+        # without it every navigation times out on a bare ubuntu-latest runner.
+        run: npx -y playwright@1.61.0 install --with-deps chromium
 
       - name: Package app (skip tests)
         # The backend job already gated on Prettier/Checkstyle/PMD/CPD, and e2e `needs: backend`.

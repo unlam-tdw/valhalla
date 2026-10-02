@@ -1,0 +1,333 @@
+<!DOCTYPE HTML>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{layouts/base :: head('Places')}"></head>
+
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+
+  <main id="places-page" class="flex-1 min-h-0 w-full flex flex-col overflow-hidden">
+    <style>
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body>nav {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        flex-shrink: 0;
+      }
+    </style>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <div id="app" class="flex-1 min-h-0 min-w-0 flex overflow-hidden">
+      <!-- Sidebar -->
+      <aside
+        class="w-80 min-w-[20rem] min-h-0 overflow-y-auto overscroll-contain bg-white border-r border-gray-200 p-4 flex flex-col gap-4">
+        <h1 class="text-2xl font-semibold text-gray-900">Places</h1>
+
+        <!-- Filters -->
+        <div class="flex flex-col gap-3">
+          <select v-model="selectedCategory" @change="applyFilters"
+            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option value="">All categories</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">
+              {{ capitalize(cat) }}
+            </option>
+          </select>
+          <input v-model="searchQuery" @input="applyFilters" type="text" placeholder="Search by name..."
+            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
+          <button @click="clearFilters"
+            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 font-medium hover:bg-gray-50">
+            Clear Filters
+          </button>
+        </div>
+
+        <!-- Results count -->
+        <p class="text-sm text-gray-500">{{ filteredPlaces.length }} place(s) found</p>
+
+        <!-- Place cards -->
+        <div class="flex flex-col gap-3">
+          <article v-for="place in filteredPlaces" :key="place.id"
+            class="relative rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+            :style="{ borderLeftWidth: '4px', borderLeftColor: categoryColor(place.category) }">
+            <div class="relative z-0 pointer-events-none flex flex-col gap-1 p-4 pb-10">
+              <h2 class="text-base font-medium text-gray-900">{{ place.name }}</h2>
+              <span class="text-xs font-semibold" :style="{ color: categoryColor(place.category) }">{{ place.category
+                }}</span>
+              <p class="text-sm text-gray-600 line-clamp-2">{{ place.address }}</p>
+            </div>
+            <button type="button" @click="selectPlace(place)" :aria-label="'Show details for ' + place.name"
+              class="absolute inset-0 z-0 w-full cursor-pointer rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"></button>
+            <button type="button" @click.stop="selectPlace(place)"
+              class="absolute bottom-3 right-4 z-10 text-sm font-medium text-gray-500 transition-colors hover:text-gray-700 hover:underline">
+              View details &rarr;
+            </button>
+          </article>
+        </div>
+
+        <p v-if="filteredPlaces.length === 0" class="text-gray-500 text-sm">No places found.</p>
+      </aside>
+
+      <!-- Map -->
+      <div class="flex-1 min-w-0 relative">
+        <div id="map" class="absolute inset-0 w-full h-full"></div>
+        <aside v-if="selectedPlace" role="complementary" :aria-label="'Details for ' + selectedPlace.name"
+          class="absolute inset-y-0 right-0 z-[1000] flex w-80 max-w-full flex-col overflow-y-auto bg-white shadow-xl"
+          :style="{ borderLeft: '5px solid ' + categoryColor(selectedPlace.category) }">
+          <div class="relative shrink-0">
+            <img :src="selectedPlace.imageUrl || '/images/place-placeholder.svg'" :alt="selectedPlace.name"
+              class="h-48 w-full bg-gray-100 object-cover" />
+            <button type="button" @click="closeDetails" aria-label="Close place details"
+              class="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-gray-700 shadow hover:bg-white">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="flex flex-1 flex-col gap-4 p-5">
+            <div class="flex flex-col gap-2">
+              <h2 class="text-xl font-semibold text-gray-900">{{ selectedPlace.name }}</h2>
+              <div class="flex items-center gap-2 text-sm font-medium"
+                :style="{ color: categoryColor(selectedPlace.category) }">
+                <span class="flex h-5 w-5 items-center justify-center"
+                  v-html="categoryIcon(selectedPlace.category, categoryColor(selectedPlace.category))"></span>
+                <span>{{ capitalize(selectedPlace.category) }}</span>
+              </div>
+            </div>
+            <p v-if="selectedPlace.address" class="text-sm text-gray-600">{{ selectedPlace.address }}</p>
+            <p v-if="selectedPlace.description" class="whitespace-pre-line text-sm leading-6 text-gray-700">
+              {{ selectedPlace.description }}
+            </p>
+            <div class="mt-auto flex justify-end pt-4">
+              <button type="button"
+                class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+                Add to plan
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Vue.js app (Vue is already loaded by the layout) -->
+    <script>
+      const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+      createApp({
+        setup() {
+          const places = ref([]);
+          const selectedPlace = ref(null);
+          const selectedCategory = ref('');
+          const searchQuery = ref('');
+          const categories = ref([]);
+          let map = null;
+          let mapResizeObserver = null;
+          let markers = [];
+          const markersByPlaceId = new Map();
+
+          const categoryColors = {
+            'RESTAURANT': '#e74c3c',
+            'BAR': '#9b59b6',
+            'CAFE': '#e67e22',
+            'MUSEUM': '#3498db',
+            'PARK': '#2ecc71',
+            'SHOPPING': '#f39c12',
+            'NIGHTLIFE': '#1abc9c',
+            'CULTURE': '#34495e',
+            'SPORT': '#e91e63',
+            'OTHER': '#95a5a6'
+          };
+
+          const filteredPlaces = computed(() => {
+            return places.value.filter(place => {
+              const matchCategory = !selectedCategory.value || place.category === selectedCategory.value;
+              const matchSearch = !searchQuery.value ||
+                place.name.toLowerCase().includes(searchQuery.value.toLowerCase());
+              return matchCategory && matchSearch;
+            });
+          });
+
+          const capitalize = (str) => {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+          };
+
+          const categoryColor = (category) => {
+            const colors = {
+              'RESTAURANT': '#e74c3c',
+              'BAR': '#9b59b6',
+              'CAFE': '#e67e22',
+              'MUSEUM': '#3498db',
+              'PARK': '#2ecc71',
+              'SHOPPING': '#f39c12',
+              'NIGHTLIFE': '#1abc9c',
+              'CULTURE': '#34495e',
+              'SPORT': '#e91e63',
+              'OTHER': '#95a5a6'
+            };
+            return colors[category] || '#95a5a6';
+          };
+
+          const categoryIcon = (category, strokeColor = 'white') => {
+            const icons = {
+              'RESTAURANT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
+              'BAR': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M10 2v3.5c0 .5-.2 1-.6 1.4C8.6 7.6 8 8.6 8 9.7V20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9.7c0-1.1-.6-2.1-1.4-2.8-.4-.4-.6-.9-.6-1.4V2"/><path d="M8 12h8"/></svg>',
+              'CAFE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>',
+              'MUSEUM': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>',
+              'PARK': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-7"/><path d="M9 8h6l-3-5z"/><path d="M5 15c-1.5 0-3-1.5-3-3 0-1.5 1.5-3 3-3 0-1.5 1.5-3 3-3 1.5 0 3 1.5 3 3 1.5 0 3 1.5 3 3 0 1.5-1.5 3-3 3"/></svg>',
+              'SHOPPING': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+              'NIGHTLIFE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+              'CULTURE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+              'SPORT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+              'OTHER': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+            };
+            return (icons[category] || icons['OTHER']).replace('stroke="white"', 'stroke="' + strokeColor + '"');
+          };
+
+          const clearFilters = () => {
+            selectedCategory.value = '';
+            searchQuery.value = '';
+          };
+
+          const applyFilters = () => {
+            updateMarkers();
+          };
+
+          const focusPlace = (place) => {
+            const marker = markersByPlaceId.get(place.id);
+            if (!map || !marker) return;
+
+            map.stop();
+            // Instant: a second animated setView issued mid-zoom-animation is superseded by
+            // the first one's target, so rapid card clicks would land on the wrong marker.
+            map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: false });
+            marker.openPopup();
+          };
+
+          const selectPlace = (place) => {
+            selectedPlace.value = place;
+            focusPlace(place);
+          };
+
+          const closeDetails = () => {
+            selectedPlace.value = null;
+            if (map) map.closePopup();
+          };
+
+          const updateMarkers = () => {
+            if (!map) return;
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            markersByPlaceId.clear();
+
+            filteredPlaces.value.forEach(place => {
+              if (place.latitude && place.longitude) {
+                const color = categoryColor(place.category);
+                const icon = categoryIcon(place.category);
+
+                const divIcon = L.divIcon({
+                  className: 'custom-marker',
+                  html: '<div style="background-color:' + color + '; width:32px; height:32px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:16px;">' + icon + '</div>',
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16],
+                  popupAnchor: [0, -16]
+                });
+
+                const marker = L.marker([place.latitude, place.longitude], { icon: divIcon }).addTo(map);
+
+                marker.bindPopup(
+                  '<strong>' + place.name + '</strong><br>' +
+                  place.category,
+                  { autoPan: false }
+                );
+                marker.on('click', () => {
+                  selectedPlace.value = place;
+                });
+                markers.push(marker);
+                markersByPlaceId.set(place.id, marker);
+              }
+            });
+          };
+
+          onMounted(async () => {
+            await nextTick();
+
+            // The vendored Tailwind compiler runs deferred, so this can execute before any
+            // stylesheet exists: L.map() inside that 1280x0 box bakes an offset center which
+            // invalidateSize({ pan: false }) then preserves, leaving the opening view shifted
+            // and the markers outside the window. Wait for the layout to settle first.
+            const mapContainer = document.getElementById('map');
+            const layoutDeadline = performance.now() + 2000;
+            while (!mapContainer.clientHeight && performance.now() < layoutDeadline) {
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+            }
+
+            // Initialize map centered on Buenos Aires
+            map = L.map('map', {
+              center: [-34.6037, -58.3816],
+              zoom: 13
+            });
+
+            mapResizeObserver = new ResizeObserver(() => {
+              map.invalidateSize({ pan: false });
+            });
+            mapResizeObserver.observe(map.getContainer());
+            requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Fetch places from API
+            const response = await fetch('/api/places');
+            places.value = await response.json();
+
+            // Extract unique categories
+            const cats = new Set(places.value.map(p => p.category));
+            categories.value = Array.from(cats).sort();
+
+            // Add markers
+            updateMarkers();
+
+          });
+
+          watch(filteredPlaces, () => {
+            updateMarkers();
+          });
+
+          return {
+            places,
+            selectedPlace,
+            selectedCategory,
+            searchQuery,
+            categories,
+            filteredPlaces,
+            capitalize,
+            categoryColor,
+            categoryIcon,
+            clearFilters,
+            applyFilters,
+            focusPlace,
+            selectPlace,
+            closeDetails
+          };
+        }
+      }).mount('#app');
+    </script>
+  </main>
+
+</body>
+
+</html>

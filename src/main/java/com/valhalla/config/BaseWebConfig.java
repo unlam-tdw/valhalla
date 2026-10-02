@@ -14,11 +14,16 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect;
 import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.spring6.dialect.SpringStandardDialect;
 import org.thymeleaf.spring6.templateresolver.SpringResourceTemplateResolver;
 import org.thymeleaf.spring6.view.ThymeleafViewResolver;
+import org.thymeleaf.standard.serializer.StandardJavaScriptSerializer;
 import org.thymeleaf.templatemode.TemplateMode;
 
-/** Shared MVC base between production and tests: only the concrete context differs. */
+/**
+ * Shared MVC base between production and tests: only the concrete context
+ * differs.
+ */
 @Configuration
 @EnableWebMvc
 @Import({ SecurityConfig.class, ValidationConfig.class })
@@ -41,6 +46,7 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
   @Override
   public void addResourceHandlers(final ResourceHandlerRegistry registry) {
     registry.addResourceHandler("/js/**").addResourceLocations("/resources/core/js/");
+    registry.addResourceHandler("/images/**").addResourceLocations("/resources/images/");
   }
 
   @Override
@@ -80,9 +86,19 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
   // Spring + Thymeleaf
   @Bean
   public SpringTemplateEngine templateEngine() {
-    // SpringTemplateEngine automatically applies SpringStandardDialect and
-    // enables Spring's own MessageSource message resolution mechanisms.
     SpringTemplateEngine templateEngine = new SpringTemplateEngine();
+    // Replace the default dialect with one whose JavaScript serializer never
+    // delegates to Jackson. Jackson switches on automatically because
+    // jackson-databind is on the classpath (the REST API needs it), but its
+    // serializer flushes the response writer on every inlined /*[[...]]*/
+    // expression, committing the response mid-render. Spring Security then
+    // cannot create the session to store the CSRF token and the page is sent
+    // truncated ("Response is committed"). Thymeleaf's own serializer buffers
+    // until render end, which is how this behaved before jackson-databind.
+    SpringStandardDialect springStandardDialect = new SpringStandardDialect();
+    springStandardDialect.setJavaScriptSerializer(new StandardJavaScriptSerializer(false));
+    // setDialect() clears every dialect, so it must run before addDialect("sec", ...).
+    templateEngine.setDialect(springStandardDialect);
     templateEngine.setTemplateResolver(templateResolver());
     templateEngine.setEnableSpringELCompiler(true);
     templateEngine.addDialect("sec", new SpringSecurityDialect());
