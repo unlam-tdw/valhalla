@@ -69,7 +69,8 @@ public class PlacesViewE2E extends E2eBase {
 
     assertThat(panel.locator("h2").textContent(), containsString("El Sanjuanino"));
     assertThat(page.locator(".leaflet-popup").textContent(), containsString("RESTAURANT"));
-    assertThat(page.locator(".leaflet-popup a").count(), is(equalTo(0)));
+    // Leaflet's own close button is an <a>; only the content must stay link-free.
+    assertThat(page.locator(".leaflet-popup-content a").count(), is(equalTo(0)));
     assertThat(page.url(), equalTo(placesUrl()));
   }
 
@@ -106,6 +107,8 @@ public class PlacesViewE2E extends E2eBase {
     page.waitForFunction(
       "() => document.querySelector(\"aside[aria-label^='Details for ']\") === null"
     );
+    // Leaflet fades the popup out and only removes it from the DOM 200 ms later.
+    page.waitForFunction("() => document.querySelector('.leaflet-popup') === null");
     assertThat(page.locator(".leaflet-popup").count(), is(equalTo(0)));
 
     cardNamed("MALBA").locator("button:text-is('View details →')").click();

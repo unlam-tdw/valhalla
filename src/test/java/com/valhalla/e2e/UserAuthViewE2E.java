@@ -54,10 +54,12 @@ public class UserAuthViewE2E extends E2eBase {
     // "Planes" link to /plans, which had no controller. It rendered fine, so no other assertion
     // could see the difference between a live item and a 404 waiting to be clicked. PlanController
     // landed in 03-PLN, so "Plans" belongs back in the set and now has somewhere to resolve to.
+    // The Places link arrived with the map feature in 03-PLC and resolves to /places, so it
+    // belongs in the set too.
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("UNLAM", "Plans", "Logout")
+      contains("UNLAM", "Places", "Plans", "Logout")
     );
   }
 
