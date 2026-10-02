@@ -63,20 +63,7 @@ public class PlaceControllerTest {
 
   @Test
   @WithMockUser
-  public void shouldReturnPlaceDetailWhenIdExists() throws Exception {
-    mockMvc
-      .perform(get("/places/1"))
-      .andExpect(status().isOk())
-      .andExpect(view().name("pages/places/detail"))
-      .andExpect(model().attributeExists("place"));
-  }
-
-  @Test
-  @WithMockUser
-  public void shouldReturnPlaceDetailWithoutPlaceWhenIdDoesNotExist() throws Exception {
-    mockMvc
-      .perform(get("/places/999"))
-      .andExpect(status().isOk())
-      .andExpect(view().name("pages/places/detail"));
+  public void shouldReturnNotFoundForPlaceDetailPage() throws Exception {
+    mockMvc.perform(get("/places/1")).andExpect(status().isNotFound());
   }
 }

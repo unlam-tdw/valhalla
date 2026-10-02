@@ -62,12 +62,12 @@
                 }}</span>
               <p class="text-sm text-gray-600 line-clamp-2">{{ place.address }}</p>
             </div>
-            <button type="button" @click="focusPlace(place)" :aria-label="'Center map on ' + place.name"
+            <button type="button" @click="selectPlace(place)" :aria-label="'Show details for ' + place.name"
               class="absolute inset-0 z-0 w-full cursor-pointer rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"></button>
-            <a :href="'/places/' + place.id"
+            <button type="button" @click.stop="selectPlace(place)"
               class="absolute bottom-3 right-4 z-10 text-sm font-medium text-gray-500 transition-colors hover:text-gray-700 hover:underline">
               View details &rarr;
-            </a>
+            </button>
           </article>
         </div>
 
@@ -75,8 +75,45 @@
       </aside>
 
       <!-- Map -->
-      <div class="flex-1 relative">
+      <div class="flex-1 min-w-0 relative">
         <div id="map" class="absolute inset-0 w-full h-full"></div>
+        <aside v-if="selectedPlace" role="complementary" :aria-label="'Details for ' + selectedPlace.name"
+          class="absolute inset-y-0 right-0 z-[1000] flex w-80 max-w-full flex-col overflow-y-auto bg-white shadow-xl"
+          :style="{ borderLeft: '5px solid ' + categoryColor(selectedPlace.category) }">
+          <div class="relative shrink-0">
+            <img :src="selectedPlace.imageUrl || '/images/place-placeholder.svg'" :alt="selectedPlace.name"
+              class="h-48 w-full bg-gray-100 object-cover" />
+            <button type="button" @click="closeDetails" aria-label="Close place details"
+              class="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-gray-700 shadow hover:bg-white">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="flex flex-1 flex-col gap-4 p-5">
+            <div class="flex flex-col gap-2">
+              <h2 class="text-xl font-semibold text-gray-900">{{ selectedPlace.name }}</h2>
+              <div class="flex items-center gap-2 text-sm font-medium"
+                :style="{ color: categoryColor(selectedPlace.category) }">
+                <span class="flex h-5 w-5 items-center justify-center"
+                  v-html="categoryIcon(selectedPlace.category, categoryColor(selectedPlace.category))"></span>
+                <span>{{ capitalize(selectedPlace.category) }}</span>
+              </div>
+            </div>
+            <p v-if="selectedPlace.address" class="text-sm text-gray-600">{{ selectedPlace.address }}</p>
+            <p v-if="selectedPlace.description" class="whitespace-pre-line text-sm leading-6 text-gray-700">
+              {{ selectedPlace.description }}
+            </p>
+            <div class="mt-auto flex justify-end pt-4">
+              <button type="button"
+                class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+                Add to plan
+              </button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
 
@@ -91,6 +128,7 @@
       createApp({
         setup() {
           const places = ref([]);
+          const selectedPlace = ref(null);
           const selectedCategory = ref('');
           const searchQuery = ref('');
           const categories = ref([]);
@@ -142,7 +180,7 @@
             return colors[category] || '#95a5a6';
           };
 
-          const categoryIcon = (category) => {
+          const categoryIcon = (category, strokeColor = 'white') => {
             const icons = {
               'RESTAURANT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
               'BAR': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M10 2v3.5c0 .5-.2 1-.6 1.4C8.6 7.6 8 8.6 8 9.7V20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9.7c0-1.1-.6-2.1-1.4-2.8-.4-.4-.6-.9-.6-1.4V2"/><path d="M8 12h8"/></svg>',
@@ -155,7 +193,7 @@
               'SPORT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
               'OTHER': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
             };
-            return icons[category] || icons['OTHER'];
+            return (icons[category] || icons['OTHER']).replace('stroke="white"', 'stroke="' + strokeColor + '"');
           };
 
           const clearFilters = () => {
@@ -174,6 +212,16 @@
             map.stop();
             map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
             marker.openPopup();
+          };
+
+          const selectPlace = (place) => {
+            selectedPlace.value = place;
+            focusPlace(place);
+          };
+
+          const closeDetails = () => {
+            selectedPlace.value = null;
+            if (map) map.closePopup();
           };
 
           const updateMarkers = () => {
@@ -199,10 +247,12 @@
 
                 marker.bindPopup(
                   '<strong>' + place.name + '</strong><br>' +
-                  place.category + '<br>' +
-                  '<a href="/places/' + place.id + '">View details</a>',
+                  place.category,
                   { autoPan: false }
                 );
+                marker.on('click', () => {
+                  selectedPlace.value = place;
+                });
                 markers.push(marker);
                 markersByPlaceId.set(place.id, marker);
               }
@@ -247,6 +297,7 @@
 
           return {
             places,
+            selectedPlace,
             selectedCategory,
             searchQuery,
             categories,
@@ -256,7 +307,9 @@
             categoryIcon,
             clearFilters,
             applyFilters,
-            focusPlace
+            focusPlace,
+            selectPlace,
+            closeDetails
           };
         }
       }).mount('#app');

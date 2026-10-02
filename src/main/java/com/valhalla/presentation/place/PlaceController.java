@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
@@ -19,9 +18,7 @@ import org.springframework.web.servlet.ModelAndView;
 public class PlaceController {
 
   private static final String VIEW_LIST = "pages/places/list";
-  private static final String VIEW_DETAIL = "pages/places/detail";
   private static final String ATTR_PLACES = "places";
-  private static final String ATTR_PLACE = "place";
 
   private final PlaceService placeService;
 
@@ -41,13 +38,6 @@ public class PlaceController {
     model.put("category", category);
     model.put("search", search);
     return new ModelAndView(VIEW_LIST, model);
-  }
-
-  @GetMapping("/{id}")
-  public ModelAndView placeDetail(@PathVariable Long id) {
-    Map<String, Object> model = new ModelMap();
-    placeService.getPlaceById(id).ifPresent(place -> model.put(ATTR_PLACE, place));
-    return new ModelAndView(VIEW_DETAIL, model);
   }
 
   private List<Place> getPlaces(String category, String search) {

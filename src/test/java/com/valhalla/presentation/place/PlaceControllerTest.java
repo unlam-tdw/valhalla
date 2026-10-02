@@ -12,7 +12,6 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceService;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.ModelAndView;
@@ -71,27 +70,6 @@ public class PlaceControllerTest {
 
     assertThat(result.getModel().get("places"), is(sameInstance(places)));
     verify(placeServiceMock).searchPlaces("Don");
-  }
-
-  @Test
-  public void shouldReturnPlaceInDetailWhenIdExists() {
-    Place expectedPlace = place(1L, "MALBA", PlaceCategory.MUSEUM);
-    when(placeServiceMock.getPlaceById(1L)).thenReturn(Optional.of(expectedPlace));
-
-    ModelAndView result = controller.placeDetail(1L);
-
-    assertThat(result.getViewName(), is(equalTo("pages/places/detail")));
-    assertThat(result.getModel().get("place"), is(sameInstance(expectedPlace)));
-  }
-
-  @Test
-  public void shouldReturnDetailWithoutPlaceWhenIdDoesNotExist() {
-    when(placeServiceMock.getPlaceById(99L)).thenReturn(Optional.empty());
-
-    ModelAndView result = controller.placeDetail(99L);
-
-    assertThat(result.getViewName(), is(equalTo("pages/places/detail")));
-    assertThat(result.getModel().containsKey("place"), is(false));
   }
 
   private Place place(Long id, String name, PlaceCategory category) {
