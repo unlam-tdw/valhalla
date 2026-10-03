@@ -5,23 +5,22 @@
 
 ## Objetivo
 
-El usuario puede compartir su plan via URL unica con shortCode. Copiar link con feedback visual. Control de visibilidad publico/privado.
+El usuario puede compartir su plan via URL unica con shortCode desde un modal en el detalle del plan: boton, modal, copiar al portapapeles con feedback visual. El toggle publico/privado ya esta implementado.
 
 ## Pre-requisitos
 
-- [PLN] completed (Plan entity with shortCode)
+- [PLN] completed (Plan entity with `Boolean isPublic` y `shortCode` de 8 chars)
 - [APL-FE] completed (itinerary working)
 
 ## Criterios de Aceptacion
 
 | # | Criterio |
 |---|----------|
-| AC-01 | Al hacer click en "Share" se genera una URL con shortCode del plan |
+| AC-01 | Al hacer click en "Share" se genera una URL con el shortCode del plan |
 | AC-02 | La URL tiene formato /share/{shortCode} |
 | AC-03 | Se puede copiar el link al portapapeles con feedback "Copied!" |
-| AC-04 | Se puede cambiar la visibilidad del plan (PUBLIC/PRIVATE) |
-| AC-05 | Si el plan es PRIVATE y alguien abre el link, se muestra error |
-| AC-06 | Si el plan no tiene shortCode, se genera automaticamente al compartir |
+| AC-04 | Se puede cambiar la visibilidad del plan con el checkbox `isPublic` de `/plans/{id}`. **Ya implementado**: `plans/detail.html` tiene `<input type="checkbox" th:field="*{isPublic}">` → `POST /plans/{id}` → `Plan.updateFrom()` → `planRepository.save()` |
+| AC-05 | Si el plan es privado y alguien abre el link, se muestra error. La regla vive en [VPC] (07-VPC.md) |
 
 ## Escenarios de Test
 
@@ -29,37 +28,43 @@ El usuario puede compartir su plan via URL unica con shortCode. Copiar link con 
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | `sharePlan()` genera shortCode si es null y retorna URL | AC-01, AC-02, AC-06 |
-| U-02 | `sharePlan()` con shortCode existente retorna URL | AC-01, AC-02 |
-| U-03 | `updateVisibility()` cambia a PUBLIC | AC-04 |
-| U-04 | `updateVisibility()` cambia a PRIVATE | AC-04 |
+| U-01 | `sharePlan()` retorna la URL con el shortCode existente del plan | AC-01, AC-02 |
+| U-02 | `sharePlan()` con plan inexistente devuelve error | AC-01, AC-02 |
 
-### Tests Unitarios (`domain/plan/PlanServiceImplTest.java`)
+### Tests de Integracion (`integration/PlanControllerIntegrationTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-05 | `generateShortCode()` retorna string de 8 caracteres | AC-02 |
-
-### Tests de Integracion (`integration/ShareControllerTest.java`)
-
-| # | Test | AC que cubre |
-|---|------|-------------|
-| I-01 | `GET /share/{shortCode}` con plan PUBLIC retorna 200 | AC-05 |
-| I-02 | `GET /share/{shortCode}` con plan PRIVATE retorna 200 con error de acceso | AC-05 |
-| I-03 | `GET /share/{shortCode}` con shortCode invalido retorna 200 sin plan | AC-05 |
-
-### Tests de Integracion (`integration/PlanControllerTest.java`)
-
-| # | Test | AC que cubre |
-|---|------|-------------|
-| I-04 | `POST /plans/{id}/share` retorna JSON con URL | AC-01 |
-| I-05 | `POST /plans/{id}/visibility?visibility=PUBLIC` retorna JSON con visibility | AC-04 |
+| I-01 | `POST /plans/{id}/share` con sesion del owner retorna JSON con URL | AC-01, AC-02 |
+| I-02 | `POST /plans/{id}` con `isPublic=true` → el checkbox queda tildado al recargar; con `false` → queda destildado | AC-04 |
+| I-03 | `POST /plans/{id}/share` con sesion ajena al plan → 404, nunca 403 | AC-01, AC-02 |
 
 ### E2E (minimos)
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `SharePlanE2E` | Compartir plan, copiar link, abrir en otra ventana | AC-01, AC-03 |
+| E-01 | `SharePlanE2E` | Compartir plan, copiar link, verificar el feedback "Copied!" | AC-01, AC-03 |
+
+## Notas / decisiones de diseño
+
+- **Esta spec queda reducida al modal de compartir** en `plans/detail.html`: el botón Share, el
+  modal con la URL y el botón de copiar al portapapeles con feedback visual. `shortCode`, el
+  render de la URL (`plans/detail.html:39`) y el toggle de visibilidad (`plans/detail.html:70`)
+  ya existen: no son trabajo de CMP.
+- **`ShareController` y `pages/share/view.html` se fueron a [VPC]** (07-VPC.md). Estaban
+  definidos acá y se ejecutaban en el mismo sprint que VPC: dos personas, mismo archivo
+  (`integration/ShareControllerTest.java`) y los mismos tests I-01..I-03. Con la separación, CMP
+  toca `plans/detail.html` y VPC crea `share/*`: no se pisan.
+- **`Boolean isPublic`, no un enum** (D4). El código usa `Boolean isPublic` y
+  `plans/detail.html` ya bindea el checkbox con `th:field="*{isPublic}"`. No hay enum
+  `Visibility` en el dominio ni en la base, y `Plan.class` está excluido del gate de JaCoCo
+  justamente porque es una entidad con boilerplate. El toggle va por el `POST /plans/{id}` que ya
+  existe, no por un endpoint `/visibility` aparte.
+- **`shortCode` siempre existe** (AC-06 eliminado). `PlanServiceImpl.createPlan` lo genera siempre
+  con 8 caracteres (`existsByShortCode`, 10 intentos); el propio código dice *"Always generated"*.
+  No hay ningún path que deje `shortCode` en null, así que "generar al compartir" no es trabajo.
+- **`generateShortCode()` es `private`** (U-05 eliminado). No hay nada público que testear desde
+  acá, y el comportamiento ya está cubierto por los tests de 03-PLN.
 
 ## Referencia de Implementacion
 
@@ -67,45 +72,26 @@ El usuario puede compartir su plan via URL unica con shortCode. Copiar link con 
 
 ### 1. Verify Plan.shortCode
 
-The Plan entity already has `shortCode` (String, unique) created in [PLN].
+The Plan entity already has `shortCode` (`String`, unique) created in [PLN], y
+`PlanServiceImpl.createPlan` lo genera **siempre** con 8 caracteres. No hay nada que verificar ni
+que generar desde acá: `plans/detail.html:39` ya lo renderiza.
 
-### 2. Verify PlanService.generateShortCode()
-
-Already exists in [PLN]. Generates 8-character UUID.
-
-### 3. Update PlanController (add share endpoints)
+### 2. Update PlanController (add share endpoint)
 
 File: `src/main/java/com/valhalla/presentation/plan/PlanController.java`
 
-Add these methods:
+Un solo endpoint nuevo. No hay endpoint de visibilidad: el toggle va por el `POST /plans/{id}`
+que ya existe, con `Boolean isPublic` (D4).
 
 ```java
 @PostMapping("/{id}/share")
 @ResponseBody
-public Map<String, String> sharePlan(@PathVariable Long id) {
-    Plan plan = planService.getPlanById(id)
-        .orElseThrow(() -> new RuntimeException("Plan not found"));
-
-    if (plan.getShortCode() == null) {
-        plan.setShortCode(planService.generateShortCode());
-        planService.updatePlan(plan);
-    }
-
-    String shareUrl = "/share/" + plan.getShortCode();
-    return Map.of("url", shareUrl);
-}
-
-@PostMapping("/{id}/visibility")
-@ResponseBody
-public Map<String, String> updateVisibility(
+public Map<String, String> sharePlan(
     @PathVariable Long id,
-    @RequestParam String visibility
+    @AuthenticationPrincipal UserDetails userDetails
 ) {
-    Plan plan = planService.getPlanById(id)
-        .orElseThrow(() -> new RuntimeException("Plan not found"));
-    plan.setVisibility(Plan.Visibility.valueOf(visibility));
-    planService.updatePlan(plan);
-    return Map.of("visibility", visibility);
+    Plan plan = planService.getOwnedPlan(id, userDetails.getUsername());  // 404 si no es owner
+    return Map.of("url", "/share/" + plan.getShortCode());
 }
 ```
 
@@ -114,173 +100,12 @@ Add required imports:
 import org.springframework.web.bind.annotation.ResponseBody;
 ```
 
-### 4. Create ShareController (public view)
+La visibilidad se cambia por el `POST /plans/{id}` que ya existe:
+`plans/detail.html` tiene `<input type="checkbox" th:field="*{isPublic}">` y `Plan.updateFrom()`
+copia `isPublic`. No hay `POST /plans/{id}/visibility`, ni enum `Visibility`, ni
+`Plan.Visibility.valueOf(...)`.
 
-File: `src/main/java/com/valhalla/presentation/share/ShareController.java`
-
-```java
-package com.valhalla.presentation.share;
-
-import com.valhalla.domain.plan.Plan;
-import com.valhalla.domain.plan.PlanService;
-import java.util.Map;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.ModelMap;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.servlet.ModelAndView;
-
-@Controller
-@RequestMapping("/share")
-public class ShareController {
-
-    private final PlanService planService;
-
-    @Autowired
-    public ShareController(PlanService planService) {
-        this.planService = planService;
-    }
-
-    @GetMapping("/{shortCode}")
-    public ModelAndView sharedPlan(@PathVariable String shortCode) {
-        Map<String, Object> model = new ModelMap();
-        planService.getPlanByShortCode(shortCode).ifPresent(plan -> {
-            if (plan.getVisibility() == Plan.Visibility.PUBLIC) {
-                model.put("plan", plan);
-            } else {
-                model.put("error", "This plan is private");
-            }
-        });
-        if (!model.containsKey("plan") && !model.containsKey("error")) {
-            model.put("error", "Plan not found");
-        }
-        return new ModelAndView("pages/share/view", model);
-    }
-}
-```
-
-### 5. Create share view template
-
-File: `src/main/webapp/WEB-INF/templates/pages/share/view.html`
-
-```html
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title th:text="${plan?.name ?: 'Shared Plan'}">Shared Plan</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <nav class="bg-white shadow p-4">
-        <div class="container mx-auto">
-            <h1 class="text-xl font-bold text-blue-600">PlanIt</h1>
-        </div>
-    </nav>
-
-    <div id="app" class="container mx-auto px-4 py-8" th:if="${plan}">
-        <h1 class="text-3xl font-bold mb-2" th:text="${plan.name}"></h1>
-        <p class="text-gray-600 mb-4" th:text="${plan.description}"></p>
-        <p class="text-gray-700 mb-8" th:if="${plan.visitDate}">
-            <strong>Date:</strong> <span th:text="${plan.visitDate}"></span>
-        </p>
-
-        <div class="flex gap-8">
-            <div class="flex-1">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-bold mb-4">Itinerary</h2>
-                    <div v-if="itinerary.length === 0" class="text-gray-500 text-center py-8">
-                        No places in this plan.
-                    </div>
-                    <div v-else class="space-y-3">
-                        <div v-for="(item, index) in itinerary" :key="item.id"
-                             class="flex items-center gap-4 p-3 border rounded-lg">
-                            <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
-                                {{ index + 1 }}
-                            </div>
-                            <div class="flex-1">
-                                <strong>{{ item.place.name }}</strong>
-                                <span class="ml-2 px-2 py-0.5 text-xs text-white bg-blue-500 rounded">
-                                    {{ item.place.category }}
-                                </span>
-                                <p class="text-sm text-gray-500 mt-1" th:if="${plan.visitDate}">
-                                    {{ item.visitDate }} {{ item.visitTime }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="flex-1">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-bold mb-4">Route Map</h2>
-                    <div id="share-map" class="h-96 rounded-lg"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div th:if="${error}" class="container mx-auto px-4 py-16 text-center">
-        <h1 class="text-3xl font-bold text-red-500 mb-4" th:text="${error}"></h1>
-        <a href="/" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded inline-block">
-            Go to PlanIt
-        </a>
-    </div>
-
-    <script th:inline="javascript">
-        const planId = [[${plan?.id}]];
-        if (planId) {
-            const { createApp, ref, onMounted } = Vue;
-            createApp({
-                setup() {
-                    const itinerary = ref([]);
-                    let map = null;
-
-                    onMounted(async () => {
-                        const response = await fetch('/api/plans/' + planId + '/places');
-                        itinerary.value = await response.json();
-                        initMap();
-                    });
-
-                    function initMap() {
-                        map = L.map('share-map').setView([-34.6037, -58.3816], 13);
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '&copy; OpenStreetMap contributors'
-                        }).addTo(map);
-
-                        const coordinates = [];
-                        itinerary.value.forEach((item, index) => {
-                            if (item.place.latitude && item.place.longitude) {
-                                coordinates.push([item.place.latitude, item.place.longitude]);
-                                L.marker([item.place.latitude, item.place.longitude])
-                                    .addTo(map)
-                                    .bindPopup('<strong>' + (index + 1) + '. ' + item.place.name + '</strong>');
-                            }
-                        });
-
-                        if (coordinates.length > 1) {
-                            L.polyline(coordinates, { color: '#3498db', weight: 3, dashArray: '10, 5' }).addTo(map);
-                        }
-                        if (coordinates.length > 0) {
-                            map.fitBounds(coordinates, { padding: [50, 50] });
-                        }
-                    }
-
-                    return { itinerary };
-                }
-            }).mount('#app');
-        }
-    </script>
-</body>
-</html>
-```
-
-### 6. Update plan detail template (add share modal)
+### 3. Update plan detail template (add share modal)
 
 File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 
@@ -338,7 +163,8 @@ function copyShareLink() {
 
 | File | Action |
 |------|--------|
-| `presentation/plan/PlanController.java` | Update (add share + visibility endpoints) |
-| `presentation/share/ShareController.java` | Create (public view by shortCode) |
-| `templates/pages/share/view.html` | Create (public plan view with map) |
-| `templates/pages/plans/detail.html` | Update (add share modal) |
+| `presentation/plan/PlanController.java` | Update (add `POST /plans/{id}/share`, con ownership "not found") |
+| `templates/pages/plans/detail.html` | Update (add share modal + copiar al portapapeles) |
+
+`ShareController` y `pages/share/view.html` quedan en [VPC] (07-VPC.md), junto con
+`integration/ShareControllerTest.java`.

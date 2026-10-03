@@ -43,11 +43,11 @@ El usuario puede crear, editar y eliminar planes con nombre, descripcion, fecha 
 | U-06 | `planDetail()` con id invalido retorna vista sin plan | AC-07 |
 | U-07 | `deletePlan()` elimina y redirige a /plans | AC-08, AC-09 |
 
-### Tests Unitarios (`domain/plan/PlanServiceImplTest.java`)
+### Tests Unitarios (`infrastructure/plan/PlanServiceImplTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-08 | `createPlan()` genera shortCode si es null | AC-05 |
+| U-08 | `createPlan()` siempre genera un shortCode de 8 caracteres, incluso si el plan viene con uno | AC-05 |
 | U-09 | `createPlan()` guarda el plan en el repositorio | AC-11 |
 | U-10 | `getPlansByUserEmail()` retorna solo planes del usuario | AC-10 |
 | U-11 | `getPlanById()` con id existente retorna el plan | AC-07 |
@@ -55,7 +55,7 @@ El usuario puede crear, editar y eliminar planes con nombre, descripcion, fecha 
 | U-13 | `updatePlan()` actualiza el plan | AC-12 |
 | U-14 | `deletePlan()` elimina el plan | AC-13 |
 
-### Tests de Integracion (`integration/PlanControllerTest.java`)
+### Tests de Integracion (`integration/PlanControllerIntegrationTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
@@ -181,11 +181,14 @@ public interface PlanService {
     List<Plan> getPlansByUserEmail(String email);
     Plan updatePlan(Plan plan);
     void deletePlan(Long id);
-    String generateShortCode();
 }
 ```
 
-File: `src/main/java/com/valhalla/domain/plan/PlanServiceImpl.java`
+`generateShortCode()` **no** existe con ese nombre ni es parte de la interface: el método real es
+`private String generateUniqueShortCode()` en `PlanServiceImpl`, con retry y `toUpperCase(Locale.ROOT)`.
+La interface expone únicamente `createPlan(Plan, String ownerEmail)`.
+
+File: `src/main/java/com/valhalla/infrastructure/plan/PlanServiceImpl.java`
 
 ```java
 package com.valhalla.domain.plan;
@@ -211,10 +214,12 @@ public class PlanServiceImpl implements PlanService {
     }
 
     @Override
-    public Plan createPlan(Plan plan) {
-        if (plan.getShortCode() == null) {
-            plan.setShortCode(generateShortCode());
-        }
+    public Plan createPlan(Plan plan, String ownerEmail) {
+        User owner = userRepository.findByEmail(ownerEmail)
+            .orElseThrow(UserNotFoundException::new);
+        plan.setAdministrator(owner);
+        // Always generated: the share code is the backend's, the form never asks for it.
+        plan.setShortCode(generateUniqueShortCode());
         return planRepository.save(plan);
     }
 
@@ -245,9 +250,17 @@ public class PlanServiceImpl implements PlanService {
         planRepository.deleteById(id);
     }
 
-    @Override
-    public String generateShortCode() {
-        return UUID.randomUUID().toString().substring(0, 8);
+    /** La unique constraint de shortCode es la guarda real; el loop solo acorta la ventana. */
+    private String generateUniqueShortCode() {
+      for (int attempt = 0; attempt < SHORT_CODE_MAX_ATTEMPTS; attempt++) {
+        String candidate = UUID.randomUUID().toString()
+          .substring(0, SHORT_CODE_LENGTH)
+          .toUpperCase(Locale.ROOT);
+        if (!planRepository.existsByShortCode(candidate)) {
+          return candidate;
+        }
+      }
+      throw new IllegalStateException("Could not generate a unique plan short code");
     }
 }
 ```
@@ -591,7 +604,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 | `domain/plan/Plan.java` | Create (with @NotBlank validation) |
 | `domain/plan/PlanRepository.java` | Create |
 | `domain/plan/PlanService.java` | Create |
-| `domain/plan/PlanServiceImpl.java` | Create |
+| `infrastructure/plan/PlanServiceImpl.java` | Create |
 | `infrastructure/plan/JpaPlanRepository.java` | Create |
 | `infrastructure/plan/PlanRepositoryImpl.java` | Create |
 | `presentation/plan/PlanController.java` | Create (with @Valid + BindingResult) |

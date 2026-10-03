@@ -6,7 +6,7 @@
 |------|------------|
 | **User** | Registered person. Has email, password, role. Can create plans. |
 | **Place** | A location in Buenos Aires. Has name, description, category, address, coordinates, image. |
-| **Plan** | A curated collection of places with schedule. Owned by a User. Can be PUBLIC or PRIVATE. |
+| **Plan** | A curated collection of places with schedule. Owned by a User. Is public or private. |
 | **PlanPlace** | A place within a plan, with visit date, time, and order in the itinerary. |
 
 ## Categories
@@ -26,17 +26,18 @@
 
 ## Visibility
 
+Whether a plan can be read through its shared link. A boolean on the Plan, not a pair of states.
+
 | Term | Definition |
 |------|------------|
-| **PUBLIC** | Plan accessible via shared URL without login |
-| **PRIVATE** | Plan visible only to its owner |
+| **Public plan** | `isPublic` is true: the plan is accessible via shared URL without login |
+| **Private plan** | `isPublic` is false: the plan is visible only to its owner |
 
 ## Key Concepts
 
 | Term | Definition |
 |------|------------|
-| **Short Code** | Unique URL-friendly identifier for sharing plans (e.g., `a1b2c3`) |
+| **Short Code** | Unique URL-friendly identifier for sharing plans, 8 characters (e.g., `a1b2c3d4`) |
 | **Itinerary** | Ordered list of places in a plan, with dates and times |
 | **Marker** | Visual pin on the map representing a place |
-| **Cluster** | Group of nearby markers shown as a single count |
 | **Popup** | Info window that opens when clicking a marker |

@@ -5,7 +5,7 @@
 
 ## Objetivo
 
-Backend para agregar lugares a planes: entity PlanPlace, repository, service, REST endpoints y actualizacion de PlaceController para mostrar planes del usuario en la ficha de lugar.
+Backend para agregar lugares a planes: entity PlanPlace, repository, service, REST endpoints y actualizacion de PlaceController para exponer los planes del usuario en el panel lateral de `/places`. Los endpoints de escritura exigen sesion, validan ownership con el criterio "not found" y el ignore list de CSRF se reduce a las rutas de lectura.
 
 ## Pre-requisitos
 
@@ -23,9 +23,12 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
 | AC-05 | PUT /api/plans/{planId}/places/{id} actualiza visitDate y visitTime |
 | AC-06 | DELETE /api/plans/{planId}/places/{id} elimina un lugar del plan |
 | AC-07 | POST /api/plans/{planId}/places/reorder reordena los lugares del plan |
-| AC-08 | La ficha de lugar (/places/{id}) muestra los planes del usuario logueado |
+| AC-08 | El panel lateral de `/places` incluye los planes del usuario logueado para el lugar seleccionado |
 | AC-09 | PlanPlace tiene relacion ManyToOne con Plan y Place (LAZY) |
 | AC-10 | La combinacion (plan_id, place_id) es unica (unique constraint) |
+| AC-11 | La escritura en `/api/plans/**` (POST/PUT/DELETE) exige sesion autenticada. `GET /api/places` sigue siendo lectura publica — es catalogo, no dato de usuario. `GET /api/plans/{id}/places` sigue siendo legible sin sesion **solo si el plan es publico** (lo necesita la vista compartida de [VPC]); con plan privado responde 404 si no sos el owner |
+| AC-12 | El ignore list de CSRF se reduce a las rutas de lectura. Hoy `csrf.ignoringRequestMatchers("/api/**")` deja **toda** la API exenta: exigir sesion solo no cierra CSRF, porque un `<form>` cross-origin con la cookie de sesion del usuario entra igual. O se reduce a `/api/places/**`, o se saca `/api/**` del ignore y se confía en el token de Spring para toda la escritura |
+| AC-13 | Ownership con criterio "not found, no forbidden": un usuario que no es owner del plan recibe 404, nunca 403, para no confirmar que el id existe. Reusa el patron ya implementado en `PlanServiceImpl.getOwnedPlan` |
 
 ## Escenarios de Test
 
@@ -66,13 +69,59 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| I-11 | `GET /places/{id}` con sesion incluye userPlans en model | AC-08 |
+| I-11 | `GET /places` con sesion incluye `userPlans` en el model | AC-08 |
+| I-12 | `GET /places` sin sesion no incluye `userPlans` | AC-08 |
+
+### Tests de Seguridad (`integration/PlanPlaceSecurityTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| S-01 | `POST /api/plans/{id}/places?placeId=X` sin sesion → 302 a `/auth/login`, no escribe nada | AC-11 |
+| S-02 | `PUT /api/plans/{id}/places/{planPlaceId}` sin sesion → 302, no escribe nada | AC-11 |
+| S-03 | `DELETE /api/plans/{id}/places/{planPlaceId}` sin sesion → 302, no borra nada | AC-11 |
+| S-04 | `GET /api/places` sin sesion → 200 con JSON (lectura publica, catalogo) | AC-11 |
+| S-05 | `POST /api/plans/{id}/places` con sesion ajena al plan → **404**, nunca 403 | AC-13 |
+| S-06 | `POST /api/plans/{id}/places` con sesion ajena al plan no crea el PlanPlace | AC-13 |
+| S-07 | `POST /api/plans/{id}/places` sin token CSRF → 403 (una sesion valida no alcanza) | AC-12 |
+| S-08 | `GET /api/plans/{id}/places` de un plan **privado** sin sesion → 404; del mismo plan **publico** → 200 con itinerario | AC-11, AC-13 |
 
 ### E2E (minimos)
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
 | E-01 | `AddPlaceToPlanE2E` | Agregar lugar a plan, verificar en itinerario | AC-01, AC-04 |
+
+## Notas / decisiones de diseño
+
+- **CSRF: exigir sesion no alcanza (AC-12)**. Hoy `SecurityConfig` @Order(3) tiene
+  `.csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))` y ademas
+  `.requestMatchers("/", "/share/**", "/api/**", "/reload/**").permitAll()`. Si solo se agrega
+  `authenticated()` a la escritura, un `<form>` cross-origin `POST` con la `JSESSIONID` del
+  usuario entra igual y el token no se pide nunca. El AC obliga a **reducir el ignore list**:
+  `ignoringRequestMatchers("/api/places/**")` para las lecturas, o sacar `/api/**` del ignore y
+  confiar en el token de Spring para toda la escritura. S-07 es el test que distingue las dos
+  opciones.
+- **Ownership "not found, no forbidden" (AC-13)**. `PlanServiceImpl.getOwnedPlan` ya lo hace y
+  dice por que en un comentario: *"A plan owned by somebody else answers as missing: 'forbidden'
+  would confirm the id exists."* Un 403 en `/api/plans/{id}/places` confirmaria que ese id
+  existe. Los endpoints de APL-BE reciben `ownerEmail` y resuelven con `getOwnedPlan`; los ids
+  no existentes y los ajenos responden igual.
+- **Gate de JaCoCo, sin margen**. La regla de `pom.xml` es a nivel `PACKAGE` con
+  `com.valhalla.domain.*` y `com.valhalla.presentation.*` al **100%** de LINE COVEREDRATIO,
+  `infrastructure` al 80% y el bundle al 80%. `PlanPlace`, `PlanPlaceService` y
+  `PlanPlaceController` caen en las dos primeras reglas: o están al 100% o CI falla.
+- **`SecurityConfig` sí está excluido** del gate (`com/valhalla/config/*` en `<excludes>`), asi
+  que AC-11/12/13 no se prueban con cobertura JaCoCo sino con los tests funcionales S-01..S-07.
+  Los DTOs también están excluidos (`*Request.class`), lo que deja la validacion de entrada
+  cubierta sin costo de cobertura.
+- **El itinerario no es catálogo (AC-11/S-08)**. `GET /api/places` es el catalogo: puede seguir
+  abierto. `GET /api/plans/{id}/places` es dato de usuario, asi que sin sesion solo responde si
+  el plan es publico — es lo que necesita la vista compartida de [VPC] para leer el itinerario
+  desde el `fetch`. Si el plan es privado y no sos el owner, 404 por el mismo criterio de AC-13.
+- **AC-08 y el panel lateral**. No hay `pages/places/detail.html` ni ruta `/places/{id}`: la ficha
+  se rediseñó como panel lateral dentro de `/places` (D1). El "Add to plan" de 05-APL-FE vive
+  en ese panel, que ya tiene toda la data del lugar, así que el backend solo tiene que poner
+  `userPlans` en el model de `GET /places`.
 
 ## Referencia de Implementacion
 
@@ -395,27 +444,30 @@ public class PlanPlaceRestController {
 }
 ```
 
-### 7. Update PlaceController (add user plans to model)
+### 7. Update PlaceController (add user plans to the places page model)
 
 File: `src/main/java/com/valhalla/presentation/place/PlaceController.java`
 
-Update the `placeDetail` method to include user's plans:
+La ficha de lugar es el panel lateral de `/places` (D1), no una pagina aparte: no existe
+`pages/places/detail.html` ni `@GetMapping("/{id}")`. Los planes del usuario van en el model de
+`listPlaces`, que es la unica vista que los renderiza.
 
 ```java
-@GetMapping("/{id}")
-public ModelAndView placeDetail(
-    @PathVariable Long id,
+@GetMapping
+public ModelAndView listPlaces(
+    @RequestParam(required = false) String category,
+    @RequestParam(required = false) String search,
     @AuthenticationPrincipal UserDetails userDetails
 ) {
     Map<String, Object> model = new ModelMap();
-    placeService.getPlaceById(id).ifPresent(place -> model.put("place", place));
+    // ... filtrado de lugares, sin cambios ...
 
     if (userDetails != null) {
         List<Plan> userPlans = planService.getPlansByUserEmail(userDetails.getUsername());
         model.put("userPlans", userPlans);
     }
 
-    return new ModelAndView("pages/places/detail", model);
+    return new ModelAndView("pages/places/list", model);
 }
 ```
 
@@ -439,6 +491,59 @@ public PlaceController(PlaceService placeService, PlanService planService) {
 }
 ```
 
+### 8. Narrow the CSRF ignore list in SecurityConfig
+
+File: `src/main/java/com/valhalla/config/SecurityConfig.java`
+
+Cadena @Order(3). Hoy `ignoringRequestMatchers("/api/**")` exime de CSRF a toda la API y
+`permitAll()` abre `/api/**`. Dos cambios, ambos exigidos por AC-11 y AC-12:
+
+```java
+// Escritura autenticada, CSRF cubierto por el token de Spring.
+.requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+.requestMatchers("/api/**").authenticated()
+
+.csrf(csrf -> csrf.ignoringRequestMatchers("/api/places/**"))
+```
+
+La alternativa aceptada es sacar `/api/**` del ignore y confiar en el token de Spring para toda
+la escritura (los forms de la UI ya mandan `_csrf`). Lo que **no** es aceptable es dejar
+`ignoringRequestMatchers("/api/**")`: con el ignore abierto, AC-11 no cierra CSRF (S-07 falla).
+
+### 9. Ownership en los endpoints de escritura (AC-13)
+
+Los endpoints reciben el owner de la sesion y resuelven el plan con
+`PlanServiceImpl.getOwnedPlan(id, ownerEmail)`, que ya lanza `PlanNotFoundException` cuando el
+plan no es del usuario. Se traduce a **404**, nunca a 403. `removePlaceFromPlan` y
+`updatePlanPlace` no aceptan ids sueltos: operan sobre el `PlanPlace` que pertenece al plan
+resuelto, para que un id ajeno no escape del scope del owner.
+
+### 10. ResetDatabase: limpiar `plan_place` antes que `plans` (obligatorio)
+
+File: `src/test/java/com/valhalla/e2e/ResetDatabase.java`
+
+**Este item no es opcional.** `ResetDatabase.cleanDatabase()` hoy corre solo
+`DELETE FROM plans` y `DELETE FROM users`. APL-BE mete la tabla `plan_place` con FK a `plans`, asi
+que `DELETE FROM plans` viola la FK, el `SQLException` envuelto en `IllegalStateException` revienta
+**toda** la suite E2E — no un test, todos.
+
+```java
+String[] statements = {
+  // plan_place first: plan_places.plan_id points at plans, so deleting the plans first makes
+  // this reset fail with a foreign key violation and takes the whole E2E suite down with it.
+  "DELETE FROM plan_place",
+  "ALTER SEQUENCE plan_place_id_seq RESTART WITH 1",
+  "DELETE FROM plans",
+  "ALTER SEQUENCE plans_id_seq RESTART WITH 1",
+  "DELETE FROM users",
+  "ALTER SEQUENCE users_id_seq RESTART WITH 1",
+  // ... INSERT del admin por defecto
+};
+```
+
+El `ALTER SEQUENCE` reinicia el id para que los tests no dependan del autoincrement de corridas
+anteriores. Es el mismo motivo del `plans_id_seq` que ya esta ahi.
+
 ## Archivos a crear/modificar
 
 | File | Action |
@@ -449,5 +554,7 @@ public PlaceController(PlaceService placeService, PlanService planService) {
 | `domain/planplace/PlanPlaceServiceImpl.java` | Create |
 | `infrastructure/planplace/JpaPlanPlaceRepository.java` | Create |
 | `infrastructure/planplace/PlanPlaceRepositoryImpl.java` | Create |
-| `presentation/plan/PlanPlaceRestController.java` | Create |
-| `presentation/place/PlaceController.java` | Update (add PlanService, userPlans) |
+| `presentation/plan/PlanPlaceRestController.java` | Create (escritura autenticada + ownership 404) |
+| `presentation/place/PlaceController.java` | Update (add PlanService, `userPlans` en `GET /places`) |
+| `config/SecurityConfig.java` | Update (narrow del ignore list de CSRF, escritura autenticada) |
+| `e2e/ResetDatabase.java` | Update (`DELETE FROM plan_place` antes de `DELETE FROM plans` + `ALTER SEQUENCE`) |

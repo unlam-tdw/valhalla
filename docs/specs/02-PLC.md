@@ -20,13 +20,11 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
 | AC-01 | El mapa carga centrado en Buenos Aires con tiles de OpenStreetMap |
 | AC-02 | Todos los lugares se muestran como markers en el mapa |
 | AC-03 | Cada marker tiene un color segun su categoria |
-| AC-04 | Al hacer click en un marker se muestra un popup con nombre, categoria y link a detalle |
+| AC-04 | Al hacer click en un marker se muestra un popup con nombre y categoria **sin link**, y los detalles del lugar (nombre, categoria, direccion, descripcion, imagen) se muestran en el panel lateral de `/places` sin navegar |
 | AC-05 | La sidebar muestra las cards de lugares sincronizadas con el mapa |
 | AC-06 | Filtrar por categoria actualiza los markers y la sidebar |
 | AC-07 | Buscar por nombre filtra los markers y la sidebar |
 | AC-08 | Al hacer click en una card de la sidebar, el mapa centra en ese lugar |
-| AC-09 | La ficha de lugar muestra imagen (o placeholder), nombre, categoria, direccion, descripcion |
-| AC-10 | La ficha de lugar muestra un mapa con el marker de ese lugar |
 | AC-11 | El seeder carga 10 lugares de Buenos Aires al iniciar la app |
 | AC-12 | El endpoint GET /api/places retorna todos los lugares en JSON |
 | AC-13 | El endpoint GET /api/places?category=X filtra por categoria |
@@ -41,8 +39,6 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
 | U-01 | `listPlaces()` sin filtros retorna todos los lugares | AC-14 |
 | U-02 | `listPlaces()` con category retorna lugares filtrados | AC-06 |
 | U-03 | `listPlaces()` con search retorna lugares filtrados | AC-07 |
-| U-04 | `placeDetail()` con id valido retorna la vista con el lugar | AC-09 |
-| U-05 | `placeDetail()` con id invalido retorna vista sin lugar | AC-09 |
 
 ### Tests Unitarios (`domain/place/PlaceServiceImplTest.java`)
 
@@ -51,8 +47,8 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
 | U-06 | `getAllPlaces()` retorna todos los lugares | AC-02 |
 | U-07 | `getPlacesByCategory()` retorna filtrados | AC-06 |
 | U-08 | `searchPlaces()` retorna por nombre | AC-07 |
-| U-09 | `getPlaceById()` con id existente retorna el lugar | AC-09 |
-| U-10 | `getPlaceById()` con id inexistente retorna empty | AC-09 |
+| U-09 | `getPlaceById()` con id existente retorna el lugar | AC-04 |
+| U-10 | `getPlaceById()` con id inexistente retorna empty | AC-04 |
 
 ### Tests de Integracion (`integration/PlaceControllerTest.java`)
 
@@ -61,8 +57,6 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
 | I-01 | `GET /places` retorna 200 y vista con lugares | AC-14 |
 | I-02 | `GET /places?category=RESTAURANT` retorna 200 con filtrados | AC-06 |
 | I-03 | `GET /places?search=Don` retorna 200 con filtrados | AC-07 |
-| I-04 | `GET /places/{id}` con id valido retorna 200 | AC-09 |
-| I-05 | `GET /places/{id}` con id inexistente retorna 200 sin lugar | AC-09 |
 
 ### Tests de Integracion (`integration/PlaceRestControllerTest.java`)
 
@@ -85,6 +79,27 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
 | E-01 | `PlacesViewE2E` | Ir a /places, verificar mapa y markers, filtrar por categoria | AC-01, AC-02, AC-03, AC-06 |
+| E-02 | `PlacesViewE2E.shouldShowDetailsFromMarkerWithoutLeavingPlacesPage` | Click en marker: popup sin links, panel lateral con los detalles, la URL no cambia | AC-04 |
+| E-03 | `PlacesViewE2E.shouldCenterSelectedCardAndShowClosablePlaceDetails` | Click en card: el mapa centra y el panel muestra imagen, direccion y descripcion | AC-04, AC-08 |
+
+## Notas / decisiones de diseño
+
+- **La ficha de lugar es un panel lateral, no una pagina.** No existe
+  `pages/places/detail.html` ni ruta `/places/{id}`: `PlaceController` solo tiene
+  `@GetMapping` en `/places`. Los detalles se muestran en un
+  `<aside aria-label="Details for ...">` dentro de la misma pagina, con nombre, categoria,
+  direccion, descripcion e imagen. El popup del marker muestra nombre y categoria y **no**
+  lleva ningun link, a proposito: el unico `<a>` que Leaflet mete en el popup es su boton de
+  cerrar, y la URL no cambia nunca.
+- **Por que asi**: el mapa es la pantalla de exploracion. Mandar al usuario a otra pagina para
+  ver un lugar pierde el contexto (filtro aplicado, posicion del mapa, scroll de la sidebar) y
+  obliga a volver. El panel mantiene las tres sincronizadas.
+- **Cubierto por tests**: `PlacesViewE2E.shouldShowDetailsFromMarkerWithoutLeavingPlacesPage`
+  asserta `.leaflet-popup-content a == 0` y que la URL sigue siendo `/places`;
+  `shouldCenterSelectedCardAndShowClosablePlaceDetails` asserta el contenido del panel y que se
+  puede cerrar con `button[aria-label='Close place details']`.
+- **Trello**: el check `PLC-010` de la card PLC figura COMPLETE por un archivo que no existe.
+  Queda obsoleto — el trabajo real es el panel lateral, no un template de detalle.
 
 ## Referencia de Implementacion
 
@@ -588,87 +603,6 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/list.html`
 </html>
 ```
 
-### 10. Create detail template
-
-File: `src/main/webapp/WEB-INF/templates/pages/places/detail.html`
-
-```html
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8">
-    <title th:text="${place?.name}">Place Detail</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <div th:replace="~{fragments/header :: header}"></div>
-
-    <main class="container mx-auto px-4 py-8" th:if="${place}">
-        <div class="flex gap-8">
-            <div class="flex-1">
-                <div th:if="${place.imageUrl}" class="rounded-lg overflow-hidden">
-                    <img th:src="${place.imageUrl}" th:alt="${place.name}" class="w-full h-80 object-cover">
-                </div>
-                <div th:unless="${place.imageUrl}" class="w-full h-80 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span class="text-gray-500">No image</span>
-                </div>
-            </div>
-
-            <div class="flex-1">
-                <h1 class="text-3xl font-bold mb-2" th:text="${place.name}"></h1>
-                <span class="inline-block px-3 py-1 text-sm text-white bg-blue-500 rounded mb-4"
-                      th:text="${place.category}"></span>
-
-                <p class="text-gray-600 mb-2" th:if="${place.address}">
-                    <strong>Address:</strong> <span th:text="${place.address}"></span>
-                </p>
-                <p class="text-gray-700 mb-6" th:text="${place.description}"></p>
-
-                <!-- "Add to plan" button is implemented in [APL-FE] spec -->
-                <div sec:authorize="isAuthenticated()" class="mb-6" id="add-to-plan-placeholder">
-                    <p class="text-sm text-gray-500 italic">Add to plan feature coming soon.</p>
-                </div>
-
-                <a th:href="@{/places}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded inline-block">
-                    Back to list
-                </a>
-            </div>
-        </div>
-
-        <div class="mt-8">
-            <h2 class="text-xl font-bold mb-4">Location</h2>
-            <div id="detail-map" class="h-96 rounded-lg"></div>
-        </div>
-    </main>
-
-    <div th:unless="${place}" class="container mx-auto px-4 py-8 text-center">
-        <h1 class="text-2xl font-bold text-red-500">Place not found</h1>
-        <a th:href="@{/places}" class="text-blue-500 hover:underline">Back to list</a>
-    </div>
-
-    <script th:inline="javascript">
-        const place = [[${place}]];
-        if (place && place.latitude && place.longitude) {
-            const map = L.map('detail-map').setView([place.latitude, place.longitude], 16);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-
-            L.circleMarker([place.latitude, place.longitude], {
-                radius: 12, fillColor: '#e74c3c', color: '#fff',
-                weight: 3, fillOpacity: 1
-            }).addTo(map).bindPopup('<strong>' + place.name + '</strong>').openPopup();
-        }
-    </script>
-</body>
-</html>
-```
-
-**Note:** The "Add to plan" dropdown is implemented in [APL-FE] spec (05-APL-FE.md) which has the PlanPlace entity and PlanService. This spec only shows the place detail with image, description, and map.
-
 ## Archivos a crear
 
 | File | Action |
@@ -682,5 +616,4 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/detail.html`
 | `presentation/place/PlaceController.java` | Create |
 | `presentation/place/PlaceRestController.java` | Create |
 | `infrastructure/PlaceDataSeeder.java` | Create |
-| `templates/pages/places/list.html` | Create |
-| `templates/pages/places/detail.html` | Create (with image handling + map) |
+| `templates/pages/places/list.html` | Create (con panel lateral de detalles del lugar) |

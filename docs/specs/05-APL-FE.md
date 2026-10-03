@@ -5,19 +5,19 @@
 
 ## Objetivo
 
-Frontend para agregar lugares a planes: boton "Add to plan" en la ficha de lugar, itinerario con Vue.js, mapa con rutas y marcadores numerados en el detalle del plan.
+Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral de `/places`, itinerario con Vue.js, mapa con rutas y marcadores numerados en el detalle del plan.
 
 ## Pre-requisitos
 
-- [APL-BE] completed (PlanPlace entity, REST endpoints, PlaceController update)
-- [PLC] completed (place detail template exists)
+- [APL-BE] completed (PlanPlace entity, REST endpoints, `userPlans` en el model de `GET /places`)
+- [PLC] completed (panel lateral de detalles del lugar dentro de `/places`)
 
 ## Criterios de Aceptacion
 
 | # | Criterio |
 |---|----------|
-| AC-01 | La ficha de lugar (/places/{id}) muestra un dropdown con los planes del usuario logueado |
-| AC-02 | Se puede agregar un lugar a un plan desde la ficha de lugar |
+| AC-01 | El panel lateral de `/places` muestra un dropdown con los planes del usuario logueado para el lugar seleccionado |
+| AC-02 | Se puede agregar el lugar seleccionado a un plan desde el panel lateral, sin salir de `/places` |
 | AC-03 | Al agregar un lugar se muestra feedback visual (redirect o mensaje) |
 | AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
 | AC-05 | Cada lugar del itinerario muestra numero de orden, nombre, categoria, fecha y hora |
@@ -34,7 +34,7 @@ Frontend para agregar lugares a planes: boton "Add to plan" en la ficha de lugar
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | Form "Add to plan" tiene select con planes del usuario y boton submit | AC-01, AC-02 |
+| U-01 | El panel lateral de `/places` muestra el select con los planes del usuario y el boton "Add to plan" | AC-01, AC-02 |
 
 ### Tests de Integracion (`presentation/plan/PlanControllerTest.java`)
 
@@ -47,23 +47,38 @@ Frontend para agregar lugares a planes: boton "Add to plan" en la ficha de lugar
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `AddToPlanE2E` | Ir a /places/{id}, agregar a plan, verificar en /plans/{id} | AC-01, AC-02, AC-04, AC-05 |
+| E-01 | `AddToPlanE2E` | Ir a /places, seleccionar un lugar, agregar a plan desde el panel, verificar en /plans/{id} | AC-01, AC-02, AC-04, AC-05 |
+
+## Notas / decisiones de diseño
+
+- **El "Add to plan" vive en el panel lateral, no en una ficha aparte** (D1). No existe
+  `pages/places/detail.html` ni ruta `/places/{id}`: la ficha se rediseñó en Sprint 1 (PR #6) como
+  `<aside aria-label="Details for ...">` dentro de `/places`. El panel ya tiene nombre, categoría,
+  dirección, descripción e imagen del lugar, así que el dropdown de planes se agrega ahí y el
+  usuario no pierde el mapa, el filtro aplicado ni la posición del scroll.
+- **El panel ya existe en `places/list.html`** y su botón "Add to plan" hoy es un no-op
+  (`PlacesViewE2E` solo verifica que no navegue y que el panel siga montado). Esta spec lo
+  conecta al endpoint real de APL-BE.
+- **CSRF (AC-11)**: APL-BE reduce el ignore list a las lecturas, así que el `POST` desde `/places`
+  necesita el token. Un form de Thymeleaf lo trae con `th:name="${_csrf.parameterName}"`; si la
+  llamada se hace con `fetch`, el token va en el header que indique `${_csrf.parameterName}`.
 
 ## Referencia de Implementacion
 
 > Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 
-### 1. Update place detail template (add "Add to plan" form)
+### 1. Update the places panel (add "Add to plan" form)
 
-File: `src/main/webapp/WEB-INF/templates/pages/places/detail.html`
+File: `src/main/webapp/WEB-INF/templates/pages/places/list.html`
 
-Replace the placeholder from [PLC] with the real form:
+Agregar dentro del `<aside>` de detalles, después del bloque de imagen/dirección/descripción. No
+hay vista nueva que crear:
 
 ```html
-<div sec:authorize="isAuthenticated()" class="mb-6" th:if="${userPlans}">
+<div sec:authorize="isAuthenticated()" class="mt-6" th:if="${userPlans}">
     <h3 class="font-medium mb-2">Add to plan</h3>
-    <form th:action="@{/plans/add-place}" method="post" class="flex gap-2">
-        <input type="hidden" name="placeId" th:value="${place.id}">
+    <form th:action="@{/api/plans/{planId}/places(planId=${selectedPlace.id})}" method="post" class="flex gap-2">
+        <input type="hidden" name="placeId" th:value="${selectedPlace.id}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <select name="planId" class="px-3 py-2 border rounded focus:outline-none">
             <option value="">Select a plan...</option>
@@ -279,5 +294,5 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 
 | File | Action |
 |------|--------|
-| `templates/pages/places/detail.html` | Update (add "Add to plan" form with CSRF) |
+| `templates/pages/places/list.html` | Update (add "Add to plan" form al panel lateral, con CSRF) |
 | `templates/pages/plans/detail.html` | Update (add Vue.js itinerary with CSRF helpers) |
