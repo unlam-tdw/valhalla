@@ -2,6 +2,15 @@
 
 > Platform for discovering and sharing experiences/plans in Buenos Aires.
 
+> **Este documento describe la arquitectura OBJETIVO, no el estado actual.** Varias entidades,
+> paquetes y endpoints todavía no existen: `PlanPlace`, `PlanPlaceRestController`, `ShareController`,
+> `pages/share/view.html` y la ruta `GET /places/{id}`. Para lo que hay hoy, ver `README.md`; para
+> lo que falta, ver `docs/specs/`.
+>
+> Correcciones ya aplicadas: no hay clustering, Tailwind es
+> vendorizado y no CDN, y el popup de lugar **no** lleva link a una página de detalle — los detalles
+> van al panel lateral de `/places`.
+
 ## Quick Path
 
 1. User registers/logs in → session created
@@ -194,29 +203,33 @@ src/main/webapp/WEB-INF/templates/
 
 ### Static Resources
 
+El frontend no tiene bundles compilados. Lo propio es solo esto:
+
 ```
 src/main/webapp/resources/
-├── css/
-│   └── app.css
-├── js/
-│   ├── app.js                 (main bundle)
-│   ├── map.js                 (Leaflet initialization)
-│   ├── places.js              (place markers, filters)
-│   ├── plan-builder.js        (plan creation with map)
-│   └── share-view.js          (public plan map)
-└── lib/
-    ├── leaflet/               (Leaflet CSS + JS)
-    └── leaflet-markercluster/ (marker clustering)
+├── core/js/
+│   ├── tailwind-browser.js      (@tailwindcss/browser vendorizado: compila Tailwind en el browser)
+│   └── vue.global.prod.js
+└── images/
+    └── place-placeholder.svg
 ```
+
+**Tailwind es local y vendorizado**: `layouts/base.html` lo carga con
+`<script th:src="@{/js/tailwind-browser.js}" defer>`. No hay paso de build de CSS.
+
+**Leaflet sí viene de CDN**, y solo en `pages/places/list.html`:
+`https://unpkg.com/leaflet@1.9.4/dist/leaflet.{css,js}`. No existe `lib/leaflet/` en el repo.
+
+No existe `js/map.js`, `js/places.js`, `js/plan-builder.js` ni `js/share-view.js`: la lógica de
+Leaflet vive **inline** dentro de los templates Thymeleaf.
 
 ### Map Integration (Leaflet + OSM)
 
 | Feature | Implementation |
 |---------|----------------|
-| Base map | OpenStreetMap tiles (free, no API key) |
+| Base map | OpenStreetMap tiles (free, no API key), Leaflet 1.9.4 desde unpkg |
 | Markers | Custom markers by category (color/icon) |
-| Popups | Place name, category, link to detail |
-| Clustering | Leaflet.markercluster for dense areas |
+| Popups | Place name y categoría **sin link** — los detalles van al panel lateral de `/places`, sin navegar |
 | Responsive | Fullscreen on mobile, sidebar on desktop |
 | Filters | Category filter toggles marker visibility |
 | Route lines | Leaflet.Polyline between plan places |
@@ -295,7 +308,7 @@ src/main/webapp/resources/
 | Session auth | Spring Security | SecurityFilterChain: form login, CSRF, session management (1 per user) |
 | DB for places | PostgreSQL (prod) | Already configured, supports PostGIS if needed later |
 | Seed data | ApplicationListener | ContextRefreshedEvent seeder, migrate to Flyway later |
-| Frontend | Tailwind CSS + Vue.js (CDN) | No build step, fast development |
+| Frontend | Tailwind CSS (vendorizado, compila en el browser) + Vue.js | No build step, fast development. Leaflet sí viene de CDN |
 
 ## 7. Implementation Order
 

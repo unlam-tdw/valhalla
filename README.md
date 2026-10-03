@@ -21,42 +21,53 @@ This starts PostgreSQL + the app in Docker with hot-reload. Source code is mount
 
 ```
 src/main/java/com/valhalla/
-├── config/                 # Spring configuration (JPA, MVC, security, validation)
-├── domain/                 # Business logic (services, models, exceptions)
-│   ├── exception/          # Custom domain exceptions
-│   ├── login/              # Login service interface + implementation
-│   ├── user/               # User entity, service, repository interface
-│   ├── place/              # Place entity, service, repository interface
-│   ├── plan/               # Plan entity, service, repository interface
-│   └── planplace/          # PlanPlace entity, service, repository interface
+├── config/                 # Spring configuration (JPA, MVC, security, validation, dev hot-reload)
+├── domain/                 # Business logic (entities, services, repository interfaces, exceptions)
+│   ├── exception/          # PlanNotFoundException, UserNotFoundException, UserAlreadyExists
+│   ├── login/              # LoginService
+│   ├── user/               # User, UserService, UserRepository interface
+│   ├── place/              # Place, PlaceCategory, PlaceService, PlaceRepository interface
+│   └── plan/               # Plan, PlanService, PlanRepository interface
 ├── infrastructure/         # Persistence (Spring Data JPA repositories) + seeders
-│   ├── user/               # UserRepositoryImpl, JpaUserRepository
-│   ├── place/              # PlaceRepositoryImpl, JpaPlaceRepository
-│   ├── plan/               # PlanRepositoryImpl, JpaPlanRepository
-│   ├── planplace/          # PlanPlaceRepositoryImpl, JpaPlanPlaceRepository
+│   ├── user/               # JpaUserRepository, UserRepositoryImpl
+│   ├── place/              # JpaPlaceRepository, PlaceRepositoryImpl
+│   ├── plan/               # JpaPlanRepository, PlanRepositoryImpl
+│   ├── login/              # Spring Security adapters for the login flow
+│   ├── security/           # CustomUserDetailsService, CustomAuthenticationSuccessHandler
 │   ├── UserSeeder.java     # Seeds test admin on startup
 │   └── PlaceDataSeeder.java # Seeds 10 Buenos Aires places
-├── presentation/           # MVC controllers, DTOs
-│   ├── login/              # Login controller
-│   ├── shared/             # Cross-cutting: GlobalExceptionHandler, NewUserRequest
-│   ├── user/               # User controller + DTOs
+├── presentation/           # MVC controllers, request DTOs
+│   ├── login/              # LoginController (/admin/login)
+│   ├── auth/               # AuthController (/auth/*: login, register, password recovery)
+│   ├── landing/            # LandingController (/)
+│   ├── user/               # UserController + EditUserRequest
 │   ├── place/              # PlaceController, PlaceRestController
-│   ├── plan/               # PlanController, PlanPlaceRestController
-│   └── share/              # ShareController (public plan view)
+│   ├── plan/               # PlanController + PlanRequest
+│   └── shared/             # GlobalExceptionHandler + NewUser/Register/RecoverPassword requests
 └── MyServletInitializer.java  # Bootstrap for external servlet containers
 
 src/main/webapp/
 ├── WEB-INF/templates/
-│   ├── layouts/            # base page chrome (head + layout decorator)
-│   ├── components/         # reusable fragments (header, alerts)
-│   ├── pages/auth/         # login, register
-│   ├── pages/places/       # places list (map + sidebar), place detail
-│   ├── pages/plans/        # plans list, create, detail (itinerary + map)
-│   └── pages/share/        # public shared plan view
-└── resources/core/js/
-    ├── tailwind-browser.js # Tailwind CSS compiled in the browser
-    └── vue.global.prod.js  # Vue.js for client-side interactivity
+│   ├── layouts/base.html   # page chrome: head + layout decorator
+│   ├── components/
+│   │   ├── navbar.html     # top nav, renders the authenticated email
+│   │   └── alerts/error-alert.html
+│   └── pages/
+│       ├── landing.html    # public landing page (/)
+│       ├── home.html, error.html
+│       ├── admin/          # users list + user form
+│       ├── auth/           # /auth/login, /auth/new-user
+│       │   └── user/       # login, register, forgot-password, recovered
+│       ├── places/list.html # places map + sidebar (details render in the sidebar)
+│       └── plans/          # list, new, detail (itinerary + map)
+└── resources/
+    ├── core/js/            # vendored, no build step: tailwind-browser.js, vue.global.prod.js
+    └── images/             # place-placeholder.svg
 ```
+
+El frontend no tiene paso de build: Tailwind corre en el browser (`tailwind-browser.js`, vendored),
+Vue igual (`vue.global.prod.js`), Leaflet entra por CDN de unpkg y su logica de mapa vive inline
+en los templates Thymeleaf.
 
 ## Documentation
 
@@ -89,12 +100,20 @@ Las specs definen cada feature del proyecto. Cada una tiene Criterios de Aceptac
 | [06-CMP](docs/specs/06-CMP.md) | Compartir Plan | [CMP](https://trello.com/c/vZuil82c) |
 | [07-VPC](docs/specs/07-VPC.md) | Vista Publica de Plan Compartido | [VPC](https://trello.com/c/hr1n4EwA) |
 | [08-AUT](docs/specs/08-AUT.md) | Auth de Usuarios (login, registro, recovery) | [AUT](https://trello.com/c/AhEeTyf7) |
+| [09-BRD](docs/specs/09-BRD.md) | Branding e identidad visual | — (card pendiente) |
+| [10-LAND](docs/specs/10-LAND.md) | Landing Page | — (card pendiente) |
+| [11-PROF](docs/specs/11-PROF.md) | Perfil de usuario y cambio de contraseña | — (card pendiente) |
+| [12-DATA](docs/specs/12-DATA.md) | Contenido de lugares | — (card pendiente) |
+
+LO, PLC, PLN y AUT (01, 02, 03, 08) ya estan mergeados; APL-BE, APL-FE, CMP y VPC (04 a 07) son
+backlog. Las 09 a 12 son las nuevas de user-facing. El costo en puntos y el sprint de cada card
+estan en el [Sprint Planner](docs/sprint-planner.md).
 
 ## Authentication
 
 Spring Security handles auth. `SecurityConfig` configures form login (`/admin/login`), logout (`/admin/logout`), CSRF (exempt for `/api/**`), and session management (1 session per user). `CustomUserDetailsService` bridges `UserRepository` to Spring Security. `CustomAuthenticationSuccessHandler` sets `loginTime` in the HTTP session after successful login. Public routes: `/`, `/share/**`. Protected: `/admin/**` requires `ROLE_ADMIN`. New registrations get `role = USER` and `active = true`.
 
-User-facing auth (self-registration, `/auth/login`, password recovery) is specified in [08-AUT](docs/specs/08-AUT.md) — planned, not yet implemented.
+User-facing auth (self-registration, `/auth/login`, password recovery) is specified in [08-AUT](docs/specs/08-AUT.md) and is already implemented — merged in PR #5.
 
 ## Technologies
 
