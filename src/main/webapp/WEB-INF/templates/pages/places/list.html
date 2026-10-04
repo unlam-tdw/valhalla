@@ -139,9 +139,17 @@
           <ul v-pre class="flex flex-col gap-2">
             <li th:each="plan : ${userPlans}">
               <a th:href="@{/plans/{id}(id=${plan.id})}"
-                class="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition hover:bg-gray-50">
-                <span class="min-w-0 truncate font-medium" th:text="${plan.name}">Plan</span>
-                <span class="shrink-0 text-xs text-gray-500" th:text="${plan.eventDate}"></span>
+                class="flex flex-col gap-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition hover:bg-gray-50">
+                <span class="flex items-center justify-between gap-2">
+                  <span class="min-w-0 truncate font-medium" th:text="${plan.name}">Plan</span>
+                  <span th:if="${plan.isPublic}"
+                    class="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Public</span>
+                  <span th:unless="${plan.isPublic}"
+                    class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Private</span>
+                </span>
+                <span class="text-xs text-gray-500" th:text="${plan.eventDate != null} ? ${plan.eventDate} : 'No date'"></span>
+                <span th:if="${plan.description != null and !#strings.isEmpty(plan.description)}"
+                  class="line-clamp-2 text-xs text-gray-600" th:text="${plan.description}"></span>
               </a>
             </li>
             <li th:if="${#lists.isEmpty(userPlans)}" class="text-sm text-gray-500">
