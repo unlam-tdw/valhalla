@@ -40,9 +40,6 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
   @Override
   public PlanPlace addPlaceToPlan(Long planId, Long placeId, String ownerEmail) {
     Plan plan = planService.getOwnedPlan(planId, ownerEmail);
-    if (isPlaceInPlan(planId, placeId)) {
-      throw new IllegalStateException("Place already in plan");
-    }
     PlanPlace entry = new PlanPlace();
     plan.addPlanPlace(entry);
     entry.setPlace(places.findById(placeId).orElseThrow(PlanNotFoundException::new));
@@ -87,20 +84,20 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
   }
 
   @Override
-  public void reorderPlaces(Long planId, List<Long> placeIds, String ownerEmail) {
+  public void reorderPlaces(Long planId, List<Long> entryIds, String ownerEmail) {
     planService.getOwnedPlan(planId, ownerEmail);
     List<PlanPlace> entries = repository.findByPlanId(planId);
-    // The example silently accepts unknown/duplicate/partial ids, which can leave ambiguous sort orders.
+    // The same place can appear several times, so entries are identified by their own id.
     if (
-      placeIds == null ||
-      placeIds.size() != entries.size() ||
-      !new HashSet<>(placeIds)
-        .equals(new HashSet<>(entries.stream().map(entry -> entry.getPlace().getId()).toList()))
+      entryIds == null ||
+      entryIds.size() != entries.size() ||
+      !new HashSet<>(entryIds)
+        .equals(new HashSet<>(entries.stream().map(PlanPlace::getId).toList()))
     ) {
-      throw new IllegalArgumentException("Provide each place in the plan exactly once");
+      throw new IllegalArgumentException("Provide each itinerary entry exactly once");
     }
     for (PlanPlace entry : entries) {
-      entry.setSortOrder(placeIds.indexOf(entry.getPlace().getId()) + 1);
+      entry.setSortOrder(entryIds.indexOf(entry.getId()) + 1);
       repository.save(entry);
     }
   }

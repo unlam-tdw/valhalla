@@ -59,10 +59,10 @@ class PlanPlaceServiceImplTest {
   }
 
   @Test
-  void U02_duplicateRejected() {
+  void U02_samePlaceCanBeAddedAgain() {
     when(repository.existsByPlanIdAndPlaceId(1L, 2L)).thenReturn(true);
-    assertThrows(IllegalStateException.class, () -> service.addPlaceToPlan(1L, 2L, "owner"));
-    verify(repository, never()).save(any());
+    assertEquals(8, service.addPlaceToPlan(1L, 2L, "owner").getSortOrder());
+    verify(repository).save(any());
   }
 
   @Test
@@ -87,8 +87,8 @@ class PlanPlaceServiceImplTest {
   }
 
   @Test
-  void U06_reordersByPlaceIds() {
-    service.reorderPlaces(1L, List.of(2L), "owner");
+  void U06_reordersByEntryIds() {
+    service.reorderPlaces(1L, List.of(3L), "owner");
     assertEquals(1, entry.getSortOrder());
     verify(repository).save(entry);
   }
@@ -142,7 +142,7 @@ class PlanPlaceServiceImplTest {
 
   @Test
   void invalidReorderRejectedBeforeSaving() {
-    for (List<Long> ids : Arrays.asList(null, List.<Long>of(), List.of(99L), List.of(2L, 2L))) {
+    for (List<Long> ids : Arrays.asList(null, List.<Long>of(), List.of(99L), List.of(3L, 3L))) {
       assertThrows(IllegalArgumentException.class, () -> service.reorderPlaces(1L, ids, "owner"));
     }
     verify(repository, never()).save(any());

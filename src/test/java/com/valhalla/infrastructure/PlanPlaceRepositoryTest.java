@@ -10,7 +10,6 @@ import com.valhalla.integration.JpaIntegrationTest;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 @JpaIntegrationTest
@@ -77,16 +76,11 @@ class PlanPlaceRepositoryTest {
   }
 
   @Test
-  void I10_uniqueConstraintRejectsDuplicate() {
+  void I10_samePlaceCanBeSavedTwice() {
     save(first, 1);
+    save(first, 2);
     em.flush();
-    assertThrows(
-      DataIntegrityViolationException.class,
-      () -> {
-        save(first, 2);
-        jpa.flush();
-      }
-    );
+    assertEquals(2, entries.findByPlanId(plan.getId()).size());
   }
 
   @Test

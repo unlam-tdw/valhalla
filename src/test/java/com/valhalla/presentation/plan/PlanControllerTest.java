@@ -21,7 +21,9 @@ import static org.mockito.Mockito.when;
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.planplace.PlanPlace;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -168,6 +170,39 @@ public class PlanControllerTest {
     assertThat(captor.getValue().getShortCode(), is(nullValue()));
     assertThat(captor.getValue().getAdministrator(), is(nullValue()));
     verify(this.planServiceMock, times(1)).createPlan(any(Plan.class), eq(OWNER_EMAIL));
+  }
+
+  // --- PUT /plans/{id} ---
+
+  @Test
+  public void T_PLN_067_createPlan_mapeaLosLugaresEnOrdenYSaltaLasFilasVacias() {
+    // given
+    PlanRequest form = new PlanRequest("Viaje", null, null, false);
+    form.setPlaces(
+      List.of(
+        new PlanPlaceRequest(4L, "primero", LocalDate.of(2026, 12, 1), LocalTime.of(9, 30)),
+        new PlanPlaceRequest(null, null, null, null),
+        new PlanPlaceRequest(4L, "otra vez", null, null)
+      )
+    );
+    ArgumentCaptor<Plan> captor = ArgumentCaptor.forClass(Plan.class);
+    when(this.planServiceMock.createPlan(captor.capture(), eq(OWNER_EMAIL)))
+      .thenReturn(plan(PLAN_ID, "Viaje"));
+
+    // when
+    this.controller.createPlan(form, noErrors(form), this.authentication);
+
+    // then
+    List<PlanPlace> entries = captor.getValue().getPlanPlaces();
+    assertThat(entries.size(), is(2));
+    assertThat(entries.get(0).getPlace().getId(), is(4L));
+    assertThat(entries.get(0).getSortOrder(), is(1));
+    assertThat(entries.get(0).getDescription(), is(equalTo("primero")));
+    assertThat(entries.get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
+    assertThat(entries.get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
+    assertThat(entries.get(1).getPlace().getId(), is(4L));
+    assertThat(entries.get(1).getSortOrder(), is(2));
+    assertThat(entries.get(1).getPlan(), is(sameInstance(captor.getValue())));
   }
 
   // --- PUT /plans/{id} ---

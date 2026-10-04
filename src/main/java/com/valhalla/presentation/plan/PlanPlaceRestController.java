@@ -9,7 +9,6 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -87,13 +86,6 @@ public class PlanPlaceRestController {
   @ExceptionHandler(PlanNotFoundException.class)
   public ResponseEntity<Map<String, String>> notFound() {
     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
-  }
-
-  @ExceptionHandler({ IllegalStateException.class, DataIntegrityViolationException.class })
-  public ResponseEntity<Map<String, String>> duplicate() {
-    return ResponseEntity
-      .status(HttpStatus.CONFLICT)
-      .body(Map.of("error", "Place already in plan"));
   }
 
   @ExceptionHandler(

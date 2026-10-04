@@ -1,7 +1,9 @@
 package com.valhalla.presentation.plan;
 
+import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.planplace.PlanPlace;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,13 +99,30 @@ public class PlanController {
     return new ModelAndView(REDIRECT_PLANS);
   }
 
-  /** The form owns these four fields only: id, shortCode and administrator never come from a post. */
+  /** The form owns these fields and its itinerary rows only: id, shortCode and administrator never come from a post. */
   private Plan toPlan(PlanRequest planForm) {
     Plan plan = new Plan();
     plan.setName(planForm.getName());
     plan.setDescription(planForm.getDescription());
     plan.setEventDate(planForm.getEventDate());
     plan.setIsPublic(planForm.getIsPublic());
+    int order = 1;
+    for (PlanPlaceRequest row : planForm.getPlaces()) {
+      if (row.getPlaceId() == null) {
+        continue;
+      }
+      // Id-only stub: PlanServiceImpl swaps it for the persisted Place.
+      Place place = new Place();
+      place.setId(row.getPlaceId());
+      PlanPlace entry = new PlanPlace();
+      entry.setPlace(place);
+      entry.setDescription(row.getDescription());
+      entry.setVisitDate(row.getVisitDate());
+      entry.setVisitTime(row.getVisitTime());
+      entry.setSortOrder(order);
+      order++;
+      plan.addPlanPlace(entry);
+    }
     return plan;
   }
 

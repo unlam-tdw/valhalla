@@ -28,12 +28,12 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
   }
 
   @Test
-  void I02_duplicateConflict() throws Exception {
+  void I02_samePlaceCanBeAddedTwice() throws Exception {
     add(first);
-    mvc
-      .perform(post(url).param("placeId", first.toString()).with(user("apl@test.com")).with(csrf()))
-      .andExpect(status().isConflict());
-    assertEquals(1, entries.findByPlanId(plan.getId()).size());
+    add(first);
+    var result = entries.findByPlanId(plan.getId());
+    assertEquals(2, result.size());
+    assertEquals(2, result.get(1).getSortOrder());
   }
 
   @Test
@@ -85,15 +85,15 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
 
   @Test
   void I06_reorders() throws Exception {
-    add(first);
-    add(second);
+    Long firstEntry = add(first);
+    Long secondEntry = add(second);
     mvc
       .perform(
         post(url + "/reorder")
           .with(user("apl@test.com"))
           .with(csrf())
           .contentType("application/json")
-          .content("[" + second + "," + first + "]")
+          .content("[" + secondEntry + "," + firstEntry + "]")
       )
       .andExpect(status().isOk());
     assertEquals(second, entries.findByPlanId(plan.getId()).get(0).getPlace().getId());

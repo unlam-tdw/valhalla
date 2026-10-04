@@ -2,6 +2,8 @@ package com.valhalla.presentation.plan;
 
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 
 public class PlanRequest {
@@ -15,6 +17,8 @@ public class PlanRequest {
   private LocalDate eventDate;
 
   private Boolean isPublic;
+
+  private List<PlanPlaceRequest> places = new ArrayList<>();
 
   public PlanRequest() {}
 
@@ -55,5 +59,13 @@ public class PlanRequest {
 
   public void setIsPublic(Boolean isPublic) {
     this.isPublic = isPublic;
+  }
+
+  public List<PlanPlaceRequest> getPlaces() {
+    return places;
+  }
+
+  public void setPlaces(List<PlanPlaceRequest> places) {
+    this.places = places;
   }
 }

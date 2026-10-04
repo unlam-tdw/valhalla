@@ -172,42 +172,148 @@
         <div v-if="showCreatePlan" @click.self="closeCreatePlan" @keydown.esc="closeCreatePlan"
           class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
           <div role="dialog" aria-modal="true" aria-labelledby="create-plan-title"
-            class="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
-            <h2 id="create-plan-title" class="mb-6 text-2xl font-semibold text-gray-900">Crear plan</h2>
-            <form th:action="@{/plans}" method="POST">
+            class="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white p-6 shadow-md">
+            <h2 id="create-plan-title" class="text-2xl font-semibold text-gray-900">Crear plan</h2>
+            <div class="mb-4 mt-2" aria-live="polite">
+              <p class="mb-1 text-sm text-gray-500">Paso {{ planStep }} de 2:
+                {{ planStep === 1 ? 'Datos del plan' : 'Lugares' }}</p>
+              <div class="flex gap-2">
+                <span class="h-1.5 flex-1 rounded-full" :class="planStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'"></span>
+                <span class="h-1.5 flex-1 rounded-full" :class="planStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'"></span>
+              </div>
+            </div>
+            <form th:action="@{/plans}" method="POST" @submit="onPlanSubmit" class="flex min-h-0 flex-1 flex-col">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
-              <div>
-                <label for="plan-name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del plan</label>
-                <input type="text" id="plan-name" name="name" required ref="planNameInput"
-                  placeholder="Ej: Salida por Buenos Aires"
-                  class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+              <div class="flex min-h-0 flex-1 overflow-hidden">
+                <div class="flex w-[200%] shrink-0 transition-transform duration-300 ease-in-out"
+                  :class="planStep === 2 ? '-translate-x-1/2' : 'translate-x-0'">
+                  <!-- Step 1 -->
+                  <div class="w-1/2 shrink-0 overflow-y-auto px-1" :inert="planStep !== 1 ? '' : null">
+                    <div>
+                      <label for="plan-name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del
+                        plan</label>
+                      <input type="text" id="plan-name" name="name" required ref="planNameInput"
+                        placeholder="Ej: Salida por Buenos Aires"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div class="mt-4">
+                      <label for="plan-description"
+                        class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+                      <textarea id="plan-description" name="description" rows="4"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"></textarea>
+                    </div>
+                    <div class="mt-4">
+                      <label for="plan-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
+                      <input type="date" id="plan-date" name="eventDate"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div class="mt-4 flex items-center gap-2">
+                      <input type="checkbox" id="plan-public" name="isPublic" value="true"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="hidden" name="_isPublic" value="on" />
+                      <label for="plan-public" class="text-sm font-medium text-gray-700">Hacer público este
+                        plan</label>
+                    </div>
+                  </div>
+
+                  <!-- Step 2 -->
+                  <div class="flex w-1/2 shrink-0 flex-col gap-3 overflow-y-auto px-1"
+                    :inert="planStep !== 2 ? '' : null">
+                    <div class="flex gap-2">
+                      <select v-model="draftCategory" aria-label="Filtrar por categoría"
+                        class="w-1/3 rounded-md border border-gray-300 bg-white px-2 py-2 text-sm">
+                        <option value="">All categories</option>
+                        <option v-for="cat in categories" :key="cat" :value="cat">{{ capitalize(cat) }}</option>
+                      </select>
+                      <input v-model="draftQuery" type="text" placeholder="Search by name..."
+                        aria-label="Buscar lugares por nombre" @keydown.enter.prevent
+                        class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
+                      <button type="button" @click="clearDraftFilters"
+                        class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                        Clear
+                      </button>
+                    </div>
+
+                    <p class="text-xs text-gray-500">{{ draftResults.length }} place(s) found</p>
+                    <ul class="max-h-40 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200">
+                      <li v-for="place in draftResults" :key="place.id" class="flex items-center gap-3 px-3 py-2">
+                        <span class="h-3 w-3 shrink-0 rounded-full"
+                          :style="{ backgroundColor: categoryColor(place.category) }"></span>
+                        <span class="min-w-0 flex-1">
+                          <span class="block truncate text-sm font-medium text-gray-900">{{ place.name }}</span>
+                          <span class="block truncate text-xs text-gray-500">{{ place.address }}</span>
+                        </span>
+                        <button type="button" @click="addToDraft(place)" :aria-label="'Add ' + place.name + ' to the plan'"
+                          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-blue-600">
+                          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                        </button>
+                      </li>
+                      <li v-if="draftResults.length === 0" class="px-3 py-2 text-sm text-gray-500">No places found.
+                      </li>
+                    </ul>
+
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                      In this plan ({{ draftPlaces.length }})</h3>
+                    <p v-if="draftPlaces.length === 0" class="text-sm text-gray-500">
+                      Add at least one place. You can add the same place more than once.</p>
+                    <ol class="flex flex-col gap-2">
+                      <li v-for="(item, index) in draftPlaces" :key="item.key"
+                        class="rounded-md border border-gray-200 bg-gray-50 p-3">
+                        <input type="hidden" :name="'places[' + index + '].placeId'" :value="item.place.id" />
+                        <div class="flex items-center gap-2">
+                          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-medium text-white">{{ index + 1 }}</span>
+                          <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ item.place.name }}</span>
+                          <button type="button" @click="moveDraft(index, -1)" :disabled="index === 0"
+                            aria-label="Move up"
+                            class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&uarr;</button>
+                          <button type="button" @click="moveDraft(index, 1)"
+                            :disabled="index === draftPlaces.length - 1" aria-label="Move down"
+                            class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&darr;</button>
+                          <button type="button" @click="removeDraft(index)" aria-label="Remove place"
+                            class="rounded p-1 text-red-600 hover:bg-red-100">&times;</button>
+                        </div>
+                        <input type="text" v-model="item.description" :name="'places[' + index + '].description'"
+                          placeholder="Nota (opcional)" aria-label="Nota"
+                          class="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
+                        <div class="mt-2 flex gap-2">
+                          <input type="date" v-model="item.visitDate" :name="'places[' + index + '].visitDate'"
+                            aria-label="Fecha de visita"
+                            class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm" />
+                          <input type="time" v-model="item.visitTime" :name="'places[' + index + '].visitTime'"
+                            aria-label="Hora de visita"
+                            class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm" />
+                        </div>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
               </div>
-              <div class="mt-4">
-                <label for="plan-description" class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
-                <textarea id="plan-description" name="description" rows="4"
-                  class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"></textarea>
-              </div>
-              <div class="mt-4">
-                <label for="plan-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
-                <input type="date" id="plan-date" name="eventDate"
-                  class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
-              </div>
-              <div class="mt-4 flex items-center gap-2">
-                <input type="checkbox" id="plan-public" name="isPublic" value="true"
-                  class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                <input type="hidden" name="_isPublic" value="on" />
-                <label for="plan-public" class="text-sm font-medium text-gray-700">Hacer público este plan</label>
-              </div>
-              <div class="mt-6 flex justify-end gap-2">
-                <button type="button" @click="closeCreatePlan"
-                  class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
-                  Cancelar
-                </button>
-                <button type="submit"
-                  class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
-                  Crear plan
-                </button>
+
+              <div class="mt-4 flex justify-end gap-2">
+                <template v-if="planStep === 1">
+                  <button type="button" @click="closeCreatePlan"
+                    class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
+                    Cancelar
+                  </button>
+                  <button type="button" @click="nextPlanStep"
+                    class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
+                    Siguiente
+                  </button>
+                </template>
+                <template v-else>
+                  <button type="button" @click="planStep = 1"
+                    class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
+                    Atrás
+                  </button>
+                  <button type="submit" :disabled="draftPlaces.length === 0"
+                    class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    Crear plan
+                  </button>
+                </template>
               </div>
             </form>
           </div>
@@ -233,6 +339,11 @@
           const plansQuery = ref('');
           const showCreatePlan = ref(false);
           const planNameInput = ref(null);
+          const planStep = ref(1);
+          const draftPlaces = ref([]);
+          const draftCategory = ref('');
+          const draftQuery = ref('');
+          let nextDraftKey = 0;
           // TODO: replace with public/nearby plans from the API once it exists.
           const mockPlans = ref([
             { id: 1, name: 'Weekend in San Telmo', description: 'Antique market, tango and a long dinner.', eventDate: '2026-10-18', placesCount: 5 },
@@ -341,6 +452,53 @@
 
           const closeCreatePlan = () => {
             showCreatePlan.value = false;
+            planStep.value = 1;
+            draftPlaces.value = [];
+            draftCategory.value = '';
+            draftQuery.value = '';
+          };
+
+          // Same filter rules as the sidebar: category plus case-insensitive name match.
+          const draftResults = computed(() => {
+            const query = draftQuery.value.trim().toLowerCase();
+            return places.value.filter(place =>
+              (!draftCategory.value || place.category === draftCategory.value) &&
+              (!query || place.name.toLowerCase().includes(query)));
+          });
+
+          const clearDraftFilters = () => {
+            draftCategory.value = '';
+            draftQuery.value = '';
+          };
+
+          // The same place may be added repeatedly, so rows are keyed by their own counter.
+          const addToDraft = (place) => {
+            draftPlaces.value.push({ key: nextDraftKey++, place, description: '', visitDate: '', visitTime: '' });
+          };
+
+          const removeDraft = (index) => {
+            draftPlaces.value.splice(index, 1);
+          };
+
+          const moveDraft = (index, offset) => {
+            const target = index + offset;
+            if (target < 0 || target >= draftPlaces.value.length) return;
+            const [item] = draftPlaces.value.splice(index, 1);
+            draftPlaces.value.splice(target, 0, item);
+          };
+
+          const nextPlanStep = () => {
+            if (planNameInput.value && !planNameInput.value.reportValidity()) return;
+            planStep.value = 2;
+          };
+
+          const onPlanSubmit = (event) => {
+            if (planStep.value === 1) {
+              event.preventDefault();
+              nextPlanStep();
+            } else if (draftPlaces.value.length === 0) {
+              event.preventDefault();
+            }
           };
 
           const closeDetails = () => {
@@ -449,7 +607,18 @@
             showCreatePlan,
             planNameInput,
             openCreatePlan,
-            closeCreatePlan
+            closeCreatePlan,
+            planStep,
+            draftPlaces,
+            draftCategory,
+            draftQuery,
+            draftResults,
+            clearDraftFilters,
+            addToDraft,
+            removeDraft,
+            moveDraft,
+            nextPlanStep,
+            onPlanSubmit
           };
         }
       }).mount('#app');

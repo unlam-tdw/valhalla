@@ -11,15 +11,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
-@Table(
-  name = "plan_places",
-  uniqueConstraints = { @UniqueConstraint(columnNames = { "plan_id", "place_id" }) }
-)
+@Table(name = "plan_places")
 public class PlanPlace {
 
   @Id

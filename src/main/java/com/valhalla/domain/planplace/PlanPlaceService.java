@@ -15,6 +15,6 @@ public interface PlanPlaceService {
     String ownerEmail
   );
   void removePlaceFromPlan(Long planId, Long id, String ownerEmail);
-  void reorderPlaces(Long planId, List<Long> placeIds, String ownerEmail);
+  void reorderPlaces(Long planId, List<Long> entryIds, String ownerEmail);
   boolean isPlaceInPlan(Long planId, Long placeId);
 }

@@ -2,9 +2,11 @@ package com.valhalla.infrastructure.plan;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import java.util.List;
@@ -24,16 +26,29 @@ public class PlanServiceImpl implements PlanService {
 
   private final PlanRepository planRepository;
   private final UserRepository userRepository;
+  private final PlaceRepository placeRepository;
 
   @Autowired
-  public PlanServiceImpl(PlanRepository planRepository, UserRepository userRepository) {
+  public PlanServiceImpl(
+    PlanRepository planRepository,
+    UserRepository userRepository,
+    PlaceRepository placeRepository
+  ) {
     this.planRepository = planRepository;
     this.userRepository = userRepository;
+    this.placeRepository = placeRepository;
   }
 
   @Override
   public Plan createPlan(Plan plan, String ownerEmail) {
     User owner = userRepository.findByEmail(ownerEmail).orElseThrow(UserNotFoundException::new);
+    for (PlanPlace entry : plan.getPlanPlaces()) {
+      entry.setPlace(
+        placeRepository
+          .findById(entry.getPlace().getId())
+          .orElseThrow(() -> new IllegalArgumentException("Unknown place"))
+      );
+    }
     plan.setAdministrator(owner);
     // Always generated: the share code is the backend's, the form never asks for it.
     plan.setShortCode(generateUniqueShortCode());

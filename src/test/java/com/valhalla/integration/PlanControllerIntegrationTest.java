@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -16,11 +17,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +68,9 @@ public class PlanControllerIntegrationTest {
 
   @Autowired
   private PlanRepository planRepository;
+
+  @Autowired
+  private PlaceRepository placeRepository;
 
   private MockMvc mockMvc;
 
@@ -167,6 +173,45 @@ public class PlanControllerIntegrationTest {
     Plan saved =
       this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
     assertThat(saved.getIsPublic(), is(true));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_074b_postPlans_guardaLosLugaresEnOrdenPermitiendoRepetirUnoYDejandoVaciosEnNull()
+    throws Exception {
+    // given
+    Long placeId = this.placeRepository.findAll().get(0).getId();
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(
+          post("/plans")
+            .with(csrf())
+            .param("name", PLAN_NAME)
+            .param("places[0].placeId", placeId.toString())
+            .param("places[0].description", "desayuno")
+            .param("places[0].visitDate", "2026-12-01")
+            .param("places[0].visitTime", "09:30")
+            .param("places[1].placeId", placeId.toString())
+            .param("places[1].description", "")
+            .param("places[1].visitDate", "")
+            .param("places[1].visitTime", "")
+        )
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+
+    // then
+    Plan saved =
+      this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
+    assertThat(saved.getPlanPlaces(), hasSize(2));
+    assertThat(saved.getPlanPlaces().get(0).getSortOrder(), is(1));
+    assertThat(saved.getPlanPlaces().get(0).getDescription(), is(equalTo("desayuno")));
+    assertThat(saved.getPlanPlaces().get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
+    assertThat(saved.getPlanPlaces().get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
+    assertThat(saved.getPlanPlaces().get(1).getSortOrder(), is(2));
+    assertThat(saved.getPlanPlaces().get(1).getVisitDate(), is(nullValue()));
+    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(nullValue()));
+    assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(placeId)));
   }
 
   @Test
