@@ -232,9 +232,8 @@ public class LoginControllerTest {
   }
 
   @Test
-  public void shouldNotRequireCsrfForApiEndpoints() throws Exception {
-    this.mockMvc.perform(post("/api/something"))
-      .andExpect(result -> assertThat(result.getResponse().getStatus(), is(not(403))));
+  public void shouldRequireCsrfForApiWrites() throws Exception {
+    this.mockMvc.perform(post("/api/something")).andExpect(status().isForbidden());
   }
 
   @Test

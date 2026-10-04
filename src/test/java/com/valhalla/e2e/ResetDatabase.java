@@ -18,8 +18,9 @@ public class ResetDatabase {
 
     String bcryptHash = new BCryptPasswordEncoder().encode("password");
     String[] statements = {
-      // plans first: plans.administrator_id points at users, so deleting the users first makes
-      // this reset fail with a foreign key violation and leaves the suite running on stale rows.
+      "DELETE FROM plan_places",
+      "ALTER SEQUENCE plan_places_id_seq RESTART WITH 1",
+
       "DELETE FROM plans",
       "ALTER SEQUENCE plans_id_seq RESTART WITH 1",
       "DELETE FROM users",

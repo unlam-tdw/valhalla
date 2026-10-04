@@ -29,10 +29,10 @@ public class SecurityConfigTest {
   }
 
   @Test
-  public void shouldRedirectToLoginWhenAccessingPlacesWithoutSession() throws Exception {
+  public void shouldAllowPlacesWithoutSession() throws Exception {
     this.mockMvc.perform(get("/places"))
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrlPattern("**/auth/login"));
+      .andExpect(status().isOk())
+      .andExpect(model().attributeDoesNotExist("userPlans"));
   }
 
   @Test
