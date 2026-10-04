@@ -127,12 +127,27 @@
         <aside v-if="!selectedPlace" role="complementary" aria-label="Plans"
           class="absolute inset-y-0 right-0 z-[1000] flex w-80 max-w-full flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
           <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
-          <input v-model="plansQuery" type="search" placeholder="Search plans..." aria-label="Search plans"
+          <input v-model="plansQuery" type="search" placeholder="Search public plans..."
+            aria-label="Search public plans"
             class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
           <button type="button" @click="openCreatePlan"
             class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
             Create plan
           </button>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">My plans</h3>
+          <!-- v-pre: plan names are user input and must never reach Vue's template compiler. -->
+          <ul v-pre class="flex flex-col gap-2">
+            <li th:each="plan : ${userPlans}">
+              <a th:href="@{/plans/{id}(id=${plan.id})}"
+                class="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition hover:bg-gray-50">
+                <span class="min-w-0 truncate font-medium" th:text="${plan.name}">Plan</span>
+                <span class="shrink-0 text-xs text-gray-500" th:text="${plan.eventDate}"></span>
+              </a>
+            </li>
+            <li th:if="${#lists.isEmpty(userPlans)}" class="text-sm text-gray-500">
+              You haven't created any plans yet.
+            </li>
+          </ul>
           <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Public plans nearby</h3>
           <ul class="flex flex-col gap-3">
             <li v-for="plan in filteredPlans" :key="plan.id"
