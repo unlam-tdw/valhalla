@@ -1,15 +1,22 @@
 package com.valhalla.domain.plan;
 
+import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "plans")
@@ -22,8 +29,6 @@ public class Plan {
   @Column(nullable = false)
   private String name;
 
-  // No columnDefinition: main's entities rely on the default mapping, and an explicit TEXT breaks
-  // the HSQLDB instance the integration tests run against.
   @Column
   private String description;
 
@@ -34,11 +39,22 @@ public class Plan {
   @Column(unique = true)
   private String shortCode;
 
-  // Not nullable: an existing dev database already holds rows without an owner and hbm2ddl never
-  // tightens a column, so a NOT NULL here fails the schema update on upgrade.
   @ManyToOne
   @JoinColumn(name = "administrator_id")
   private User administrator;
+
+  @OneToMany(mappedBy = "plan", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+  @OrderBy("sortOrder ASC")
+  private List<PlanPlace> planPlaces = new ArrayList<>();
+
+  public List<PlanPlace> getPlanPlaces() {
+    return planPlaces;
+  }
+
+  public void addPlanPlace(PlanPlace planPlace) {
+    planPlaces.add(planPlace);
+    planPlace.setPlan(this);
+  }
 
   public Long getId() {
     return id;

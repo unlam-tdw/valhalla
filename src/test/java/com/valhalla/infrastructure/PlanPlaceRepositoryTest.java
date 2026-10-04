@@ -96,4 +96,41 @@ class PlanPlaceRepositoryTest {
     entries.deleteById(id);
     assertTrue(entries.findById(id).isEmpty());
   }
+
+  @Test
+  void planCollectionPersistsAndLoadsOrderedEntries() {
+    PlanPlace late = new PlanPlace();
+    late.setPlace(first);
+    late.setSortOrder(8);
+    PlanPlace early = new PlanPlace();
+    early.setPlace(places.findAll().get(1));
+    early.setSortOrder(2);
+    plan.addPlanPlace(late);
+    plan.addPlanPlace(early);
+    plans.save(plan);
+    em.flush();
+    Long planId = plan.getId();
+    em.clear();
+    Plan loaded = plans.findById(planId).orElseThrow();
+    assertFalse(
+      em.getEntityManagerFactory().getPersistenceUnitUtil().isLoaded(loaded, "planPlaces")
+    );
+    assertEquals(2, loaded.getPlanPlaces().size());
+    assertEquals(2, loaded.getPlanPlaces().get(0).getSortOrder());
+    assertEquals(8, loaded.getPlanPlaces().get(1).getSortOrder());
+    assertEquals(first.getId(), loaded.getPlanPlaces().get(1).getPlace().getId());
+    Long earlyId = loaded.getPlanPlaces().get(0).getId();
+    Long lateId = loaded.getPlanPlaces().get(1).getId();
+    assertEquals(planId, loaded.getPlanPlaces().get(0).getPlan().getId());
+    loaded.setName("Updated plan");
+    plans.save(loaded);
+    em.flush();
+    em.clear();
+    assertEquals(2, plans.findById(planId).orElseThrow().getPlanPlaces().size());
+    plans.deleteById(planId);
+    em.flush();
+    assertTrue(entries.findById(earlyId).isEmpty());
+    assertTrue(entries.findById(lateId).isEmpty());
+    assertTrue(places.findById(first.getId()).isPresent());
+  }
 }

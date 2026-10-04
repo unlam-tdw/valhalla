@@ -16,8 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 // The proposal places this Spring service in domain; existing services and component scanning use infrastructure.
-// Existing PlanServiceImpl.deleteOwnedPlan deletes only the plan: a nonempty itinerary now
-// triggers the foreign key constraint. Plan deletion needs a team decision on cascading entries.
 @Service
 @Transactional
 public class PlanPlaceServiceImpl implements PlanPlaceService {
@@ -46,7 +44,7 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
       throw new IllegalStateException("Place already in plan");
     }
     PlanPlace entry = new PlanPlace();
-    entry.setPlan(plan);
+    plan.addPlanPlace(entry);
     entry.setPlace(places.findById(placeId).orElseThrow(PlanNotFoundException::new));
     entry.setSortOrder(
       repository.findByPlanId(planId).stream().mapToInt(PlanPlace::getSortOrder).max().orElse(0) + 1
@@ -83,7 +81,8 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
 
   @Override
   public void removePlaceFromPlan(Long planId, Long id, String ownerEmail) {
-    ownedEntry(planId, id, ownerEmail);
+    PlanPlace entry = ownedEntry(planId, id, ownerEmail);
+    entry.getPlan().getPlanPlaces().remove(entry);
     repository.deleteById(id);
   }
 
