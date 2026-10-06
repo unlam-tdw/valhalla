@@ -20,6 +20,11 @@ public class WebPage {
     return URI.create(page.url()).toURL();
   }
 
+  /** Visible content of the document title. */
+  public String getTitle() {
+    return page.title();
+  }
+
   /**
    * Waits until the browser sits on {@code path}. Tolerates a query string as well as the
    * {@code ;jsessionid} suffix: Spring Security lands on {@code ?logout=true} and {@code
