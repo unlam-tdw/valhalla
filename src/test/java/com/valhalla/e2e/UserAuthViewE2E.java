@@ -59,7 +59,7 @@ public class UserAuthViewE2E extends E2eBase {
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("UNLAM", "Places", "Plans", "Logout")
+      contains("PlanIt", "Places", "Plans", "Logout")
     );
   }
 

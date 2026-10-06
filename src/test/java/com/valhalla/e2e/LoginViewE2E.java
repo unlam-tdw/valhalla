@@ -23,9 +23,9 @@ public class LoginViewE2E extends E2eBase {
   }
 
   @Test
-  void shouldShowUNLAMInTheNavbar() throws MalformedURLException {
+  void shouldShowPlanItInTheNavbar() throws MalformedURLException {
     givenUserIsOnLoginPage();
-    thenShouldSeeUNLAMInNavbar();
+    thenShouldSeePlanItInNavbar();
   }
 
   @Test
@@ -60,9 +60,9 @@ public class LoginViewE2E extends E2eBase {
     thenShouldBeRedirectedToLanding();
   }
 
-  private void thenShouldSeeUNLAMInNavbar() {
+  private void thenShouldSeePlanItInNavbar() {
     String text = loginPage.getNavbarBrand();
-    assertThat("UNLAM", equalToIgnoringCase(text));
+    assertThat("PlanIt", equalToIgnoringCase(text));
   }
 
   private void givenUserIsOnLoginPage() throws MalformedURLException {
