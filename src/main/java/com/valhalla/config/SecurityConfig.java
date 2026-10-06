@@ -117,7 +117,7 @@ public class SecurityConfig {
         auth
           .requestMatchers("/", "/share/**", "/api/**", "/reload/**")
           .permitAll()
-          .requestMatchers("/css/**", "/js/**", "/images/**")
+          .requestMatchers("/css/**", "/js/**", "/images/**", "/manifest.json")
           .permitAll()
           .anyRequest()
           .authenticated()

@@ -9,7 +9,87 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-  <title th:text="${pageTitle != null} ? ${pageTitle} : 'Taller Web I'">Taller Web I</title>
+  <title th:text="${pageTitle != null} ? ${pageTitle} : 'PlanIt'">PlanIt</title>
+  <meta name="description"
+    content="Discover and plan your perfect day in Buenos Aires">
+
+  <!-- Vista previa al compartir el link. Los scrapers de WhatsApp, Slack y LinkedIn leen
+       Open Graph; Twitter/X leen la tarjeta propia. El @{} de Thymeleaf devuelve una URL
+       relativa en un GET directo, y og:image relativa no se descarga: el prefijo sale del
+       bean siteOrigin, que lo arma con la request real (ver BaseWebConfig). -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PlanIt">
+  <meta property="og:title" th:content="${pageTitle != null} ? ${pageTitle} : 'PlanIt'">
+  <meta property="og:description" content="Discover and plan your perfect day in Buenos Aires">
+  <meta property="og:image" th:content="|${@siteOrigin.base()}@{/images/og-image.png}|">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" th:content="${pageTitle != null} ? ${pageTitle} : 'PlanIt'">
+  <meta name="twitter:description" content="Discover and plan your perfect day in Buenos Aires">
+  <meta name="twitter:image" th:content="|${@siteOrigin.base()}@{/images/og-image.png}|">
+
+  <!-- Barra del navegador en mobile, del color del navbar. El manifest da nombre e ícono
+       al "agregar a pantalla de inicio"; apple-touch-icon es aparte porque iOS no acepta
+       SVG para eso y aplica su propia máscara, por eso el PNG va a sangre completa.
+       El manifest va como /manifest.json y no como .webmanifest porque Spring sirve esa
+       extensión como application/octet-stream y el navegador descarta el manifest entero.
+       El #111827 repite el token --black de brand.css: un meta y un JSON no leen var(),
+       así que son el único hex de la marca que no puede salir de brand.css. -->
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" th:href="@{/manifest.json}">
+  <link rel="apple-touch-icon" th:href="@{/images/apple-touch-icon.png}">
+
+  <link rel="icon" th:href="@{/images/favicon.svg}" type="image/svg+xml">
+
+  <!-- Webfonts from Google Fonts: the sans that body wears, and the serif the design tokens
+       expose as --font-serif. display=swap is not optional: without it the text stays
+       invisible until the font arrives, on top of the reveal shield below. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600&display=swap">
+
+  <!-- Design tokens: brand colors, category colors and the font family live in
+       resources/css/brand.css, declared once and inherited by every page through
+       this fragment. The category colors are read back from JS via
+       getComputedStyle(document.documentElement).getPropertyValue('--category-*');
+       their keys match the PlaceCategory enum values. -->
+  <link rel="stylesheet" th:href="@{/css/brand.css}">
+
+  <!-- Tailwind's view of the same tokens. This block carries no color of its own: every
+       entry points at the --primary / --secondary / --category-* variables declared in
+       brand.css, which stay the single source of truth. Only brand values are mapped here:
+       the neutrals stay Tailwind's default gray scale, which is why there is no
+       --color-gray-500 remapping. It lives inline because the vendored browser build
+       only compiles style[type="text/tailwindcss"] read from the DOM (see
+       resources/core/js/tailwind-browser.js): a @theme in an external stylesheet is never
+       processed. The payoff is the utility names: bg-primary, text-category-restaurant
+       and friends become real Tailwind classes instead of arbitrary-value brackets. -->
+  <style type="text/tailwindcss">
+    @theme {
+      --color-white: var(--white);
+      --color-black: var(--black);
+      --color-gray: var(--gray);
+      --color-primary: var(--primary);
+      --color-secondary: var(--secondary);
+
+      --color-category-restaurant: var(--category-restaurant);
+      --color-category-bar: var(--category-bar);
+      --color-category-cafe: var(--category-cafe);
+      --color-category-museum: var(--category-museum);
+      --color-category-park: var(--category-park);
+      --color-category-shopping: var(--category-shopping);
+      --color-category-nightlife: var(--category-nightlife);
+      --color-category-culture: var(--category-culture);
+      --color-category-sport: var(--category-sport);
+      --color-category-other: var(--category-other);
+
+      --font-sans: var(--typeface-sans);
+      --font-serif: var(--typeface-serif);
+    }
+  </style>
 
   <!-- Tailwind compiled in the browser: the vendored @tailwindcss/browser script
        scans the rendered DOM and injects the generated CSS (no build step).

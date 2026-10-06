@@ -1,0 +1,55 @@
+/* Tokens de diseño de PlanIt.
+ *
+ * Una sola fuente de verdad para la paleta y la tipografía. Las vistas los
+ * heredan por el <link> que declara layouts/base :: head, así que ninguna
+ * página declara sus propios colores.
+ *
+ * Estos nombres son crudos a propósito. El bloque @theme de layouts/base :: head
+ * los expone al namespace de Tailwind (--color-primary, --font-sans, ...) para que
+ * existan utilidades con nombre, y no puede usar los mismos nombres aquí: una
+ * variable que se referencia a sí misma es inválida en CSS.
+ *
+ * Los tokens --category-* se leen desde JS con
+ * getComputedStyle(document.documentElement).getPropertyValue('--category-*'),
+ * y las claves coinciden con los valores del enum PlaceCategory. El mapa del
+ * marker y el del panel comparten esta misma fuente: no puede volver a haber
+ * un objeto de hex duplicado por página. */
+
+:root {
+  /* Paleta base */
+  --white: #ffffff;
+  --black: #111827;
+  --gray: #6b7280;
+
+  /* Marca */
+  --primary: #2563eb;
+  --secondary: #7c3aed;
+
+  /* Una entrada por categoría. */
+  --category-restaurant: #e74c3c;
+  --category-bar: #9b59b6;
+  --category-cafe: #e67e22;
+  --category-museum: #3498db;
+  --category-park: #2ecc71;
+  --category-shopping: #f39c12;
+  --category-nightlife: #1abc9c;
+  --category-culture: #34495e;
+  --category-sport: #e91e63;
+  --category-other: #95a5a6;
+
+  /* Tipografía. Los nombres de Google Fonts van primero y la pila del sistema queda
+     como respaldo: si fonts.googleapis.com no responde, la página se ve igual. */
+  --typeface-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --typeface-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+}
+
+/* Los neutros (gray-*, slate-*) NO tienen tokens propios a propósito: son la escala
+ * por defecto de Tailwind, no identidad de marca. --gray existe para el texto
+ * secundario que la marca define, no para reemplazar la rampa. Declarar aquí una
+ * rampa neutra obligaría a migrar los gray-* de todas las vistas para que no
+ * hubiera dos fuentes de gris, y eso es un cambio de otro tamaño. Si algún día se
+ * migra, --gray pasa a ser el nombre del token de la rampa, no un sexto color. */
+
+body {
+  font-family: var(--typeface-sans);
+}
