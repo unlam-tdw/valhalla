@@ -5,11 +5,16 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Self-service registration input. AC-01 asks for email + password only, so this stays
- * deliberately narrower than the admin-facing {@link NewUserRequest}, whose firstName and
- * lastName are required.
+ * Self-service registration input: email, password and the required first/last name, plus a
+ * confirm-password field whose match against {@code password} is checked in the controller.
  */
 public class RegisterRequest {
+
+  @NotBlank(message = "First name is required")
+  private String firstName;
+
+  @NotBlank(message = "Last name is required")
+  private String lastName;
 
   @NotBlank(message = "Email is required")
   @Email(message = "Email is not valid")
@@ -18,6 +23,9 @@ public class RegisterRequest {
   @NotBlank(message = "Password is required")
   @Size(min = 6, message = "Password must be at least 6 characters")
   private String password;
+
+  @NotBlank(message = "Confirm password is required")
+  private String confirmPassword;
 
   public RegisterRequest() {}
 
@@ -40,5 +48,29 @@ public class RegisterRequest {
 
   public void setPassword(String password) {
     this.password = password;
+  }
+
+  public String getConfirmPassword() {
+    return confirmPassword;
+  }
+
+  public void setConfirmPassword(String confirmPassword) {
+    this.confirmPassword = confirmPassword;
+  }
+
+  public String getFirstName() {
+    return firstName;
+  }
+
+  public void setFirstName(String firstName) {
+    this.firstName = firstName;
+  }
+
+  public String getLastName() {
+    return lastName;
+  }
+
+  public void setLastName(String lastName) {
+    this.lastName = lastName;
   }
 }

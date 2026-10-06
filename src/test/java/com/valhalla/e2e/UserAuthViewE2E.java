@@ -29,6 +29,8 @@ public class UserAuthViewE2E extends E2eBase {
 
   private static final String EMAIL = "aut.registrado@unlam.edu.ar";
   private static final String PASSWORD = "secret123";
+  private static final String FIRST_NAME = "Ana";
+  private static final String LAST_NAME = "Perez";
   private static final String WRONG_PASSWORD = "no-es-la-clave";
   private static final String SHORT_PASSWORD = "123";
   private static final String UNKNOWN_EMAIL = "nadie@unlam.edu.ar";
@@ -97,8 +99,11 @@ public class UserAuthViewE2E extends E2eBase {
     givenUserRegisters(EMAIL, PASSWORD);
 
     RegisterPage registerPage = new RegisterPage(page);
+    registerPage.typeFirstName(FIRST_NAME);
+    registerPage.typeLastName(LAST_NAME);
     registerPage.typeEmail(EMAIL);
     registerPage.typePassword(PASSWORD);
+    registerPage.typeConfirmPassword(PASSWORD);
     registerPage.clickRegister();
 
     assertThat(registerPage.getErrorMessage(), containsString("Ese email ya está registrado"));
@@ -108,8 +113,11 @@ public class UserAuthViewE2E extends E2eBase {
   @Test
   void shouldRejectAPasswordShorterThanSixCharacters() throws MalformedURLException {
     RegisterPage registerPage = new RegisterPage(page);
+    registerPage.typeFirstName(FIRST_NAME);
+    registerPage.typeLastName(LAST_NAME);
     registerPage.typeEmail(EMAIL);
     registerPage.typePassword(SHORT_PASSWORD);
+    registerPage.typeConfirmPassword(SHORT_PASSWORD);
     registerPage.clickRegister();
 
     assertThat(
@@ -123,8 +131,11 @@ public class UserAuthViewE2E extends E2eBase {
   @Test
   void shouldNotSendAMalformedEmailToTheServer() throws MalformedURLException {
     RegisterPage registerPage = new RegisterPage(page);
+    registerPage.typeFirstName(FIRST_NAME);
+    registerPage.typeLastName(LAST_NAME);
     registerPage.typeEmail("not-an-email");
     registerPage.typePassword(PASSWORD);
+    registerPage.typeConfirmPassword(PASSWORD);
     registerPage.clickRegister();
 
     assertThat(
@@ -165,8 +176,11 @@ public class UserAuthViewE2E extends E2eBase {
 
   private void givenUserRegisters(String email, String password) throws MalformedURLException {
     RegisterPage registerPage = new RegisterPage(page);
+    registerPage.typeFirstName(FIRST_NAME);
+    registerPage.typeLastName(LAST_NAME);
     registerPage.typeEmail(email);
     registerPage.typePassword(password);
+    registerPage.typeConfirmPassword(password);
     registerPage.clickRegister();
 
     thenShouldBeOnPath("/auth/login");

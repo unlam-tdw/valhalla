@@ -33,6 +33,8 @@ public class AuthControllerTest {
 
   private static final String EMAIL = "nuevo@unlam.edu.ar";
   private static final String PASSWORD = "secret123";
+  private static final String FIRST_NAME = "Ana";
+  private static final String LAST_NAME = "Perez";
   private static final String LOGIN_VIEW = "pages/auth/user/login";
   private static final String REGISTER_VIEW = "pages/auth/user/register";
   private static final String FORGOT_VIEW = "pages/auth/user/forgot-password";
@@ -138,46 +140,82 @@ public class AuthControllerTest {
 
   @Test
   public void shouldRedirectToLoginAfterSuccessfulRegistration() {
-    RegisterRequest request = new RegisterRequest(EMAIL, PASSWORD);
+    RegisterRequest request = wellFormedRequest();
 
     String view = controller.handleRegister(request, noErrors(request), new ExtendedModelMap());
 
     assertThat(view, is("redirect:/auth/login"));
-    verify(loginService).register(EMAIL, PASSWORD);
+    verify(loginService).register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
   }
 
   // --- U-05, U-06 ---
 
   @Test
   public void shouldRejectAnInvalidEmail() {
-    RegisterRequest request = new RegisterRequest("not-an-email", PASSWORD);
+    RegisterRequest request = wellFormedRequest();
+    request.setEmail("not-an-email");
     BeanPropertyBindingResult bindingResult = errorsOf(request);
 
     String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
 
     assertThat(view, is(REGISTER_VIEW));
     assertThat(fieldNames(bindingResult), hasItem("email"));
-    verify(loginService, never()).register(EMAIL, PASSWORD);
+    verify(loginService, never()).register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
   }
 
   @Test
   public void shouldRejectAShortPassword() {
-    RegisterRequest request = new RegisterRequest(EMAIL, "123");
+    RegisterRequest request = wellFormedRequest();
+    request.setPassword("123");
+    request.setConfirmPassword("123");
     BeanPropertyBindingResult bindingResult = errorsOf(request);
 
     String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
 
     assertThat(view, is(REGISTER_VIEW));
     assertThat(fieldNames(bindingResult), hasItem("password"));
-    verify(loginService, never()).register(EMAIL, PASSWORD);
+    verify(loginService, never()).register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
+  }
+
+  @Test
+  public void shouldRejectABlankFirstNameOrLastName() {
+    RegisterRequest request = new RegisterRequest(EMAIL, PASSWORD);
+    request.setConfirmPassword(PASSWORD);
+    BeanPropertyBindingResult bindingResult = errorsOf(request);
+
+    String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
+
+    assertThat(view, is(REGISTER_VIEW));
+    assertThat(fieldNames(bindingResult), hasItem("firstName"));
+    assertThat(fieldNames(bindingResult), hasItem("lastName"));
+    verify(loginService, never()).register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
+  }
+
+  @Test
+  public void shouldRejectAConfirmPasswordThatDoesNotMatch() {
+    RegisterRequest request = wellFormedRequest();
+    request.setConfirmPassword("otra-clave");
+    BeanPropertyBindingResult bindingResult = errorsOf(request);
+
+    String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
+
+    assertThat(view, is(REGISTER_VIEW));
+    assertThat(fieldNames(bindingResult), hasItem("confirmPassword"));
+    assertThat(
+      bindingResult.getFieldError("confirmPassword").getDefaultMessage(),
+      is("Las contraseñas no coinciden")
+    );
+    verify(loginService, never()).register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
   }
 
   // --- U-07 ---
 
   @Test
   public void shouldReRenderRegisterViewWhenEmailIsAlreadyRegistered() {
-    RegisterRequest request = new RegisterRequest(EMAIL, PASSWORD);
-    doThrow(new UserAlreadyExists()).when(loginService).register(EMAIL, PASSWORD);
+    RegisterRequest request = wellFormedRequest();
+    doThrow(new UserAlreadyExists())
+      .when(loginService)
+      .register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
     ExtendedModelMap model = new ExtendedModelMap();
 
     String view = controller.handleRegister(request, noErrors(request), model);
@@ -259,10 +297,19 @@ public class AuthControllerTest {
       .collect(java.util.stream.Collectors.toSet());
   }
 
+  /** A request that passes every constraint, so each test can break only its own field. */
+  private static RegisterRequest wellFormedRequest() {
+    RegisterRequest request = new RegisterRequest(EMAIL, PASSWORD);
+    request.setFirstName(FIRST_NAME);
+    request.setLastName(LAST_NAME);
+    request.setConfirmPassword(PASSWORD);
+    return request;
+  }
+
   /** Guard: the happy paths must not accidentally satisfy the "no errors" case. */
   @Test
   public void shouldValidateAWellFormedRegistration() {
-    assertThat(errorsOf(new RegisterRequest(EMAIL, PASSWORD)).hasErrors(), is(false));
+    assertThat(errorsOf(wellFormedRequest()).hasErrors(), is(false));
     assertThat(errorsOf(new RecoverPasswordRequest(EMAIL)).hasErrors(), is(false));
     assertThat(fieldNames(errorsOf(new RegisterRequest(EMAIL, "123"))), not(hasItem("email")));
   }

@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/auth")
 public class AuthController {
 
+  private static final String REGISTER_VIEW = "pages/auth/user/register";
+
   private final LoginService loginService;
   private final RecoverPasswordService recoverPasswordService;
 
@@ -52,7 +54,7 @@ public class AuthController {
   @GetMapping("/register")
   public String showRegisterForm(Model model) {
     model.addAttribute("registerRequest", new RegisterRequest());
-    return "pages/auth/user/register";
+    return REGISTER_VIEW;
   }
 
   @PostMapping("/register")
@@ -62,15 +64,25 @@ public class AuthController {
     Model model
   ) {
     if (bindingResult.hasErrors()) {
-      return "pages/auth/user/register";
+      return REGISTER_VIEW;
+    }
+
+    if (!request.getPassword().equals(request.getConfirmPassword())) {
+      bindingResult.rejectValue("confirmPassword", null, "Las contraseñas no coinciden");
+      return REGISTER_VIEW;
     }
 
     try {
-      loginService.register(request.getEmail(), request.getPassword());
+      loginService.register(
+        request.getEmail(),
+        request.getPassword(),
+        request.getFirstName(),
+        request.getLastName()
+      );
       return "redirect:/auth/login";
     } catch (UserAlreadyExists e) {
       model.addAttribute("errorMessage", "Ese email ya está registrado");
-      return "pages/auth/user/register";
+      return REGISTER_VIEW;
     }
   }
 

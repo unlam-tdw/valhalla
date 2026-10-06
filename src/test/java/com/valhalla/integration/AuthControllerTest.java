@@ -48,6 +48,8 @@ public class AuthControllerTest {
   private static final String USER_EMAIL = "aut.user@unlam.edu.ar";
   private static final String USER_PASSWORD = "user-password";
   private static final String PASSWORD = "secret123";
+  private static final String FIRST_NAME = "Ana";
+  private static final String LAST_NAME = "Perez";
   private static final String VALIDATE_LOGIN = "/auth/validate-login";
 
   @Autowired
@@ -79,7 +81,9 @@ public class AuthControllerTest {
     this.mockMvc.perform(get("/auth/register"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/user/register"))
-      .andExpect(content().string(not(containsString("firstName"))));
+      .andExpect(content().string(containsString("id=\"firstName\"")))
+      .andExpect(content().string(containsString("id=\"lastName\"")))
+      .andExpect(content().string(containsString("id=\"confirmPassword\"")));
   }
 
   // --- I-17 ---
@@ -100,7 +104,13 @@ public class AuthControllerTest {
     String email = uniqueEmail();
 
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", email).param("password", PASSWORD)
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", PASSWORD)
+          .param("confirmPassword", PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/auth/login"));
@@ -120,7 +130,13 @@ public class AuthControllerTest {
     register(email, PASSWORD);
 
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", email).param("password", PASSWORD)
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", PASSWORD)
+          .param("confirmPassword", PASSWORD)
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/user/register"))
@@ -130,12 +146,42 @@ public class AuthControllerTest {
   @Test
   public void shouldReRenderRegisterWithValidationErrors() throws Exception {
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", "not-an-email").param("password", "123")
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", "not-an-email")
+          .param("password", "123")
+          .param("confirmPassword", "123")
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/user/register"))
       .andExpect(content().string(containsString("Email is not valid")))
       .andExpect(content().string(containsString("Password must be at least 6 characters")));
+  }
+
+  @Test
+  public void shouldReRenderRegisterWhenPasswordsDoNotMatch() throws Exception {
+    String email = uniqueEmail();
+
+    this.mockMvc.perform(
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", PASSWORD)
+          .param("confirmPassword", "otra-clave")
+      )
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/user/register"))
+      .andExpect(content().string(containsString("Las contraseñas no coinciden")));
+
+    assertThat(
+      "a mismatched confirmation must not create the user",
+      userRepository.findByEmail(email).isPresent(),
+      is(false)
+    );
   }
 
   // --- I-04 ---
@@ -347,7 +393,13 @@ public class AuthControllerTest {
 
   private void register(String email, String password) throws Exception {
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", email).param("password", password)
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", password)
+          .param("confirmPassword", password)
       )
       .andExpect(status().is3xxRedirection());
   }
