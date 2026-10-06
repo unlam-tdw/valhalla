@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -14,6 +15,8 @@ import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import com.valhalla.domain.user.UserService;
@@ -22,6 +25,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -29,13 +33,16 @@ public class UserServiceTest {
 
   private UserService userService;
   private UserRepository userRepositoryMock;
+  private PlanRepository planRepositoryMock;
   private PasswordEncoder passwordEncoder;
 
   @BeforeEach
   public void init() {
     this.userRepositoryMock = mock(UserRepository.class);
+    this.planRepositoryMock = mock(PlanRepository.class);
     this.passwordEncoder = new BCryptPasswordEncoder();
-    this.userService = new UserServiceImpl(this.userRepositoryMock, this.passwordEncoder);
+    this.userService =
+      new UserServiceImpl(this.userRepositoryMock, this.planRepositoryMock, this.passwordEncoder);
   }
 
   @Test
@@ -192,12 +199,68 @@ public class UserServiceTest {
     // given
     Long id = 1L;
     when(this.userRepositoryMock.existsById(id)).thenReturn(true);
+    when(this.planRepositoryMock.findByAdministratorId(id)).thenReturn(List.of());
 
     // when
     this.userService.delete(id);
 
     // then
     verify(this.userRepositoryMock, times(1)).deleteById(id);
+  }
+
+  /**
+   * La regresión del 500: plans.administrator_id es una FK a users.id, así que borrar al usuario con
+   * sus planes encima viola la restricción. El orden es lo que arregla el bug, por eso se asserta
+   * con InOrder y no solo que se llamen los dos.
+   */
+  @Test
+  public void shouldDeleteThePlansOfTheUserBeforeDeletingTheUser() {
+    // given
+    Long id = 1L;
+    when(this.userRepositoryMock.existsById(id)).thenReturn(true);
+    when(this.planRepositoryMock.findByAdministratorId(id))
+      .thenReturn(List.of(planOwnedBy(id, 10L), planOwnedBy(id, 11L)));
+
+    // when
+    this.userService.delete(id);
+
+    // then
+    InOrder inOrder = inOrder(this.planRepositoryMock, this.userRepositoryMock);
+    inOrder.verify(this.planRepositoryMock).deleteById(10L);
+    inOrder.verify(this.planRepositoryMock).deleteById(11L);
+    inOrder.verify(this.userRepositoryMock).deleteById(id);
+  }
+
+  /**
+   * El recorte por dueño no lo hace este servicio: lo hace la consulta. Lo que se verifica es que
+   * se pregunte por los planes de <em>ese</em> usuario y no por el catálogo entero, porque un
+   * findAll() ahí habría borrado los planes de todos.
+   */
+  @Test
+  public void shouldAskForThePlansOfThatUserAndNotForTheWholeCatalogue() {
+    // given
+    Long id = 1L;
+    when(this.userRepositoryMock.existsById(id)).thenReturn(true);
+    when(this.planRepositoryMock.findByAdministratorId(id))
+      .thenReturn(List.of(planOwnedBy(id, 10L)));
+
+    // when
+    this.userService.delete(id);
+
+    // then
+    verify(this.planRepositoryMock, times(1)).findByAdministratorId(id);
+    verify(this.planRepositoryMock, never()).findAll();
+    verify(this.planRepositoryMock, times(1)).deleteById(10L);
+    verify(this.userRepositoryMock, times(1)).deleteById(id);
+  }
+
+  private Plan planOwnedBy(Long administratorId, Long planId) {
+    Plan plan = new Plan();
+    plan.setId(planId);
+    User administrator = new User();
+    administrator.setId(administratorId);
+    plan.setAdministrator(administrator);
+    return plan;
   }
 
   @Test
