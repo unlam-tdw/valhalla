@@ -82,7 +82,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `shouldShowUNLAMInTheNavbar` | Abre `/admin/login` → navbar muestra UNLAM | n/a |
+| E-01 | `shouldShowPlanItInTheNavbar` | Abre `/admin/login` → navbar muestra el nombre del producto | n/a |
 | E-02 | `shouldShowErrorWhenSigningInWithAnUnknownUser` | Login con usuario desconocido → mensaje de error | AC-05 |
 | E-03 | — | *borrado*: `shouldNavigateToHomeWhenUserExists` era subconjunto de E-05 (mismas 3 aserciones y nada más). Sus AC quedaron en E-05. | AC-04, AC-09 → E-05 |
 | E-04 | `shouldRegisterAUserAndSignInSuccessfully` | Admin crea usuario → se loguea con la password generada → home | AC-01, AC-04 |
