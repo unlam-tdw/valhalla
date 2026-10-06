@@ -2,11 +2,13 @@ package com.valhalla.presentation.login;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
+import com.valhalla.presentation.shared.LoginRedirects;
 import com.valhalla.presentation.shared.NewUserRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -40,7 +42,17 @@ public class LoginController {
   }
 
   @GetMapping("/admin/login")
-  public ModelAndView showLogin(@RequestParam(value = "error", required = false) String error) {
+  public ModelAndView showLogin(
+    @RequestParam(value = "error", required = false) String error,
+    Authentication authentication
+  ) {
+    // Con sesión activa el formulario no tiene nada que ofrecer: el navbar ya oculta el link de
+    // login, así que sin este redirect la página mostraba "Sign in" encima de una sesión iniciada.
+    // SecurityConfig deja /admin/login en permitAll porque tiene que abrirse sin sesión; el corte
+    // va acá. ?error y ?logout llegan sin sesión, así que los dos casos siguen renderizando.
+    if (LoginRedirects.isSignedIn(authentication)) {
+      return new ModelAndView("redirect:" + LoginRedirects.landingFor(authentication));
+    }
     Map<String, Object> model = new ModelMap();
     if (error != null) {
       // Spring Security redirects here with ?error=true on failed login.

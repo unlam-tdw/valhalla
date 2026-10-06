@@ -31,11 +31,11 @@ sin sesión redirigen a `/auth/login`.
 | AC-07 | Recuperación de password: desde `/auth/login` hay link "Forgot password?" → `/auth/forgot-password`; con email válido la pantalla muestra una password temporal generada, y la password anterior deja de servir |
 | AC-08 | Email inexistente en la recuperación → mensaje "Email no encontrado" en `/auth/forgot-password` (no se crea ni modifica nada) |
 | AC-09 | `/auth/logout` invalida la sesión y redirige a `/auth/login` |
-| AC-10 | Las rutas `/auth/**` son públicas (no requieren sesión) |
+| AC-10 | Las rutas `/auth/**` están abiertas a **quien no sea admin**: un anónimo puede alcanzarlas sin sesión (si no nadie podría registrarse) y un `USER` las usa entera; un `ADMIN` que las cruce es redirigido a `/admin/home` |
 | AC-11 | Rutas protegidas de usuario (`/places`, `/plans`, `/plans/**`) sin sesión → redirigen a `/auth/login` (no a `/admin/login`) |
-| AC-12 | `/admin/**` sigue requiriendo rol `ADMIN`. El flujo admin queda intacto en `/admin/login` |
+| AC-12 | `/admin/**` requiere rol `ADMIN` **sin excepción**, `/admin/home` incluido. Solo `/admin/login` y `/admin/validate-login` quedan abiertos, porque son el punto de entrada. El flujo admin queda intacto en `/admin/login` |
 | AC-13 | Navbar sin sesión: link "Login" → `/auth/login` y "Register" → `/auth/register`. Con sesión: logout |
-| AC-14 | Un `ADMIN` que se loguea por `/auth/login` (entró a una ruta protegida de usuario) se redirige a `/admin/home` y conserva permisos admin |
+| AC-14 | Un `ADMIN` que entre a `/admin/**` funciona normal; un `USER` y un `ADMIN` que cruzan la línea entre las dos superficies (**no** un anónimo: `/admin/login` tiene que seguir rindiendo) son devueltos a su propio home, no con un 403 |
 
 ## Escenarios de Test
 
@@ -73,7 +73,7 @@ sin sesión redirigen a `/auth/login`.
 | I-13 | `GET /admin/users` sin sesión → redirige a `/admin/login` (sin cambios) | AC-12 |
 | I-14 | `GET /auth/login` sin sesión → el navbar tiene link a `/auth/register` | AC-13 |
 | I-15 | `GET /` con sesión `USER` → el navbar tiene form de logout a `/auth/logout` | AC-13 |
-| I-16 | `GET /admin/users` con la sesión creada por `POST /auth/validate-login` de un `ADMIN` → 200, no 403 | AC-14 |
+| I-16 | `GET /admin/users` con la sesión creada por `POST /auth/validate-login` de un `ADMIN` → 200, no 403: el login por el form de usuario lo deja en `/admin/home` y con los permisos admin intactos | AC-04, AC-14 |
 | I-17 | `GET /auth/forgot-password` → 200, vista recuperación con el form ya bound (el botón `#btn-recover` renderiza) | n/a |
 
 ### Tests de Seguridad (`integration/SecurityConfigTest.java`)
@@ -81,10 +81,14 @@ sin sesión redirigen a `/auth/login`.
 | # | Test | AC que cubre |
 |---|------|-------------|
 | S-01 | `GET /auth/login`, `/auth/register`, `/auth/forgot-password` sin sesión → 200 | AC-10 |
-| S-02 | `GET /admin/users` con rol `USER` → 403 | AC-12 |
+| S-02 | `GET /admin/users` con rol `USER` → redirige a `/` (su propio home), no 403 | AC-12, AC-14 |
 | S-03 | `GET /admin/login` sin sesión → 200 (flujo admin intacto) | AC-12 |
 | S-04 | `GET /places` con sesión `USER` → 200 | AC-11 |
 | S-05 | `POST /auth/register` sin CSRF → 403 | AC-06 |
+| S-06 | `GET /admin/home` con rol `USER` → redirige a `/`; con rol `ADMIN` → 200 | AC-12 |
+| S-07 | `GET /auth/register` y `/auth/forgot-password` con rol `ADMIN` → redirige a `/admin/home` | AC-10, AC-14 |
+| S-08 | `GET /auth/register` y `/auth/forgot-password` con rol `USER` → 200 | AC-10 |
+| S-09 | `POST /admin/validate-login` sin CSRF → 403 (el handler compartido no convierte un fallo de CSRF en un redirect) | AC-06 |
 
 ### E2E (`UserAuthViewE2E.java`)
 
@@ -108,6 +112,35 @@ contra la página de error, así que no distingue un logout de un fallo de login
 
 ## Notas / decisiones de diseño
 
+- **Dos superficies disjuntas por rol (AC-10/12/14)**: `/admin/**` es de `ADMIN` y `/auth/**` es de
+  `USER`, así que cruzar la línea con sesión abierta devuelve al principal a su propio home. Hay
+  tres excepciones, y las tres son forzosas: `/admin/login` y `/admin/validate-login` quedan
+  `permitAll()` porque son el punto de entrada de la sesión de admin, y `/auth/register` +
+  `/auth/forgot-password` tienen que quedar abiertas para anónimos porque nadie puede registrarse
+  estando adentro. "Público" en la cadena 1 significa entonces "abierto a quien **no** sea admin",
+  que es lo que expresa `isAnonymous() or hasRole('USER')`: un `permitAll()` plano también
+  autorizaría al `ADMIN`, que es justo lo que la regla viene a negar.
+- **`/admin/home` era el agujero**: estaba en `authenticated()`, así que un `USER` común entraba al
+  home del admin (200). Ahora cae bajo el `hasRole("ADMIN")` de `/admin/**`.
+- **Cruce de línea: redirect, no 403 (AC-14)**: `HomeOnAccessDeniedHandler`
+  (`infrastructure/security`) devuelve al principal a `LoginRedirects.landingFor(auth)`, la misma
+  regla que ya define dónde aterriza una sesión recién iniciada. Un 403 con la página de error
+  genérica le decía "no tenés permiso" sin decirle por dónde seguir, y en el caso inverso le
+  mostraba el mismo error por haber tipeado mal una URL. Solo se instala en las cadenas 1 y 2: la
+  cadena 3 (`/`, `/places`, `/plans`, `/api/**`) conserva su 403.
+- **El handler tiene que respetar CSRF**: `CsrfFilter` corre antes que los filtros de
+  autorización, así que un POST sin token va directo al `AccessDeniedHandler` sin pasar por
+  `ExceptionTranslationFilter` (el orden de los filtros lo decide `CsrfFilter`, no el orden del
+  DSL). Si el handler redirigiera ahí, un login sin token contestaría 302 y el AC-06 mudaría de
+  signo sin que nadie lo decidiera; por eso las excepciones `CsrfException` se delegan al
+  `AccessDeniedHandlerImpl` de Spring. Lo fijan `S-05` y `S-09`.
+- **El POST de login de `/auth` no filtra por rol**: un `ADMIN` que llegue a
+  `POST /auth/validate-login` sigue autenticando y aterriza en `/admin/home` con sus permisos
+  intactos, aunque la página `/auth/login` ya no le sea alcanzable. Es lo que sobrevive del AC-14
+  viejo y lo comprueba `I-16`: `UsernamePasswordAuthenticationFilter` autentica y corta la cadena
+  antes de que corra la autorización, así que negar el endpoint por rol exigiría un success handler
+  por cadena. No se hizo a propósito: el resultado observable (un admin en su home) ya es el
+  correcto, y el endpoint no expone nada que el admin no pueda ver ya.
 - **Recuperación (AC-07/08)**: password temporal en pantalla. Sin infraestructura de email,
   se reusa `UserService.rotatePassword(id)`. El email debe existir (si no, "Email no
   encontrado"): la pantalla de recuperación es el único lugar donde se revela la existencia

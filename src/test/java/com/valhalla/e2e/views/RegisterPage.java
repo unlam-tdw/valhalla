@@ -2,7 +2,7 @@ package com.valhalla.e2e.views;
 
 import com.microsoft.playwright.Page;
 
-/** Self-service registration: email and password only (AC-01). */
+/** Self-service registration: first name, last name, email, password and confirmation. */
 public class RegisterPage extends WebPage {
 
   public RegisterPage(Page page) {
@@ -38,6 +38,18 @@ public class RegisterPage extends WebPage {
 
   public void typePassword(String password) {
     this.typeIntoElement("#password", password);
+  }
+
+  public void typeConfirmPassword(String password) {
+    this.typeIntoElement("#confirmPassword", password);
+  }
+
+  public void typeFirstName(String firstName) {
+    this.typeIntoElement("#firstName", firstName);
+  }
+
+  public void typeLastName(String lastName) {
+    this.typeIntoElement("#lastName", lastName);
   }
 
   public void clickRegister() {

@@ -82,7 +82,7 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `shouldShowUNLAMInTheNavbar` | Abre `/admin/login` → navbar muestra UNLAM | n/a |
+| E-01 | `shouldShowPlanItInTheNavbar` | Abre `/admin/login` → navbar muestra el nombre del producto | n/a |
 | E-02 | `shouldShowErrorWhenSigningInWithAnUnknownUser` | Login con usuario desconocido → mensaje de error | AC-05 |
 | E-03 | — | *borrado*: `shouldNavigateToHomeWhenUserExists` era subconjunto de E-05 (mismas 3 aserciones y nada más). Sus AC quedaron en E-05. | AC-04, AC-09 → E-05 |
 | E-04 | `shouldRegisterAUserAndSignInSuccessfully` | Admin crea usuario → se loguea con la password generada → home | AC-01, AC-04 |
@@ -110,7 +110,11 @@ El sistema gestiona autenticación y registro de usuarios con Spring Security. L
   no los mismos escenarios: un usuario self-service no puede editar ni borrar cuentas, así que
   `shouldEditExistingUser` y `shouldDeactivateAndThenDeleteUser` no tienen contraparte en `/auth`.
   Editar, desactivar, borrar, listar y recuperar clave son de `/admin`; registrarse, recuperar
-  clave propia y el logout de usuario son de `/auth`.
+  clave propia y el logout de usuario son de `/auth`. Además son **disjuntas por rol** desde AUT:
+  `/admin/**` es de `ADMIN` y `/auth/**` es de `USER`, y cruzar la línea con sesión abierta devuelve
+  al principal a su home (`/admin/home` para el admin, `/` para el user). Antes `/admin/home`
+  estaba en `authenticated()` y dejaba entrar a cualquier `USER`; y `/admin/users` contestaba 403
+  con la página de error genérica. Ver 08-AUT.md (AC-10/12/14) y `HomeOnAccessDeniedHandler`.
 - **Logout simétrico**: las dos cadenas pasan `?logout=true` al login
   (`SecurityConfig` líneas 51 y 95) y las dos vistas lo renderizan. Antes solo `/auth` lo hacía:
   el logout de admin era mudo y su E-05 solo podía assertar el path, que no distingue un logout

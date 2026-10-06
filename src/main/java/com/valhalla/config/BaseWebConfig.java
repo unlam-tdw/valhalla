@@ -1,5 +1,6 @@
 package com.valhalla.config;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Scope;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -45,9 +48,38 @@ public abstract class BaseWebConfig implements WebMvcConfigurer {
 
   @Override
   public void addResourceHandlers(final ResourceHandlerRegistry registry) {
+    registry.addResourceHandler("/css/**").addResourceLocations("/resources/css/");
     registry.addResourceHandler("/js/**").addResourceLocations("/resources/core/js/");
     registry.addResourceHandler("/images/**").addResourceLocations("/resources/images/");
+    // El manifest va como /manifest.json y no como site.webmanifest: Spring no tiene la
+    // extensión .webmanifest en su mime.types, así que esa ruta se sirve como
+    // application/octet-stream y el navegador descarta el manifest en vez de usarlo. Solo
+    // este path resuelve contra /resources/, que tampoco lo expone entero.
+    registry.addResourceHandler("/manifest.json").addResourceLocations("/resources/");
   }
+
+  /**
+   * Origen absoluto de la request actual, para las etiquetas de compartir. El
+   * <code>@{...}</code> de Thymeleaf devuelve una URL relativa en un GET directo, y una
+   * <code>og:image</code> relativa no la baja ningún scraper. Thymeleaf 3.1 ya no expone
+   * <code>#request</code> en las expresiones, así que el prefijo se arma acá y el template
+   * lo lee como <code>${@siteOrigin.base()}</code>. Sale de la request y no de una
+   * constante: detrás de un proxy el host público no es adivinable desde el código.
+   */
+  @Bean
+  @Scope(WebApplicationContext.SCOPE_REQUEST)
+  public SiteOrigin siteOrigin(HttpServletRequest request) {
+    return new SiteOrigin(
+      request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort()
+    );
+  }
+
+  /**
+   * Origen absoluto de una request. Sin proxy de scope: solo lo lee el template.
+   *
+   * @param base scheme, host y puerto de la request, con el separador {@code ://} ya puesto
+   */
+  public record SiteOrigin(String base) {}
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {

@@ -96,6 +96,49 @@ public class LoginControllerTest {
       .andExpect(content().string(containsString("href=\"/auth/login\"")));
   }
 
+  /**
+   * La regresión del segundo bug reportado: con sesión activa, /admin/login renderizaba el
+   * formulario de login encima de la sesión. SecurityConfig la deja en permitAll porque tiene que
+   * abrirse sin sesión, así que el corte va en el controller.
+   */
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldRedirectAwayFromTheAdminLoginPageWhenAlreadySignedIn() throws Exception {
+    this.mockMvc.perform(get("/admin/login"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/home"));
+  }
+
+  /** Un usuario común no aterriza en /admin/home: ahí no tiene nada que ver. */
+  @Test
+  @WithMockUser(username = "user@unlam.edu.ar", roles = { "USER" })
+  public void shouldRedirectACommonUserToTheLandingWhenAlreadySignedIn() throws Exception {
+    this.mockMvc.perform(get("/admin/login"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/"));
+  }
+
+  /**
+   * El logout manda a /admin/login?logout=true para que la vista confirme que la sesión terminó. La
+   * sesión ya está invalidada ahí, así que tiene que renderizar igual que anónimo: si el corte
+   * confundiera "recién deslogueado" con "con sesión", el usuario caería en un redirect sin
+   * explicación y el aviso de logout no se vería nunca.
+   */
+  @Test
+  public void shouldStillRenderTheLoginPageAfterLogout() throws Exception {
+    this.mockMvc.perform(get("/admin/login").param("logout", "true"))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/login"));
+  }
+
+  /** Un login fallido manda ?error=true sin sesión: el formulario tiene que seguir apareciendo. */
+  @Test
+  public void shouldStillRenderTheLoginPageAfterAFailedAttempt() throws Exception {
+    this.mockMvc.perform(get("/admin/login").param("error", "true"))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/login"));
+  }
+
   @Test
   @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
   public void shouldReturnNewUserPage() throws Exception {

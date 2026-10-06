@@ -2,6 +2,7 @@ package com.valhalla.infrastructure.user;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import com.valhalla.domain.user.UserService;
@@ -17,11 +18,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
   private final UserRepository userRepository;
+  private final PlanRepository planRepository;
   private final PasswordEncoder passwordEncoder;
 
   @Autowired
-  public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+  public UserServiceImpl(
+    UserRepository userRepository,
+    PlanRepository planRepository,
+    PasswordEncoder passwordEncoder
+  ) {
     this.userRepository = userRepository;
+    this.planRepository = planRepository;
     this.passwordEncoder = passwordEncoder;
   }
 
@@ -82,12 +89,23 @@ public class UserServiceImpl implements UserService {
     userRepository.update(user);
   }
 
+  /**
+   * Borra los planes del usuario antes que el usuario. {@code plans.administrator_id} es una FK a
+   * {@code users.id} sin cascada, así que borrar al usuario con planes encima viola la restricción y
+   * la app responde 500. La columna se llama {@code administrator_id} pero la llenan usuarios
+   * comunes: cualquiera que haya armado un plan caía en ese 500.
+   *
+   * <p>El orden es lo único que importa acá, y la clase entera es {@code @Transactional}, así que
+   * las dos operaciones van o no van juntas.
+   */
   @Override
   public void delete(Long id) {
     if (!userRepository.existsById(id)) {
       throw new UserNotFoundException();
     }
-    userRepository.deleteById(id);
+    this.planRepository.findByAdministratorId(id)
+      .forEach(plan -> this.planRepository.deleteById(plan.getId()));
+    this.userRepository.deleteById(id);
   }
 
   @Override

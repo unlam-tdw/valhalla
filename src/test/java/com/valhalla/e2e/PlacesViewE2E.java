@@ -97,7 +97,16 @@ public class PlacesViewE2E extends E2eBase {
       (String) panel.evaluate("element => getComputedStyle(element).borderLeftColor"),
       equalTo("rgb(231, 76, 60)")
     );
-    assertThat(panel.locator(".flex.items-center svg").getAttribute("stroke"), equalTo("#e74c3c"));
+    // El icono de Lucide dibuja con stroke="currentColor", así que el atributo ya no
+    // lleva el hex: lo que tiene que resolver al color de categoría es el valor computado,
+    // que es además lo que el usuario ve. El atributo solo probaría una cadena.
+    assertThat(
+      (String) panel
+        .locator(".flex.items-center svg")
+        .first()
+        .evaluate("element => getComputedStyle(element).stroke"),
+      equalTo("rgb(231, 76, 60)")
+    );
 
     panel.locator("button").filter(new Locator.FilterOptions().setHasText("Add to plan")).click();
     assertThat(detailsPanel().count(), is(equalTo(1)));
