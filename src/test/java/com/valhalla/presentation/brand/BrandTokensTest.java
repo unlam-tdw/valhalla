@@ -280,7 +280,7 @@ public class BrandTokensTest {
   void navbarUsesTheBrandTokens() throws IOException {
     String navbar = read(NAVBAR);
 
-    assertThat(navbar, containsString("text-primary"));
+    assertThat(navbar, containsString("text-secondary"));
     assertThat(navbar, containsString("bg-primary"));
     assertThat(navbar, containsString("bg-secondary"));
     assertThat(navbar, containsString("bg-black"));

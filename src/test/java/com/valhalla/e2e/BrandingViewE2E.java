@@ -111,10 +111,11 @@ public class BrandingViewE2E extends E2eBase {
   }
 
   /**
-   * El wordmark es texto azul sobre el navbar negro: 3.43:1 con los tokens actuales. Eso
-   * alcanzaba solo si el texto cuenta como grande, y a 18px/600 no cuenta. El assert mide
-   * las dos mitades por separado —tamaño y peso, que deciden el umbral, y el ratio real— para
-   * que volver a achicar el wordmark no pueda hacer pasar el test con el umbral viejo.
+   * El wordmark es texto secondary (#6681fc) sobre el navbar negro: 5.16:1 con los tokens
+   * actuales. Eso alcanza solo si el texto cuenta como grande, y a 18px/600 no cuenta. El
+   * assert mide las dos mitades por separado —tamaño y peso, que deciden el umbral, y el
+   * ratio real— para que volver a achicar el wordmark no pueda hacer pasar el test con el
+   * umbral viejo.
    */
   @Test
   void shouldKeepTheNavbarWordmarkReadableOnBlack() {
@@ -229,9 +230,9 @@ public class BrandingViewE2E extends E2eBase {
       .evaluate("el => getComputedStyle(el).color");
 
     assertThat(
-      "the brand text wears the --primary token (#2563eb)",
+      "the brand text wears the --secondary token (#6681fc)",
       color,
-      equalTo("rgb(37, 99, 235)")
+      equalTo("rgb(102, 129, 252)")
     );
   }
 
