@@ -310,7 +310,7 @@ public class AuthControllerTest {
       .andExpect(content().string(containsString("action=\"/auth/logout\"")));
   }
 
-  // --- AC-14 ---
+  // --- AC-04, AC-14 ---
 
   @Test
   public void shouldKeepAdminPermissionsAfterLoggingInThroughTheUserForm() throws Exception {
@@ -319,6 +319,24 @@ public class AuthControllerTest {
     MockHttpSession session = logInAndKeepSession(email, PASSWORD);
 
     this.mockMvc.perform(get("/admin/users").session(session)).andExpect(status().isOk());
+  }
+
+  /**
+   * El POST del form de usuario sigue autenticando a un ADMIN y lo deja en su home con los
+   * permisos intactos, aunque la página {@code /auth/login} ya no le sea alcanzable (S-07): la
+   * página se niega en el filtro de autorización, que corre después de que el login ya autenticó y
+   * cortó la cadena. Sin este assert, el test anterior probaría lo mismo con un 3xx cualquiera.
+   */
+  @Test
+  public void shouldLandAnAdminOnTheAdminHomeWhenTheySubmitTheUserForm() throws Exception {
+    String email = uniqueEmail();
+    userService.create(email, PASSWORD, "ADMIN", "Admin", "AUT");
+
+    this.mockMvc.perform(
+        post(VALIDATE_LOGIN).with(csrf()).param("username", email).param("password", PASSWORD)
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/home"));
   }
 
   // --- helpers ---
