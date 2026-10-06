@@ -17,9 +17,12 @@ import com.valhalla.domain.login.LoginService;
 import com.valhalla.infrastructure.user.RecoverPasswordService;
 import com.valhalla.presentation.shared.RecoverPasswordRequest;
 import com.valhalla.presentation.shared.RegisterRequest;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
@@ -58,14 +61,14 @@ public class AuthControllerTest {
 
   @Test
   public void shouldReturnTheLoginView() {
-    assertThat(controller.showLoginForm(null, new ExtendedModelMap()), is(LOGIN_VIEW));
+    assertThat(controller.showLoginForm(null, new ExtendedModelMap(), null), is(LOGIN_VIEW));
   }
 
   @Test
   public void shouldAddErrorToModelWhenLoginFails() {
     ExtendedModelMap model = new ExtendedModelMap();
 
-    controller.showLoginForm("true", model);
+    controller.showLoginForm("true", model, null);
 
     assertThat(model.get("error"), is(true));
   }
@@ -75,11 +78,46 @@ public class AuthControllerTest {
     ExtendedModelMap falseModel = new ExtendedModelMap();
     ExtendedModelMap absentModel = new ExtendedModelMap();
 
-    controller.showLoginForm("false", falseModel);
-    controller.showLoginForm(null, absentModel);
+    controller.showLoginForm("false", falseModel, null);
+    controller.showLoginForm(null, absentModel, null);
 
     assertThat(falseModel.get("error"), is(false));
     assertThat(absentModel.get("error"), is(false));
+  }
+
+  /**
+   * Regresión del bug reportado: con sesión activa, /auth/login renderizaba el formulario encima de
+   * la sesión. El par de tests de abajo cubre las dos ramas del redirect; la integración cubre que
+   * el destino sea el mismo que el de un login exitoso.
+   */
+  @Test
+  public void shouldRedirectAwayFromTheLoginViewWhenAlreadySignedIn() {
+    String view = controller.showLoginForm(
+      null,
+      new ExtendedModelMap(),
+      new TestingAuthenticationToken(
+        "admin@unlam.edu.ar",
+        "n/a",
+        List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+      )
+    );
+
+    assertThat(view, is("redirect:/admin/home"));
+  }
+
+  @Test
+  public void shouldRedirectACommonUserToTheLandingFromTheLoginView() {
+    String view = controller.showLoginForm(
+      null,
+      new ExtendedModelMap(),
+      new TestingAuthenticationToken(
+        "user@unlam.edu.ar",
+        "n/a",
+        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+      )
+    );
+
+    assertThat(view, is("redirect:/"));
   }
 
   // --- U-03, U-04 ---

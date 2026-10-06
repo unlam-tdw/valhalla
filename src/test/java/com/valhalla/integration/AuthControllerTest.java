@@ -254,6 +254,36 @@ public class AuthControllerTest {
     assertThat("session must be invalidated after logout", session.isInvalid(), is(true));
   }
 
+  // --- Regresión: /auth/login con sesión activa ---
+
+  /**
+   * El mismo bug que se reportó en /admin/login, en la otra página de login: el navbar oculta el
+   * link pero el formulario se renderiza igual. La regla y el destino son los mismos para las dos.
+   */
+  @Test
+  @WithMockUser(username = "user@unlam.edu.ar", roles = { "USER" })
+  public void shouldRedirectAwayFromTheUserLoginPageWhenAlreadySignedIn() throws Exception {
+    this.mockMvc.perform(get("/auth/login"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/"));
+  }
+
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldSendAnAdminToTheAdminHomeFromTheUserLoginPage() throws Exception {
+    this.mockMvc.perform(get("/auth/login"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/home"));
+  }
+
+  /** El logout de /auth manda acá con ?logout=true y la sesión ya invalidada: tiene que renderizar. */
+  @Test
+  public void shouldStillRenderTheUserLoginPageAfterLogout() throws Exception {
+    this.mockMvc.perform(get("/auth/login").param("logout", "true"))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/user/login"));
+  }
+
   // --- I-13 ---
 
   @Test

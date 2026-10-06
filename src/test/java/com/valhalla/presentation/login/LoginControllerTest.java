@@ -15,8 +15,14 @@ import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
 import com.valhalla.presentation.shared.NewUserRequest;
 import jakarta.servlet.http.HttpSession;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.servlet.ModelAndView;
@@ -97,18 +103,43 @@ public class LoginControllerTest {
 
   @Test
   public void shouldReturnLoginPage() {
-    ModelAndView modelAndView = controller.showLogin(null);
+    ModelAndView modelAndView = controller.showLogin(null, null);
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
   }
 
   @Test
   public void shouldAddErrorToModelWhenLoginFails() {
-    ModelAndView modelAndView = controller.showLogin("true");
+    ModelAndView modelAndView = controller.showLogin("true", null);
     assertThat(modelAndView.getViewName(), equalToIgnoringCase("pages/auth/login"));
     assertThat(
       (String) modelAndView.getModel().get("error"),
       equalToIgnoringCase("Invalid email or password")
     );
+  }
+
+  /**
+   * Regresión del bug reportado en el admin: con sesión activa la página mostraba el formulario de
+   * login encima de la sesión. Sin sesión (null) tiene que renderizar igual.
+   */
+  @Test
+  public void shouldRedirectAwayFromTheLoginPageWhenAlreadySignedInAsAdmin() {
+    ModelAndView modelAndView = controller.showLogin(null, authenticationWithRoles("ROLE_ADMIN"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/admin/home"));
+  }
+
+  @Test
+  public void shouldRedirectACommonUserToTheLandingWhenAlreadySignedIn() {
+    ModelAndView modelAndView = controller.showLogin(null, authenticationWithRoles("ROLE_USER"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/"));
+  }
+
+  private Authentication authenticationWithRoles(String... roles) {
+    List<GrantedAuthority> authorities = Arrays
+      .stream(roles)
+      .map(SimpleGrantedAuthority::new)
+      .map(GrantedAuthority.class::cast)
+      .toList();
+    return new TestingAuthenticationToken("someone@example.com", "n/a", authorities);
   }
 
   @Test
