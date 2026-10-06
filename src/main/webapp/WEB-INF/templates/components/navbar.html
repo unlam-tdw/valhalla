@@ -6,10 +6,16 @@
        El color sale del token de marca, declarado en resources/css/brand.css y expuesto a
        Tailwind por el bloque @theme de layouts/base :: head. La clase navbar-brand se
        conserva porque es el hook que leen los tests del navbar. -->
-  <a class="navbar-brand inline-block py-3 font-serif text-xl font-bold text-primary hover:text-secondary"
-    sec:authorize="hasRole('ADMIN')" th:href="@{/admin/home}">PlanIt</a>
-  <a class="navbar-brand inline-block py-3 font-serif text-xl font-bold text-primary hover:text-secondary"
-    sec:authorize="!hasRole('ADMIN')" th:href="@{/}">PlanIt</a>
+ <a class="navbar-brand inline-flex items-center gap-2 py-3 font-serif text-xl font-bold text-primary hover:text-secondary"
+    sec:authorize="hasRole('ADMIN')" th:href="@{/admin/home}">
+    <img th:src="@{/images/logo.svg}" alt="Logo" class="h-7 w-7 object-contain" />
+    <span>PlanIt</span>
+  </a>
+  <a class="navbar-brand inline-flex items-center gap-2 py-3 font-serif text-xl font-bold text-primary hover:text-secondary"
+    sec:authorize="!hasRole('ADMIN')" th:href="@{/}">
+    <img th:src="@{/images/logo.svg}" alt="Logo" class="h-7 w-7 object-contain" />
+    <span>PlanIt</span>
+  </a>
 
   <!-- Usuario AUTENTICADO -->
   <div sec:authorize="isAuthenticated()" class="flex items-center gap-4 text-sm">

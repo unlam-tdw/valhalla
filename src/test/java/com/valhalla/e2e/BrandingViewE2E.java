@@ -68,7 +68,7 @@ public class BrandingViewE2E extends E2eBase {
   /**
    * La serif de marca tiene que verse en pantalla, no quedar declarada y sin usar. Se mide el
    * nombre de la webfont en el stack computado, que prueba la declaración: si la descarga
-   * fallara, el stack seguiría diciendo Playfair Display con el Georgia detrás y este assert
+   * fallara, el stack seguiría diciendo Bree Serif con el Georgia detrás y este assert
    * no lo detectaría.
    */
   @Test
@@ -80,21 +80,17 @@ public class BrandingViewE2E extends E2eBase {
       .locator("nav a.navbar-brand")
       .first()
       .evaluate("el => getComputedStyle(el).fontFamily");
-    assertThat(
-      "el wordmark del navbar lleva la serif",
-      wordmark,
-      containsString("Playfair Display")
-    );
+    assertThat("el wordmark del navbar lleva la serif", wordmark, containsString("Bree Serif"));
 
     String hero = (String) page
       .locator("main h1")
       .first()
       .evaluate("el => getComputedStyle(el).fontFamily");
-    assertThat("el h1 de la landing lleva la serif", hero, containsString("Playfair Display"));
+    assertThat("el h1 de la landing lleva la serif", hero, containsString("Bree Serif"));
   }
 
   /**
-   * Inter es la tipografía de todo el cuerpo de texto, y llega sin que ninguna plantilla la
+   * Josefin Sans es la tipografía de todo el cuerpo de texto, y llega sin que ninguna plantilla la
    * pida: el preflight de Tailwind resuelve {@code --default-font-family} a {@code
    * --font-sans} y lo aplica al documento. Ese camino tiene dos formas de romperse en
    * silencio —que el mapeo de {@code @theme} deje de emitir la variable, o que el preflight
@@ -111,7 +107,7 @@ public class BrandingViewE2E extends E2eBase {
     anonymous.navigate(anonymous.baseUrl() + "/");
 
     String body = (String) page.evaluate("() => getComputedStyle(document.body).fontFamily");
-    assertThat("el cuerpo de texto usa Inter", body, containsString("Inter"));
+    assertThat("el cuerpo de texto usa Josefin Sans", body, containsString("Josefin Sans"));
   }
 
   /**
@@ -264,8 +260,12 @@ public class BrandingViewE2E extends E2eBase {
       .first()
       .evaluate("el => getComputedStyle(el).fontFamily");
 
-    assertThat("body wears --typeface-sans", fontFamily, containsString("Inter"));
-    assertThat("body does not fall back to the serif", fontFamily, not(containsString("Playfair")));
+    assertThat("body wears --typeface-sans", fontFamily, containsString("Josefin Sans"));
+    assertThat(
+      "body does not fall back to the serif",
+      fontFamily,
+      not(containsString("Bree Serif"))
+    );
   }
 
   /**
@@ -288,8 +288,8 @@ public class BrandingViewE2E extends E2eBase {
       "}"
     );
 
-    assertThat("la sans resuelve a la webfont", resolved, containsString("Inter"));
-    assertThat("la serif resuelve a la webfont", resolved, containsString("Playfair Display"));
+    assertThat("la sans resuelve a la webfont", resolved, containsString("Josefin Sans"));
+    assertThat("la serif resuelve a la webfont", resolved, containsString("Bree Serif"));
   }
 
   // AC-05: el navegador resuelve el favicon de verdad, no solo lo encuentra en el markup.

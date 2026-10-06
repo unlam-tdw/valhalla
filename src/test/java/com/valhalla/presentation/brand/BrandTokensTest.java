@@ -138,8 +138,8 @@ public class BrandTokensTest {
       base,
       containsString("fonts.googleapis.com/css2")
     );
-    assertThat("Inter y Playfair Display", base, containsString("family=Inter"));
-    assertThat("Inter y Playfair Display", base, containsString("family=Playfair"));
+    assertThat("Josefin Sans y Bree Serif", base, containsString("family=Josefin+Sans"));
+    assertThat("Josefin Sans y Bree Serif", base, containsString("family=Bree+Serif"));
     assertThat("display=swap evita el texto invisible", base, containsString("display=swap"));
     assertThat(
       "preconnect a fonts.googleapis.com",
@@ -159,8 +159,8 @@ public class BrandTokensTest {
   void theTypefacesKeepASystemFallbackBehindTheWebfont() throws IOException {
     String tokens = read(TOKENS);
 
-    assertThat(tokens, matchesPattern("(?s).*--typeface-sans: \"Inter\", system-ui.*"));
-    assertThat(tokens, matchesPattern("(?s).*--typeface-serif: \"Playfair Display\", Georgia.*"));
+    assertThat(tokens, matchesPattern("(?s).*--typeface-sans: \"Josefin Sans\", system-ui.*"));
+    assertThat(tokens, matchesPattern("(?s).*--typeface-serif: \"Bree Serif\", Georgia.*"));
   }
 
   // U-06: la paleta base y las dos tipografías existen una sola vez, cada una.

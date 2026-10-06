@@ -22,8 +22,8 @@
   --gray: #6b7280;
 
   /* Marca */
-  --primary: #2563eb;
-  --secondary: #7c3aed;
+  --primary: #004aad;
+  --secondary: #6681fc;
 
   /* Una entrada por categoría. */
   --category-restaurant: #e74c3c;
@@ -39,8 +39,8 @@
 
   /* Tipografía. Los nombres de Google Fonts van primero y la pila del sistema queda
      como respaldo: si fonts.googleapis.com no responde, la página se ve igual. */
-  --typeface-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --typeface-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --typeface-sans: "Josefin Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --typeface-serif: "Bree Serif", Georgia, "Times New Roman", serif;
 }
 
 /* Los neutros (gray-*, slate-*) NO tienen tokens propios a propósito: son la escala
