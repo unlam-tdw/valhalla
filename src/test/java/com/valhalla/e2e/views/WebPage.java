@@ -68,7 +68,7 @@ public class WebPage {
    * plus the Register and Login links.
    */
   public String getNavbarBrand() {
-    return this.getElementText("nav a.navbar-brand");
+    return this.getElementText("nav a.navbar-brand").replaceAll("\\s+", " ").trim();
   }
 
   /**
