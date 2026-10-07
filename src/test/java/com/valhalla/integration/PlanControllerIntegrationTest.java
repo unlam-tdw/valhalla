@@ -147,7 +147,11 @@ public class PlanControllerIntegrationTest {
     // when
     MvcResult result =
       this.mockMvc.perform(
-          post("/plans").with(csrf()).param("name", PLAN_NAME).param("eventDate", "2026-12-31")
+          post("/plans")
+            .with(csrf())
+            .param("name", PLAN_NAME)
+            .param("eventDate", "2026-12-31")
+            .param("eventTime", "18:30")
         )
         .andExpect(status().is3xxRedirection())
         .andReturn();
@@ -156,9 +160,22 @@ public class PlanControllerIntegrationTest {
     String location = result.getResponse().getRedirectedUrl();
     assertThat(location, matchesPattern("^/plans/\\d+$"));
 
+    this.entityManager.flush();
+    this.entityManager.clear();
     Plan saved = this.planRepository.findById(planIdOf(location)).orElseThrow();
     assertThat(saved.getName(), is(equalTo(PLAN_NAME)));
     assertThat(saved.getEventDate(), is(equalTo(LocalDate.of(2026, 12, 31))));
+    assertThat(saved.getEventTime(), is(equalTo(LocalTime.of(18, 30))));
+    String detail =
+      this.mockMvc.perform(get(location))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(detail, containsString("value=\"2026-12-31\""));
+    assertThat(detail, containsString("value=\"18:30\""));
+    assertThat(detail, containsString(">2026-12-31</span>"));
+    assertThat(detail, containsString(">18:30</span>"));
     assertThat(saved.getAdministrator().getId(), is(equalTo(this.ownerId)));
     assertThat(saved.getAdministrator().getEmail(), is(equalTo(OWNER_EMAIL)));
     assertThat(saved.getShortCode(), matchesPattern("[A-Z0-9]{8}"));
@@ -309,6 +326,7 @@ public class PlanControllerIntegrationTest {
           .param("name", "Plan renombrado")
           .param("description", "Descripcion nueva")
           .param("eventDate", "2026-06-15")
+          .param("eventTime", "09:15")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/plans/" + planId));
@@ -318,6 +336,7 @@ public class PlanControllerIntegrationTest {
     assertThat(updated.getName(), is(equalTo("Plan renombrado")));
     assertThat(updated.getDescription(), is(equalTo("Descripcion nueva")));
     assertThat(updated.getEventDate(), is(equalTo(LocalDate.of(2026, 6, 15))));
+    assertThat(updated.getEventTime(), is(equalTo(LocalTime.of(9, 15))));
     assertThat(updated.getShortCode(), is(equalTo(shortCode)));
     assertThat(updated.getAdministrator().getId(), is(equalTo(this.ownerId)));
   }
@@ -406,6 +425,9 @@ public class PlanControllerIntegrationTest {
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.setShortCode("JOIN1234");
+    plan.setDescription("Recorrido con amigos");
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    plan.setEventTime(LocalTime.of(18, 30));
     Long remainingUserId = givenUser("remaining@test.com");
     plan.getParticipants().add(this.userRepository.findById(remainingUserId).orElseThrow());
     PlanPlace entry = new PlanPlace();
@@ -424,6 +446,13 @@ public class PlanControllerIntegrationTest {
     MvcResult detail =
       this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk()).andReturn();
     String html = detail.getResponse().getContentAsString();
+    String summary = html.substring(
+      html.indexOf("id=\"plan-summary\""),
+      html.indexOf("<section", html.indexOf("id=\"plan-summary\""))
+    );
+    assertThat(summary, containsString("Recorrido con amigos"));
+    assertThat(summary, containsString(">2026-12-31</span>"));
+    assertThat(summary, containsString(">18:30</span>"));
     assertThat(html, containsString("Salir del plan"));
     assertThat(html, not(containsString("Eliminar plan")));
     assertThat(html, not(containsString("Editar plan")));

@@ -157,6 +157,7 @@ public class PlanController {
     plan.setName(planForm.getName());
     plan.setDescription(planForm.getDescription());
     plan.setEventDate(planForm.getEventDate());
+    plan.setEventTime(planForm.getEventTime());
     plan.setIsPublic(planForm.getIsPublic());
     int order = 1;
     for (PlanPlaceRequest row : planForm.getPlaces()) {

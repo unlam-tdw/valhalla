@@ -2,6 +2,7 @@ package com.valhalla.presentation.plan;
 
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,6 +16,9 @@ public class PlanRequest {
 
   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
   private LocalDate eventDate;
+
+  @DateTimeFormat(pattern = "HH:mm")
+  private LocalTime eventTime;
 
   private Boolean isPublic;
 
@@ -51,6 +55,14 @@ public class PlanRequest {
 
   public void setEventDate(LocalDate eventDate) {
     this.eventDate = eventDate;
+  }
+
+  public LocalTime getEventTime() {
+    return eventTime;
+  }
+
+  public void setEventTime(LocalTime eventTime) {
+    this.eventTime = eventTime;
   }
 
   public Boolean getIsPublic() {

@@ -158,11 +158,20 @@
         </div>
 
         <div class="col-md-5">
-            <div class="card border-0 shadow-sm p-4 mb-4">
+            <div id="plan-summary" class="card border-0 shadow-sm p-4 mb-4">
                 <div class="row g-3">
+                    <div class="col-12 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">DESCRIPCI&Oacute;N</small>
+                        <p id="plan-description" class="mb-0 text-break" style="white-space: pre-wrap;"
+                           th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
+                    </div>
                     <div class="col-6 bg-light p-3 rounded">
                         <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">FECHA</small>
                         <span th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'yyyy-MM-dd') : 'Sin fecha'}">2026-10-16</span>
+                    </div>
+                    <div class="col-6 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">HORA</small>
+                        <span th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
                     </div>
                     <div class="col-6 bg-light p-3 rounded">
                         <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">VISIBILIDAD</small>
@@ -208,6 +217,11 @@
                     <div class="mb-3">
                         <label class="form-label text-muted small">Fecha</label>
                         <input type="date" th:field="*{eventDate}" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="eventTime" class="form-label text-muted small">Hora</label>
+                        <input type="time" th:field="*{eventTime}" class="form-control" />
                     </div>
 
                     <div class="form-check mb-4">

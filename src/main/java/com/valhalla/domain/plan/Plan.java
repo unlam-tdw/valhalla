@@ -18,8 +18,10 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Entity
 @Table(name = "plans")
@@ -35,7 +37,11 @@ public class Plan {
   @Column
   private String description;
 
+  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
   private LocalDate eventDate;
+
+  @DateTimeFormat(pattern = "HH:mm")
+  private LocalTime eventTime;
 
   private Boolean isPublic = false;
 
@@ -112,6 +118,14 @@ public class Plan {
     this.eventDate = eventDate;
   }
 
+  public LocalTime getEventTime() {
+    return eventTime;
+  }
+
+  public void setEventTime(LocalTime eventTime) {
+    this.eventTime = eventTime;
+  }
+
   public Boolean getIsPublic() {
     return isPublic != null ? isPublic : false;
   }
@@ -145,6 +159,7 @@ public class Plan {
     this.name = changes.getName();
     this.description = changes.getDescription();
     this.eventDate = changes.getEventDate();
+    this.eventTime = changes.getEventTime();
     this.isPublic = changes.getIsPublic();
   }
 }
