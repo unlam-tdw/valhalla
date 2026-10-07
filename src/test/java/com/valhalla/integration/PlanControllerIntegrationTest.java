@@ -425,6 +425,9 @@ public class PlanControllerIntegrationTest {
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.setShortCode("JOIN1234");
+    plan.setDescription("Recorrido con amigos");
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    plan.setEventTime(LocalTime.of(18, 30));
     Long remainingUserId = givenUser("remaining@test.com");
     plan.getParticipants().add(this.userRepository.findById(remainingUserId).orElseThrow());
     PlanPlace entry = new PlanPlace();
@@ -443,6 +446,13 @@ public class PlanControllerIntegrationTest {
     MvcResult detail =
       this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk()).andReturn();
     String html = detail.getResponse().getContentAsString();
+    String summary = html.substring(
+      html.indexOf("id=\"plan-summary\""),
+      html.indexOf("<section", html.indexOf("id=\"plan-summary\""))
+    );
+    assertThat(summary, containsString("Recorrido con amigos"));
+    assertThat(summary, containsString(">2026-12-31</span>"));
+    assertThat(summary, containsString(">18:30</span>"));
     assertThat(html, containsString("Salir del plan"));
     assertThat(html, not(containsString("Eliminar plan")));
     assertThat(html, not(containsString("Editar plan")));
