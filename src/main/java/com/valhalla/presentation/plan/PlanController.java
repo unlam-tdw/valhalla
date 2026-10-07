@@ -4,6 +4,7 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
+import com.valhalla.domain.planplace.PlanPlaceService;
 import com.valhalla.domain.user.User;
 import jakarta.validation.Valid;
 import java.util.Comparator;
@@ -37,10 +38,12 @@ public class PlanController {
   private static final String ATTR_PLAN_ID = "planId";
 
   private final PlanService planService;
+  private final PlanPlaceService planPlaceService;
 
   @Autowired
-  public PlanController(PlanService planService) {
+  public PlanController(PlanService planService, PlanPlaceService planPlaceService) {
     this.planService = planService;
+    this.planPlaceService = planPlaceService;
   }
 
   @GetMapping
@@ -52,9 +55,19 @@ public class PlanController {
   }
 
   @GetMapping("/new")
-  public ModelAndView showNewPlanForm() {
+  public ModelAndView showNewPlanForm(@RequestParam(required = false) Long placeId) {
     Map<String, Object> model = new ModelMap();
-    model.put(ATTR_PLAN, new PlanRequest());
+    PlanRequest planRequest = new PlanRequest();
+    // If placeId is provided, pre-select it in the form
+    if (placeId != null) {
+      PlanPlaceRequest place = new PlanPlaceRequest();
+      place.setPlaceId(placeId);
+      planRequest.setPlaces(java.util.List.of(place));
+      // El template lo vuelca como <input type="hidden" name="placeId"> para que
+      // el POST /plans sepa qué lugar asociar al plan recién creado.
+      model.put("placeId", placeId);
+    }
+    model.put(ATTR_PLAN, planRequest);
     return new ModelAndView(VIEW_PLAN_FORM, model);
   }
 
@@ -84,12 +97,19 @@ public class PlanController {
   public ModelAndView createPlan(
     @Valid @ModelAttribute(ATTR_PLAN) PlanRequest planForm,
     BindingResult bindingResult,
-    Authentication authentication
+    Authentication authentication,
+    @RequestParam(required = false) Long placeId
   ) {
     if (bindingResult.hasErrors()) {
       return renderFormWithError(planForm, null);
     }
     Plan created = planService.createPlan(toPlan(planForm), authentication.getName());
+    // Viene de /plans/new?placeId=X (flujo "+ Crear nuevo plan" desde Places):
+    // asociamos el lugar al plan recién creado con la misma lógica que
+    // POST /api/plans/{id}/places. Sin placeId no se hace nada (alta normal).
+    if (placeId != null) {
+      planPlaceService.addPlaceToPlan(created.getId(), placeId, authentication.getName());
+    }
     return new ModelAndView(REDIRECT_PLAN_DETAIL + created.getId());
   }
 

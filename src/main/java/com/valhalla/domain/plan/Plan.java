@@ -67,7 +67,7 @@ public class Plan {
     return email != null && participants.stream().anyMatch(user -> email.equals(user.getEmail()));
   }
 
-  @OneToMany(mappedBy = "plan", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "plan", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
   @OrderBy("sortOrder ASC")
   private List<PlanPlace> planPlaces = new ArrayList<>();
 

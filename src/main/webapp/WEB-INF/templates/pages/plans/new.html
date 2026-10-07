@@ -19,6 +19,12 @@
         method="POST">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <input type="hidden" name="_method" th:if="${planId != null}" value="PUT" />
+        <!-- Viene de /plans/new?placeId=X cuando el usuario llegó acá desde
+             "+ Crear nuevo plan" en la modal de Places. El controller de
+             GET /plans/new tiene que poner este valor en el modelo como
+             ${placeId}; si no lo hace, este campo queda vacío y no pasa nada
+             (th:if evita mandar un placeId="" vacío al backend). -->
+        <input type="hidden" name="placeId" th:if="${placeId != null}" th:value="${placeId}" />
 
         <div class="mt-4">
           <label for="name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del plan</label>

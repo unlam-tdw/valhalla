@@ -69,7 +69,9 @@
               <img :src="place.imageUrl || '/images/place-placeholder.svg'" :alt="place.name"
                 class="w-28 shrink-0 self-stretch bg-gray-100 object-cover" />
             </div>
-            <button type="button" @click.stop :aria-label="'Add ' + place.name + ' to a plan'"
+            <button type="button" :data-add-to-plan="place.id" :data-place-name="place.name"
+              :data-place-category="place.category" :data-place-latitude="place.latitude"
+              :data-place-longitude="place.longitude" :aria-label="'Add ' + place.name + ' to a plan'"
               class="absolute bottom-3 right-3 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-gray-900 text-white shadow-lg ring-2 ring-white transition hover:scale-110 hover:bg-blue-600 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
               <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2.5" stroke-linecap="round">
@@ -115,7 +117,10 @@
               {{ selectedPlace.description }}
             </p>
             <div class="mt-auto flex justify-end pt-4">
-              <button type="button"
+              <button type="button" :data-add-to-plan="selectedPlace.id" :data-place-name="selectedPlace.name"
+                :data-place-category="selectedPlace.category" :data-place-latitude="selectedPlace.latitude"
+                :data-place-longitude="selectedPlace.longitude"
+                :aria-label="'Add ' + selectedPlace.name + ' to a plan'"
                 class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
                 Add to plan
               </button>
@@ -167,6 +172,44 @@
           </ul>
           <p v-if="filteredPlans.length === 0" class="text-sm text-gray-500">No plans found.</p>
         </aside>
+
+        <!-- Add to plan modal -->
+        <div v-if="showAddToPlan" @click.self="closeAddToPlan" @keydown.esc="closeAddToPlan"
+          class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="add-to-plan-title"
+            class="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white p-6 shadow-md">
+            <h2 id="add-to-plan-title" class="text-2xl font-semibold text-gray-900">Agregar a plan</h2>
+            <p class="mt-2 text-sm text-gray-600">Selecciona un plan para agregar <strong>{{ placeToAdd?.name }}</strong></p>
+            <div class="mt-4 flex flex-col gap-3">
+              <select v-model="selectedPlanId" aria-label="Seleccionar plan"
+                class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                <option value="" disabled>Selecciona un plan...</option>
+                <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id">
+                  {{ plan.name }} ({{ plan.eventDate || 'Sin fecha' }})
+                </option>
+              </select>
+              <p v-if="availablePlans.length === 0" class="text-sm text-gray-500">
+                No hay planes disponibles para agregar este lugar.
+              </p>
+            </div>
+            <div class="mt-4 flex justify-end gap-2">
+              <button type="button" @click="closeAddToPlan"
+                class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300">
+                Cancelar
+              </button>
+              <button type="button" @click="confirmAddToPlan" :disabled="!selectedPlanId"
+                class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                Agregar
+              </button>
+            </div>
+            <div class="mt-3 border-t border-gray-200 pt-3">
+              <button type="button" @click="createNewPlan"
+                class="w-full rounded-md border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+                + Crear nuevo plan
+              </button>
+            </div>
+          </div>
+        </div>
 
         <!-- Create plan modal -->
         <div v-if="showCreatePlan" @click.self="closeCreatePlan" @keydown.esc="closeCreatePlan"
@@ -325,6 +368,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <!-- Add to Plan functionality -->
+    <script src="/js/add-to-plan.js"></script>
+
     <!-- Vue.js app (Vue is already loaded by the layout) -->
     <script>
       const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
@@ -343,6 +389,10 @@
           const draftPlaces = ref([]);
           const draftCategory = ref('');
           const draftQuery = ref('');
+          const showAddToPlan = ref(false);
+          const placeToAdd = ref(null);
+          const availablePlans = ref([]);
+          const selectedPlanId = ref('');
           let nextDraftKey = 0;
           // TODO: replace with public/nearby plans from the API once it exists.
           const mockPlans = ref([
@@ -541,6 +591,62 @@
             });
           };
 
+          const closeAddToPlan = () => {
+            showAddToPlan.value = false;
+            placeToAdd.value = null;
+            availablePlans.value = [];
+          };
+
+          const confirmAddToPlan = async () => {
+            if (!placeToAdd.value || !selectedPlanId.value) return;
+            // Emit event for the external JS module to handle the API call
+            const event = new CustomEvent('confirm-add-to-plan', {
+              detail: {
+                planId: selectedPlanId.value,
+                placeId: placeToAdd.value.id
+              }
+            });
+            document.dispatchEvent(event);
+            closeAddToPlan();
+          };
+
+          const createNewPlan = () => {
+            const placeId = placeToAdd.value ? placeToAdd.value.id : '';
+            window.location.href = '/plans/new?placeId=' + placeId;
+          };
+
+          // Listen for add-to-plan events from the external JavaScript module
+          document.addEventListener('add-to-plan', async (event) => {
+            const place = event.detail;
+            placeToAdd.value = place;
+
+            try {
+              const response = await fetch('/api/plans');
+              if (!response.ok) {
+                const bodyText = await response.text().catch(() => '(sin cuerpo)');
+                console.error('GET /api/plans ->', response.status, response.statusText, bodyText);
+                throw new Error('Failed to fetch plans (' + response.status + ')');
+              }
+
+              const userPlans = await response.json();
+
+              const plansWithoutPlace = userPlans.filter(plan =>
+                !plan.planPlaces.some(pp => pp.placeId === place.id)
+              );
+
+              // La modal se abre siempre (tengas 0, algunos o todos los
+              // planes ocupados por este lugar): desde ahí siempre se puede
+              // crear un plan nuevo, y si hay planes disponibles también se
+              // puede elegir uno existente.
+              availablePlans.value = plansWithoutPlace;
+              selectedPlanId.value = '';
+              showAddToPlan.value = true;
+            } catch (error) {
+              console.error('Error fetching plans:', error);
+              alert('Error al cargar los planes');
+            }
+          });
+
           onMounted(async () => {
             await nextTick();
 
@@ -618,7 +724,14 @@
             removeDraft,
             moveDraft,
             nextPlanStep,
-            onPlanSubmit
+            onPlanSubmit,
+            showAddToPlan,
+            placeToAdd,
+            availablePlans,
+            selectedPlanId,
+            closeAddToPlan,
+            confirmAddToPlan,
+            createNewPlan
           };
         }
       }).mount('#app');

@@ -26,7 +26,7 @@ public class PlanPlace {
   @JoinColumn(name = "plan_id", nullable = false)
   private Plan plan;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "place_id", nullable = false)
   private Place place;
 
