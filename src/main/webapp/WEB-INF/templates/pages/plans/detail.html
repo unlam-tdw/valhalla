@@ -16,13 +16,45 @@
             width: 100%;
             border-radius: 8px;
         }
-        .place-item {
-            cursor: grab;
-            user-select: none;
+        .itinerary-panel { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: 8px; padding: 20px; }
+        .itinerary-heading { color: var(--bs-body-color); letter-spacing: -0.03em; }
+        .itinerary-count { background: var(--bs-secondary-bg); color: var(--bs-body-color); border-radius: 20px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
+        .itinerary-list { list-style: none; padding: 0; margin: 12px 0 0; }
+        .place-item { position: relative; display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
+        .place-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 50%; bottom: -50%; border-left: 2px dashed var(--bs-border-color); }
+        .place-item[draggable="true"] { cursor: grab; }
+        .place-item[draggable="true"]:active { cursor: grabbing; }
+        .itinerary-step { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-secondary-bg); color: var(--bs-body-color); font-weight: 700; z-index: 1; }
+        .itinerary-stop { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--bs-border-color); border-radius: 8px; background: white; transition: transform .18s, box-shadow .18s; }
+        .itinerary-stop:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,.06); }
+        .stop-content { flex: 1; min-width: 0; }
+        .stop-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
+        .place-item:last-child { padding-bottom: 0; }
+        .stop-actions button { white-space: nowrap; }
+        .stop-category { display: inline-flex; align-items: center; gap: 7px; color: var(--bs-secondary-color); background: var(--bs-light); border-radius: 4px; padding: 2px 6px; font-size: .72rem; font-weight: 600; }
+        .stop-title { display: block; border: 0; padding: 0; margin: 0; background: none; color: var(--bs-body-color); font-size: 1rem; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
+        .stop-title:hover { color: var(--bs-secondary); }
+        .stop-schedule { display: flex; flex-wrap: wrap; gap: 12px; color: var(--bs-secondary-color); font-size: .82rem; }
+        .stop-description { color: var(--bs-secondary-color); font-size: .85rem; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .stop-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+        .stop-details { border: 1px solid var(--bs-secondary); border-radius: 6px; background: var(--bs-secondary); color: white; padding: 5px 10px; font-size: .8rem; font-weight: 600; }
+        .stop-details:hover { background: #5c636a; }
+        .stop-remove { border: 0; border-radius: 20px; background: transparent; color: var(--bs-danger); padding: 5px 6px; font-size: .8rem; }
+        .stop-remove:hover { background: var(--bs-light); }
+        .stop-title:focus-visible, .stop-details:focus-visible, .stop-remove:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 4px; }
+        .itinerary-empty { padding: 28px 18px; margin-top: 20px; text-align: center; background: var(--bs-light); border-radius: 16px; color: var(--bs-secondary-color); }
+        @media (max-width: 575px) {
+            #plan-app { padding-left: 16px !important; padding-right: 16px !important; }
+            #plan-app > .d-flex:first-child { flex-wrap: wrap; gap: 12px; }
+            #plan-app h2 { overflow-wrap: anywhere; max-width: 100%; }
+            nav.navbar { flex-wrap: wrap; gap: 12px; padding: 16px !important; }
+            nav.navbar > .ms-auto { flex-wrap: wrap; margin-left: 0 !important; }
+            .itinerary-panel { padding: 18px; }
+            .place-item { gap: 8px; }
+            .stop-actions { flex-direction: column; gap: 2px; }
+            .itinerary-stop { padding: 10px; gap: 8px; }
         }
-        .place-item:active {
-            cursor: grabbing;
-        }
+        @media (prefers-reduced-motion: reduce) { .itinerary-stop { transition: none; } .itinerary-stop:hover { transform: none; } }
 
         .custom-div-icon {
             background: transparent !important;
@@ -130,31 +162,49 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm p-4">
-                <h5 class="fw-bold mb-3">Itinerario del Plan</h5>
-                <div v-if="planPlaces.length === 0" class="text-muted small">
-                    Aún no agregaste lugares a este plan.
+            <section class="itinerary-panel" aria-labelledby="itinerary-heading">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
+                    <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
                 </div>
-
-                <ul class="list-group">
+                <p class="text-muted small mt-2 mb-0" th:if="${isPlanAdministrator}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
+                <div v-if="planPlaces.length === 0" class="itinerary-empty">
+                    <i class="fa-solid fa-map-location-dot fs-3 mb-3" aria-hidden="true"></i>
+                    <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
+                    <span class="small">Los lugares del plan aparecer&aacute;n ac&aacute;.</span>
+                </div>
+                <ol class="itinerary-list">
                     <li v-for="(item, index) in planPlaces"
                         :key="item.entryId || index"
-                        class="list-group-item d-flex justify-content-between align-items-center place-item"
+                        class="place-item"
                         th:attr="draggable=${isPlanAdministrator}"
                         @dragstart="onDragStart(index)"
                         @dragover.prevent
                         @drop="onDrop(index)">
-                        <div>
-                            <span class="badge bg-primary me-2">{{ index + 1 }}</span>
-                            <button type="button" class="btn btn-link p-0 fw-bold" @click="showPlace(item)">{{ item.name }}</button>
-                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" @click="showPlace(item)">Ver más</button>
+                        <span class="itinerary-step">{{ index + 1 }}</span>
+                        <div class="itinerary-stop">
+                            <div class="stop-content">
+                                <div class="stop-heading">
+                                    <button type="button" class="stop-title" @click="showPlace(item)">{{ item.name }}</button>
+                                    <span class="stop-category"><i :class="['fa-solid', getCategoryIcon(item.category)]" aria-hidden="true"></i>{{ getCategoryLabel(item.category) }}</span>
+                                </div>
+                                <div class="stop-schedule">
+                                    <span v-if="item.visitDate"><i class="fa-regular fa-calendar me-1" aria-hidden="true"></i>{{ formatVisitDate(item.visitDate) }}</span>
+                                    <span v-if="item.visitTime"><i class="fa-regular fa-clock me-1" aria-hidden="true"></i>{{ item.visitTime.slice(0, 5) }}</span>
+                                    <span v-if="!item.visitDate && !item.visitTime">Horario por definir</span>
+                                </div>
+                                <p v-if="item.description" class="stop-description">{{ item.description }}</p>
+                            </div>
+                            <div class="stop-actions">
+                                <button type="button" class="stop-details" @click="showPlace(item)">Ver m&aacute;s</button>
+                                <button th:if="${isPlanAdministrator}" @click="removePlace(index)" type="button" class="stop-remove" :disabled="saving">
+                                    <i class="fa-regular fa-trash-can me-1" aria-hidden="true"></i>Eliminar
+                                </button>
+                            </div>
                         </div>
-                        <button th:if="${isPlanAdministrator}" @click="removePlace(index)" type="button" class="btn btn-sm btn-outline-danger">
-                            Eliminar
-                        </button>
                     </li>
-                </ul>
-            </div>
+                </ol>
+            </section>
         </div>
 
         <div class="col-md-5">
@@ -362,6 +412,14 @@
                     this.$refs.placeDialog.showModal();
                 } catch (error) { this.requestError = error.message; }
             },
+            formatVisitDate(value) {
+                const [year, month, day] = value.split('-');
+                return `${day}/${month}/${year}`;
+            },
+            getCategoryLabel(category) {
+                const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
+                return labels[category] || 'Lugar';
+            },
             getCategoryIcon(category) {
                 const icons = {
                     RESTAURANT: 'fa-utensils',
@@ -372,6 +430,7 @@
                     PARK:       'fa-tree',
                     CULTURE:    'fa-book',
                     BAR:        'fa-beer-mug-empty',
+                    SPORT:      'fa-futbol',
                     DEFAULT:    'fa-map-marker-alt'
                 };
                 return icons[category] || icons.DEFAULT;

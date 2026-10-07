@@ -65,7 +65,6 @@ public class PlanRequest {
     this.eventTime = eventTime;
   }
 
-
   public Boolean getIsPublic() {
     return isPublic;
   }
