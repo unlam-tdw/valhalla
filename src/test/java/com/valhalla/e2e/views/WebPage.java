@@ -88,10 +88,16 @@ public class WebPage {
    * <p>Whitespace is collapsed the same way {@link #getNavbarSignedInAs()} does it, because
    * {@code allTextContents()} returns the raw markup text and a template that wraps the label
    * across lines would otherwise change the expected value.
+   *
+   * <p>Pinned to the shared navbar rather than to any {@code <nav>}: the landing page carries a
+   * footer nav of its own (links to /, /places, /plans and /auth/register), and a bare
+   * {@code nav a} would fold those links into the set the caller is pinning. The shared navbar is
+   * the direct child of {@code <body>} in layouts/base :: layout; the footer nav lives inside
+   * {@code <main>}.
    */
   public List<String> getNavbarItems() {
     return page
-      .locator("nav a, nav button")
+      .locator("body > nav a, body > nav button")
       .allTextContents()
       .stream()
       .map(text -> text.replaceAll("\\s+", " ").trim())
