@@ -1,19 +1,594 @@
 <!DOCTYPE HTML>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
 
-<head th:replace="~{layouts/base :: head('PlanIt')}"></head>
+<head th:replace="~{layouts/base :: head(${pageTitle})}"></head>
 
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
-  <main class="flex-1 flex flex-col items-center justify-center gap-6 p-4">
-    <h1 class="text-5xl font-bold text-gray-900">PlanIt</h1>
-    <p class="text-lg text-gray-600 text-center max-w-md">
-      Discover and plan your perfect day in Buenos Aires
-    </p>
-    <a th:href="@{/admin}"
-      class="mt-4 rounded-lg bg-blue-600 px-8 py-3 text-lg font-medium text-white transition hover:bg-blue-700">
-      Admin
+  <!--
+    Landing pública de PlanIt.
+
+    Reglas que sigue esta página:
+      · Una sola acción arriba (crear la cuenta). El resto de enlaces son texto, no botones.
+      · Todo el contenido sale del modelo: el estado de sesión decide el CTA y el itinerario del
+        hero viene de LandingController. No hay datos de negocio escritos en el HTML.
+      · Los iconos salen de la librería vendorizada (resources/core/js/lucide.min.js), la misma
+        que usa /places, para no sumar dependencias ni CDN.
+      · Las animaciones de entrada usan IntersectionObserver, nunca un listener de scroll.
+  -->
+  <main id="landing" class="flex-1">
+
+    <!-- Estilos propios de la página: el degradado del título (único degradado permitido, y
+         solo sobre texto), la 마스크 de entrada de los bloques y el revelado palabra por palabra
+         del tagline. Todo lo demás es Tailwind. -->
+    <style>
+      /* El título del hero: degradado horizontal negro a gris, recortado sobre el texto. */
+      .hero-title {
+        background-image: linear-gradient(90deg, #111827 0%, #666666 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      /* Los bloques entran con un fade up pesado. El estado inicial solo existe si JavaScript
+         está activo (html.reveal-ready), así que sin JS la página se ve completa. */
+      html.reveal-ready [data-reveal] {
+        opacity: 0;
+        transform: translateY(4rem);
+        filter: blur(12px);
+      }
+
+      html.reveal-ready [data-reveal].is-revealed {
+        opacity: 1;
+        transform: none;
+        filter: none;
+        transition:
+          opacity 900ms cubic-bezier(0.32, 0.72, 0, 1),
+          transform 900ms cubic-bezier(0.32, 0.72, 0, 1),
+          filter 900ms cubic-bezier(0.32, 0.72, 0, 1);
+      }
+
+      /* Tagline: cada palabra arranca apagada y se enciende al entrar en pantalla. */
+      html.reveal-ready .tagline-word {
+        color: rgba(17, 24, 39, 0.28);
+        transition: color 700ms cubic-bezier(0.32, 0.72, 0, 1);
+      }
+
+      html.reveal-ready .tagline-word.is-lit {
+        color: #111827;
+      }
+
+      /* Los iconos de Lucide heredan el color y el grosor del texto. */
+      [data-lucide] {
+        stroke-width: 1.5;
+      }
+    </style>
+
+    <a href="#contenido"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-base focus:font-semibold focus:text-primary">
+      Saltar al contenido
     </a>
+
+    <div id="contenido">
+
+      <!-- ============================== HERO ============================== -->
+      <section class="bg-white px-4 py-16" aria-labelledby="hero-title">
+        <div class="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+
+          <div>
+            <h1 id="hero-title"
+              class="hero-title font-serif text-4xl font-bold leading-tight text-balance sm:text-5xl lg:text-6xl">
+              Armá el plan del día una vez<br />
+              y compartilo las veces que haga falta
+            </h1>
+
+            <p class="mt-6 max-w-[680px] text-lg text-gray-600 text-pretty">
+              PlanIt junta lugares de Buenos Aires en un itinerario con horarios y lo deja en un
+              link que se abre en el celu. Gratis, sin tarjeta y sin que el resto tenga que
+              registrarse.
+            </p>
+
+            <!-- Acción única arriba. El enlace de entrada es texto: no compite con el CTA. -->
+            <div class="mt-8 flex flex-wrap items-center gap-3">
+              <a th:if="${authenticated == false}" th:href="@{/auth/register}"
+                class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                Crear mi plan gratis
+              </a>
+              <a th:if="${authenticated == true}" th:href="@{/places}"
+                class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                Explorar lugares
+              </a>
+
+              <a th:if="${authenticated == false}" th:href="@{/auth/login}"
+                class="rounded-lg px-3 py-2 text-base font-medium text-primary underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                Ya tengo cuenta, entro
+              </a>
+              <a th:if="${authenticated == true and isAdmin == false}" th:href="@{/plans}"
+                class="rounded-lg px-3 py-2 text-base font-medium text-primary underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                Ver mis planes
+              </a>
+              <a th:if="${authenticated == true and isAdmin == true}" th:href="@{/admin/users}"
+                class="rounded-lg px-3 py-2 text-base font-medium text-primary underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                Administrar usuarios
+              </a>
+            </div>
+
+            <!-- Señal de prueba: un dato concreto del catálogo, no una promesa. -->
+            <p class="mt-4 text-sm text-gray-500">
+              10 lugares de Buenos Aires en el catálogo, con dirección y coordenadas.
+            </p>
+          </div>
+
+          <!-- Visual del hero: la pantalla real del detalle de un plan. Los lugares salen del
+               modelo (LandingController) y los íconos de la librería vendorizada. -->
+          <figure class="rounded-2xl border border-gray-200 bg-white p-3">
+            <div class="rounded-lg bg-gray-50 p-3">
+              <div class="flex items-center justify-between">
+                <p class="font-serif text-xl text-gray-900">Un sábado en Recoleta</p>
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">
+                  <i data-lucide="users" class="h-3 w-3" aria-hidden="true"></i>
+                  Público
+                </span>
+              </div>
+
+              <ol class="mt-3 flex flex-col gap-2">
+                <li th:each="stop : ${heroItinerary}"
+                  class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                  <span class="font-mono text-sm font-semibold text-primary" th:text="${stop.time}">10:00</span>
+                  <span class="flex-1">
+                    <span class="block text-sm font-semibold text-gray-900" th:text="${stop.place}">Cafe Tortoni</span>
+                    <span class="block text-xs text-gray-500" th:text="${stop.address}">Av. de Mayo 825</span>
+                  </span>
+                  <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                    th:text="${stop.category}">Café</span>
+                </li>
+              </ol>
+
+              <p class="mt-3 text-xs text-gray-500">
+                Itinerario con hora, orden y dirección en cada parada.
+              </p>
+            </div>
+            <figcaption class="sr-only">
+              Ejemplo de plan con tres paradas, horario y categoría por cada lugar.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- ========================= TAGLINE (B11) ========================= -->
+      <!-- Vai Chartrain, founder de Linear: "Any product worth building has to have a
+           tagline." El bloque se enciende palabra por palabra al entrar en pantalla. -->
+      <section class="bg-white px-4 pb-16" aria-label="Tagline">
+        <p data-reveal class="mx-auto max-w-[680px] font-serif text-4xl leading-tight text-balance sm:text-5xl">
+          <span class="tagline-word">Armá</span> <span class="tagline-word">el</span>
+          <span class="tagline-word">itinerario</span> <span class="tagline-word">una</span>
+          <span class="tagline-word">vez.</span>
+          <span class="tagline-word">Compartilo</span> <span class="tagline-word">con</span>
+          <span class="tagline-word">quien</span> <span class="tagline-word">quiera,</span>
+          <span class="tagline-word">las</span> <span class="tagline-word">veces</span>
+          <span class="tagline-word">que</span> <span class="tagline-word">haga</span>
+          <span class="tagline-word">falta.</span>
+        </p>
+      </section>
+
+      <!-- ====================== PROBLEMA Y SOLUCIÓN ====================== -->
+      <section class="bg-gray-100 px-4 py-16" aria-labelledby="problema-title">
+        <div class="mx-auto max-w-3xl text-center">
+          <h2 id="problema-title" class="font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+            El plan de sábado termina siendo tres mensajes sueltos
+          </h2>
+          <p class="mt-6 text-base text-gray-600 text-pretty">
+            Uno propone el museo, otro el bar de siempre, el tercero responde a las tres de la
+            tarde. Al final nadie recuerda a qué hora era el café. Armalo una vez en PlanIt y el
+            grupo deja de discutir el plan para empezarlo.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================ BENEFICIOS ========================== -->
+      <section class="bg-white px-4 py-16" aria-labelledby="beneficios-title">
+        <div class="mx-auto max-w-6xl">
+          <h2 id="beneficios-title" class="max-w-[680px] font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+            Un plan que se arma una vez y no se vuelve a discutir
+          </h2>
+
+          <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <article data-reveal
+              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
+              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+                <i data-lucide="clock" class="h-5 w-5" aria-hidden="true"></i>
+              </span>
+              <h3 class="mt-4 text-lg font-semibold text-gray-900">Cada parada con su hora</h3>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                El museo abre a las 10 y el café cierra a las 19. El itinerario lo dice antes de que
+                alguien pregunte.
+              </p>
+            </article>
+
+            <article data-reveal
+              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
+              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+                <i data-lucide="link" class="h-5 w-5" aria-hidden="true"></i>
+              </span>
+              <h3 class="mt-4 text-lg font-semibold text-gray-900">Un link, no una cuenta</h3>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                Quien lo recibe lo abre en el celu y ve el itinerario. No tiene que registrarse ni
+                instalar nada.
+              </p>
+            </article>
+
+            <article data-reveal
+              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
+              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+                <i data-lucide="map-pin" class="h-5 w-5" aria-hidden="true"></i>
+              </span>
+              <h3 class="mt-4 text-lg font-semibold text-gray-900">El mapa como punto de partida</h3>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                Explorás por categoría o por nombre, con la dirección y las coordenadas de cada
+                lugar ya cargadas.
+              </p>
+            </article>
+
+            <article data-reveal
+              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
+              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+                <i data-lucide="calendar" class="h-5 w-5" aria-hidden="true"></i>
+              </span>
+              <h3 class="mt-4 text-lg font-semibold text-gray-900">Tus planes, siempre a mano</h3>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                Editás, compartís o borrás un plan cuando quieras desde la misma lista.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================= CÓMO FUNCIONA ======================== -->
+      <section class="bg-gray-100 px-4 py-16" aria-labelledby="como-title">
+        <div class="mx-auto max-w-6xl">
+          <h2 id="como-title" class="max-w-[680px] font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+            De cero a compartido en tres pasos
+          </h2>
+
+          <ol class="mt-8 grid gap-4 md:grid-cols-3">
+            <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
+              <span class="font-serif text-4xl text-gray-300">01</span>
+              <h3 class="mt-4 text-lg font-semibold text-gray-900">Creás tu cuenta</h3>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">Un mail y una contraseña.</p>
+            </li>
+
+            <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
+              <span class="font-serif text-4xl text-gray-300">02</span>
+              <h3 class="mt-4 text-lg font-semibold text-gray-900">Elegís los lugares</h3>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">Buscás en el mapa y armás el itinerario.</p>
+            </li>
+
+            <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
+              <span class="font-serif text-4xl text-gray-300">03</span>
+              <h3 class="mt-4 text-lg font-semibold text-gray-900">Compartís el link</h3>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">El plan queda listo para abrirlo en el celu.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ============================ PRUEBA ============================= -->
+      <!-- No hay testimonios inventados: la prueba es el producto mismo y los tres números
+           reales del catálogo (10 lugares, 10 categorías, 8 caracteres de shortCode). -->
+      <section class="bg-white px-4 py-16" aria-labelledby="prueba-title">
+        <div class="mx-auto max-w-6xl">
+          <h2 id="prueba-title" class="max-w-[680px] font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+            Ya hay lugares para empezar
+          </h2>
+
+          <div class="mt-8 grid gap-4 sm:grid-cols-3">
+            <div data-reveal class="rounded-2xl border border-gray-200 bg-gray-100 p-6">
+              <p class="font-serif text-5xl text-gray-900">10</p>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                lugares de Buenos Aires en el catálogo, de MALBA a Plaza Serrano, con dirección y
+                coordenadas.
+              </p>
+            </div>
+
+            <div data-reveal class="rounded-2xl border border-gray-200 bg-gray-100 p-6">
+              <p class="font-serif text-5xl text-gray-900">10</p>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                categorías para filtrar: restaurante, bar, café, museo, parque, cultura y más.
+              </p>
+            </div>
+
+            <div data-reveal class="rounded-2xl border border-gray-200 bg-gray-100 p-6">
+              <p class="font-serif text-5xl text-gray-900">8</p>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                caracteres en el código único de cada plan, el que después se convierte en el link
+                para compartir.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== FAQ ============================== -->
+      <section class="bg-gray-100 px-4 py-16" aria-labelledby="faq-title">
+        <div class="mx-auto max-w-3xl">
+          <h2 id="faq-title" class="font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+            Preguntas frecuentes
+          </h2>
+
+          <div class="mt-8 flex flex-col gap-2">
+            <details data-reveal
+              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                ¿Necesito crear una cuenta para ver un plan que me compartieron?
+                <i data-lucide="plus"
+                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
+                  aria-hidden="true"></i>
+              </summary>
+              <p class="mt-3 text-sm text-gray-600 text-pretty">
+                No. El link abre el itinerario sin pedirte nada. Registrarse es para crear y editar
+                planes, no para mirarlos.
+              </p>
+            </details>
+
+            <details data-reveal
+              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                ¿PlanIt cuesta algo?
+                <i data-lucide="plus"
+                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
+                  aria-hidden="true"></i>
+              </summary>
+              <p class="mt-3 text-sm text-gray-600 text-pretty">
+                No. La cuenta y los planes son gratuitos y no pedimos tarjeta.
+              </p>
+            </details>
+
+            <details data-reveal
+              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                ¿Sirve para una ciudad que no es Buenos Aires?
+                <i data-lucide="plus"
+                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
+                  aria-hidden="true"></i>
+              </summary>
+              <p class="mt-3 text-sm text-gray-600 text-pretty">
+                Sí. El catálogo arranca con Buenos Aires, pero un plan es un lugar con horario y
+                dirección: el modelo sirve para cualquier ciudad.
+              </p>
+            </details>
+
+            <details data-reveal
+              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                ¿Quién puede editar un plan?
+                <i data-lucide="plus"
+                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
+                  aria-hidden="true"></i>
+              </summary>
+              <p class="mt-3 text-sm text-gray-600 text-pretty">
+                Solo vos. El resto ve el itinerario, los horarios y la ruta, pero no lo modifica.
+              </p>
+            </details>
+
+            <details data-reveal
+              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                ¿Puedo recuperar la contraseña?
+                <i data-lucide="plus"
+                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
+                  aria-hidden="true"></i>
+              </summary>
+              <p class="mt-3 text-sm text-gray-600 text-pretty">
+                Sí. Lo pedís desde la pantalla de ingreso y PlanIt te muestra una contraseña
+                temporal para entrar de nuevo.
+              </p>
+            </details>
+
+            <details data-reveal
+              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                ¿Funciona desde el celu?
+                <i data-lucide="plus"
+                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
+                  aria-hidden="true"></i>
+              </summary>
+              <p class="mt-3 text-sm text-gray-600 text-pretty">
+                Sí. La página se adapta al teléfono y el link se abre sin instalar nada.
+              </p>
+            </details>
+
+            <details data-reveal
+              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                ¿Puedo borrar un plan?
+                <i data-lucide="plus"
+                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
+                  aria-hidden="true"></i>
+              </summary>
+              <p class="mt-3 text-sm text-gray-600 text-pretty">
+                Sí, desde el detalle del plan. La eliminación no se puede deshacer.
+              </p>
+            </details>
+          </div>
+
+          <!-- Los mismos datos del FAQ, en JSON-LD, para que los buscadores puedan citar la
+               página. Solo se declara si la vista existe: el bloque va dentro de main. -->
+          <script type="application/ld+json" th:if="${authenticated != null}">
+            {
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "¿Necesito crear una cuenta para ver un plan que me compartieron?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "No. El link abre el itinerario sin pedirte nada. Registrarse es para crear y editar planes, no para mirarlos." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "¿PlanIt cuesta algo?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "No. La cuenta y los planes son gratuitos y no pedimos tarjeta." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "¿Sirve para una ciudad que no es Buenos Aires?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Sí. Un plan es un lugar con horario y dirección, así que el modelo sirve para cualquier ciudad." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "¿Quién puede editar un plan?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Solo el dueño. El resto ve el itinerario, los horarios y la ruta." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "¿Puedo recuperar la contraseña?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Sí. PlanIt te muestra una contraseña temporal para volver a entrar." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "¿Funciona desde el celu?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Sí. La página se adapta al teléfono y el link se abre sin instalar nada." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "¿Puedo borrar un plan?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Sí, desde el detalle del plan. La eliminación no se puede deshacer." }
+                }
+              ]
+            }
+          </script>
+        </div>
+      </section>
+
+      <!-- =========================== CTA FINAL =========================== -->
+      <!-- Mismo texto y mismo botón que el hero: una sola promesa en toda la página. -->
+      <section class="bg-white px-4 py-16" aria-labelledby="cta-title">
+        <div class="mx-auto max-w-3xl text-center">
+          <h2 id="cta-title" class="font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+            El próximo plan que compartís lo armás en cinco minutos
+          </h2>
+          <p class="mx-auto mt-4 max-w-[680px] text-base text-gray-600 text-pretty">
+            Cuenta gratuita, sin tarjeta, y el link del plan se abre sin que nadie tenga que
+            registrarse.
+          </p>
+          <div class="mt-8">
+            <a th:if="${authenticated == false}" th:href="@{/auth/register}"
+              class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Crear mi plan gratis
+            </a>
+            <a th:if="${authenticated == true}" th:href="@{/plans}"
+              class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Ver mis planes
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- El pie y los scripts van DENTRO del main a propósito: el layout reemplaza el body
+         entero con layout(~{::main}), así que cualquier elemento hermano del main se
+         descarta al renderizar. -->
+    <footer class="bg-gray-100 px-4 py-8">
+    <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
+      <p class="text-sm font-semibold text-gray-900">PlanIt</p>
+      <nav aria-label="Links del pie" class="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+        <a th:href="@{/}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Inicio
+        </a>
+        <a th:href="@{/places}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Explorar lugares
+        </a>
+        <a th:href="@{/plans}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Mis planes
+        </a>
+        <a th:href="@{/auth/register}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Crear cuenta
+        </a>
+      </nav>
+      <p class="text-xs text-gray-500">Proyecto del Taller Web I</p>
+    </div>
+  </footer>
+
+  <!-- Librería de iconos vendorizada, la misma que usa /places: sin CDN y sin dependencia de
+       red en el E2E. Va antes del script de animación porque createIcons necesita window.lucide. -->
+  <script th:src="@{/js/lucide.min.js}"></script>
+
+  <script>
+    /* Sin JavaScript la página se ve entera: los estados iniciales (blur, opacidad 0, palabras
+       apagadas) solo se activan cuando esta clase está en <html>. prefers-reduced-motion
+       desactiva el efecto y muestra todo. */
+    (function () {
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      var revealAll = function () {
+        var nodes = document.querySelectorAll('[data-reveal], .tagline-word');
+        for (var i = 0; i < nodes.length; i++) {
+          nodes[i].classList.add('is-revealed', 'is-lit');
+        }
+      };
+
+      if (reduced || typeof IntersectionObserver === 'undefined') {
+        revealAll();
+        return;
+      }
+
+      document.documentElement.classList.add('reveal-ready');
+
+      /* Bloques: entran una vez cuando aparecen. */
+      var blocks = document.querySelectorAll('[data-reveal]');
+      var blockObserver = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('is-revealed');
+            blockObserver.unobserve(entry.target);
+          });
+        },
+        { threshold: 0.15 }
+      );
+      for (var i = 0; i < blocks.length; i++) {
+        blockObserver.observe(blocks[i]);
+      }
+
+      /* Tagline: las palabras se encienden una por una, en orden de lectura, con un delay
+         proporcional a su posición. Cada palabra tiene su propio observer para que se activen
+         al cruzar la línea de lectura, no todas de un tirón. */
+      var words = document.querySelectorAll('.tagline-word');
+      for (var w = 0; w < words.length; w++) {
+        (function (word, index) {
+          var wordObserver = new IntersectionObserver(
+            function (entries) {
+              entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return;
+                word.style.transitionDelay = index * 90 + 'ms';
+                word.classList.add('is-lit');
+                wordObserver.disconnect();
+              });
+            },
+            { threshold: 0.6 }
+          );
+          wordObserver.observe(word);
+        })(words[w], w);
+      }
+
+      /* Los íconos de Lucide se dibujan recién ahora: los data-lucide del DOM ya están
+         reemplazados por SVG. */
+      if (window.lucide && lucide.createIcons) {
+        lucide.createIcons({
+          attrs: { 'stroke-width': 1.5 }
+        });
+      }
+    })();
+  </script>
+
   </main>
 
 </body>

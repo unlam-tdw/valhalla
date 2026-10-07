@@ -1,6 +1,7 @@
 package com.valhalla.config;
 
 import com.valhalla.infrastructure.security.CustomAuthenticationSuccessHandler;
+import com.valhalla.infrastructure.security.HomeOnAccessDeniedHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,7 @@ import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
 @Configuration
@@ -20,6 +22,9 @@ public class SecurityConfig {
 
   @Autowired
   private CustomAuthenticationSuccessHandler successHandler;
+
+  @Autowired
+  private HomeOnAccessDeniedHandler homeOnAccessDeniedHandler;
 
   // 1. Cadena para Usuarios Comunes (/auth/**) [AUT-01]
 
@@ -30,11 +35,19 @@ public class SecurityConfig {
     http
       .securityMatcher("/auth/**")
       .authorizeHttpRequests(auth ->
-        // AC-10: todo el namespace /auth/** es público (form, registro y recuperación).
-        // Un endpoint nuevo bajo /auth/ nace público, como pide la spec, en vez de
-        // aparecer bloqueado en silencio por un anyRequest() restrictivo.
-        auth.anyRequest().permitAll()
+        // "Público" acá no es "para cualquiera": es abierto a quien NO sea admin. Nadie tiene que
+        // estar adentro para registrarse ni para recuperar contraseña, así que un anónimo tiene que
+        // poder entrar a /auth/register y a /auth/forgot-password; y un USER tiene que poder usar
+        // toda la superficie. Lo único que no corresponde es un ADMIN, que ya está en su lugar: el
+        // navbar de un admin ofrece /admin/logout, no /auth/logout.
+        //
+        // isAnonymous() hace falta además del permitAll() plano: permitAll() autoriza también a un
+        // ADMIN, que es justo lo que esta regla viene a negar.
+        auth
+          .anyRequest()
+          .access(new WebExpressionAuthorizationManager("isAnonymous() or hasRole('USER')"))
       )
+      .exceptionHandling(ex -> ex.accessDeniedHandler(this.homeOnAccessDeniedHandler))
       .formLogin(form ->
         form
           .loginPage("/auth/login")
@@ -69,16 +82,17 @@ public class SecurityConfig {
     http
       .securityMatcher("/admin/**")
       .authorizeHttpRequests(auth ->
+        // /admin/** es de ADMIN, sin excepción: /admin/home estaba en authenticated() y dejaba
+        // entrar a un USER común al home del admin. Solo el par login + validate-login queda
+        // abierto, porque es el punto de entrada: sin él no hay forma de obtener una sesión de
+        // admin. El controller de /admin/login ya manda al que llega con sesión a su home.
         auth
           .requestMatchers("/admin/login", "/admin/validate-login")
           .permitAll()
-          .requestMatchers("/admin/home")
-          .authenticated()
           .requestMatchers("/admin/**")
           .hasRole("ADMIN")
-          .anyRequest()
-          .authenticated()
       )
+      .exceptionHandling(ex -> ex.accessDeniedHandler(this.homeOnAccessDeniedHandler))
       .formLogin(form ->
         form
           .loginPage("/admin/login")
@@ -120,7 +134,7 @@ public class SecurityConfig {
           .authenticated()
           .requestMatchers("/", "/share/**", "/reload/**")
           .permitAll()
-          .requestMatchers("/css/**", "/js/**", "/images/**")
+          .requestMatchers("/css/**", "/js/**", "/images/**", "/manifest.json")
           .permitAll()
           .anyRequest()
           .authenticated()

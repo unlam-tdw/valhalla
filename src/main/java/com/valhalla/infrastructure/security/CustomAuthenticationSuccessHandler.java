@@ -1,11 +1,11 @@
 package com.valhalla.infrastructure.security;
 
+import com.valhalla.presentation.shared.LoginRedirects;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
@@ -20,19 +20,10 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
   ) throws IOException, ServletException {
     request.getSession().setAttribute("loginTime", System.currentTimeMillis());
 
-    boolean isAdmin = authentication
-      .getAuthorities()
-      .stream()
-      .map(GrantedAuthority::getAuthority)
-      .anyMatch(role -> "ROLE_ADMIN".equals(role) || "ADMIN".equals(role));
-
-    if (isAdmin) {
-      response.sendRedirect(request.getContextPath() + "/admin/home");
-    } else {
-      // LandingController serves "/" and the landing page is public. It replaces "/plans", which
-      // no controller maps: the redirect used to land on a page that only looked broken because a
-      // missing route rendered the error view with HTTP 200.
-      response.sendRedirect(request.getContextPath() + "/");
-    }
+    // LandingController serves "/" and the landing page is public. It replaces "/plans", which no
+    // controller maps: the redirect used to land on a page that only looked broken because a
+    // missing route rendered the error view with HTTP 200. The rule is shared with the two login
+    // pages so all three agree on where a session lands.
+    response.sendRedirect(request.getContextPath() + LoginRedirects.landingFor(authentication));
   }
 }

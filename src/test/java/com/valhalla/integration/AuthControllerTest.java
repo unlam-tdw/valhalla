@@ -48,6 +48,8 @@ public class AuthControllerTest {
   private static final String USER_EMAIL = "aut.user@unlam.edu.ar";
   private static final String USER_PASSWORD = "user-password";
   private static final String PASSWORD = "secret123";
+  private static final String FIRST_NAME = "Ana";
+  private static final String LAST_NAME = "Perez";
   private static final String VALIDATE_LOGIN = "/auth/validate-login";
 
   @Autowired
@@ -79,7 +81,9 @@ public class AuthControllerTest {
     this.mockMvc.perform(get("/auth/register"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/user/register"))
-      .andExpect(content().string(not(containsString("firstName"))));
+      .andExpect(content().string(containsString("id=\"firstName\"")))
+      .andExpect(content().string(containsString("id=\"lastName\"")))
+      .andExpect(content().string(containsString("id=\"confirmPassword\"")));
   }
 
   // --- I-17 ---
@@ -100,7 +104,13 @@ public class AuthControllerTest {
     String email = uniqueEmail();
 
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", email).param("password", PASSWORD)
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", PASSWORD)
+          .param("confirmPassword", PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/auth/login"));
@@ -120,7 +130,13 @@ public class AuthControllerTest {
     register(email, PASSWORD);
 
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", email).param("password", PASSWORD)
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", PASSWORD)
+          .param("confirmPassword", PASSWORD)
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/user/register"))
@@ -130,12 +146,42 @@ public class AuthControllerTest {
   @Test
   public void shouldReRenderRegisterWithValidationErrors() throws Exception {
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", "not-an-email").param("password", "123")
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", "not-an-email")
+          .param("password", "123")
+          .param("confirmPassword", "123")
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/auth/user/register"))
       .andExpect(content().string(containsString("Email is not valid")))
       .andExpect(content().string(containsString("Password must be at least 6 characters")));
+  }
+
+  @Test
+  public void shouldReRenderRegisterWhenPasswordsDoNotMatch() throws Exception {
+    String email = uniqueEmail();
+
+    this.mockMvc.perform(
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", PASSWORD)
+          .param("confirmPassword", "otra-clave")
+      )
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/user/register"))
+      .andExpect(content().string(containsString("Las contraseñas no coinciden")));
+
+    assertThat(
+      "a mismatched confirmation must not create the user",
+      userRepository.findByEmail(email).isPresent(),
+      is(false)
+    );
   }
 
   // --- I-04 ---
@@ -254,6 +300,36 @@ public class AuthControllerTest {
     assertThat("session must be invalidated after logout", session.isInvalid(), is(true));
   }
 
+  // --- Regresión: /auth/login con sesión activa ---
+
+  /**
+   * El mismo bug que se reportó en /admin/login, en la otra página de login: el navbar oculta el
+   * link pero el formulario se renderiza igual. La regla y el destino son los mismos para las dos.
+   */
+  @Test
+  @WithMockUser(username = "user@unlam.edu.ar", roles = { "USER" })
+  public void shouldRedirectAwayFromTheUserLoginPageWhenAlreadySignedIn() throws Exception {
+    this.mockMvc.perform(get("/auth/login"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/"));
+  }
+
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldSendAnAdminToTheAdminHomeFromTheUserLoginPage() throws Exception {
+    this.mockMvc.perform(get("/auth/login"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/home"));
+  }
+
+  /** El logout de /auth manda acá con ?logout=true y la sesión ya invalidada: tiene que renderizar. */
+  @Test
+  public void shouldStillRenderTheUserLoginPageAfterLogout() throws Exception {
+    this.mockMvc.perform(get("/auth/login").param("logout", "true"))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/user/login"));
+  }
+
   // --- I-13 ---
 
   @Test
@@ -280,7 +356,7 @@ public class AuthControllerTest {
       .andExpect(content().string(containsString("action=\"/auth/logout\"")));
   }
 
-  // --- AC-14 ---
+  // --- AC-04, AC-14 ---
 
   @Test
   public void shouldKeepAdminPermissionsAfterLoggingInThroughTheUserForm() throws Exception {
@@ -291,6 +367,24 @@ public class AuthControllerTest {
     this.mockMvc.perform(get("/admin/users").session(session)).andExpect(status().isOk());
   }
 
+  /**
+   * El POST del form de usuario sigue autenticando a un ADMIN y lo deja en su home con los
+   * permisos intactos, aunque la página {@code /auth/login} ya no le sea alcanzable (S-07): la
+   * página se niega en el filtro de autorización, que corre después de que el login ya autenticó y
+   * cortó la cadena. Sin este assert, el test anterior probaría lo mismo con un 3xx cualquiera.
+   */
+  @Test
+  public void shouldLandAnAdminOnTheAdminHomeWhenTheySubmitTheUserForm() throws Exception {
+    String email = uniqueEmail();
+    userService.create(email, PASSWORD, "ADMIN", "Admin", "AUT");
+
+    this.mockMvc.perform(
+        post(VALIDATE_LOGIN).with(csrf()).param("username", email).param("password", PASSWORD)
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/home"));
+  }
+
   // --- helpers ---
 
   private static String uniqueEmail() {
@@ -299,7 +393,13 @@ public class AuthControllerTest {
 
   private void register(String email, String password) throws Exception {
     this.mockMvc.perform(
-        post("/auth/register").with(csrf()).param("email", email).param("password", password)
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", FIRST_NAME)
+          .param("lastName", LAST_NAME)
+          .param("email", email)
+          .param("password", password)
+          .param("confirmPassword", password)
       )
       .andExpect(status().is3xxRedirection());
   }

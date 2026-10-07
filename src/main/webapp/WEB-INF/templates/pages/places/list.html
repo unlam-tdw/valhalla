@@ -108,7 +108,7 @@
               <div class="flex items-center gap-2 text-sm font-medium"
                 :style="{ color: categoryColor(selectedPlace.category) }">
                 <span class="flex h-5 w-5 items-center justify-center"
-                  v-html="categoryIcon(selectedPlace.category, categoryColor(selectedPlace.category))"></span>
+                  v-html="categoryIcon(selectedPlace.category)"></span>
                 <span>{{ capitalize(selectedPlace.category) }}</span>
               </div>
             </div>
@@ -370,6 +370,10 @@
 
     <!-- Add to Plan functionality -->
     <script src="/js/add-to-plan.js"></script>
+    <!-- Lucide, vendorizado junto a Vue y Tailwind. Va antes del script de Vue porque el
+         mapa de iconos se construye al montar la app, y un script clásico se ejecuta en
+         orden: cuando corra createElement, window.lucide ya existe. -->
+    <script th:src="@{/js/lucide.min.js}"></script>
 
     <!-- Vue.js app (Vue is already loaded by the layout) -->
     <script>
@@ -405,17 +409,31 @@
           let markers = [];
           const markersByPlaceId = new Map();
 
-          const categoryColors = {
-            'RESTAURANT': '#e74c3c',
-            'BAR': '#9b59b6',
-            'CAFE': '#e67e22',
-            'MUSEUM': '#3498db',
-            'PARK': '#2ecc71',
-            'SHOPPING': '#f39c12',
-            'NIGHTLIFE': '#1abc9c',
-            'CULTURE': '#34495e',
-            'SPORT': '#e91e63',
-            'OTHER': '#95a5a6'
+          /* Tokens de categoría declarados una sola vez, en layouts/base :: head.
+             Se leen del :root computado, así que ningún hex vive acá y el mapa
+             del marker y el del panel comparten la misma fuente. */
+          const CATEGORY_TOKEN_BY_ENUM = {
+            'RESTAURANT': '--category-restaurant',
+            'BAR': '--category-bar',
+            'CAFE': '--category-cafe',
+            'MUSEUM': '--category-museum',
+            'PARK': '--category-park',
+            'SHOPPING': '--category-shopping',
+            'NIGHTLIFE': '--category-nightlife',
+            'CULTURE': '--category-culture',
+            'SPORT': '--category-sport',
+            'OTHER': '--category-other'
+          };
+          const OTHER_COLOR_TOKEN = '--category-other';
+
+          const categoryColor = (category) => {
+            const rootStyle = getComputedStyle(document.documentElement);
+            const token = CATEGORY_TOKEN_BY_ENUM[category] || OTHER_COLOR_TOKEN;
+            // trim() importa: getPropertyValue devuelve el valor crudo del token,
+            // con espacios alrededor en varios navegadores. El fallback también sale
+            // de un token, para que ningún hex quede literal acá.
+            return rootStyle.getPropertyValue(token).trim()
+              || rootStyle.getPropertyValue(OTHER_COLOR_TOKEN).trim();
           };
 
           const filteredPlaces = computed(() => {
@@ -432,36 +450,33 @@
             return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
           };
 
-          const categoryColor = (category) => {
-            const colors = {
-              'RESTAURANT': '#e74c3c',
-              'BAR': '#9b59b6',
-              'CAFE': '#e67e22',
-              'MUSEUM': '#3498db',
-              'PARK': '#2ecc71',
-              'SHOPPING': '#f39c12',
-              'NIGHTLIFE': '#1abc9c',
-              'CULTURE': '#34495e',
-              'SPORT': '#e91e63',
-              'OTHER': '#95a5a6'
-            };
-            return colors[category] || '#95a5a6';
-          };
+          /* Iconos de categoría desde la librería vendorizada en resources/core/js/lucide.min.js,
+             igual que Vue y Tailwind: sin CDN y sin depender de la red en el E2E. El mapa es
+             enum -> nombre de Lucide y el SVG lo arma la propia librería (createElement), no
+             un wrapper escrito a mano que se repite diez veces.
 
-          const categoryIcon = (category, strokeColor = 'white') => {
+             Lucide dibuja con stroke="currentColor", así que el color se hereda del CSS y
+             desaparece el parámetro que antes viajaba por función: el marker pone el color en
+             su div y el panel ya lo tiene en el contenedor. */
+          const categoryIcon = (category, size = 16) => {
             const icons = {
-              'RESTAURANT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
-              'BAR': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M10 2v3.5c0 .5-.2 1-.6 1.4C8.6 7.6 8 8.6 8 9.7V20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9.7c0-1.1-.6-2.1-1.4-2.8-.4-.4-.6-.9-.6-1.4V2"/><path d="M8 12h8"/></svg>',
-              'CAFE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>',
-              'MUSEUM': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>',
-              'PARK': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-7"/><path d="M9 8h6l-3-5z"/><path d="M5 15c-1.5 0-3-1.5-3-3 0-1.5 1.5-3 3-3 0-1.5 1.5-3 3-3 1.5 0 3 1.5 3 3 1.5 0 3 1.5 3 3 0 1.5-1.5 3-3 3"/></svg>',
-              'SHOPPING': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
-              'NIGHTLIFE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
-              'CULTURE': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
-              'SPORT': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
-              'OTHER': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+              'RESTAURANT': 'Utensils',
+              'BAR': 'Wine',
+              'CAFE': 'Coffee',
+              'MUSEUM': 'Landmark',
+              'PARK': 'Trees',
+              'SHOPPING': 'ShoppingBag',
+              'NIGHTLIFE': 'Music',
+              'CULTURE': 'BookOpen',
+              'SPORT': 'Trophy',
+              'OTHER': 'MapPin'
             };
-            return (icons[category] || icons['OTHER']).replace('stroke="white"', 'stroke="' + strokeColor + '"');
+            const name = icons[category] || icons['OTHER'];
+            return lucide.createElement(lucide.icons[name], {
+              width: size,
+              height: size,
+              'aria-hidden': 'true'
+            }).outerHTML;
           };
 
           const clearFilters = () => {
@@ -567,9 +582,12 @@
                 const color = categoryColor(place.category);
                 const icon = categoryIcon(place.category);
 
+                // El icono usa stroke="currentColor", así que este color:white es lo que
+                // lo pinta de blanco sobre el fondo de categoría. Antes venía hardcodeado
+                // dentro de cada SVG.
                 const divIcon = L.divIcon({
                   className: 'custom-marker',
-                  html: '<div style="background-color:' + color + '; width:32px; height:32px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:16px;">' + icon + '</div>',
+                  html: '<div style="background-color:' + color + '; color:#fff; width:32px; height:32px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:16px;">' + icon + '</div>',
                   iconSize: [32, 32],
                   iconAnchor: [16, 16],
                   popupAnchor: [0, -16]

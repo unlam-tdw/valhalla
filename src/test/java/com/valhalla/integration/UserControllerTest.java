@@ -1,5 +1,8 @@
 package com.valhalla.integration;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,8 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.user.UserRepository;
 import com.valhalla.domain.user.UserService;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +44,12 @@ public class UserControllerTest {
 
   @Autowired
   private UserRepository userRepository;
+
+  @Autowired
+  private PlanService planService;
+
+  @Autowired
+  private PlanRepository planRepository;
 
   private MockMvc mockMvc;
 
@@ -185,6 +198,48 @@ public class UserControllerTest {
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/admin/users"));
+  }
+
+  /**
+   * La regresión del 500 que reportamos: borrar un usuario con planes daba 500 porque
+   * plans.administrator_id es una FK a users.id. El test que ya existía borraba a un usuario recién
+   * creado, que por definición no tiene planes, así que no veía nada.
+   *
+   * <p>Este caso solo vale contra Postgres real: contra un esquema en memoria la FK no existe y el
+   * borrado en el orden viejo pasaría.
+   */
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldDeleteAUserThatOwnsPlansWithoutFailing() throws Exception {
+    String ownerEmail = "owner@unlam.edu.ar";
+    userService.create(ownerEmail, TEST_PASSWORD, TEST_ROLE, "Owner", "OfPlans");
+    Long userId = userRepository.findByEmail(ownerEmail).get().getId();
+
+    Plan plan = new Plan();
+    plan.setName("A plan that blocks the delete");
+    plan.setEventDate(LocalDate.now().plusDays(1));
+    Plan saved = planService.createPlan(plan, ownerEmail);
+
+    // Precondición explícita: el borrado en cascada no se puede probar si la consulta por planes no ve
+    // la fila. Si esto falla, el caso es inconcluyente y el fallo hay que buscarlo acá, no en el
+    // servicio.
+    assertThat(this.planRepository.findByAdministratorId(userId), hasSize(1));
+
+    // Sin el borrado en cascada este test falla con TransientObjectException ("persistent instance
+    // references an unsaved transient instance of User"): Hibernate se da cuenta, antes de llegar
+    // a la base, de que un Plan gestionado sigue apuntando al User que se está borrando. En
+    // producción el mismo estado es la violación de la FK que el admin veía como 500.
+
+    this.mockMvc.perform(
+        post("/admin/users/" + userId + "/delete").with(csrf()).param("_method", "DELETE")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/users"));
+
+    // El usuario y su plan tienen que estar los dos: que se fuera el usuario y quedara el plan
+    // apuntando al aire sería otro bug.
+    assertThat(userRepository.findByEmail(ownerEmail).isPresent(), is(false));
+    assertThat(planRepository.findById(saved.getId()).isPresent(), is(false));
   }
 
   @Test
