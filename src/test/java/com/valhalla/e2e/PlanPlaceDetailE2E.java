@@ -24,10 +24,14 @@ public class PlanPlaceDetailE2E {
       page.locator("#btn-login").click();
       page.navigate(baseUrl + "/plans/new");
       page.locator("input[name='name']").fill("Detalle E2E " + System.nanoTime());
+      page.locator("input[name='eventDate']").fill("2026-12-01");
+      page.locator("input[name='eventTime']").fill("18:30");
       page.locator("main button[type='submit']").click();
       page.waitForURL(java.util.regex.Pattern.compile(".*/plans/\\d+"));
       String detailUrl = page.url();
       try {
+        assertThat(page.locator("input[name='eventDate']")).hasValue("2026-12-01");
+        assertThat(page.locator("input[name='eventTime']")).hasValue("18:30");
         page
           .locator("select.form-select")
           .selectOption(new com.microsoft.playwright.options.SelectOption().setIndex(1));
@@ -64,6 +68,40 @@ public class PlanPlaceDetailE2E {
         more.click();
         assertThat(page.locator("dialog")).containsText("2026-12-01");
         page.locator("dialog .btn-close").click();
+        assertThat(page.locator(".stop-schedule")).containsText("01/12/2026");
+        assertThat(page.locator(".stop-schedule")).containsText("10:30");
+        page
+          .locator("select.form-select")
+          .selectOption(new com.microsoft.playwright.options.SelectOption().setIndex(1));
+        page.getByText("+ Agregar", new Page.GetByTextOptions().setExact(true)).click();
+        assertThat(more).hasCount(2);
+        String firstName = page.locator(".stop-title").nth(0).innerText();
+        String secondName = page.locator(".stop-title").nth(1).innerText();
+        page.locator(".place-item").nth(0).dragTo(page.locator(".place-item").nth(1));
+        assertThat(page.locator(".stop-title").nth(0)).hasText(secondName);
+        assertThat(page.locator(".stop-title").nth(1)).hasText(firstName);
+        page.waitForCondition(() -> !page.locator(".stop-remove").nth(0).isDisabled());
+        page.reload();
+        assertThat(page.locator(".stop-title").nth(0)).hasText(secondName);
+        page.screenshot(
+          new Page.ScreenshotOptions()
+            .setPath(java.nio.file.Path.of("target/itinerary-desktop.png"))
+            .setFullPage(true)
+        );
+        page.setViewportSize(390, 844);
+        page.locator(".itinerary-panel").scrollIntoViewIfNeeded();
+        page.screenshot(
+          new Page.ScreenshotOptions()
+            .setPath(java.nio.file.Path.of("target/itinerary-mobile.png"))
+            .setFullPage(true)
+        );
+        assertTrue(
+          (Boolean) page.evaluate(
+            "document.querySelector('.itinerary-panel').scrollWidth <= document.querySelector('.itinerary-panel').clientWidth"
+          )
+        );
+        page.locator(".stop-remove").nth(0).click();
+        assertThat(more).hasCount(1);
         page.getByText("Eliminar", new Page.GetByTextOptions().setExact(true)).click();
         assertThat(more).hasCount(0);
         page.reload();

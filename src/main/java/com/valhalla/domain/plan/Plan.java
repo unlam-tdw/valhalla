@@ -4,6 +4,7 @@ import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -37,11 +38,8 @@ public class Plan {
   @Column
   private String description;
 
-  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-  private LocalDate eventDate;
-
-  @DateTimeFormat(pattern = "HH:mm")
-  private LocalTime eventTime;
+  @Embedded
+  private PlanSchedule schedule = new PlanSchedule();
 
   private Boolean isPublic = false;
 
@@ -110,20 +108,29 @@ public class Plan {
     this.description = description;
   }
 
+  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
   public LocalDate getEventDate() {
-    return eventDate;
+    return schedule == null ? null : schedule.getDate();
   }
 
   public void setEventDate(LocalDate eventDate) {
-    this.eventDate = eventDate;
+    ensureSchedule().setDate(eventDate);
   }
 
+  @DateTimeFormat(pattern = "HH:mm")
   public LocalTime getEventTime() {
-    return eventTime;
+    return schedule == null ? null : schedule.getTime();
   }
 
   public void setEventTime(LocalTime eventTime) {
-    this.eventTime = eventTime;
+    ensureSchedule().setTime(eventTime);
+  }
+
+  private PlanSchedule ensureSchedule() {
+    if (schedule == null) {
+      schedule = new PlanSchedule();
+    }
+    return schedule;
   }
 
   public Boolean getIsPublic() {
@@ -158,8 +165,8 @@ public class Plan {
   public void updateFrom(Plan changes) {
     this.name = changes.getName();
     this.description = changes.getDescription();
-    this.eventDate = changes.getEventDate();
-    this.eventTime = changes.getEventTime();
+    setEventDate(changes.getEventDate());
+    setEventTime(changes.getEventTime());
     this.isPublic = changes.getIsPublic();
   }
 }
