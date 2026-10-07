@@ -87,7 +87,7 @@
       <!-- Map -->
       <div class="flex-1 min-w-0 relative">
         <div id="map" class="absolute inset-0 w-full h-full"></div>
-        <aside v-if="selectedPlace" role="complementary" :aria-label="'Details for ' + selectedPlace.name"
+        <aside v-if="selectedPlace" id="place-details-aside" role="complementary" :aria-label="'Details for ' + selectedPlace.name"
           class="absolute inset-y-0 right-0 z-[1000] flex w-80 max-w-full flex-col overflow-y-auto bg-white shadow-xl"
           :style="{ borderLeft: '5px solid ' + categoryColor(selectedPlace.category) }">
           <div class="relative shrink-0">
@@ -128,8 +128,8 @@
           </div>
         </aside>
 
-        <!-- Plans discovery: hidden while a place is selected -->
-        <aside v-if="!selectedPlace" role="complementary" aria-label="Plans"
+        <!-- Plans discovery -->
+        <aside id="plans-aside" role="complementary" aria-label="Plans"
           class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
           <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
           <input v-model="plansQuery" type="search" placeholder="Search public plans..."
@@ -488,14 +488,24 @@
             updateMarkers();
           };
 
-          const focusPlace = (place) => {
+          const overlayWidth = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.offsetWidth : 0;
+          };
+
+          const focusPlace = async (place) => {
             const marker = markersByPlaceId.get(place.id);
             if (!map || !marker) return;
 
+            // The details aside is rendered after the reactive update.
+            await nextTick();
             map.stop();
             // Instant: a second animated setView issued mid-zoom-animation is superseded by
             // the first one's target, so rapid card clicks would land on the wrong marker.
             map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: false });
+            // Plans (left) and details (right) overlay the map: center on the uncovered area.
+            const offsetX = (overlayWidth('plans-aside') - overlayWidth('place-details-aside')) / 2;
+            if (offsetX) map.panBy([-offsetX, 0], { animate: false });
             marker.openPopup();
           };
 
@@ -683,6 +693,8 @@
               center: [-34.6037, -58.3816],
               zoom: 13
             });
+            // Plans aside overlays the left edge: center on the uncovered area.
+            map.panBy([-overlayWidth('plans-aside') / 2, 0], { animate: false });
 
             mapResizeObserver = new ResizeObserver(() => {
               map.invalidateSize({ pan: false });
