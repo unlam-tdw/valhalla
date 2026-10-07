@@ -385,13 +385,10 @@ if ($command -eq 'list') {
 
 # ---- check ---------------------------------------------------------------------------
 if ($command -eq 'check') {
-    # The four goals, invoked directly rather than through a phase, because no phase in
-    # this pom can answer "is the formatting wrong?" without first answering it by
-    # rewriting: checkstyle, pmd and cpd check at validate, and Prettier's only bound goal
-    # is `write`, at process-sources. `mvn validate` therefore gives three of the four and
-    # says nothing about the fourth; reaching process-sources to find out reformats the
-    # tree, and a gate named `check` that edits your files is how you lose an unrelated
-    # change. Direct invocation gets all four read-only. -Fix is the opt-in that formats.
+    # The four goals, invoked directly: -Fix needs `prettier:write`, which no phase binds
+    # (the build only runs `prettier:check`), and a gate named `check` must not edit your
+    # files unless asked. Direct invocation gets all four read-only; -Fix is the opt-in
+    # that formats.
     $mvnArgs = @('checkstyle:check', 'pmd:check', 'pmd:cpd-check')
     $mvnArgs += if ($fix) { 'prettier:write' } else { 'prettier:check' }
     & mvn @mvnArgs
