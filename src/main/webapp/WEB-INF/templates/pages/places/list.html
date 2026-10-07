@@ -25,10 +25,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
-    <div id="app" class="flex-1 min-h-0 min-w-0 flex overflow-hidden">
+    <div id="app" class="flex-1 min-h-0 min-w-0 flex flex-row-reverse overflow-hidden">
       <!-- Sidebar -->
       <aside
-        class="w-80 min-w-[20rem] min-h-0 overflow-y-auto overscroll-contain bg-white border-r border-gray-200 p-4 flex flex-col gap-4">
+        class="w-80 min-w-[20rem] min-h-0 overflow-y-auto overscroll-contain bg-white border-l border-gray-200 p-4 flex flex-col gap-4">
         <h1 class="text-2xl font-semibold text-gray-900">Places</h1>
 
         <!-- Filters -->
@@ -130,7 +130,7 @@
 
         <!-- Plans discovery: hidden while a place is selected -->
         <aside v-if="!selectedPlace" role="complementary" aria-label="Plans"
-          class="absolute inset-y-0 right-0 z-[1000] flex w-80 max-w-full flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
+          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
           <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
           <input v-model="plansQuery" type="search" placeholder="Search public plans..."
             aria-label="Search public plans"
