@@ -106,7 +106,9 @@ class PlanPlaceRepositoryTest {
     Long planId = plan.getId();
     em.clear();
     Plan loaded = plans.findById(planId).orElseThrow();
-    assertFalse(
+    // The itinerary renders outside a session (controller builds the detail view model), so the
+    // collection is deliberately FetchType.EAGER and is loaded with the plan.
+    assertTrue(
       em.getEntityManagerFactory().getPersistenceUnitUtil().isLoaded(loaded, "planPlaces")
     );
     assertEquals(2, loaded.getPlanPlaces().size());

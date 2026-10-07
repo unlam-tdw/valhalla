@@ -22,6 +22,7 @@ import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
+import com.valhalla.domain.planplace.PlanPlaceService;
 import com.valhalla.domain.user.User;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -56,12 +57,14 @@ public class PlanControllerTest {
 
   private PlanController controller;
   private PlanService planServiceMock;
+  private PlanPlaceService planPlaceServiceMock;
   private Authentication authentication;
 
   @BeforeEach
   public void init() {
     this.planServiceMock = mock(PlanService.class);
-    this.controller = new PlanController(this.planServiceMock);
+    this.planPlaceServiceMock = mock(PlanPlaceService.class);
+    this.controller = new PlanController(this.planServiceMock, this.planPlaceServiceMock);
     this.authentication = new UsernamePasswordAuthenticationToken(OWNER_EMAIL, null);
   }
 
@@ -85,7 +88,7 @@ public class PlanControllerTest {
   @Test
   public void T_PLN_061_showNewPlanForm_devuelveElFormularioVacio() {
     // when
-    ModelAndView view = this.controller.showNewPlanForm();
+    ModelAndView view = this.controller.showNewPlanForm(null);
 
     // then
     assertThat(view.getViewName(), is(FORM_VIEW));
@@ -153,7 +156,7 @@ public class PlanControllerTest {
     BeanPropertyBindingResult errors = errorsOf(form);
 
     // when
-    ModelAndView view = this.controller.createPlan(form, errors, this.authentication);
+    ModelAndView view = this.controller.createPlan(form, errors, this.authentication, null);
 
     // then
     assertThat(view.getViewName(), is(FORM_VIEW));
@@ -177,7 +180,7 @@ public class PlanControllerTest {
       .thenReturn(plan(PLAN_ID, "Viaje a Bariloche"));
 
     // when
-    ModelAndView view = this.controller.createPlan(form, noErrors(form), this.authentication);
+    ModelAndView view = this.controller.createPlan(form, noErrors(form), this.authentication, null);
 
     // then
     assertThat(view.getViewName(), is(equalTo("redirect:/plans/" + PLAN_ID)));
@@ -195,6 +198,54 @@ public class PlanControllerTest {
   // --- PUT /plans/{id} ---
 
   @Test
+  public void T_PLN_069_createPlan_conPlaceIdAsociaElLugarAlPlan() {
+    // given
+    PlanRequest form = new PlanRequest("Viaje", null, null, false);
+    when(this.planServiceMock.createPlan(any(Plan.class), eq(OWNER_EMAIL)))
+      .thenReturn(plan(PLAN_ID, "Viaje"));
+
+    // when
+    ModelAndView view = this.controller.createPlan(form, noErrors(form), this.authentication, 4L);
+
+    // then
+    assertThat(view.getViewName(), is(equalTo("redirect:/plans/" + PLAN_ID)));
+    verify(this.planServiceMock, times(1)).createPlan(any(Plan.class), eq(OWNER_EMAIL));
+    verify(this.planPlaceServiceMock, times(1)).addPlaceToPlan(PLAN_ID, 4L, OWNER_EMAIL);
+  }
+
+  @Test
+  public void T_PLN_070_createPlan_sinPlaceIdNoTocaElServicioDeLugares() {
+    // given
+    when(this.planServiceMock.createPlan(any(Plan.class), eq(OWNER_EMAIL)))
+      .thenReturn(plan(PLAN_ID, "Viaje"));
+
+    // when
+    this.controller.createPlan(
+        new PlanRequest("Viaje", null, null, false),
+        noErrors(new PlanRequest("Viaje", null, null, false)),
+        this.authentication,
+        null
+      );
+
+    // then
+    verifyNoInteractions(this.planPlaceServiceMock);
+  }
+
+  @Test
+  public void T_PLN_071_showNewPlanForm_conPlaceIdPreseleccionaElLugar() {
+    // when
+    ModelAndView view = this.controller.showNewPlanForm(4L);
+
+    // then
+    assertThat(view.getViewName(), is(FORM_VIEW));
+    assertThat(view.getModel().get("placeId"), is(4L));
+    PlanRequest form = (PlanRequest) view.getModel().get("plan");
+    assertThat(form.getPlaces().size(), is(1));
+    assertThat(form.getPlaces().get(0).getPlaceId(), is(4L));
+    verifyNoInteractions(this.planServiceMock);
+  }
+
+  @Test
   public void T_PLN_067_createPlan_mapeaLosLugaresEnOrdenYSaltaLasFilasVacias() {
     // given
     PlanRequest form = new PlanRequest("Viaje", null, null, false);
@@ -210,7 +261,7 @@ public class PlanControllerTest {
       .thenReturn(plan(PLAN_ID, "Viaje"));
 
     // when
-    this.controller.createPlan(form, noErrors(form), this.authentication);
+    this.controller.createPlan(form, noErrors(form), this.authentication, null);
 
     // then
     List<PlanPlace> entries = captor.getValue().getPlanPlaces();
