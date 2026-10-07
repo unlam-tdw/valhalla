@@ -106,7 +106,13 @@ public class PlanPlaceRestController {
     String name,
     Integer sortOrder,
     String visitDate,
-    String visitTime
+    String visitTime,
+    String description,
+    String placeDescription,
+    String address,
+    String category,
+    Double latitude,
+    Double longitude
   ) {
     static ItineraryEntry from(PlanPlace entry) {
       return new ItineraryEntry(
@@ -115,7 +121,13 @@ public class PlanPlaceRestController {
         entry.getPlace().getName(),
         entry.getSortOrder(),
         entry.getVisitDate() == null ? null : entry.getVisitDate().toString(),
-        entry.getVisitTime() == null ? null : entry.getVisitTime().toString()
+        entry.getVisitTime() == null ? null : entry.getVisitTime().toString(),
+        entry.getDescription(),
+        entry.getPlace().getDescription(),
+        entry.getPlace().getAddress(),
+        entry.getPlace().getCategory() == null ? null : entry.getPlace().getCategory().name(),
+        entry.getPlace().getLatitude(),
+        entry.getPlace().getLongitude()
       );
     }
   }

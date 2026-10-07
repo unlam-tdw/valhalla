@@ -22,6 +22,52 @@ import org.springframework.web.context.WebApplicationContext;
 class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
 
   @Test
+  void detailIncludesPersistedVisitAndPlaceDataForParticipants() throws Exception {
+    Long id = add(first);
+    PlanPlace entry = entries.findById(id).orElseThrow();
+    entry.setDescription("Visita guiada");
+    entry.setVisitDate(java.time.LocalDate.of(2026, 12, 1));
+    entry.setVisitTime(java.time.LocalTime.of(10, 30));
+    entries.save(entry);
+    User participant = new User();
+    participant.setEmail("participant@test.com");
+    participant.setPassword("password");
+    participant.setRole("USER");
+    users.save(participant);
+    plan.getParticipants().add(participant);
+    plans.save(plan);
+    mvc
+      .perform(get(url).with(user(participant.getEmail())))
+      .andExpect(status().isOk())
+      .andExpect(jsonValue("/0/id", id))
+      .andExpect(jsonValue("/0/description", "Visita guiada"))
+      .andExpect(jsonValue("/0/visitDate", "2026-12-01"))
+      .andExpect(jsonValue("/0/visitTime", "10:30"))
+      .andExpect(jsonValue("/0/address", entry.getPlace().getAddress()))
+      .andExpect(jsonValue("/0/category", entry.getPlace().getCategory().name()))
+      .andExpect(jsonMissing("/0/password"))
+      .andExpect(jsonMissing("/0/plan"));
+  }
+
+  @Test
+  void repeatedPlacesKeepSeparateVisitDetails() throws Exception {
+    add(first);
+    add(first);
+    var visits = entries.findByPlanId(plan.getId());
+    visits.get(0).setDescription("Primera visita");
+    visits.get(1).setDescription("Segunda visita");
+    entries.save(visits.get(0));
+    entries.save(visits.get(1));
+    mvc
+      .perform(get(url).with(user("apl@test.com")))
+      .andExpect(status().isOk())
+      .andExpect(jsonValue("/0/id", visits.get(0).getId()))
+      .andExpect(jsonValue("/1/id", visits.get(1).getId()))
+      .andExpect(jsonValue("/0/description", "Primera visita"))
+      .andExpect(jsonValue("/1/description", "Segunda visita"));
+  }
+
+  @Test
   void I01_addPlace() throws Exception {
     add(first);
     assertEquals(1, entries.findByPlanId(plan.getId()).get(0).getSortOrder());

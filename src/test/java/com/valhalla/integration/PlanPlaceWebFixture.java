@@ -44,7 +44,24 @@ abstract class PlanPlaceWebFixture {
 
   @BeforeEach
   void setup() {
-    mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+    mvc =
+      MockMvcBuilders
+        .webAppContextSetup(context)
+        .defaultRequest(
+          get("/")
+            .with(request -> {
+              try {
+                context
+                  .getBean(org.springframework.web.servlet.handler.HandlerMappingIntrospector.class)
+                  .setCache(request);
+              } catch (Exception exception) {
+                throw new IllegalStateException(exception);
+              }
+              return request;
+            })
+        )
+        .apply(springSecurity())
+        .build();
     User owner = new User();
     owner.setEmail("apl@test.com");
     owner.setPassword("password");

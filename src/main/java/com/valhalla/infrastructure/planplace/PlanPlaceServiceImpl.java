@@ -61,7 +61,9 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
         planService.getOwnedPlan(planId, ownerEmail);
       }
     }
-    return repository.findByPlanId(planId);
+    List<PlanPlace> itinerary = repository.findByPlanId(planId);
+    itinerary.forEach(entry -> entry.getPlace().getName());
+    return itinerary;
   }
 
   @Override
@@ -75,6 +77,7 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
     PlanPlace entry = ownedEntry(planId, id, ownerEmail);
     entry.setVisitDate(date);
     entry.setVisitTime(time);
+    entry.getPlace().getName();
     return repository.save(entry);
   }
 

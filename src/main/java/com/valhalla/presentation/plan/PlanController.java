@@ -172,6 +172,10 @@ public class PlanController {
     Place place = entry.getPlace();
     Map<String, Object> view = new LinkedHashMap<>();
     view.put("id", place.getId());
+    view.put("entryId", entry.getId());
+    view.put("description", entry.getDescription());
+    view.put("visitDate", entry.getVisitDate() == null ? null : entry.getVisitDate().toString());
+    view.put("visitTime", entry.getVisitTime() == null ? null : entry.getVisitTime().toString());
     view.put("name", place.getName());
     view.put("category", place.getCategory() == null ? null : place.getCategory().name());
     view.put("latitude", place.getLatitude());

@@ -111,7 +111,7 @@ public class PlacesViewE2E extends E2eBase {
     page.waitForFunction("() => document.querySelector('.leaflet-popup') === null");
     assertThat(page.locator(".leaflet-popup").count(), is(equalTo(0)));
 
-    cardNamed("MALBA").locator("button:text-is('View details →')").click();
+    cardNamed("MALBA").locator("span:text-is('View details →')").click();
     waitForSelectedPlace("MALBA");
     assertThat(page.url(), equalTo(placesUrl()));
   }
@@ -147,7 +147,7 @@ public class PlacesViewE2E extends E2eBase {
   }
 
   private void clickCard(String placeName) {
-    cardNamed(placeName).locator("button[aria-label^='Show details for ']").click();
+    cardNamed(placeName).click();
   }
 
   private Locator cardNamed(String placeName) {

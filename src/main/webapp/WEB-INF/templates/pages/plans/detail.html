@@ -2,6 +2,8 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" th:content="${_csrf.token}">
+    <meta name="csrf-header" th:content="${_csrf.headerName}">
     <title th:text="${plan.name}">Detalle del Plan</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
@@ -121,7 +123,7 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId">
+                        <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId || saving">
                             + Agregar
                         </button>
                     </div>
@@ -136,7 +138,7 @@
 
                 <ul class="list-group">
                     <li v-for="(item, index) in planPlaces"
-                        :key="item.id || index"
+                        :key="item.entryId || index"
                         class="list-group-item d-flex justify-content-between align-items-center place-item"
                         th:attr="draggable=${isPlanAdministrator}"
                         @dragstart="onDragStart(index)"
@@ -144,7 +146,8 @@
                         @drop="onDrop(index)">
                         <div>
                             <span class="badge bg-primary me-2">{{ index + 1 }}</span>
-                            <strong>{{ item.name }}</strong>
+                            <button type="button" class="btn btn-link p-0 fw-bold" @click="showPlace(item)">{{ item.name }}</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" @click="showPlace(item)">Ver más</button>
                         </div>
                         <button th:if="${isPlanAdministrator}" @click="removePlace(index)" type="button" class="btn btn-sm btn-outline-danger">
                             Eliminar
@@ -216,16 +219,37 @@
 
                     <div v-for="(item, index) in planPlaces" :key="index">
                         <input type="hidden" :name="'places[' + index + '].placeId'" :value="item.id" />
+                        <input type="hidden" :name="'places[' + index + '].description'" :value="item.description || ''" />
+                        <input type="hidden" :name="'places[' + index + '].visitDate'" :value="item.visitDate || ''" />
+                        <input type="hidden" :name="'places[' + index + '].visitTime'" :value="item.visitTime || ''" />
                         <input type="hidden" :name="'places[' + index + '].sortOrder'" :value="index + 1" />
                     </div>
 
                     <div class="d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary px-4 fw-bold">Guardar cambios</button>
+                        <button type="submit" class="btn btn-primary px-4 fw-bold" :disabled="saving">Guardar cambios</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+    <p v-if="requestError" class="alert alert-danger mt-3" role="alert">{{ requestError }}</p>
+    <dialog ref="placeDialog" aria-labelledby="place-detail-title" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%;">
+        <template v-if="selectedEntry">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 id="place-detail-title" class="m-0">{{ selectedEntry.name }}</h4>
+                <button type="button" class="btn-close" aria-label="Cerrar" @click="$refs.placeDialog.close()"></button>
+            </div>
+            <dl>
+                <dt>Dirección</dt><dd>{{ selectedEntry.address || 'Sin dirección' }}</dd>
+                <dt>Categoría</dt><dd>{{ selectedEntry.category || 'Sin categoría' }}</dd>
+                <dt>Descripción del lugar</dt><dd>{{ selectedEntry.placeDescription || 'Sin descripción' }}</dd>
+                <dt>Descripción de la visita</dt><dd>{{ selectedEntry.description || 'Sin descripción' }}</dd>
+                <dt>Fecha de visita</dt><dd>{{ selectedEntry.visitDate || 'Sin fecha' }}</dd>
+                <dt>Hora de visita</dt><dd>{{ selectedEntry.visitTime || 'Sin hora' }}</dd>
+                <dt>Posición en el itinerario</dt><dd>{{ selectedEntry.sortOrder }}</dd>
+            </dl>
+        </template>
+    </dialog>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -233,6 +257,8 @@
 
 <script th:inline="javascript">
     const { createApp } = Vue;
+    const itineraryUrl = /*[[@{/api/plans/{id}/places(id=${plan.id})}]]*/ '';
+    const catalogUrl = /*[[@{/api/places}]]*/ '';
 
     createApp({
         data() {
@@ -256,6 +282,10 @@
                 if (!p) return null;
                 const target = p.place ? p.place : p;
                 return {
+                    entryId: p.entryId || null,
+                    description: p.description,
+                    visitDate: p.visitDate,
+                    visitTime: p.visitTime,
                     id: target.id,
                     name: target.name || 'Sin nombre',
                     category: target.category || 'DEFAULT',
@@ -276,6 +306,9 @@
                 routeLine: null,
                 selectedPlaceId: null,
                 draggedIndex: null,
+                selectedEntry: null,
+                requestError: '',
+                saving: false,
                 allPlaces: normalizedAllPlaces,
                 planPlaces: normalizedPlanPlaces
             };
@@ -286,10 +319,35 @@
                 return this.allPlaces.filter(p => !addedIds.includes(p.id));
             }
         },
-        mounted() {
+        async mounted() {
+            try {
+                const response = await fetch(catalogUrl);
+                if (!response.ok) throw new Error('No se pudo cargar el listado de lugares.');
+                this.allPlaces = await response.json();
+            } catch (error) {
+                this.allPlaces = [];
+                this.requestError = error.message;
+            }
             this.initMap();
         },
         methods: {
+            async itineraryRequest(path = '', options = {}) {
+                const headers = { ...options.headers };
+                headers[document.querySelector('meta[name="csrf-header"]').content] = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch(itineraryUrl + path, { ...options, headers });
+                if (!response.ok || response.redirected) throw new Error('No se pudo actualizar o consultar el lugar. Intenta nuevamente.');
+                const text = await response.text();
+                return text ? JSON.parse(text) : null;
+            },
+            async showPlace(item) {
+                this.requestError = '';
+                try {
+                    const entries = await this.itineraryRequest();
+                    this.selectedEntry = entries.find(entry => entry.id === item.entryId);
+                    if (!this.selectedEntry) throw new Error('Este lugar ya no pertenece al plan. Actualiza la página.');
+                    this.$refs.placeDialog.showModal();
+                } catch (error) { this.requestError = error.message; }
+            },
             getCategoryIcon(category) {
                 const icons = {
                     RESTAURANT: 'fa-utensils',
@@ -402,31 +460,56 @@
                 }
             },
 
-            addPlace() {
+            async addPlace() {
+                if (this.saving) return;
+                this.saving = true;
+                this.requestError = '';
                 const placeObj = this.allPlaces.find(p => p.id === this.selectedPlaceId);
-                if (placeObj) {
-                    const addedId = placeObj.id;
-                    this.planPlaces.push(placeObj);
-                    this.selectedPlaceId = null;
-                    this.renderMarkers(addedId);
+                try {
+                    if (placeObj) {
+                        const entry = await this.itineraryRequest('?placeId=' + placeObj.id, { method: 'POST' });
+                        const addedId = placeObj.id;
+                        this.planPlaces.push({ ...placeObj, entryId: entry.id, description: entry.description, visitDate: entry.visitDate, visitTime: entry.visitTime });
+                        this.selectedPlaceId = null;
+                        this.renderMarkers(addedId);
+                    }
+                } catch (error) {
+                    this.requestError = error.message;
+                } finally {
+                    this.saving = false;
                 }
             },
 
-            removePlace(index) {
-                this.planPlaces.splice(index, 1);
-                this.renderMarkers();
+            async removePlace(index) {
+                if (this.saving) return;
+                this.saving = true;
+                this.requestError = '';
+                try {
+                    await this.itineraryRequest('/' + this.planPlaces[index].entryId, { method: 'DELETE' });
+                    this.planPlaces.splice(index, 1);
+                    this.renderMarkers();
+                } catch (error) { this.requestError = error.message; }
+                finally { this.saving = false; }
             },
 
             onDragStart(index) {
                 this.draggedIndex = index;
             },
 
-            onDrop(dropIndex) {
+            async onDrop(dropIndex) {
+                if (this.saving) return;
                 if (this.draggedIndex !== null && this.draggedIndex !== dropIndex) {
+                    this.saving = true;
+                    this.requestError = '';
+                    const previous = [...this.planPlaces];
                     const movedItem = this.planPlaces.splice(this.draggedIndex, 1)[0];
                     this.planPlaces.splice(dropIndex, 0, movedItem);
                     this.draggedIndex = null;
                     this.renderMarkers();
+                    try {
+                        await this.itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.planPlaces.map(item => item.entryId)) });
+                    } catch (error) { this.planPlaces = previous; this.renderMarkers(); this.requestError = error.message; }
+                    finally { this.saving = false; }
                 }
             }
         }
