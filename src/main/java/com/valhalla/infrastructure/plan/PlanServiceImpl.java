@@ -83,6 +83,51 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public Plan getParticipatingPlan(Long id, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
+      throw new PlanNotFoundException();
+    }
+    // The detail view renders participants and places after this transaction has ended.
+    plan.getParticipants().forEach(user -> user.getEmail());
+    plan.getPlanPlaces().forEach(entry -> entry.getPlace().getName());
+    return plan;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<Plan> getParticipantPlans(String userEmail) {
+    return planRepository.findByParticipantsEmail(userEmail);
+  }
+
+  @Override
+  public void leavePlan(Long id, String userEmail) {
+    Plan plan = getParticipatingPlan(id, userEmail);
+    if (plan.isAdministrator(userEmail)) {
+      throw new PlanNotFoundException();
+    }
+    plan.getParticipants().removeIf(user -> user.getEmail().equals(userEmail));
+    planRepository.save(plan);
+  }
+
+  @Override
+  public Plan joinPlan(String shortCode, String userEmail) {
+    if (shortCode == null || shortCode.isBlank()) {
+      throw new PlanNotFoundException();
+    }
+    Plan plan = planRepository
+      .findByShortCode(shortCode.trim().toUpperCase(Locale.ROOT))
+      .orElseThrow(PlanNotFoundException::new);
+    User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
+    if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
+      plan.getParticipants().add(user);
+      planRepository.save(plan);
+    }
+    return plan;
+  }
+
+  @Override
   public void deleteOwnedPlan(Long id, String ownerEmail) {
     getOwnedPlan(id, ownerEmail);
     planRepository.deleteById(id);

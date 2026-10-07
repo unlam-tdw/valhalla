@@ -10,10 +10,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +45,27 @@ public class Plan {
   @ManyToOne
   @JoinColumn(name = "administrator_id")
   private User administrator;
+
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+    name = "plan_participants",
+    joinColumns = @JoinColumn(name = "plan_id"),
+    inverseJoinColumns = @JoinColumn(name = "user_id"),
+    uniqueConstraints = @UniqueConstraint(columnNames = { "plan_id", "user_id" })
+  )
+  private List<User> participants = new ArrayList<>();
+
+  public List<User> getParticipants() {
+    return participants;
+  }
+
+  public boolean isAdministrator(String email) {
+    return email != null && administrator != null && email.equals(administrator.getEmail());
+  }
+
+  public boolean isParticipant(String email) {
+    return email != null && participants.stream().anyMatch(user -> email.equals(user.getEmail()));
+  }
 
   @OneToMany(mappedBy = "plan", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @OrderBy("sortOrder ASC")

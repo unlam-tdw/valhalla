@@ -1,13 +1,16 @@
 package com.valhalla.integration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,8 +23,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -71,6 +76,9 @@ public class PlanControllerIntegrationTest {
 
   @Autowired
   private PlaceRepository placeRepository;
+
+  @Autowired
+  private EntityManager entityManager;
 
   private MockMvc mockMvc;
 
@@ -234,12 +242,31 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_076_getPlansId_cargaElPlanPropio() throws Exception {
     // given
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setShortCode("test1234");
+    plan.setEventDate(LocalDate.of(2026, 12, 1));
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(this.placeRepository.findAll().get(0));
+    entry.setSortOrder(1);
+    plan.addPlanPlace(entry);
+    this.planRepository.save(plan);
 
     // when
-    this.mockMvc.perform(get("/plans/" + planId))
-      .andExpect(status().isOk())
-      .andExpect(view().name("pages/plans/detail"))
-      .andExpect(model().attributeExists("plan"));
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/" + planId))
+        .andExpect(status().isOk())
+        .andExpect(view().name("pages/plans/detail"))
+        .andExpect(model().attributeExists("plan"))
+        .andReturn();
+
+    // then: render real properties and serialize places without the parent or its password.
+    String html = result.getResponse().getContentAsString();
+    assertThat(html, containsString(OWNER_EMAIL));
+    assertThat(html, containsString("test1234"));
+    assertThat(html, containsString("2026-12-01"));
+    assertThat(html, containsString("\"id\":" + entry.getPlace().getId()));
+    assertThat(html, not(containsString("password123")));
+    assertThat(html, not(containsString("\"administrator\":")));
   }
 
   @Test
@@ -371,6 +398,116 @@ public class PlanControllerIntegrationTest {
 
     // then
     assertThat(this.planRepository.findById(planId).isPresent(), is(true));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void participantCanJoinReadAndLeaveWithoutDeletingPlan() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setShortCode("JOIN1234");
+    Long remainingUserId = givenUser("remaining@test.com");
+    plan.getParticipants().add(this.userRepository.findById(remainingUserId).orElseThrow());
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(this.placeRepository.findAll().get(0));
+    plan.addPlanPlace(entry);
+    this.planRepository.save(plan);
+
+    this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", " join1234 "))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", "JOIN1234"))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    assertThat(this.planRepository.findById(planId).orElseThrow().getParticipants(), hasSize(2));
+
+    MvcResult detail =
+      this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk()).andReturn();
+    String html = detail.getResponse().getContentAsString();
+    assertThat(html, containsString("Salir del plan"));
+    assertThat(html, not(containsString("Eliminar plan")));
+    assertThat(html, not(containsString("Editar plan")));
+    assertThat(html, not(containsString("Agregar lugar al plan")));
+    assertThat(html, not(containsString("password123")));
+    this.mockMvc.perform(get("/api/plans/" + planId + "/places")).andExpect(status().isOk());
+    MvcResult listing = this.mockMvc.perform(get("/plans")).andExpect(status().isOk()).andReturn();
+    assertThat((List<?>) listing.getModelAndView().getModel().get("participantPlans"), hasSize(1));
+
+    this.mockMvc.perform(post("/plans/" + planId + "/leave").with(csrf()))
+      .andExpect(redirectedUrl("/plans"));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan remaining = this.planRepository.findById(planId).orElseThrow();
+    assertThat(remaining.getParticipants(), hasSize(1));
+    assertThat(remaining.isParticipant("remaining@test.com"), is(true));
+    assertThat(remaining.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(remaining.getPlanPlaces(), hasSize(1));
+    assertThat(this.userRepository.findById(this.otherId).isPresent(), is(true));
+    assertThat(this.planRepository.findByParticipantsEmail(OTHER_EMAIL), is(empty()));
+    this.mockMvc.perform(get("/plans/" + planId)).andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(get("/api/plans/" + planId + "/places")).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void participantCannotEditOrDeleteAndCsrfProtectsLeaving() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
+    this.planRepository.save(plan);
+    this.mockMvc.perform(post("/plans/" + planId + "/delete").with(csrf()))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(post("/plans/" + planId).with(csrf()).param("name", "Changed"))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(post("/plans/" + planId + "/leave")).andExpect(status().isForbidden());
+    this.mockMvc.perform(post("/plans/join").param("shortCode", "anything"))
+      .andExpect(status().isForbidden());
+    assertThat(plan.getName(), is(PLAN_NAME));
+    assertThat(plan.getParticipants(), hasSize(1));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void administratorCanDeleteButCannotLeave() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setShortCode("JOIN1234");
+    plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
+    this.planRepository.save(plan);
+    this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", "JOIN1234"))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    assertThat(plan.getParticipants(), hasSize(1));
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(html, containsString("Eliminar plan"));
+    assertThat(html, not(containsString("Salir del plan")));
+    this.mockMvc.perform(post("/plans/" + planId + "/leave").with(csrf()))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(post("/plans/" + planId + "/delete").with(csrf()))
+      .andExpect(redirectedUrl("/plans"));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    assertThat(this.planRepository.findById(planId).isPresent(), is(false));
+    assertThat(this.userRepository.findById(this.otherId).isPresent(), is(true));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void nonParticipantCannotLeaveAndInvalidCodeDoesNotJoin() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    this.mockMvc.perform(post("/plans/" + planId + "/leave").with(csrf()))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    for (String code : List.of("", "UNKNOWN")) {
+      this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", code))
+        .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    }
+    this.mockMvc.perform(post("/plans/" + planId + "/leave").with(csrf()).with(user(OWNER_EMAIL)))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    assertThat(this.planRepository.findById(planId).orElseThrow().getParticipants(), is(empty()));
   }
 
   // --- fixtures ---

@@ -4,7 +4,10 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
+import com.valhalla.domain.user.User;
 import jakarta.validation.Valid;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 @Controller
@@ -43,6 +47,7 @@ public class PlanController {
   public ModelAndView listPlans(Authentication authentication) {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLANS, planService.getPlansByUserEmail(authentication.getName()));
+    model.put("participantPlans", planService.getParticipantPlans(authentication.getName()));
     return new ModelAndView(VIEW_PLANS_LIST, model);
   }
 
@@ -56,7 +61,22 @@ public class PlanController {
   @GetMapping("/{id}")
   public ModelAndView showPlan(@PathVariable Long id, Authentication authentication) {
     Map<String, Object> model = new ModelMap();
-    model.put(ATTR_PLAN, planService.getOwnedPlan(id, authentication.getName()));
+    Plan plan = planService.getParticipatingPlan(id, authentication.getName());
+    model.put(ATTR_PLAN, plan);
+    model.put("isPlanAdministrator", plan.isAdministrator(authentication.getName()));
+    model.put(
+      "participantEmails",
+      plan
+        .getParticipants()
+        .stream()
+        .map(User::getEmail)
+        .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
+        .toList()
+    );
+    model.put(
+      "itineraryPlaces",
+      plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
+    );
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }
 
@@ -99,6 +119,18 @@ public class PlanController {
     return new ModelAndView(REDIRECT_PLANS);
   }
 
+  @PostMapping("/{id}/leave")
+  public ModelAndView leavePlan(@PathVariable Long id, Authentication authentication) {
+    planService.leavePlan(id, authentication.getName());
+    return new ModelAndView(REDIRECT_PLANS);
+  }
+
+  @PostMapping("/join")
+  public ModelAndView joinPlan(@RequestParam String shortCode, Authentication authentication) {
+    Plan plan = planService.joinPlan(shortCode, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + plan.getId());
+  }
+
   /** The form owns these fields and its itinerary rows only: id, shortCode and administrator never come from a post. */
   private Plan toPlan(PlanRequest planForm) {
     Plan plan = new Plan();
@@ -134,5 +166,16 @@ public class PlanController {
     }
     model.put("error", "Invalid plan data");
     return new ModelAndView(VIEW_PLAN_FORM, model);
+  }
+
+  private static Map<String, Object> placeView(PlanPlace entry) {
+    Place place = entry.getPlace();
+    Map<String, Object> view = new LinkedHashMap<>();
+    view.put("id", place.getId());
+    view.put("name", place.getName());
+    view.put("category", place.getCategory() == null ? null : place.getCategory().name());
+    view.put("latitude", place.getLatitude());
+    view.put("longitude", place.getLongitude());
+    return view;
   }
 }

@@ -22,6 +22,7 @@ import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
+import com.valhalla.domain.user.User;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -100,7 +101,7 @@ public class PlanControllerTest {
   public void T_PLN_062_showPlan_cargaElPlanDelDueno() {
     // given
     Plan plan = plan(PLAN_ID, "Viaje a Bariloche");
-    when(this.planServiceMock.getOwnedPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
 
     // when
     ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
@@ -108,13 +109,32 @@ public class PlanControllerTest {
     // then
     assertThat(view.getViewName(), is(DETAIL_VIEW));
     assertThat(view.getModel().get("plan"), is(sameInstance(plan)));
-    verify(this.planServiceMock, times(1)).getOwnedPlan(PLAN_ID, OWNER_EMAIL);
+    verify(this.planServiceMock, times(1)).getParticipatingPlan(PLAN_ID, OWNER_EMAIL);
+  }
+
+  @Test
+  public void showPlan_ordenaLosParticipantesPorEmailSinModificarElPlan() {
+    Plan plan = plan(PLAN_ID, "Participantes");
+    User zoe = new User();
+    zoe.setEmail("zoe@test.com");
+    User ana = new User();
+    ana.setEmail("Ana@test.com");
+    plan.getParticipants().addAll(List.of(zoe, ana));
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+
+    ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    assertThat(
+      view.getModel().get("participantEmails"),
+      is(List.of("Ana@test.com", "zoe@test.com"))
+    );
+    assertThat(plan.getParticipants(), is(List.of(zoe, ana)));
   }
 
   @Test
   public void T_PLN_063_showPlan_propagaPlanNotFoundException() {
     // given
-    when(this.planServiceMock.getOwnedPlan(999L, OWNER_EMAIL))
+    when(this.planServiceMock.getParticipatingPlan(999L, OWNER_EMAIL))
       .thenThrow(new PlanNotFoundException());
 
     // when and then

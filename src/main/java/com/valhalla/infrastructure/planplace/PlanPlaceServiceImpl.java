@@ -57,7 +57,9 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
       if (ownerEmail == null) {
         throw new PlanNotFoundException();
       }
-      planService.getOwnedPlan(planId, ownerEmail);
+      if (!plan.isParticipant(ownerEmail)) {
+        planService.getOwnedPlan(planId, ownerEmail);
+      }
     }
     return repository.findByPlanId(planId);
   }
