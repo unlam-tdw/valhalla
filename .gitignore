@@ -31,6 +31,12 @@ openspec
 # Agent working documents (local task tracking, not part of the build)
 odd/
 
+# Skills installed per machine by the skills CLI (npx skills add).
+# Local tooling: the skill is a personal copy, not part of the project.
+.agents/
+skills/
+skills-lock.json
+
 # Local environment configuration (contains credentials)
 .env
 cookies.txt

@@ -10,8 +10,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
   <title th:text="${pageTitle != null} ? ${pageTitle} : 'PlanIt'">PlanIt</title>
-  <meta name="description"
-    content="Discover and plan your perfect day in Buenos Aires">
+  <!-- pageTitle es el único parámetro del fragmento, para no romper las llamadas de una sola
+       variable de las demás páginas. La descripción se resuelve desde el modelo: la landing
+       define pageDescription y el resto de las páginas caen en el texto genérico. -->
+  <meta name="description" th:content="${pageDescription != null}
+    ? ${pageDescription}
+    : 'Discover and plan your perfect day in Buenos Aires'">
 
   <!-- Vista previa al compartir el link. Los scrapers de WhatsApp, Slack y LinkedIn leen
        Open Graph; Twitter/X leen la tarjeta propia. El @{} de Thymeleaf devuelve una URL
@@ -20,14 +24,18 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PlanIt">
   <meta property="og:title" th:content="${pageTitle != null} ? ${pageTitle} : 'PlanIt'">
-  <meta property="og:description" content="Discover and plan your perfect day in Buenos Aires">
+  <meta property="og:description" th:content="${pageDescription != null}
+    ? ${pageDescription}
+    : 'Discover and plan your perfect day in Buenos Aires'">
   <meta property="og:image" th:content="|${@siteOrigin.base()}@{/images/og-image.png}|">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" th:content="${pageTitle != null} ? ${pageTitle} : 'PlanIt'">
-  <meta name="twitter:description" content="Discover and plan your perfect day in Buenos Aires">
+  <meta name="twitter:description" th:content="${pageDescription != null}
+    ? ${pageDescription}
+    : 'Discover and plan your perfect day in Buenos Aires'">
   <meta name="twitter:image" th:content="|${@siteOrigin.base()}@{/images/og-image.png}|">
 
   <!-- Barra del navegador en mobile, del color del navbar. El manifest da nombre e ícono
