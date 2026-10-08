@@ -15,7 +15,7 @@ import org.springframework.security.core.GrantedAuthority;
 public final class LoginRedirects {
 
   private static final String ADMIN_LANDING = "/admin/home";
-  private static final String USER_LANDING = "/";
+  private static final String USER_LANDING = "/explore";
 
   private LoginRedirects() {}
 
@@ -37,7 +37,7 @@ public final class LoginRedirects {
    * que pasa después de loguearse.
    *
    * @param authentication un principal ya autenticado
-   * @return {@code /admin/home} para un ADMIN, la landing pública para el resto
+   * @return {@code /admin/home} para un ADMIN, la vista de exploración (/explore) para el resto
    */
   public static String landingFor(Authentication authentication) {
     boolean isAdmin = authentication

@@ -11,10 +11,7 @@ public class AddPlaceToPlanE2E extends E2eBase {
   void E01_addPlaceAndReadItineraryWithBrowserSession() {
     signInAsAdmin();
     PlansPage plans = new PlansPage(page);
-    plans.navigateToNewPlan();
-    plans.typeName("APL E2E");
-    plans.clickCreate();
-    plans.waitForDetailPath();
+    plans.createPlanViaExplore("APL E2E", "Itinerario de prueba", "2026-12-31");
     String planId = page.url().substring(page.url().lastIndexOf('/') + 1);
     // 05-APL-FE owns the Add to plan UI; exercise the backend via fetch in the authenticated browser.
     Object result = page.evaluate(

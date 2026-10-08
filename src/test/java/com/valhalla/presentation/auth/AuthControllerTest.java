@@ -119,7 +119,7 @@ public class AuthControllerTest {
       )
     );
 
-    assertThat(view, is("redirect:/"));
+    assertThat(view, is("redirect:/explore"));
   }
 
   // --- U-03, U-04 ---

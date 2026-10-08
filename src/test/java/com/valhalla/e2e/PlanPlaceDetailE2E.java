@@ -22,11 +22,26 @@ public class PlanPlaceDetailE2E {
       page.locator("input[name='username']").fill("test@unlam.edu.ar");
       page.locator("input[name='password']").fill("password");
       page.locator("#btn-login").click();
-      page.navigate(baseUrl + "/plans/new");
-      page.locator("input[name='name']").fill("Detalle E2E " + System.nanoTime());
-      page.locator("input[name='eventDate']").fill("2026-12-01");
-      page.locator("input[name='eventTime']").fill("18:30");
-      page.locator("main button[type='submit']").click();
+      // Ya no existe /plans/new: el plan se crea desde el modal de /explore, que publica
+      // a POST /plans. El catálogo del paso 2 lo alimenta fetch('/api/places') del onMounted.
+      page.navigate(baseUrl + "/explore");
+      page.waitForURL(java.util.regex.Pattern.compile(".*/explore"));
+      page.locator("aside[aria-label='Plans'] button:has-text('Create plan')").click();
+      page.locator("#plan-name").fill("Detalle E2E " + System.nanoTime());
+      page.locator("#plan-description").fill("");
+      page.locator("#plan-date").fill("2026-12-01");
+      // El modal no expone la hora del plan, pero POST /plans bindea eventTime si el campo
+      // viaja en el form: se inyecta para conservar la hora que el detalle sí muestra.
+      page
+        .locator("#plan-name")
+        .evaluate(
+          "el => { const i = document.createElement('input'); i.type = 'time'; i.name = 'eventTime'; i.value = '18:30'; el.form.appendChild(i); }"
+        );
+      page.locator("button:has-text('Siguiente')").click();
+      // Paso 2: el primer lugar del catálogo entra al borrador y le ponemos la hora de visita.
+      page.locator("ol li button[aria-label^='Add ']").first().click();
+      page.locator("ol li input[aria-label='Hora de visita']").fill("18:30");
+      page.locator("button:has-text('Crear plan')").click();
       page.waitForURL(java.util.regex.Pattern.compile(".*/plans/\\d+"));
       String detailUrl = page.url();
       try {

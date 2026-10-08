@@ -4,11 +4,11 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import java.util.regex.Pattern;
 
-/** Page object for the three {@code /plans} views: the listing, the create form and the detail. */
+/** Page object for the {@code /plans} views and the create-plan modal on {@code /explore}. */
 public class PlansPage extends WebPage {
 
   private static final String LIST_PATH = "/plans";
-  private static final String NEW_PLAN_PATH = "/plans/new";
+  private static final String EXPLORE_PATH = "/explore";
 
   public PlansPage(Page page) {
     super(page);
@@ -18,32 +18,66 @@ public class PlansPage extends WebPage {
     page.navigate(baseUrl() + LIST_PATH);
   }
 
-  public void navigateToNewPlan() {
-    page.navigate(baseUrl() + NEW_PLAN_PATH);
+  /**
+   * La creación de planes vive en el modal de /explore (ya no existe /plans/new): navega a esa
+   * vista y abre el modal con su botón "Create plan" del panel lateral.
+   */
+  public void navigateToCreatePlanModal() {
+    navigateToExplore();
+    clickElement("aside[aria-label='Plans'] button:has-text('Create plan')");
   }
 
+  public void navigateToExplore() {
+    page.navigate(baseUrl() + EXPLORE_PATH);
+  }
+
+  /** Paso 1 del modal: los datos del plan. El formulario no es nativo, así que los input de Vue se llenan igual que el resto. */
   public void typeName(String name) {
-    this.typeIntoElement("#name", name);
+    this.typeIntoElement("#plan-name", name);
   }
 
   public void typeDescription(String description) {
-    this.typeIntoElement("#description", description);
+    this.typeIntoElement("#plan-description", description);
   }
 
   /** {@code <input type="date">}, so the value has to be an ISO date. */
   public void typeEventDate(String isoDate) {
-    this.typeIntoElement("#eventDate", isoDate);
+    this.typeIntoElement("#plan-date", isoDate);
   }
 
+  /** Paso 1 -> paso 2 (selección de lugares): el formulario se envía al avanzar. */
+  public void clickNextStep() {
+    this.clickElement("button:has-text('Siguiente')");
+  }
+
+  /** Paso 2: agrega el primer lugar del catálogo al borrador del plan. */
+  public void addFirstDraftPlace() {
+    this.page.locator("ul:not([class]) li button[aria-label^='Add ']").first().click();
+  }
+
+  /** Paso 2: envía el formulario del modal (POST /plans). */
   public void clickCreate() {
     this.clickElement("button:has-text('Crear plan')");
   }
 
+  /** Flujo completo de creación: modal de /explore -> detalle del plan. */
+  public void createPlanViaExplore(String name, String description, String isoDate) {
+    navigateToCreatePlanModal();
+    typeName(name);
+    typeDescription(description);
+    typeEventDate(isoDate);
+    clickNextStep();
+    addFirstDraftPlace();
+    clickCreate();
+    waitForDetailPath();
+  }
+
   /**
-   * The create and update handlers redirect to {@code /plans/{id} } and the id comes from the
-   * backend, so the detail page can only be awaited as a shape. {@link #waitForPath(String)} quotes
-   * its argument and therefore cannot express it, and a glob ending in {@code /plans} never matched
-   * this URL — which is exactly why the delete assertion below used to run against the list page.
+   * The create handler redirects to {@code /plans/{id} } and the id comes from the
+   * backend, so the detail page can only be awaited as a shape. {@link #waitForPath(String)}
+   * quotes its argument and therefore cannot express it, and a glob ending in {@code /plans}
+   * never matched this URL — which is exactly why the delete assertion below used to run
+   * against the list page.
    */
   public void waitForDetailPath() {
     page.waitForURL(

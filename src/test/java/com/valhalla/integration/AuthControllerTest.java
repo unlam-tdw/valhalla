@@ -33,7 +33,7 @@ import org.springframework.web.context.WebApplicationContext;
  * End-to-end-ish coverage of the three security chains behind the public auth flow.
  * Scenario ids I-01..I-13 of docs/specs/08-AUT.md.
  *
- * <p>I-11 ({@code GET /places} anonymous -> {@code /auth/login}) and I-12 ({@code GET /plans}
+ * <p>I-11 ({@code GET /explore} anonymous -> {@code /auth/login}) and I-12 ({@code GET /plans}
  * anonymous -> {@code /auth/login}) are already covered by
  * {@code SecurityConfigTest#shouldRedirectToLoginWhenAccessingPlacesWithoutSession} and its
  * sibling, so they are not duplicated here.
@@ -119,7 +119,7 @@ public class AuthControllerTest {
         post(VALIDATE_LOGIN).with(csrf()).param("username", email).param("password", PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
   }
 
   // --- I-03 ---
@@ -195,7 +195,7 @@ public class AuthControllerTest {
           .param("password", USER_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
   }
 
   @Test
@@ -265,7 +265,9 @@ public class AuthControllerTest {
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/auth/login?error=true"));
 
-    logIn(email, tempPassword).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/"));
+    logIn(email, tempPassword)
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/explore"));
   }
 
   // --- I-09 ---
@@ -291,7 +293,7 @@ public class AuthControllerTest {
           .param("username", USER_EMAIL)
           .param("password", USER_PASSWORD)
       )
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
 
     this.mockMvc.perform(post("/auth/logout").session(session).with(csrf()))
       .andExpect(status().is3xxRedirection())
@@ -311,7 +313,7 @@ public class AuthControllerTest {
   public void shouldRedirectAwayFromTheUserLoginPageWhenAlreadySignedIn() throws Exception {
     this.mockMvc.perform(get("/auth/login"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
   }
 
   @Test

@@ -178,18 +178,18 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
   @Test
   void I11_placesIncludesOnlyOwnerPlans() throws Exception {
     mvc
-      .perform(get("/places").with(user("apl@test.com")))
+      .perform(get("/explore").with(user("apl@test.com")))
       .andExpect(status().isOk())
       .andExpect(model().attribute("userPlans", org.hamcrest.Matchers.hasSize(1)));
     mvc
-      .perform(get("/places").with(user("other@test.com")))
+      .perform(get("/explore").with(user("other@test.com")))
       .andExpect(model().attribute("userPlans", org.hamcrest.Matchers.empty()));
   }
 
   @Test
   void I12_anonymousPlacesHasNoUserPlans() throws Exception {
     mvc
-      .perform(get("/places"))
+      .perform(get("/explore"))
       .andExpect(status().isOk())
       .andExpect(model().attributeDoesNotExist("userPlans"));
   }

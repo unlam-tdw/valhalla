@@ -130,7 +130,7 @@ public class LoginControllerTest {
   @Test
   public void shouldRedirectACommonUserToTheLandingWhenAlreadySignedIn() {
     ModelAndView modelAndView = controller.showLogin(null, authenticationWithRoles("ROLE_USER"));
-    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/"));
+    assertThat(modelAndView.getViewName(), equalToIgnoringCase("redirect:/explore"));
   }
 
   private Authentication authenticationWithRoles(String... roles) {

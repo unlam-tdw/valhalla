@@ -31,7 +31,7 @@ public class SecurityConfigTest {
 
   @Test
   public void shouldAllowPlacesWithoutSession() throws Exception {
-    this.mockMvc.perform(get("/places"))
+    this.mockMvc.perform(get("/explore"))
       .andExpect(status().isOk())
       .andExpect(model().attributeDoesNotExist("userPlans"));
   }
@@ -76,7 +76,7 @@ public class SecurityConfigTest {
   public void shouldRedirectACommonUserAwayFromTheAdminHome() throws Exception {
     this.mockMvc.perform(get("/admin/home"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
   }
 
   @Test
@@ -91,7 +91,7 @@ public class SecurityConfigTest {
   public void shouldRedirectACommonUserAwayFromAdminUsers() throws Exception {
     this.mockMvc.perform(get("/admin/users"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
   }
 
   /** Y al revés: un ADMIN que cruza a /auth/** vuelve a /admin/home, no a la landing. */

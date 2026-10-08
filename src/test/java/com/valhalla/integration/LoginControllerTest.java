@@ -112,10 +112,10 @@ public class LoginControllerTest {
   /** Un usuario común no aterriza en /admin/home: ahí no tiene nada que ver. */
   @Test
   @WithMockUser(username = "user@unlam.edu.ar", roles = { "USER" })
-  public void shouldRedirectACommonUserToTheLandingWhenAlreadySignedIn() throws Exception {
+  public void shouldRedirectACommonUserToTheExploreWhenAlreadySignedIn() throws Exception {
     this.mockMvc.perform(get("/admin/login"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
   }
 
   /**

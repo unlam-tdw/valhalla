@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 @Controller
-@RequestMapping("/places")
+@RequestMapping("/explore")
 public class PlaceController {
 
   private static final String VIEW_LIST = "pages/places/list";

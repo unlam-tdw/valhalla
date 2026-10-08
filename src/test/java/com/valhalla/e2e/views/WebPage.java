@@ -90,7 +90,7 @@ public class WebPage {
    * across lines would otherwise change the expected value.
    *
    * <p>Pinned to the shared navbar rather than to any {@code <nav>}: the landing page carries a
-   * footer nav of its own (links to /, /places, /plans and /auth/register), and a bare
+   * footer nav of its own (links to /, /explore, /plans and /auth/register), and a bare
    * {@code nav a} would fold those links into the set the caller is pinning. The shared navbar is
    * the direct child of {@code <body>} in layouts/base :: layout; the footer nav lives inside
    * {@code <main>}.

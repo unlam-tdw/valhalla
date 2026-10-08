@@ -13,7 +13,7 @@
       · Todo el contenido sale del modelo: el estado de sesión decide el CTA y el itinerario del
         hero viene de LandingController. No hay datos de negocio escritos en el HTML.
       · Los iconos salen de la librería vendorizada (resources/core/js/lucide.min.js), la misma
-        que usa /places, para no sumar dependencias ni CDN.
+        que usa /explore, para no sumar dependencias ni CDN.
       · Las animaciones de entrada usan IntersectionObserver, nunca un listener de scroll.
   -->
   <main id="landing" class="flex-1">
@@ -94,7 +94,7 @@
                 class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 Crear mi plan gratis
               </a>
-              <a th:if="${authenticated == true}" th:href="@{/places}"
+              <a th:if="${authenticated == true}" th:href="@{/explore}"
                 class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 Explorar lugares
               </a>
@@ -503,7 +503,7 @@
         <a th:href="@{/}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Inicio
         </a>
-        <a th:href="@{/places}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <a th:href="@{/explore}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Explorar lugares
         </a>
         <a th:href="@{/plans}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
@@ -517,7 +517,7 @@
     </div>
   </footer>
 
-  <!-- Librería de iconos vendorizada, la misma que usa /places: sin CDN y sin dependencia de
+  <!-- Librería de iconos vendorizada, la misma que usa /explore: sin CDN y sin dependencia de
        red en el E2E. Va antes del script de animación porque createIcons necesita window.lucide. -->
   <script th:src="@{/js/lucide.min.js}"></script>
 

@@ -36,12 +36,12 @@ public class UserAuthViewE2E extends E2eBase {
   private static final String UNKNOWN_EMAIL = "nadie@unlam.edu.ar";
 
   @Test
-  void shouldRegisterLoginAndLandOnTheLandingPage() throws MalformedURLException {
+  void shouldRegisterLoginAndLandOnTheExplorePage() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
 
     givenUserSignsInWith(EMAIL, PASSWORD);
 
-    thenShouldBeOnPath("/");
+    thenShouldBeOnPath("/explore");
 
     // The navbar is one fragment shared by both chains, so its brand is covered once on the admin
     // login page. What has no counterpart there is the signed-in half of the fragment, which only
@@ -56,7 +56,7 @@ public class UserAuthViewE2E extends E2eBase {
     // "Planes" link to /plans, which had no controller. It rendered fine, so no other assertion
     // could see the difference between a live item and a 404 waiting to be clicked. PlanController
     // landed in 03-PLN, so "Plans" belongs back in the set and now has somewhere to resolve to.
-    // The Places link arrived with the map feature in 03-PLC and resolves to /places, so it
+    // The Places link arrived with the map feature in 03-PLC and resolves to /explore, so it
     // belongs in the set too.
     assertThat(
       "the authenticated navbar offers only items that resolve",
@@ -74,7 +74,7 @@ public class UserAuthViewE2E extends E2eBase {
 
     givenUserSignsInWith(EMAIL, tempPassword);
 
-    thenShouldBeOnPath("/");
+    thenShouldBeOnPath("/explore");
   }
 
   @Test

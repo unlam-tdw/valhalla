@@ -241,12 +241,21 @@ public class PlanControllerIntegrationTest {
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void T_PLN_075_postPlans_conNombreVacioVuelveAlFormYNoCreaNada() throws Exception {
-    // when
+  public void T_PLN_075_postPlans_conNombreVacioRedirigeAExploreYNoCreaNada() throws Exception {
+    // when: sin formulario standalone, un POST inválido vuelve a la vista de creación (/explore)
     this.mockMvc.perform(post("/plans").with(csrf()).param("name", ""))
-      .andExpect(status().isOk())
-      .andExpect(view().name("pages/plans/new"))
-      .andExpect(model().attributeHasFieldErrors("plan", "name"));
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/explore"));
+
+    // then
+    assertThat(this.planRepository.findAll(), is(empty()));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_075b_getPlansNew_yaNoEsUnaRuta() throws Exception {
+    // La creación de planes vive solo en /explore: GET /plans/new debe dar 404.
+    this.mockMvc.perform(get("/plans/new")).andExpect(status().isNotFound());
 
     // then
     assertThat(this.planRepository.findAll(), is(empty()));
@@ -343,18 +352,16 @@ public class PlanControllerIntegrationTest {
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void T_PLN_080_postPlansId_putConErroresVuelveAlFormYNoModifica() throws Exception {
+  public void T_PLN_080_postPlansId_putConErroresRedirigeAlDetalleYNoModifica() throws Exception {
     // given
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
 
-    // when
+    // when: sin formulario standalone, un PUT inválido vuelve al detalle del plan
     this.mockMvc.perform(
         post("/plans/" + planId).with(csrf()).param("_method", "PUT").param("name", "")
       )
-      .andExpect(status().isOk())
-      .andExpect(view().name("pages/plans/new"))
-      .andExpect(model().attribute("planId", planId))
-      .andExpect(model().attributeHasFieldErrors("plan", "name"));
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/plans/" + planId));
 
     // then
     assertThat(

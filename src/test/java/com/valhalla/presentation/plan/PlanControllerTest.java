@@ -15,7 +15,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
@@ -49,7 +48,6 @@ public class PlanControllerTest {
 
   private static final String OWNER_EMAIL = "dueno@test.com";
   private static final String LIST_VIEW = "pages/plans/list";
-  private static final String FORM_VIEW = "pages/plans/new";
   private static final String DETAIL_VIEW = "pages/plans/detail";
   private static final Long PLAN_ID = 7L;
 
@@ -68,7 +66,7 @@ public class PlanControllerTest {
     this.authentication = new UsernamePasswordAuthenticationToken(OWNER_EMAIL, null);
   }
 
-  // --- GET /plans, GET /plans/new, GET /plans/{id} ---
+  // --- GET /plans, GET /plans/{id} ---
 
   @Test
   public void T_PLN_060_listPlans_pideLosPlanesDelEmailAutenticado() {
@@ -83,21 +81,6 @@ public class PlanControllerTest {
     assertThat(view.getViewName(), is(LIST_VIEW));
     assertThat(view.getModel().get("plans"), is(sameInstance(planes)));
     verify(this.planServiceMock, times(1)).getPlansByUserEmail(OWNER_EMAIL);
-  }
-
-  @Test
-  public void T_PLN_061_showNewPlanForm_devuelveElFormularioVacio() {
-    // when
-    ModelAndView view = this.controller.showNewPlanForm(null);
-
-    // then
-    assertThat(view.getViewName(), is(FORM_VIEW));
-    PlanRequest form = (PlanRequest) view.getModel().get("plan");
-    assertThat(form, is(notNullValue()));
-    assertThat(form.getName(), is(nullValue()));
-    // No planId: a blank form must post to POST /plans, never to an update of some plan id.
-    assertThat(view.getModel().get("planId"), is(nullValue()));
-    verifyNoInteractions(this.planServiceMock);
   }
 
   @Test
@@ -150,18 +133,16 @@ public class PlanControllerTest {
   // --- POST /plans ---
 
   @Test
-  public void T_PLN_064_createPlan_conErroresVuelveAlFormularioSinTocarElServicio() {
+  public void T_PLN_064_createPlan_conErroresRedirigeAExploreSinTocarElServicio() {
     // given
     PlanRequest form = new PlanRequest("   ", null, null, null);
     BeanPropertyBindingResult errors = errorsOf(form);
 
     // when
-    ModelAndView view = this.controller.createPlan(form, errors, this.authentication, null);
+    ModelAndView view = this.controller.createPlan(form, errors, this.authentication);
 
-    // then
-    assertThat(view.getViewName(), is(FORM_VIEW));
-    assertThat(view.getModel().get("plan"), is(sameInstance(form)));
-    assertThat(view.getModel().get("planId"), is(nullValue()));
+    // then: sin formulario standalone, un POST inválido vuelve a /explore
+    assertThat(view.getViewName(), is(equalTo("redirect:/explore")));
     assertThat(fieldNames(errors), hasItem("name"));
     verify(this.planServiceMock, never()).createPlan(any(Plan.class), anyString());
   }
@@ -180,7 +161,7 @@ public class PlanControllerTest {
       .thenReturn(plan(PLAN_ID, "Viaje a Bariloche"));
 
     // when
-    ModelAndView view = this.controller.createPlan(form, noErrors(form), this.authentication, null);
+    ModelAndView view = this.controller.createPlan(form, noErrors(form), this.authentication);
 
     // then
     assertThat(view.getViewName(), is(equalTo("redirect:/plans/" + PLAN_ID)));
@@ -198,54 +179,6 @@ public class PlanControllerTest {
   // --- PUT /plans/{id} ---
 
   @Test
-  public void T_PLN_069_createPlan_conPlaceIdAsociaElLugarAlPlan() {
-    // given
-    PlanRequest form = new PlanRequest("Viaje", null, null, false);
-    when(this.planServiceMock.createPlan(any(Plan.class), eq(OWNER_EMAIL)))
-      .thenReturn(plan(PLAN_ID, "Viaje"));
-
-    // when
-    ModelAndView view = this.controller.createPlan(form, noErrors(form), this.authentication, 4L);
-
-    // then
-    assertThat(view.getViewName(), is(equalTo("redirect:/plans/" + PLAN_ID)));
-    verify(this.planServiceMock, times(1)).createPlan(any(Plan.class), eq(OWNER_EMAIL));
-    verify(this.planPlaceServiceMock, times(1)).addPlaceToPlan(PLAN_ID, 4L, OWNER_EMAIL);
-  }
-
-  @Test
-  public void T_PLN_070_createPlan_sinPlaceIdNoTocaElServicioDeLugares() {
-    // given
-    when(this.planServiceMock.createPlan(any(Plan.class), eq(OWNER_EMAIL)))
-      .thenReturn(plan(PLAN_ID, "Viaje"));
-
-    // when
-    this.controller.createPlan(
-        new PlanRequest("Viaje", null, null, false),
-        noErrors(new PlanRequest("Viaje", null, null, false)),
-        this.authentication,
-        null
-      );
-
-    // then
-    verifyNoInteractions(this.planPlaceServiceMock);
-  }
-
-  @Test
-  public void T_PLN_071_showNewPlanForm_conPlaceIdPreseleccionaElLugar() {
-    // when
-    ModelAndView view = this.controller.showNewPlanForm(4L);
-
-    // then
-    assertThat(view.getViewName(), is(FORM_VIEW));
-    assertThat(view.getModel().get("placeId"), is(4L));
-    PlanRequest form = (PlanRequest) view.getModel().get("plan");
-    assertThat(form.getPlaces().size(), is(1));
-    assertThat(form.getPlaces().get(0).getPlaceId(), is(4L));
-    verifyNoInteractions(this.planServiceMock);
-  }
-
-  @Test
   public void T_PLN_067_createPlan_mapeaLosLugaresEnOrdenYSaltaLasFilasVacias() {
     // given
     PlanRequest form = new PlanRequest("Viaje", null, null, false);
@@ -261,7 +194,7 @@ public class PlanControllerTest {
       .thenReturn(plan(PLAN_ID, "Viaje"));
 
     // when
-    this.controller.createPlan(form, noErrors(form), this.authentication, null);
+    this.controller.createPlan(form, noErrors(form), this.authentication);
 
     // then
     List<PlanPlace> entries = captor.getValue().getPlanPlaces();
@@ -279,7 +212,7 @@ public class PlanControllerTest {
   // --- PUT /plans/{id} ---
 
   @Test
-  public void T_PLN_066_updatePlan_conErroresVuelveAlFormularioConElIdDelPlan() {
+  public void T_PLN_066_updatePlan_conErroresRedirigeAlDetalleConElIdDelPlan() {
     // given
     PlanRequest form = new PlanRequest("", null, null, null);
     BeanPropertyBindingResult errors = errorsOf(form);
@@ -287,10 +220,8 @@ public class PlanControllerTest {
     // when
     ModelAndView view = this.controller.updatePlan(PLAN_ID, form, errors, this.authentication);
 
-    // then: the form, not the detail view, and with planId so the retry is an update (AC-12)
-    assertThat(view.getViewName(), is(FORM_VIEW));
-    assertThat(view.getModel().get("plan"), is(sameInstance(form)));
-    assertThat(view.getModel().get("planId"), is(equalTo(PLAN_ID)));
+    // then: sin formulario standalone, un PUT inválido vuelve al detalle del plan
+    assertThat(view.getViewName(), is(equalTo("redirect:/plans/" + PLAN_ID)));
     assertThat(fieldNames(errors), hasItem("name"));
     verify(this.planServiceMock, never()).updatePlan(any(), any(Plan.class), anyString());
   }

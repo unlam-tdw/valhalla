@@ -180,7 +180,7 @@ public class PlacesViewE2E extends E2eBase {
   }
 
   private String placesUrl() {
-    return new WebPage(page).baseUrl() + "/places";
+    return new WebPage(page).baseUrl() + "/explore";
   }
 
   private Locator placeCards() {

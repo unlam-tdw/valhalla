@@ -128,7 +128,7 @@ public class SecurityConfig {
     http
       .authorizeHttpRequests(auth ->
         auth
-          .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/**", "/places")
+          .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/**", "/explore")
           .permitAll()
           .requestMatchers("/api/**")
           .authenticated()

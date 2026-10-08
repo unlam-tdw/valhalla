@@ -29,13 +29,12 @@ import org.springframework.web.servlet.ModelAndView;
 public class PlanController {
 
   private static final String VIEW_PLANS_LIST = "pages/plans/list";
-  private static final String VIEW_PLAN_FORM = "pages/plans/new";
   private static final String VIEW_PLAN_DETAIL = "pages/plans/detail";
   private static final String REDIRECT_PLANS = "redirect:/plans";
   private static final String REDIRECT_PLAN_DETAIL = "redirect:/plans/";
+  private static final String REDIRECT_EXPLORE = "redirect:/explore";
   private static final String ATTR_PLANS = "plans";
   private static final String ATTR_PLAN = "plan";
-  private static final String ATTR_PLAN_ID = "planId";
 
   private final PlanService planService;
   private final PlanPlaceService planPlaceService;
@@ -52,23 +51,6 @@ public class PlanController {
     model.put(ATTR_PLANS, planService.getPlansByUserEmail(authentication.getName()));
     model.put("participantPlans", planService.getParticipantPlans(authentication.getName()));
     return new ModelAndView(VIEW_PLANS_LIST, model);
-  }
-
-  @GetMapping("/new")
-  public ModelAndView showNewPlanForm(@RequestParam(required = false) Long placeId) {
-    Map<String, Object> model = new ModelMap();
-    PlanRequest planRequest = new PlanRequest();
-    // If placeId is provided, pre-select it in the form
-    if (placeId != null) {
-      PlanPlaceRequest place = new PlanPlaceRequest();
-      place.setPlaceId(placeId);
-      planRequest.setPlaces(java.util.List.of(place));
-      // El template lo vuelca como <input type="hidden" name="placeId"> para que
-      // el POST /plans sepa qué lugar asociar al plan recién creado.
-      model.put("placeId", placeId);
-    }
-    model.put(ATTR_PLAN, planRequest);
-    return new ModelAndView(VIEW_PLAN_FORM, model);
   }
 
   @GetMapping("/{id}")
@@ -97,19 +79,14 @@ public class PlanController {
   public ModelAndView createPlan(
     @Valid @ModelAttribute(ATTR_PLAN) PlanRequest planForm,
     BindingResult bindingResult,
-    Authentication authentication,
-    @RequestParam(required = false) Long placeId
+    Authentication authentication
   ) {
     if (bindingResult.hasErrors()) {
-      return renderFormWithError(planForm, null);
+      // No hay formulario standalone: la creación vive en el modal de /explore, así que
+      // un POST inválido vuelve a esa vista en vez de re-renderizar pages/plans/new.
+      return new ModelAndView(REDIRECT_EXPLORE);
     }
     Plan created = planService.createPlan(toPlan(planForm), authentication.getName());
-    // Viene de /plans/new?placeId=X (flujo "+ Crear nuevo plan" desde Places):
-    // asociamos el lugar al plan recién creado con la misma lógica que
-    // POST /api/plans/{id}/places. Sin placeId no se hace nada (alta normal).
-    if (placeId != null) {
-      planPlaceService.addPlaceToPlan(created.getId(), placeId, authentication.getName());
-    }
     return new ModelAndView(REDIRECT_PLAN_DETAIL + created.getId());
   }
 
@@ -121,7 +98,8 @@ public class PlanController {
     Authentication authentication
   ) {
     if (bindingResult.hasErrors()) {
-      return renderFormWithError(planForm, id);
+      // El detalle edita en su propia página: un PUT inválido vuelve al detalle del plan.
+      return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
     }
     planService.updatePlan(id, toPlan(planForm), authentication.getName());
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
@@ -177,16 +155,6 @@ public class PlanController {
       plan.addPlanPlace(entry);
     }
     return plan;
-  }
-
-  private ModelAndView renderFormWithError(PlanRequest planForm, Long id) {
-    Map<String, Object> model = new ModelMap();
-    model.put(ATTR_PLAN, planForm);
-    if (id != null) {
-      model.put(ATTR_PLAN_ID, id);
-    }
-    model.put("error", "Invalid plan data");
-    return new ModelAndView(VIEW_PLAN_FORM, model);
   }
 
   private static Map<String, Object> placeView(PlanPlace entry) {

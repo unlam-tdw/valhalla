@@ -702,8 +702,15 @@
           };
 
           const createNewPlan = () => {
-            const placeId = placeToAdd.value ? placeToAdd.value.id : '';
-            window.location.href = '/plans/new?placeId=' + placeId;
+            // La creación ya no vive en /plans/new: se abre el panel de creación de /explore con el
+            // lugar pendiente ya cargado en el borrador. El modal "Agregar a plan" se cierra
+            // después de copiar el lugar, porque tapa el panel (overlay z-2000 sobre aside z-1000).
+            const pendingPlace = placeToAdd.value;
+            closeAddToPlan();
+            if (pendingPlace) {
+              addToDraft(pendingPlace);
+            }
+            openCreatePlan();
           };
 
           // Listen for add-to-plan events from the external JavaScript module
