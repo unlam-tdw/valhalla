@@ -3,9 +3,18 @@
 
 <!-- Shared page chrome: head fragment used directly by every page, plus the
      layout(content) decorator that wraps a page-provided <main> with the
-     navbar. Pages call: layouts/base :: layout(~{::main}) -->
+     navbar. Pages call: layouts/base :: layout(~{::main})
+
+     The head's body is exposed separately as headContent(pageTitle) so a page that owns
+     its <head> (pages/plans/detail.html, which needs Bootstrap and leaflet before the
+     Tailwind stack) can keep its own tags first and still inherit the shared metas,
+     tokens and scripts. head(pageTitle) delegates to it. -->
 
 <head th:fragment="head(pageTitle)">
+  <th:block th:replace="~{layouts/base :: headContent(${pageTitle})}"></th:block>
+</head>
+
+<th:block th:fragment="headContent(pageTitle)">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
@@ -148,7 +157,7 @@
       setTimeout(poll, 1200);
     })();
   </script>
-</head>
+</th:block>
 
 <body th:fragment="layout(content)" class="bg-gray-100 min-h-screen flex flex-col">
 

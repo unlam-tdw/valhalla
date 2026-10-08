@@ -48,20 +48,20 @@ public class UserAuthViewE2E extends E2eBase {
     // renders once a session exists and is what this chain exercises.
     WebPage landing = new WebPage(page);
     assertThat(
-      "the authenticated navbar names the signed-in user",
-      landing.getNavbarSignedInAs(),
-      containsString(EMAIL)
+      "the authenticated navbar shows the initial of the real first name",
+      landing.getNavbarAvatarInitial(),
+      is("A")
     );
     // Naming the whole set, not just the presence of the items: the navbar used to offer a
     // "Planes" link to /plans, which had no controller. It rendered fine, so no other assertion
     // could see the difference between a live item and a 404 waiting to be clicked. PlanController
     // landed in 03-PLN, so "Plans" belongs back in the set and now has somewhere to resolve to.
-    // The Places link arrived with the map feature in 03-PLC and resolves to /explore, so it
+    // The Explore link arrived with the map feature in 03-PLC and resolves to /explore, so it
     // belongs in the set too.
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("PlanIt", "Places", "Plans", "Logout")
+      contains("PlanIt", "Explore", "Plans", "Logout")
     );
   }
 
