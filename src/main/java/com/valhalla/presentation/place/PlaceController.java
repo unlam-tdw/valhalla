@@ -41,7 +41,14 @@ public class PlaceController {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLACES, getPlaces(category, search));
     if (principal != null) {
-      model.put("userPlans", planService.getPlansByUserEmail(principal.getName()));
+      model.put(
+        "userPlans",
+        planService
+          .getPlansByUserEmail(principal.getName())
+          .stream()
+          .sorted(java.util.Comparator.comparing(com.valhalla.domain.plan.Plan::getId).reversed())
+          .toList()
+      );
     }
     model.put("categories", PlaceCategory.values());
     model.put("category", category);

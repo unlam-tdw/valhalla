@@ -69,14 +69,11 @@
               <img :src="place.imageUrl || '/images/place-placeholder.svg'" :alt="place.name"
                 class="w-28 shrink-0 self-stretch bg-gray-100 object-cover" />
             </div>
-            <button type="button" :data-add-to-plan="place.id" :data-place-name="place.name"
+            <button v-if="showCreatePlan || activePlan" type="button" :data-add-to-plan="place.id" :data-place-name="place.name"
               :data-place-category="place.category" :data-place-latitude="place.latitude"
               :data-place-longitude="place.longitude" :aria-label="'Add ' + place.name + ' to a plan'"
               class="absolute bottom-3 right-3 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-gray-900 text-white shadow-lg ring-2 ring-white transition hover:scale-110 hover:bg-blue-600 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              <img src="/images/add-to-list.svg" alt="" aria-hidden="true" class="h-5 w-5 invert" />
             </button>
           </article>
         </div>
@@ -129,7 +126,7 @@
         </aside>
 
         <!-- Plans discovery -->
-        <aside id="plans-aside" role="complementary" aria-label="Plans"
+        <aside v-if="!showCreatePlan && !activePlan" id="plans-aside" role="complementary" aria-label="Plans"
           class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
           <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
           <input v-model="plansQuery" type="search" placeholder="Search public plans..."
@@ -139,11 +136,25 @@
             class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
             Create plan
           </button>
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">My plans</h3>
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">My plans</h3>
+            <button th:if="${userPlans != null and #lists.size(userPlans) > 3}" type="button" @click="showAllPlans = !showAllPlans"
+              :aria-expanded="showAllPlans" aria-controls="my-plans-list"
+              class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">
+              Ver todos
+              <svg aria-hidden="true" class="h-4 w-4 transition-transform" :class="showAllPlans ? 'rotate-90' : ''"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+          </div>
           <!-- v-pre: plan names are user input and must never reach Vue's template compiler. -->
+          <div id="my-plans-list" :class="showAllPlans ? '' : '[&_li:nth-child(n+4)]:hidden'">
           <ul v-pre class="flex flex-col gap-2">
             <li th:each="plan : ${userPlans}">
-              <a th:href="@{/plans/{id}(id=${plan.id})}"
+              <a th:href="@{/plans/{id}(id=${plan.id})}" data-open-plan th:data-plan-id="${plan.id}"
+                th:data-plan-name="${plan.name}"
                 class="flex flex-col gap-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition hover:bg-gray-50">
                 <span class="flex items-center justify-between gap-2">
                   <span class="min-w-0 truncate font-medium" th:text="${plan.name}">Plan</span>
@@ -161,6 +172,7 @@
               You haven't created any plans yet.
             </li>
           </ul>
+          </div>
           <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Public plans nearby</h3>
           <ul class="flex flex-col gap-3">
             <li v-for="plan in filteredPlans" :key="plan.id"
@@ -171,6 +183,41 @@
             </li>
           </ul>
           <p v-if="filteredPlans.length === 0" class="text-sm text-gray-500">No plans found.</p>
+        </aside>
+
+        <!-- Existing plan being edited: places are added from the Places aside -->
+        <aside v-if="activePlan" id="plans-aside" role="complementary" aria-labelledby="active-plan-title"
+          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-3 overflow-y-auto bg-white p-5 shadow-xl">
+          <div class="flex items-center justify-between gap-2">
+            <h2 id="active-plan-title" class="min-w-0 truncate text-xl font-semibold text-gray-900">{{ activePlan.name }}</h2>
+            <button type="button" @click="closeActivePlan" aria-label="Close plan"
+              class="rounded-full p-1 text-gray-600 hover:bg-gray-100">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p class="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            Usá el botón + de los lugares del panel derecho para agregarlos a este plan.</p>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Itinerary ({{ activePlan.entries.length }})</h3>
+          <p v-if="activePlan.entries.length === 0" class="text-sm text-gray-500">No places yet.</p>
+          <ol class="flex flex-col gap-2">
+            <li v-for="(entry, index) in activePlan.entries" :key="entry.id"
+              class="rounded-md border border-gray-200 bg-gray-50 p-3">
+              <div class="flex items-center gap-2">
+                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-medium text-white">{{ index + 1 }}</span>
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ entry.name }}</span>
+              </div>
+              <p v-if="entry.visitDate || entry.visitTime" class="mt-1 text-xs text-gray-500">
+                {{ entry.visitDate }} {{ entry.visitTime }}</p>
+            </li>
+          </ol>
+          <a :href="'/plans/' + activePlan.id"
+            class="mt-auto rounded-md bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-gray-700">
+            View plan details
+          </a>
         </aside>
 
         <!-- Add to plan modal -->
@@ -211,12 +258,19 @@
           </div>
         </div>
 
-        <!-- Create plan modal -->
-        <div v-if="showCreatePlan" @click.self="closeCreatePlan" @keydown.esc="closeCreatePlan"
-          class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="create-plan-title"
-            class="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white p-6 shadow-md">
-            <h2 id="create-plan-title" class="text-2xl font-semibold text-gray-900">Crear plan</h2>
+        <!-- Create plan: replaces the Plans aside in place, leaving the map interactive -->
+        <aside v-if="showCreatePlan" id="plans-aside" role="complementary" aria-labelledby="create-plan-title"
+          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col overflow-hidden bg-white p-5 shadow-xl">
+          <div class="flex items-center justify-between gap-2">
+            <h2 id="create-plan-title" class="text-xl font-semibold text-gray-900">Crear plan</h2>
+            <button type="button" @click="closeCreatePlan" aria-label="Close create plan form"
+              class="rounded-full p-1 text-gray-600 hover:bg-gray-100">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
             <div class="mb-4 mt-2" aria-live="polite">
               <p class="mb-1 text-sm text-gray-500">Paso {{ planStep }} de 2:
                 {{ planStep === 1 ? 'Datos del plan' : 'Lugares' }}</p>
@@ -263,41 +317,8 @@
                   <!-- Step 2 -->
                   <div class="flex w-1/2 shrink-0 flex-col gap-3 overflow-y-auto px-1"
                     :inert="planStep !== 2 ? '' : null">
-                    <div class="flex gap-2">
-                      <select v-model="draftCategory" aria-label="Filtrar por categoría"
-                        class="w-1/3 rounded-md border border-gray-300 bg-white px-2 py-2 text-sm">
-                        <option value="">All categories</option>
-                        <option v-for="cat in categories" :key="cat" :value="cat">{{ capitalize(cat) }}</option>
-                      </select>
-                      <input v-model="draftQuery" type="text" placeholder="Search by name..."
-                        aria-label="Buscar lugares por nombre" @keydown.enter.prevent
-                        class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
-                      <button type="button" @click="clearDraftFilters"
-                        class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                        Clear
-                      </button>
-                    </div>
-
-                    <p class="text-xs text-gray-500">{{ draftResults.length }} place(s) found</p>
-                    <ul class="max-h-40 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200">
-                      <li v-for="place in draftResults" :key="place.id" class="flex items-center gap-3 px-3 py-2">
-                        <span class="h-3 w-3 shrink-0 rounded-full"
-                          :style="{ backgroundColor: categoryColor(place.category) }"></span>
-                        <span class="min-w-0 flex-1">
-                          <span class="block truncate text-sm font-medium text-gray-900">{{ place.name }}</span>
-                          <span class="block truncate text-xs text-gray-500">{{ place.address }}</span>
-                        </span>
-                        <button type="button" @click="addToDraft(place)" :aria-label="'Add ' + place.name + ' to the plan'"
-                          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-blue-600">
-                          <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                            <path d="M12 5v14M5 12h14" />
-                          </svg>
-                        </button>
-                      </li>
-                      <li v-if="draftResults.length === 0" class="px-3 py-2 text-sm text-gray-500">No places found.
-                      </li>
-                    </ul>
+                    <p class="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                      Usá el botón + de los lugares del panel derecho para agregarlos a este plan.</p>
 
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
                       In this plan ({{ draftPlaces.length }})</h3>
@@ -359,8 +380,7 @@
                 </template>
               </div>
             </form>
-          </div>
-        </div>
+        </aside>
       </div>
     </div>
 
@@ -387,12 +407,11 @@
           const searchQuery = ref('');
           const categories = ref([]);
           const plansQuery = ref('');
+          const showAllPlans = ref(false);
           const showCreatePlan = ref(false);
           const planNameInput = ref(null);
           const planStep = ref(1);
           const draftPlaces = ref([]);
-          const draftCategory = ref('');
-          const draftQuery = ref('');
           const showAddToPlan = ref(false);
           const placeToAdd = ref(null);
           const availablePlans = ref([]);
@@ -529,22 +548,66 @@
             showCreatePlan.value = false;
             planStep.value = 1;
             draftPlaces.value = [];
-            draftCategory.value = '';
-            draftQuery.value = '';
           };
 
-          // Same filter rules as the sidebar: category plus case-insensitive name match.
-          const draftResults = computed(() => {
-            const query = draftQuery.value.trim().toLowerCase();
-            return places.value.filter(place =>
-              (!draftCategory.value || place.category === draftCategory.value) &&
-              (!query || place.name.toLowerCase().includes(query)));
+          const activePlan = ref(null);
+
+          const loadActiveEntries = async (planId) => {
+            const response = await fetch('/api/plans/' + planId + '/places');
+            if (!response.ok) throw new Error('GET itinerary ' + response.status);
+            return response.json();
+          };
+
+          const openActivePlan = async (id, name) => {
+            try {
+              const entries = await loadActiveEntries(id);
+              showCreatePlan.value = false;
+              activePlan.value = { id, name, entries };
+            } catch (error) {
+              console.error(error);
+              alert('Error al cargar el plan');
+            }
+          };
+
+          const closeActivePlan = () => {
+            activePlan.value = null;
+          };
+
+          const addToActivePlan = async (place) => {
+            const plan = activePlan.value;
+            const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+            try {
+              const response = await fetch('/api/plans/' + plan.id + '/places?placeId=' + place.id, {
+                method: 'POST',
+                headers: { [csrfHeader]: csrfToken }
+              });
+              if (response.status === 409) {
+                alert('El destino ya se encuentra en el plan');
+                return;
+              }
+              if (!response.ok) throw new Error('POST ' + response.status);
+              plan.entries = await loadActiveEntries(plan.id);
+            } catch (error) {
+              console.error(error);
+              alert('Error al agregar el lugar al plan');
+            }
+          };
+
+          document.addEventListener('click', (event) => {
+            const link = event.target.closest('[data-open-plan]');
+            if (!link) return;
+            event.preventDefault();
+            openActivePlan(link.dataset.planId, link.dataset.planName);
           });
 
-          const clearDraftFilters = () => {
-            draftCategory.value = '';
-            draftQuery.value = '';
-          };
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && activePlan.value) closeActivePlan();
+          });
+
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && showCreatePlan.value) closeCreatePlan();
+          });
 
           // The same place may be added repeatedly, so rows are keyed by their own counter.
           const addToDraft = (place) => {
@@ -646,6 +709,16 @@
           // Listen for add-to-plan events from the external JavaScript module
           document.addEventListener('add-to-plan', async (event) => {
             const place = event.detail;
+
+            if (showCreatePlan.value) {
+              addToDraft(place);
+              return;
+            }
+            if (activePlan.value) {
+              await addToActivePlan(place);
+              return;
+            }
+
             placeToAdd.value = place;
 
             try {
@@ -739,6 +812,7 @@
             selectPlace,
             closeDetails,
             plansQuery,
+            showAllPlans,
             filteredPlans,
             showCreatePlan,
             planNameInput,
@@ -746,10 +820,8 @@
             closeCreatePlan,
             planStep,
             draftPlaces,
-            draftCategory,
-            draftQuery,
-            draftResults,
-            clearDraftFilters,
+            activePlan,
+            closeActivePlan,
             addToDraft,
             removeDraft,
             moveDraft,
