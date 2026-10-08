@@ -50,9 +50,13 @@ public class PlansPage extends WebPage {
     this.clickElement("button:has-text('Siguiente')");
   }
 
-  /** Paso 2: agrega el primer lugar del catálogo al borrador del plan. */
+  /**
+   * Paso 2: agrega el primer lugar del catálogo al borrador del plan. El botón + vive en cada
+   * tarjeta de `<article>` del panel derecho (no en un `<li>`), y solo renderiza mientras el
+   * panel de creación está abierto.
+   */
   public void addFirstDraftPlace() {
-    this.page.locator("ul:not([class]) li button[aria-label^='Add ']").first().click();
+    this.page.locator("#app > aside article button[aria-label^='Add ']").first().click();
   }
 
   /** Paso 2: envía el formulario del modal (POST /plans). */

@@ -111,6 +111,13 @@ public class PlacesViewE2E extends E2eBase {
     panel.locator("button").filter(new Locator.FilterOptions().setHasText("Add to plan")).click();
     assertThat(detailsPanel().count(), is(equalTo(1)));
     assertThat(page.url(), equalTo(placesUrl()));
+    // El modal "Add to plan" recién se abre cuando resuelve el fetch('/api/plans') que le
+    // alimenta el select, así que hay que esperarlo y cerrarlo: montado sobre la página
+    // (backdrop z-2000) bloquearía cada click siguiente con un intercept de puntero.
+    Locator addToPlanDialog = page.locator("div[role='dialog']");
+    addToPlanDialog.waitFor();
+    addToPlanDialog.locator("button:has-text('Cancelar')").click();
+    page.waitForFunction("() => document.querySelector(\"div[role='dialog']\") === null");
 
     panel.locator("button[aria-label='Close place details']").click();
     page.waitForFunction(
