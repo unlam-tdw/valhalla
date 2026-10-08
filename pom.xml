@@ -501,7 +501,15 @@
                                 <rule>
                                     <element>PACKAGE</element>
                                     <includes>
+                                        <!-- Same trap as the wildcard above, mirrored: the plain
+                                             package name only matches com.valhalla.infrastructure
+                                             itself (the seeders). Every subpackage (.web,
+                                             .security, .plan) is left out of the rule, so a
+                                             package could sit under 80% forever without failing
+                                             the build. Both spellings are needed: the wildcard
+                                             does not match the package it is attached to. -->
                                         <include>com.valhalla.infrastructure</include>
+                                        <include>com.valhalla.infrastructure.*</include>
                                     </includes>
                                     <limits>
                                         <limit>

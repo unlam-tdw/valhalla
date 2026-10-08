@@ -69,12 +69,18 @@ public class CurrentUserControllerAdvice {
   /**
    * Human-readable identity, or null when there is no session to speak for. Prefers the real
    * name carried by {@link AppUserDetails}; anything else falls back to the login name.
+   *
+   * <p>El principal de una request real es el {@link Authentication}, no la identidad de adentro:
+   * {@code request.getUserPrincipal()} devuelve el token que Spring Security guardó en el contexto.
+   * Por eso el token se desenvuelve antes de mirarlo: sin ese paso {@link AppUserDetails} nunca se
+   * ve, la rama del nombre real queda muerta y el navbar termina mostrando el email de login.
    */
   private static String displayNameOf(Principal principal) {
     if (principal == null || principal instanceof AnonymousAuthenticationToken) {
       return null;
     }
-    if (principal instanceof AppUserDetails appUser) {
+    Object identity = principal instanceof Authentication auth ? auth.getPrincipal() : principal;
+    if (identity instanceof AppUserDetails appUser) {
       String first = trimToNull(appUser.getFirstName());
       if (first != null) {
         String last = trimToNull(appUser.getLastName());
