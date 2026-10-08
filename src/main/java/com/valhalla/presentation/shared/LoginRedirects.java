@@ -40,11 +40,24 @@ public final class LoginRedirects {
    * @return {@code /admin/home} para un ADMIN, la vista de exploración (/explore) para el resto
    */
   public static String landingFor(Authentication authentication) {
-    boolean isAdmin = authentication
+    return isAdmin(authentication) ? ADMIN_LANDING : USER_LANDING;
+  }
+
+  /**
+   * Si la principal es de rol ADMIN. La regla única que comparten el destino de login y el
+   * navbar: acepta {@code ROLE_ADMIN} (como arma Spring Security los roles) y {@code ADMIN} crudo.
+   *
+   * @param authentication un principal, o null si no hay sesión
+   * @return true sólo si las autoridades dicen ADMIN
+   */
+  public static boolean isAdmin(Authentication authentication) {
+    if (authentication == null) {
+      return false;
+    }
+    return authentication
       .getAuthorities()
       .stream()
       .map(GrantedAuthority::getAuthority)
       .anyMatch(role -> "ROLE_ADMIN".equals(role) || "ADMIN".equals(role));
-    return isAdmin ? ADMIN_LANDING : USER_LANDING;
   }
 }

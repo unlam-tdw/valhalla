@@ -36,16 +36,13 @@ public class UserAuthViewE2E extends E2eBase {
   private static final String UNKNOWN_EMAIL = "nadie@unlam.edu.ar";
 
   @Test
-  void shouldRegisterLoginAndLandOnTheExplorePage() throws MalformedURLException {
+  void shouldRegisterAndLandSignedInOnTheExplorePage() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
-
-    givenUserSignsInWith(EMAIL, PASSWORD);
-
-    thenShouldBeOnPath("/explore");
 
     // The navbar is one fragment shared by both chains, so its brand is covered once on the admin
     // login page. What has no counterpart there is the signed-in half of the fragment, which only
-    // renders once a session exists and is what this chain exercises.
+    // renders once a session exists — and registration is what has to open that session, without
+    // a second trip through the login form.
     WebPage landing = new WebPage(page);
     assertThat(
       "the authenticated navbar shows the initial of the real first name",
@@ -68,6 +65,9 @@ public class UserAuthViewE2E extends E2eBase {
   @Test
   void shouldRecoverPasswordAndSignIn() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
+    // Registration already opened a session; the rotation that follows must not ride on it, so
+    // the recovery and the new sign-in happen from a clean, signed-out browser.
+    signOut();
 
     String tempPassword = whenUserRecoversPassword(EMAIL);
     assertThat("recovery must hand back a password", tempPassword, not(emptyOrNullString()));
@@ -80,7 +80,10 @@ public class UserAuthViewE2E extends E2eBase {
   @Test
   void shouldSignOutAndReturnToLogin() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
-    LoginPage loginPage = givenUserSignsInWith(EMAIL, PASSWORD);
+    // The constructor navigates, and /auth/login bounces a live session back to /explore: the
+    // page object ends up on the navbar that carries the Logout button, and stays on the browser
+    // the logout notice will render in.
+    LoginPage loginPage = new LoginPage(page, "/auth/login");
 
     loginPage.clickLogout();
 
@@ -149,6 +152,9 @@ public class UserAuthViewE2E extends E2eBase {
   @Test
   void shouldTellTheUserTheCredentialsAreWrong() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
+    // The session the registration opened would swallow the failed attempt (a live session is
+    // already authenticated), so the wrong credentials have to be typed from a signed-out state.
+    signOut();
 
     LoginPage loginPage = givenUserSignsInWith(EMAIL, WRONG_PASSWORD);
 
@@ -183,7 +189,19 @@ public class UserAuthViewE2E extends E2eBase {
     registerPage.typeConfirmPassword(password);
     registerPage.clickRegister();
 
-    thenShouldBeOnPath("/auth/login");
+    // Registrarse deja la sesión abierta: el mismo redirect que haría un login normal, sin pasar
+    // por el formulario de login (AC-01).
+    thenShouldBeOnPath("/explore");
+  }
+
+  /**
+   * Closes the session from whatever page carries the navbar, landing on the login page with the
+   * signed-out notice. The flows that sign in again need a clean browser first: registration now
+   * opens the session itself.
+   */
+  private void signOut() {
+    page.locator("button:text-is('Logout')").click();
+    new WebPage(page).waitForPath("/auth/login");
   }
 
   /** Hands the page back so a caller can keep driving the page the sign-in left it on. */

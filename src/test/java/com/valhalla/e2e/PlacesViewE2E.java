@@ -1,6 +1,7 @@
 package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -28,6 +29,19 @@ public class PlacesViewE2E extends E2eBase {
       new com.microsoft.playwright.Page.WaitForSelectorOptions().setTimeout(10000)
     );
     waitForPlaceCount(10);
+  }
+
+  /**
+   * AC-13: el navbar se decide por área, no por rol. El arrange de esta clase es justo el caso
+   * reportado —una sesión ADMIN parada en /explore— y tiene que ver el menú de usuario (sin
+   * "Users"); el conjunto se pinnea entero para que un item fantasma también falle.
+   */
+  @Test
+  void shouldShowTheUserNavbarToAnAdminBrowsingTheExplore() {
+    assertThat(
+      new WebPage(page).getNavbarItems(),
+      contains("PlanIt", "Explore", "Plans", "Logout")
+    );
   }
 
   @Test

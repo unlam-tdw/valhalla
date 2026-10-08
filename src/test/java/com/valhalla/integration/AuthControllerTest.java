@@ -99,12 +99,18 @@ public class AuthControllerTest {
 
   // --- I-02 ---
 
+  /**
+   * Registrarse deja la sesión iniciada: el redirect al landing es solo la primera prueba, la real
+   * es que esa misma sesión alcanza una página que exige estar autenticado sin volver a loguearse.
+   */
   @Test
-  public void shouldRegisterAndThenLetTheUserLogIn() throws Exception {
+  public void shouldRegisterAndSignInTheUserRightAway() throws Exception {
     String email = uniqueEmail();
+    MockHttpSession session = new MockHttpSession();
 
     this.mockMvc.perform(
         post("/auth/register")
+          .session(session)
           .with(csrf())
           .param("firstName", FIRST_NAME)
           .param("lastName", LAST_NAME)
@@ -113,13 +119,11 @@ public class AuthControllerTest {
           .param("confirmPassword", PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/auth/login"));
-
-    this.mockMvc.perform(
-        post(VALIDATE_LOGIN).with(csrf()).param("username", email).param("password", PASSWORD)
-      )
-      .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl("/explore"));
+
+    this.mockMvc.perform(get("/plans").session(session))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("action=\"/auth/logout\"")));
   }
 
   // --- I-03 ---
@@ -356,6 +360,25 @@ public class AuthControllerTest {
     this.mockMvc.perform(get("/"))
       .andExpect(status().isOk())
       .andExpect(content().string(containsString("action=\"/auth/logout\"")));
+  }
+
+  /** La variante admin del navbar vive solo en /admin/**: fuera de ahí un ADMIN navega como usuario. */
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldShowTheUserNavbarWhenAnAdminBrowsesTheUserArea() throws Exception {
+    this.mockMvc.perform(get("/explore"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("href=\"/explore\"")))
+      .andExpect(content().string(not(containsString("href=\"/admin/users\""))));
+  }
+
+  @Test
+  @WithMockUser(username = "admin@unlam.edu.ar", roles = { "ADMIN" })
+  public void shouldShowTheAdminNavbarInsideTheAdminArea() throws Exception {
+    this.mockMvc.perform(get("/admin/home"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("href=\"/admin/users\"")))
+      .andExpect(content().string(not(containsString("href=\"/explore\""))));
   }
 
   // --- AC-04, AC-14 ---

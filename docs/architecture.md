@@ -121,7 +121,7 @@ graph LR
 |--------|-------|------------|------|
 | GET | `/auth/login` | AuthController | pages/auth/user/login |
 | GET | `/auth/register` | AuthController | pages/auth/user/register |
-| POST | `/auth/register` | AuthController | redirect → /auth/login |
+| POST | `/auth/register` | AuthController | redirect → /explore (registro + sesión iniciada) |
 | GET | `/auth/forgot-password` | AuthController | pages/auth/user/forgot-password |
 | POST | `/auth/recover` | AuthController | pages/auth/user/recovered |
 | POST | `/auth/validate-login` | Spring Security | redirect → / (USER) · /admin/home (ADMIN) |

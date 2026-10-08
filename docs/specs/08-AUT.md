@@ -22,7 +22,7 @@ sin sesión redirigen a `/auth/login`.
 
 | # | Criterio |
 |---|----------|
-| AC-01 | Un visitante puede crear cuenta desde `/auth/register` con email + password. Queda activa inmediatamente con rol `USER` |
+| AC-01 | Un visitante puede crear cuenta desde `/auth/register` con email + password. Queda activa inmediatamente con rol `USER`, y el registro deja la sesión abierta (cae en `/explore`, sin pasar por `/auth/login`) |
 | AC-02 | El email debe ser válido y la password mínimo 6 caracteres. Errores visibles en el form |
 | AC-03 | Un email ya registrado no puede volver a registrarse (error en `/auth/register`) |
 | AC-04 | Login en `/auth/login` con email + password correctos de una cuenta activa → inicia sesión y redirige a `/` (usuario `USER`). Un `ADMIN` va a `/admin/home` |
@@ -34,7 +34,7 @@ sin sesión redirigen a `/auth/login`.
 | AC-10 | Las rutas `/auth/**` están abiertas a **quien no sea admin**: un anónimo puede alcanzarlas sin sesión (si no nadie podría registrarse) y un `USER` las usa entera; un `ADMIN` que las cruce es redirigido a `/admin/home` |
 | AC-11 | Rutas protegidas de usuario (`/places`, `/plans`, `/plans/**`) sin sesión → redirigen a `/auth/login` (no a `/admin/login`) |
 | AC-12 | `/admin/**` requiere rol `ADMIN` **sin excepción**, `/admin/home` incluido. Solo `/admin/login` y `/admin/validate-login` quedan abiertos, porque son el punto de entrada. El flujo admin queda intacto en `/admin/login` |
-| AC-13 | Navbar sin sesión: link "Login" → `/auth/login` y "Register" → `/auth/register`. Con sesión: logout |
+| AC-13 | Navbar sin sesión: link "Login" → `/auth/login` y "Register" → `/auth/register`. Con sesión: logout. Los items de menú (brand, "Users", "Explore", "Plans") se deciden por el **área** visitada: la variante admin solo dentro de `/admin/**`, la de usuario en el resto, aunque la sesión sea de `ADMIN`. El logout sigue decidido por rol |
 | AC-14 | Un `ADMIN` que entre a `/admin/**` funciona normal; un `USER` y un `ADMIN` que cruzan la línea entre las dos superficies (**no** un anónimo: `/admin/login` tiene que seguir rindiendo) son devueltos a su propio home, no con un 403 |
 
 ## Escenarios de Test
@@ -46,7 +46,7 @@ sin sesión redirigen a `/auth/login`.
 | U-01 | `showLogin()` devuelve vista `pages/auth/user/login` | n/a |
 | U-02 | `showLogin()` con `error` agrega atributo `error` al model | AC-05 |
 | U-03 | `showRegister()` devuelve vista `pages/auth/user/register` con form vacío | n/a |
-| U-04 | `register()` con datos válidos → redirige a `/auth/login` | AC-01 |
+| U-04 | `register()` con datos válidos → inicia sesión y redirige a `/explore` | AC-01 |
 | U-05 | `register()` con email inválido → error de validación en `email` | AC-02 |
 | U-06 | `register()` con password < 6 chars → error de validación en `password` | AC-02 |
 | U-07 | `register()` con email duplicado → vuelve a `register` con error | AC-03 |
@@ -59,7 +59,7 @@ sin sesión redirigen a `/auth/login`.
 | # | Test | AC que cubre |
 |---|------|-------------|
 | I-01 | `GET /auth/register` → 200, vista registro | n/a |
-| I-02 | `POST /auth/register` válido → redirige a `/auth/login` y el usuario puede loguearse | AC-01, AC-04 |
+| I-02 | `POST /auth/register` válido → redirige a `/explore` con la sesión ya abierta (la misma sesión alcanza `/plans` sin loguearse de nuevo) | AC-01, AC-04 |
 | I-03 | `POST /auth/register` email duplicado → 200, vista registro con error | AC-03 |
 | I-04 | `POST /auth/validate-login` credenciales válidas → redirige a landing de usuario | AC-04 |
 | I-05 | `POST /auth/validate-login` credenciales inválidas → redirige a `/auth/login?error=true` | AC-05 |
@@ -75,6 +75,8 @@ sin sesión redirigen a `/auth/login`.
 | I-15 | `GET /` con sesión `USER` → el navbar tiene form de logout a `/auth/logout` | AC-13 |
 | I-16 | `GET /admin/users` con la sesión creada por `POST /auth/validate-login` de un `ADMIN` → 200, no 403: el login por el form de usuario lo deja en `/admin/home` y con los permisos admin intactos | AC-04, AC-14 |
 | I-17 | `GET /auth/forgot-password` → 200, vista recuperación con el form ya bound (el botón `#btn-recover` renderiza) | n/a |
+| I-18 | `GET /explore` con sesión `ADMIN` → navbar de usuario (link a `/explore`, sin link a `/admin/users`) | AC-13 |
+| I-19 | `GET /admin/home` con sesión `ADMIN` → navbar admin (link a `/admin/users`, sin link a `/explore`) | AC-13 |
 
 ### Tests de Seguridad (`integration/SecurityConfigTest.java`)
 
@@ -98,17 +100,24 @@ sobre el email mal formado).
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `shouldRegisterLoginAndLandOnTheLandingPage` | `/auth/register` → crear cuenta → `/auth/login` → `/` con el navbar mostrando la sesión | AC-01, AC-04 |
-| E-02 | `shouldRecoverPasswordAndSignIn` | `/auth/forgot-password` → password temporal → login → `/` | AC-07, AC-08 |
-| E-03 | `shouldSignOutAndReturnToLogin` | login → navbar "Logout" → `/auth/login` con el aviso de sesión cerrada | AC-09 |
+| E-01 | `shouldRegisterAndLandSignedInOnTheExplorePage` | `/auth/register` → crear cuenta → `/explore` con la sesión ya abierta (navbar de usuario completo) | AC-01, AC-04 |
+| E-02 | `shouldRecoverPasswordAndSignIn` | registro → logout → `/auth/forgot-password` → password temporal → login → `/explore` | AC-07, AC-08 |
+| E-03 | `shouldSignOutAndReturnToLogin` | registro (sesión abierta) → navbar "Logout" → `/auth/login` con el aviso de sesión cerrada | AC-09 |
 | E-04 | `shouldTellTheUserTheEmailIsAlreadyRegistered` | registrar dos veces el mismo email → alerta en el form | AC-03 |
 | E-05 | `shouldRejectAPasswordShorterThanSixCharacters` | password de 3 chars → error de campo, sin `minlength` que lo frene | AC-02 |
 | E-06 | `shouldNotSendAMalformedEmailToTheServer` | email mal formado → el navegador lo rechaza, el request no sale | AC-02 |
-| E-07 | `shouldTellTheUserTheCredentialsAreWrong` | login con password incorrecta → alerta en `/auth/login?error=true` | AC-05 |
+| E-07 | `shouldTellTheUserTheCredentialsAreWrong` | registro → logout → login con password incorrecta → alerta en `/auth/login?error=true` | AC-05 |
 | E-08 | `shouldTellTheUserTheEmailIsUnknownOnRecovery` | recuperación con email inexistente → "Email no encontrado" | AC-08 |
 
 E-03 y E-07 asertan el texto que renderiza la vista, no la URL. Un assert de path pasa igual
 contra la página de error, así que no distingue un logout de un fallo de login.
+
+E-02 y E-07 hacen logout antes de volver a loguearse: el registro ya abre la sesión, y una
+sesión viva haría inútil tanto la recuperación como el intento de login fallido.
+
+El navbar del ADMIN en `/explore` (AC-13, la otra mitad del cambio) vive en
+`PlacesViewE2E#shouldShowTheUserNavbarToAnAdminBrowsingTheExplore`: su arrange ya es
+"sesión admin parada en /explore", que es exactamente el escenario reportado.
 
 ## Notas / decisiones de diseño
 
@@ -150,10 +159,28 @@ contra la página de error, así que no distingue un logout de un fallo de login
   service; uno bien formado que no existe responde "Email no encontrado". Son dos mensajes a
   propósito: el primero es un error de tipeo corregible, el segundo revela existencia y por eso
   solo aparece después de pasar la validación de formato.
-- **Landing post-login (AC-04)**: `USER` → `/`; `ADMIN` → `/admin/home` (por rol). Apuntaba a
+- **Landing post-login (AC-04)**: `USER` → `/explore`; `ADMIN` → `/admin/home` (por rol). Es la
+  misma regla que ahora decide dónde aterriza el registro (AC-01). Apuntaba a
   `/plans`, que ningún controller sirve: el login terminaba en la página de error devuelta con
   HTTP 200, así que el destino roto era invisible. `/` sí existe (`LandingController`) y es
   público. `/plans` sigue sin construirse: es el trabajo de 03-PLN, no de este spec.
+- **Registro = entrar (AC-01)**: `POST /auth/register` no manda al login: crea la cuenta y abre
+  la sesión en la misma request con `infrastructure/security/ProgrammaticSignIn`, y el destino lo
+  decide `LoginRedirects.landingFor`, la misma regla que un login normal. Detalles que no son
+  opcionales: el contexto **no se persiste solo** (`SecurityContextHolderFilter` de Spring
+  Security 6 sólo carga y limpia, guardar es trabajo de cada mecanismo de autenticación), así que
+  hace falta el `SecurityContextRepository.saveContext(...)` explícito; y hace falta
+  `request.changeSessionId()` para replicar la protección contra session fixation que el form de
+  login aplica por filtro (si no, la sesión anónima que trajo el form sería la sesión
+  autenticada). También se guarda `loginTime`, por paridad con `CustomAuthenticationSuccessHandler`.
+- **Navbar por área, no por rol (AC-13)**: la variante admin del navbar (brand → `/admin/home`,
+  link "Users") se renderiza sólo dentro de `/admin/**`. Un `ADMIN` en `/explore` o `/plans` ve el
+  navbar de usuario (Explore/Plans/avatar). La condición vive en un solo atributo de model,
+  `showAdminNav` (`CurrentUserControllerAdvice`, rol **y** path), porque la plantilla no puede
+  expresar bien ese OR combinando `sec:authorize` con `th:if`: los items de menú usan
+  `th:if`/`th:unless` sobre ese atributo y los formularios de logout siguen con `sec:authorize`
+  por rol — `/auth/logout` está cerrado para `ADMIN` (cadena 1), así que el logout de un admin
+  apunta a `/admin/logout` aunque los links de al lado sean los del usuario.
 - **Registro (AC-01/02/03)**: solo email + password, con un DTO propio,
   `presentation/shared/RegisterRequest` (`@NotBlank` + `@Email` en email, `@Size(min = 6)` en
   password). **No** se reusa `NewUserRequest`: ese pide `firstName`/`lastName` y su `@NotBlank`
@@ -242,7 +269,9 @@ public class SecurityConfig {
 - `GET /auth/register` — vista `pages/auth/user/register` con form.
 - `POST /auth/register` — valida `RegisterRequest` (`@NotBlank` + `@Email` en email,
   `@Size(min = 6)` en password) → `LoginService.register(email, password)` (crea rol `USER`
-  activo) → redirige `/auth/login`. Email duplicado / fallo → vuelve a `register` con error.
+  activo) → `ProgrammaticSignIn.signIn(...)` y redirige al landing que fija `LoginRedirects`
+  (`/explore` para `USER`). El registro entra con la sesión abierta, no manda al login. Email
+  duplicado / fallo → vuelve a `register` con error.
 - `GET /auth/forgot-password` — vista `pages/auth/user/forgot-password`.
 - `POST /auth/recover` — valida `RecoverPasswordRequest` (`@Email`); mal formado → vuelve al
   form con "Email is not valid" sin tocar la base. Bien formado →

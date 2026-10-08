@@ -1,9 +1,12 @@
 package com.valhalla.infrastructure.web;
 
 import com.valhalla.infrastructure.security.AppUserDetails;
+import com.valhalla.presentation.shared.LoginRedirects;
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.util.Locale;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
@@ -17,6 +20,10 @@ import org.springframework.web.bind.annotation.ModelAttribute;
  * with a name) for synthetic MockMvc principals such as {@code SecurityMockMvcRequestPostProcessors.user(...)},
  * and null or an anonymous token when there is no session. Every one of those must render the
  * navbar without throwing or producing an empty avatar.
+ *
+ * <p>También expone {@code showAdminNav}, la variante del navbar: rol y área resueltos en una
+ * sola cuenta, porque el template necesita el negado de esa combinación (usuario = no-admin o
+ * no-área-admin) y ese OR no cae limpio repartido entre {@code sec:authorize} y {@code th:if}.
  */
 @ControllerAdvice
 public class CurrentUserControllerAdvice {
@@ -33,6 +40,30 @@ public class CurrentUserControllerAdvice {
   @ModelAttribute("userDisplayName")
   public String userDisplayName(Principal principal) {
     return displayNameOf(principal);
+  }
+
+  /**
+   * Si el navbar debe rendir su variante de admin (marca → /admin/home y link "Users"). Es rol
+   * <em>y</em> área: un ADMIN navegando el área de usuario (/explore, /plans, /) ve el navbar de
+   * usuario, y la variante admin queda para /admin/**. No es sólo una cuestión estética: el
+   * navbar de usuario es el que ofrece las rutas que ese admin está visitando.
+   *
+   * <p>El logout no entra en esta cuenta y sigue siendo del rol: {@code /auth/logout} está
+   * cerrado para ADMIN (cadena 1 de SecurityConfig), así que el botón de un admin apunta a
+   * {@code /admin/logout} aunque los links sean los de usuario.
+   */
+  @ModelAttribute("showAdminNav")
+  public boolean showAdminNav(Authentication authentication, HttpServletRequest request) {
+    return LoginRedirects.isAdmin(authentication) && isInAdminArea(request);
+  }
+
+  /**
+   * La ruta pedida, sin el context path, preguntando por el segmento entero: {@code /admin} o
+   * {@code /admin/...}. Un prefijo suelto alcanzaría a un hipotético {@code /administrator}.
+   */
+  private static boolean isInAdminArea(HttpServletRequest request) {
+    String path = request.getRequestURI().substring(request.getContextPath().length());
+    return "/admin".equals(path) || path.startsWith("/admin/");
   }
 
   /**

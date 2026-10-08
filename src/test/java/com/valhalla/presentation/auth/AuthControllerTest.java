@@ -6,6 +6,10 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -14,13 +18,18 @@ import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
+import com.valhalla.infrastructure.security.ProgrammaticSignIn;
 import com.valhalla.infrastructure.user.RecoverPasswordService;
 import com.valhalla.presentation.shared.RecoverPasswordRequest;
 import com.valhalla.presentation.shared.RegisterRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.ui.ExtendedModelMap;
@@ -50,13 +59,19 @@ public class AuthControllerTest {
 
   private LoginService loginService;
   private RecoverPasswordService recoverPasswordService;
+  private ProgrammaticSignIn programmaticSignIn;
+  private HttpServletRequest httpRequest;
+  private HttpServletResponse httpResponse;
   private AuthController controller;
 
   @BeforeEach
   public void init() {
     loginService = mock(LoginService.class);
     recoverPasswordService = mock(RecoverPasswordService.class);
-    controller = new AuthController(loginService, recoverPasswordService);
+    programmaticSignIn = mock(ProgrammaticSignIn.class);
+    httpRequest = new MockHttpServletRequest();
+    httpResponse = new MockHttpServletResponse();
+    controller = new AuthController(loginService, recoverPasswordService, programmaticSignIn);
   }
 
   // --- U-01, U-02 ---
@@ -138,14 +153,34 @@ public class AuthControllerTest {
     assertThat(((RegisterRequest) model.get("registerRequest")).getEmail(), is(nullValue()));
   }
 
+  /**
+   * U-04: registrar ya no termina en el form de login. El mismo paso que crea la cuenta la abre
+   * (ProgrammaticSignIn) y el destino sale de la misma regla que un login normal, que para un
+   * rol USER es /explore.
+   */
   @Test
-  public void shouldRedirectToLoginAfterSuccessfulRegistration() {
+  public void shouldSignInAndRedirectToTheExploreAfterSuccessfulRegistration() {
     RegisterRequest request = wellFormedRequest();
+    when(programmaticSignIn.signIn(eq(EMAIL), same(httpRequest), same(httpResponse)))
+      .thenReturn(
+        new TestingAuthenticationToken(
+          EMAIL,
+          "n/a",
+          List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        )
+      );
 
-    String view = controller.handleRegister(request, noErrors(request), new ExtendedModelMap());
+    String view = controller.handleRegister(
+      request,
+      noErrors(request),
+      new ExtendedModelMap(),
+      httpRequest,
+      httpResponse
+    );
 
-    assertThat(view, is("redirect:/auth/login"));
+    assertThat(view, is("redirect:/explore"));
     verify(loginService).register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
+    verify(programmaticSignIn).signIn(EMAIL, httpRequest, httpResponse);
   }
 
   // --- U-05, U-06 ---
@@ -156,7 +191,13 @@ public class AuthControllerTest {
     request.setEmail("not-an-email");
     BeanPropertyBindingResult bindingResult = errorsOf(request);
 
-    String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
+    String view = controller.handleRegister(
+      request,
+      bindingResult,
+      new ExtendedModelMap(),
+      httpRequest,
+      httpResponse
+    );
 
     assertThat(view, is(REGISTER_VIEW));
     assertThat(fieldNames(bindingResult), hasItem("email"));
@@ -170,7 +211,13 @@ public class AuthControllerTest {
     request.setConfirmPassword("123");
     BeanPropertyBindingResult bindingResult = errorsOf(request);
 
-    String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
+    String view = controller.handleRegister(
+      request,
+      bindingResult,
+      new ExtendedModelMap(),
+      httpRequest,
+      httpResponse
+    );
 
     assertThat(view, is(REGISTER_VIEW));
     assertThat(fieldNames(bindingResult), hasItem("password"));
@@ -183,7 +230,13 @@ public class AuthControllerTest {
     request.setConfirmPassword(PASSWORD);
     BeanPropertyBindingResult bindingResult = errorsOf(request);
 
-    String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
+    String view = controller.handleRegister(
+      request,
+      bindingResult,
+      new ExtendedModelMap(),
+      httpRequest,
+      httpResponse
+    );
 
     assertThat(view, is(REGISTER_VIEW));
     assertThat(fieldNames(bindingResult), hasItem("firstName"));
@@ -197,7 +250,13 @@ public class AuthControllerTest {
     request.setConfirmPassword("otra-clave");
     BeanPropertyBindingResult bindingResult = errorsOf(request);
 
-    String view = controller.handleRegister(request, bindingResult, new ExtendedModelMap());
+    String view = controller.handleRegister(
+      request,
+      bindingResult,
+      new ExtendedModelMap(),
+      httpRequest,
+      httpResponse
+    );
 
     assertThat(view, is(REGISTER_VIEW));
     assertThat(fieldNames(bindingResult), hasItem("confirmPassword"));
@@ -218,10 +277,18 @@ public class AuthControllerTest {
       .register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
     ExtendedModelMap model = new ExtendedModelMap();
 
-    String view = controller.handleRegister(request, noErrors(request), model);
+    String view = controller.handleRegister(
+      request,
+      noErrors(request),
+      model,
+      httpRequest,
+      httpResponse
+    );
 
     assertThat(view, is(REGISTER_VIEW));
     assertThat((String) model.get("errorMessage"), is("Ese email ya está registrado"));
+    // Un registro rechazado no abre sesión: el signIn vive después del register en el try.
+    verify(programmaticSignIn, never()).signIn(anyString(), any(), any());
   }
 
   // --- U-08, U-09, U-10 ---
