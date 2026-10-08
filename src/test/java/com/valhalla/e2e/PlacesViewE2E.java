@@ -1,6 +1,7 @@
 package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -28,6 +29,19 @@ public class PlacesViewE2E extends E2eBase {
       new com.microsoft.playwright.Page.WaitForSelectorOptions().setTimeout(10000)
     );
     waitForPlaceCount(10);
+  }
+
+  /**
+   * AC-13: el navbar se decide por área, no por rol. El arrange de esta clase es justo el caso
+   * reportado —una sesión ADMIN parada en /explore— y tiene que ver el menú de usuario (sin
+   * "Users"); el conjunto se pinnea entero para que un item fantasma también falle.
+   */
+  @Test
+  void shouldShowTheUserNavbarToAnAdminBrowsingTheExplore() {
+    assertThat(
+      new WebPage(page).getNavbarItems(),
+      contains("PlanIt", "Explore", "Plans", "Logout")
+    );
   }
 
   @Test
@@ -111,6 +125,13 @@ public class PlacesViewE2E extends E2eBase {
     panel.locator("button").filter(new Locator.FilterOptions().setHasText("Add to plan")).click();
     assertThat(detailsPanel().count(), is(equalTo(1)));
     assertThat(page.url(), equalTo(placesUrl()));
+    // El modal "Add to plan" recién se abre cuando resuelve el fetch('/api/plans') que le
+    // alimenta el select, así que hay que esperarlo y cerrarlo: montado sobre la página
+    // (backdrop z-2000) bloquearía cada click siguiente con un intercept de puntero.
+    Locator addToPlanDialog = page.locator("div[role='dialog']");
+    addToPlanDialog.waitFor();
+    addToPlanDialog.locator("button:has-text('Cancelar')").click();
+    page.waitForFunction("() => document.querySelector(\"div[role='dialog']\") === null");
 
     panel.locator("button[aria-label='Close place details']").click();
     page.waitForFunction(
@@ -120,7 +141,7 @@ public class PlacesViewE2E extends E2eBase {
     page.waitForFunction("() => document.querySelector('.leaflet-popup') === null");
     assertThat(page.locator(".leaflet-popup").count(), is(equalTo(0)));
 
-    cardNamed("MALBA").locator("button:text-is('View details →')").click();
+    cardNamed("MALBA").locator("span:text-is('View details →')").click();
     waitForSelectedPlace("MALBA");
     assertThat(page.url(), equalTo(placesUrl()));
   }
@@ -156,7 +177,7 @@ public class PlacesViewE2E extends E2eBase {
   }
 
   private void clickCard(String placeName) {
-    cardNamed(placeName).locator("button[aria-label^='Show details for ']").click();
+    cardNamed(placeName).click();
   }
 
   private Locator cardNamed(String placeName) {
@@ -180,7 +201,7 @@ public class PlacesViewE2E extends E2eBase {
   }
 
   private String placesUrl() {
-    return new WebPage(page).baseUrl() + "/places";
+    return new WebPage(page).baseUrl() + "/explore";
   }
 
   private Locator placeCards() {

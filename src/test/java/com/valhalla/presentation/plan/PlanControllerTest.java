@@ -15,13 +15,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.planplace.PlanPlace;
+import com.valhalla.domain.planplace.PlanPlaceService;
+import com.valhalla.domain.user.User;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -45,7 +48,6 @@ public class PlanControllerTest {
 
   private static final String OWNER_EMAIL = "dueno@test.com";
   private static final String LIST_VIEW = "pages/plans/list";
-  private static final String FORM_VIEW = "pages/plans/new";
   private static final String DETAIL_VIEW = "pages/plans/detail";
   private static final Long PLAN_ID = 7L;
 
@@ -53,16 +55,18 @@ public class PlanControllerTest {
 
   private PlanController controller;
   private PlanService planServiceMock;
+  private PlanPlaceService planPlaceServiceMock;
   private Authentication authentication;
 
   @BeforeEach
   public void init() {
     this.planServiceMock = mock(PlanService.class);
-    this.controller = new PlanController(this.planServiceMock);
+    this.planPlaceServiceMock = mock(PlanPlaceService.class);
+    this.controller = new PlanController(this.planServiceMock, this.planPlaceServiceMock);
     this.authentication = new UsernamePasswordAuthenticationToken(OWNER_EMAIL, null);
   }
 
-  // --- GET /plans, GET /plans/new, GET /plans/{id} ---
+  // --- GET /plans, GET /plans/{id} ---
 
   @Test
   public void T_PLN_060_listPlans_pideLosPlanesDelEmailAutenticado() {
@@ -80,25 +84,10 @@ public class PlanControllerTest {
   }
 
   @Test
-  public void T_PLN_061_showNewPlanForm_devuelveElFormularioVacio() {
-    // when
-    ModelAndView view = this.controller.showNewPlanForm();
-
-    // then
-    assertThat(view.getViewName(), is(FORM_VIEW));
-    PlanRequest form = (PlanRequest) view.getModel().get("plan");
-    assertThat(form, is(notNullValue()));
-    assertThat(form.getName(), is(nullValue()));
-    // No planId: a blank form must post to POST /plans, never to an update of some plan id.
-    assertThat(view.getModel().get("planId"), is(nullValue()));
-    verifyNoInteractions(this.planServiceMock);
-  }
-
-  @Test
   public void T_PLN_062_showPlan_cargaElPlanDelDueno() {
     // given
     Plan plan = plan(PLAN_ID, "Viaje a Bariloche");
-    when(this.planServiceMock.getOwnedPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
 
     // when
     ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
@@ -106,13 +95,32 @@ public class PlanControllerTest {
     // then
     assertThat(view.getViewName(), is(DETAIL_VIEW));
     assertThat(view.getModel().get("plan"), is(sameInstance(plan)));
-    verify(this.planServiceMock, times(1)).getOwnedPlan(PLAN_ID, OWNER_EMAIL);
+    verify(this.planServiceMock, times(1)).getParticipatingPlan(PLAN_ID, OWNER_EMAIL);
+  }
+
+  @Test
+  public void showPlan_ordenaLosParticipantesPorEmailSinModificarElPlan() {
+    Plan plan = plan(PLAN_ID, "Participantes");
+    User zoe = new User();
+    zoe.setEmail("zoe@test.com");
+    User ana = new User();
+    ana.setEmail("Ana@test.com");
+    plan.getParticipants().addAll(List.of(zoe, ana));
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+
+    ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    assertThat(
+      view.getModel().get("participantEmails"),
+      is(List.of("Ana@test.com", "zoe@test.com"))
+    );
+    assertThat(plan.getParticipants(), is(List.of(zoe, ana)));
   }
 
   @Test
   public void T_PLN_063_showPlan_propagaPlanNotFoundException() {
     // given
-    when(this.planServiceMock.getOwnedPlan(999L, OWNER_EMAIL))
+    when(this.planServiceMock.getParticipatingPlan(999L, OWNER_EMAIL))
       .thenThrow(new PlanNotFoundException());
 
     // when and then
@@ -125,7 +133,7 @@ public class PlanControllerTest {
   // --- POST /plans ---
 
   @Test
-  public void T_PLN_064_createPlan_conErroresVuelveAlFormularioSinTocarElServicio() {
+  public void T_PLN_064_createPlan_conErroresRedirigeAExploreSinTocarElServicio() {
     // given
     PlanRequest form = new PlanRequest("   ", null, null, null);
     BeanPropertyBindingResult errors = errorsOf(form);
@@ -133,10 +141,8 @@ public class PlanControllerTest {
     // when
     ModelAndView view = this.controller.createPlan(form, errors, this.authentication);
 
-    // then
-    assertThat(view.getViewName(), is(FORM_VIEW));
-    assertThat(view.getModel().get("plan"), is(sameInstance(form)));
-    assertThat(view.getModel().get("planId"), is(nullValue()));
+    // then: sin formulario standalone, un POST inválido vuelve a /explore
+    assertThat(view.getViewName(), is(equalTo("redirect:/explore")));
     assertThat(fieldNames(errors), hasItem("name"));
     verify(this.planServiceMock, never()).createPlan(any(Plan.class), anyString());
   }
@@ -173,7 +179,40 @@ public class PlanControllerTest {
   // --- PUT /plans/{id} ---
 
   @Test
-  public void T_PLN_066_updatePlan_conErroresVuelveAlFormularioConElIdDelPlan() {
+  public void T_PLN_067_createPlan_mapeaLosLugaresEnOrdenYSaltaLasFilasVacias() {
+    // given
+    PlanRequest form = new PlanRequest("Viaje", null, null, false);
+    form.setPlaces(
+      List.of(
+        new PlanPlaceRequest(4L, "primero", LocalDate.of(2026, 12, 1), LocalTime.of(9, 30)),
+        new PlanPlaceRequest(null, null, null, null),
+        new PlanPlaceRequest(4L, "otra vez", null, null)
+      )
+    );
+    ArgumentCaptor<Plan> captor = ArgumentCaptor.forClass(Plan.class);
+    when(this.planServiceMock.createPlan(captor.capture(), eq(OWNER_EMAIL)))
+      .thenReturn(plan(PLAN_ID, "Viaje"));
+
+    // when
+    this.controller.createPlan(form, noErrors(form), this.authentication);
+
+    // then
+    List<PlanPlace> entries = captor.getValue().getPlanPlaces();
+    assertThat(entries.size(), is(2));
+    assertThat(entries.get(0).getPlace().getId(), is(4L));
+    assertThat(entries.get(0).getSortOrder(), is(1));
+    assertThat(entries.get(0).getDescription(), is(equalTo("primero")));
+    assertThat(entries.get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
+    assertThat(entries.get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
+    assertThat(entries.get(1).getPlace().getId(), is(4L));
+    assertThat(entries.get(1).getSortOrder(), is(2));
+    assertThat(entries.get(1).getPlan(), is(sameInstance(captor.getValue())));
+  }
+
+  // --- PUT /plans/{id} ---
+
+  @Test
+  public void T_PLN_066_updatePlan_conErroresRedirigeAlDetalleConElIdDelPlan() {
     // given
     PlanRequest form = new PlanRequest("", null, null, null);
     BeanPropertyBindingResult errors = errorsOf(form);
@@ -181,10 +220,8 @@ public class PlanControllerTest {
     // when
     ModelAndView view = this.controller.updatePlan(PLAN_ID, form, errors, this.authentication);
 
-    // then: the form, not the detail view, and with planId so the retry is an update (AC-12)
-    assertThat(view.getViewName(), is(FORM_VIEW));
-    assertThat(view.getModel().get("plan"), is(sameInstance(form)));
-    assertThat(view.getModel().get("planId"), is(equalTo(PLAN_ID)));
+    // then: sin formulario standalone, un PUT inválido vuelve al detalle del plan
+    assertThat(view.getViewName(), is(equalTo("redirect:/plans/" + PLAN_ID)));
     assertThat(fieldNames(errors), hasItem("name"));
     verify(this.planServiceMock, never()).updatePlan(any(), any(Plan.class), anyString());
   }

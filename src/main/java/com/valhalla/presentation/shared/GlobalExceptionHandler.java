@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -48,8 +49,16 @@ public class GlobalExceptionHandler {
    * An unmapped URL. Without this the catch-all below answers 200 and renders {@code pages/error},
    * so a missing page was indistinguishable from a real one. Both exception types are listed
    * because which one fires depends on whether the request reaches the static resource handler.
+   * A path variable that cannot convert (e.g. {@code GET /plans/new} matching {@code /plans/{id}})
+   * is also a missing resource: {@code MethodArgumentTypeMismatchException} must answer 404, not 500.
    */
-  @ExceptionHandler({ NoHandlerFoundException.class, NoResourceFoundException.class })
+  @ExceptionHandler(
+    {
+      NoHandlerFoundException.class,
+      NoResourceFoundException.class,
+      MethodArgumentTypeMismatchException.class,
+    }
+  )
   public ModelAndView handleNotFound() {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "Page not found");

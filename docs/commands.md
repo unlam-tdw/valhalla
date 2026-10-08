@@ -138,7 +138,7 @@ The pipeline runs on every push and PR to `main`. It has two jobs:
 ### `backend` , build + test + quality gates
 
 Runs `mvn clean verify --fail-at-end -DskipITs` which triggers:
-1. Prettier formatting (auto-fix)
+1. Prettier formatting (check only; fix with `gate.ps1 check -Fix`)
 2. Checkstyle (naming, Javadoc, imports)
 3. PMD + CPD (logic issues, duplication)
 4. Unit + integration tests (HSQLDB)

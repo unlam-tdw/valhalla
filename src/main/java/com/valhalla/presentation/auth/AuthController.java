@@ -2,10 +2,13 @@ package com.valhalla.presentation.auth;
 
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.login.LoginService;
+import com.valhalla.infrastructure.security.ProgrammaticSignIn;
 import com.valhalla.infrastructure.user.RecoverPasswordService;
 import com.valhalla.presentation.shared.LoginRedirects;
 import com.valhalla.presentation.shared.RecoverPasswordRequest;
 import com.valhalla.presentation.shared.RegisterRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -26,11 +29,17 @@ public class AuthController {
 
   private final LoginService loginService;
   private final RecoverPasswordService recoverPasswordService;
+  private final ProgrammaticSignIn programmaticSignIn;
 
   @Autowired
-  public AuthController(LoginService loginService, RecoverPasswordService recoverPasswordService) {
+  public AuthController(
+    LoginService loginService,
+    RecoverPasswordService recoverPasswordService,
+    ProgrammaticSignIn programmaticSignIn
+  ) {
     this.loginService = loginService;
     this.recoverPasswordService = recoverPasswordService;
+    this.programmaticSignIn = programmaticSignIn;
   }
 
   // --- LOGIN ---
@@ -61,7 +70,9 @@ public class AuthController {
   public String handleRegister(
     @Valid @ModelAttribute("registerRequest") RegisterRequest request,
     BindingResult bindingResult,
-    Model model
+    Model model,
+    HttpServletRequest httpRequest,
+    HttpServletResponse httpResponse
   ) {
     if (bindingResult.hasErrors()) {
       return REGISTER_VIEW;
@@ -79,7 +90,14 @@ public class AuthController {
         request.getFirstName(),
         request.getLastName()
       );
-      return "redirect:/auth/login";
+      // Crear la cuenta no es sólo crearla: quien se registra queda adentro en el mismo paso, y
+      // el destino lo decide la misma regla que a un login normal (LoginRedirects), no uno nuevo.
+      Authentication authentication = programmaticSignIn.signIn(
+        request.getEmail(),
+        httpRequest,
+        httpResponse
+      );
+      return "redirect:" + LoginRedirects.landingFor(authentication);
     } catch (UserAlreadyExists e) {
       model.addAttribute("errorMessage", "Ese email ya está registrado");
       return REGISTER_VIEW;

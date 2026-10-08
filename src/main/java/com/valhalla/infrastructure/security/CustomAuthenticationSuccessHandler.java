@@ -20,10 +20,9 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
   ) throws IOException, ServletException {
     request.getSession().setAttribute("loginTime", System.currentTimeMillis());
 
-    // LandingController serves "/" and the landing page is public. It replaces "/plans", which no
-    // controller maps: the redirect used to land on a page that only looked broken because a
-    // missing route rendered the error view with HTTP 200. The rule is shared with the two login
-    // pages so all three agree on where a session lands.
+    // Un USER ya firmó su sesión y no vuelve a una landing estática: aterriza en /explore,
+    // el catálogo donde se exploran lugares y se arman planes. La regla es compartida con las
+    // dos páginas de login (LoginRedirects), así que las tres coinciden en el mismo destino.
     response.sendRedirect(request.getContextPath() + LoginRedirects.landingFor(authentication));
   }
 }

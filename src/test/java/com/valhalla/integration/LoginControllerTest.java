@@ -112,10 +112,10 @@ public class LoginControllerTest {
   /** Un usuario común no aterriza en /admin/home: ahí no tiene nada que ver. */
   @Test
   @WithMockUser(username = "user@unlam.edu.ar", roles = { "USER" })
-  public void shouldRedirectACommonUserToTheLandingWhenAlreadySignedIn() throws Exception {
+  public void shouldRedirectACommonUserToTheExploreWhenAlreadySignedIn() throws Exception {
     this.mockMvc.perform(get("/admin/login"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/"));
+      .andExpect(redirectedUrl("/explore"));
   }
 
   /**
@@ -275,9 +275,8 @@ public class LoginControllerTest {
   }
 
   @Test
-  public void shouldNotRequireCsrfForApiEndpoints() throws Exception {
-    this.mockMvc.perform(post("/api/something"))
-      .andExpect(result -> assertThat(result.getResponse().getStatus(), is(not(403))));
+  public void shouldRequireCsrfForApiWrites() throws Exception {
+    this.mockMvc.perform(post("/api/something")).andExpect(status().isForbidden());
   }
 
   @Test

@@ -1,3 +1,7 @@
+# Source files keep LF in the repo and in the working tree, regardless of core.autocrlf,
+# so Windows, Docker and Prettier all see the same bytes.
+* text=auto eol=lf
+
 # Shell scripts must keep LF line endings: the Docker image mounts the
 # Windows working tree and `sh` fails on CRLF ("set: Illegal option -").
 *.sh text eol=lf

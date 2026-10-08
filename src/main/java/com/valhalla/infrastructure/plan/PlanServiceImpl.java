@@ -2,9 +2,11 @@ package com.valhalla.infrastructure.plan;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import java.util.List;
@@ -24,16 +26,29 @@ public class PlanServiceImpl implements PlanService {
 
   private final PlanRepository planRepository;
   private final UserRepository userRepository;
+  private final PlaceRepository placeRepository;
 
   @Autowired
-  public PlanServiceImpl(PlanRepository planRepository, UserRepository userRepository) {
+  public PlanServiceImpl(
+    PlanRepository planRepository,
+    UserRepository userRepository,
+    PlaceRepository placeRepository
+  ) {
     this.planRepository = planRepository;
     this.userRepository = userRepository;
+    this.placeRepository = placeRepository;
   }
 
   @Override
   public Plan createPlan(Plan plan, String ownerEmail) {
     User owner = userRepository.findByEmail(ownerEmail).orElseThrow(UserNotFoundException::new);
+    for (PlanPlace entry : plan.getPlanPlaces()) {
+      entry.setPlace(
+        placeRepository
+          .findById(entry.getPlace().getId())
+          .orElseThrow(() -> new IllegalArgumentException("Unknown place"))
+      );
+    }
     plan.setAdministrator(owner);
     // Always generated: the share code is the backend's, the form never asks for it.
     plan.setShortCode(generateUniqueShortCode());
@@ -65,6 +80,51 @@ public class PlanServiceImpl implements PlanService {
     Plan existing = getOwnedPlan(id, ownerEmail);
     existing.updateFrom(changes);
     return planRepository.save(existing);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Plan getParticipatingPlan(Long id, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
+      throw new PlanNotFoundException();
+    }
+    // The detail view renders participants and places after this transaction has ended.
+    plan.getParticipants().forEach(user -> user.getEmail());
+    plan.getPlanPlaces().forEach(entry -> entry.getPlace().getName());
+    return plan;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<Plan> getParticipantPlans(String userEmail) {
+    return planRepository.findByParticipantsEmail(userEmail);
+  }
+
+  @Override
+  public void leavePlan(Long id, String userEmail) {
+    Plan plan = getParticipatingPlan(id, userEmail);
+    if (plan.isAdministrator(userEmail)) {
+      throw new PlanNotFoundException();
+    }
+    plan.getParticipants().removeIf(user -> user.getEmail().equals(userEmail));
+    planRepository.save(plan);
+  }
+
+  @Override
+  public Plan joinPlan(String shortCode, String userEmail) {
+    if (shortCode == null || shortCode.isBlank()) {
+      throw new PlanNotFoundException();
+    }
+    Plan plan = planRepository
+      .findByShortCode(shortCode.trim().toUpperCase(Locale.ROOT))
+      .orElseThrow(PlanNotFoundException::new);
+    User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
+    if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
+      plan.getParticipants().add(user);
+      planRepository.save(plan);
+    }
+    return plan;
   }
 
   @Override

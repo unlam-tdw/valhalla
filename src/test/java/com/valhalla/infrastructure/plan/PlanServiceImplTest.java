@@ -20,8 +20,11 @@ import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import java.time.LocalDate;
@@ -53,15 +56,72 @@ public class PlanServiceImplTest {
   private PlanServiceImpl planService;
   private PlanRepository planRepositoryMock;
   private UserRepository userRepositoryMock;
+  private PlaceRepository placeRepositoryMock;
 
   @BeforeEach
   public void init() {
     this.planRepositoryMock = mock(PlanRepository.class);
     this.userRepositoryMock = mock(UserRepository.class);
-    this.planService = new PlanServiceImpl(this.planRepositoryMock, this.userRepositoryMock);
+    this.placeRepositoryMock = mock(PlaceRepository.class);
+    this.planService =
+      new PlanServiceImpl(
+        this.planRepositoryMock,
+        this.userRepositoryMock,
+        this.placeRepositoryMock
+      );
   }
 
   // --- createPlan ---
+
+  @Test
+  public void T_PLN_025_createPlan_resuelveLosLugaresYPermiteRepetirUnoVariasVeces() {
+    // given
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    Place real = new Place();
+    real.setId(5L);
+    when(this.placeRepositoryMock.findById(5L)).thenReturn(Optional.of(real));
+    Plan plan = new Plan();
+    plan.setName("Viaje");
+    for (int order = 1; order <= 2; order++) {
+      Place stub = new Place();
+      stub.setId(5L);
+      PlanPlace entry = new PlanPlace();
+      entry.setPlace(stub);
+      entry.setSortOrder(order);
+      plan.addPlanPlace(entry);
+    }
+    when(this.planRepositoryMock.save(plan)).thenReturn(plan);
+
+    // when
+    this.planService.createPlan(plan, OWNER_EMAIL);
+
+    // then
+    assertThat(plan.getPlanPlaces().get(0).getPlace(), is(sameInstance(real)));
+    assertThat(plan.getPlanPlaces().get(1).getPlace(), is(sameInstance(real)));
+    verify(this.planRepositoryMock, times(1)).save(plan);
+  }
+
+  @Test
+  public void T_PLN_026_createPlan_rechazaUnLugarInexistenteYNoGuarda() {
+    // given
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.placeRepositoryMock.findById(99L)).thenReturn(Optional.empty());
+    Plan plan = new Plan();
+    Place stub = new Place();
+    stub.setId(99L);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(stub);
+    plan.addPlanPlace(entry);
+
+    // when and then
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> this.planService.createPlan(plan, OWNER_EMAIL)
+    );
+    verify(this.planRepositoryMock, never()).save(any(Plan.class));
+  }
 
   @Test
   public void T_PLN_020_createPlan_asignaElDuenoResueltoYGardaElPlan() {

@@ -51,7 +51,7 @@ public class BrandingPagesTest {
     assertNavbarBrand(
       mockMvc
         .perform(
-          get("/places")
+          get("/explore")
             .with(
               user("user@unlam.edu.ar").authorities(AuthorityUtils.createAuthorityList("ROLE_USER"))
             )
@@ -133,7 +133,7 @@ public class BrandingPagesTest {
     String body = body(
       mockMvc
         .perform(
-          get("/places")
+          get("/explore")
             .with(
               user("user@unlam.edu.ar").authorities(AuthorityUtils.createAuthorityList("ROLE_USER"))
             )

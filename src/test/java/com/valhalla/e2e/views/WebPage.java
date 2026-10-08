@@ -72,12 +72,12 @@ public class WebPage {
   }
 
   /**
-   * "Signed in as &lt;email&gt;", present only once a session exists. This is the branch of the
-   * navbar fragment that {@link #getNavbarBrand()} cannot see, because a logged-out visitor never
-   * renders it.
+   * First initial of the signed-in user's real first name, present only once a session exists.
+   * This is the branch of the navbar fragment that {@link #getNavbarBrand()} cannot see, because
+   * a logged-out visitor never renders it.
    */
-  public String getNavbarSignedInAs() {
-    return this.getElementText("nav span.text-gray-300").replaceAll("\\s+", " ").trim();
+  public String getNavbarAvatarInitial() {
+    return this.getElementText("nav .navbar-avatar").replaceAll("\\s+", " ").trim();
   }
 
   /**
@@ -85,12 +85,12 @@ public class WebPage {
    * instead of filtered: a menu item pointing at a route nobody maps still renders perfectly,
    * so the only way to catch it is to name the items the navbar is allowed to have.
    *
-   * <p>Whitespace is collapsed the same way {@link #getNavbarSignedInAs()} does it, because
+   * <p>Whitespace is collapsed the same way {@link #getNavbarAvatarInitial()} does it, because
    * {@code allTextContents()} returns the raw markup text and a template that wraps the label
    * across lines would otherwise change the expected value.
    *
    * <p>Pinned to the shared navbar rather than to any {@code <nav>}: the landing page carries a
-   * footer nav of its own (links to /, /places, /plans and /auth/register), and a bare
+   * footer nav of its own (links to /, /explore, /plans and /auth/register), and a bare
    * {@code nav a} would fold those links into the set the caller is pinning. The shared navbar is
    * the direct child of {@code <body>} in layouts/base :: layout; the footer nav lives inside
    * {@code <main>}.

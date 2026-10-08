@@ -35,7 +35,7 @@ public class PlaceControllerTest {
   @WithMockUser
   public void shouldReturnPlacesList() throws Exception {
     mockMvc
-      .perform(get("/places"))
+      .perform(get("/explore"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/places/list"))
       .andExpect(model().attributeExists("places"));
@@ -45,7 +45,7 @@ public class PlaceControllerTest {
   @WithMockUser
   public void shouldFilterPlacesByCategory() throws Exception {
     mockMvc
-      .perform(get("/places").param("category", "RESTAURANT"))
+      .perform(get("/explore").param("category", "RESTAURANT"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/places/list"))
       .andExpect(model().attributeExists("places"));
@@ -55,7 +55,7 @@ public class PlaceControllerTest {
   @WithMockUser
   public void shouldSearchPlacesByName() throws Exception {
     mockMvc
-      .perform(get("/places").param("search", "Don"))
+      .perform(get("/explore").param("search", "Don"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/places/list"))
       .andExpect(model().attributeExists("places"));
@@ -64,6 +64,6 @@ public class PlaceControllerTest {
   @Test
   @WithMockUser
   public void shouldReturnNotFoundForPlaceDetailPage() throws Exception {
-    mockMvc.perform(get("/places/1")).andExpect(status().isNotFound());
+    mockMvc.perform(get("/explore/1")).andExpect(status().isNotFound());
   }
 }

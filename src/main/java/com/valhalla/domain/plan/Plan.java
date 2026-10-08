@@ -1,15 +1,28 @@
 package com.valhalla.domain.plan;
 
+import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Entity
 @Table(name = "plans")
@@ -22,23 +35,54 @@ public class Plan {
   @Column(nullable = false)
   private String name;
 
-  // No columnDefinition: main's entities rely on the default mapping, and an explicit TEXT breaks
-  // the HSQLDB instance the integration tests run against.
   @Column
   private String description;
 
-  private LocalDate eventDate;
+  @Embedded
+  private PlanSchedule schedule = new PlanSchedule();
 
   private Boolean isPublic = false;
 
   @Column(unique = true)
   private String shortCode;
 
-  // Not nullable: an existing dev database already holds rows without an owner and hbm2ddl never
-  // tightens a column, so a NOT NULL here fails the schema update on upgrade.
   @ManyToOne
   @JoinColumn(name = "administrator_id")
   private User administrator;
+
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+    name = "plan_participants",
+    joinColumns = @JoinColumn(name = "plan_id"),
+    inverseJoinColumns = @JoinColumn(name = "user_id"),
+    uniqueConstraints = @UniqueConstraint(columnNames = { "plan_id", "user_id" })
+  )
+  private List<User> participants = new ArrayList<>();
+
+  public List<User> getParticipants() {
+    return participants;
+  }
+
+  public boolean isAdministrator(String email) {
+    return email != null && administrator != null && email.equals(administrator.getEmail());
+  }
+
+  public boolean isParticipant(String email) {
+    return email != null && participants.stream().anyMatch(user -> email.equals(user.getEmail()));
+  }
+
+  @OneToMany(mappedBy = "plan", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+  @OrderBy("sortOrder ASC")
+  private List<PlanPlace> planPlaces = new ArrayList<>();
+
+  public List<PlanPlace> getPlanPlaces() {
+    return planPlaces;
+  }
+
+  public void addPlanPlace(PlanPlace planPlace) {
+    planPlaces.add(planPlace);
+    planPlace.setPlan(this);
+  }
 
   public Long getId() {
     return id;
@@ -64,12 +108,29 @@ public class Plan {
     this.description = description;
   }
 
+  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
   public LocalDate getEventDate() {
-    return eventDate;
+    return schedule == null ? null : schedule.getDate();
   }
 
   public void setEventDate(LocalDate eventDate) {
-    this.eventDate = eventDate;
+    ensureSchedule().setDate(eventDate);
+  }
+
+  @DateTimeFormat(pattern = "HH:mm")
+  public LocalTime getEventTime() {
+    return schedule == null ? null : schedule.getTime();
+  }
+
+  public void setEventTime(LocalTime eventTime) {
+    ensureSchedule().setTime(eventTime);
+  }
+
+  private PlanSchedule ensureSchedule() {
+    if (schedule == null) {
+      schedule = new PlanSchedule();
+    }
+    return schedule;
   }
 
   public Boolean getIsPublic() {
@@ -104,7 +165,8 @@ public class Plan {
   public void updateFrom(Plan changes) {
     this.name = changes.getName();
     this.description = changes.getDescription();
-    this.eventDate = changes.getEventDate();
+    setEventDate(changes.getEventDate());
+    setEventTime(changes.getEventTime());
     this.isPublic = changes.getIsPublic();
   }
 }

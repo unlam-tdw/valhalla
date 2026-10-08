@@ -25,10 +25,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
-    <div id="app" class="flex-1 min-h-0 min-w-0 flex overflow-hidden">
+    <div id="app" class="flex-1 min-h-0 min-w-0 flex flex-row-reverse overflow-hidden">
       <!-- Sidebar -->
       <aside
-        class="w-80 min-w-[20rem] min-h-0 overflow-y-auto overscroll-contain bg-white border-r border-gray-200 p-4 flex flex-col gap-4">
+        class="w-80 min-w-[20rem] min-h-0 overflow-y-auto overscroll-contain bg-white border-l border-gray-200 p-4 flex flex-col gap-4">
         <h1 class="text-2xl font-semibold text-gray-900">Places</h1>
 
         <!-- Filters -->
@@ -53,20 +53,27 @@
 
         <!-- Place cards -->
         <div class="flex flex-col gap-3">
-          <article v-for="place in filteredPlaces" :key="place.id"
-            class="relative rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+          <article v-for="place in filteredPlaces" :key="place.id" role="button" tabindex="0"
+            @click="selectPlace(place)" @keydown.enter.self.prevent="selectPlace(place)"
+            @keydown.space.self.prevent="selectPlace(place)" :aria-label="'Show details for ' + place.name"
+            class="relative cursor-pointer rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
             :style="{ borderLeftWidth: '4px', borderLeftColor: categoryColor(place.category) }">
-            <div class="relative z-0 pointer-events-none flex flex-col gap-1 p-4 pb-10">
-              <h2 class="text-base font-medium text-gray-900">{{ place.name }}</h2>
-              <span class="text-xs font-semibold" :style="{ color: categoryColor(place.category) }">{{ place.category
-                }}</span>
-              <p class="text-sm text-gray-600 line-clamp-2">{{ place.address }}</p>
+            <div class="flex items-stretch">
+              <div class="flex min-w-0 flex-1 flex-col gap-1 p-4">
+                <h2 class="text-base font-medium text-gray-900">{{ place.name }}</h2>
+                <span class="text-xs font-semibold" :style="{ color: categoryColor(place.category) }">{{ place.category
+                  }}</span>
+                <p class="text-sm text-gray-600 line-clamp-2">{{ place.address }}</p>
+                <span class="mt-1 self-start text-sm font-medium text-gray-500">View details &rarr;</span>
+              </div>
+              <img :src="place.imageUrl || '/images/place-placeholder.svg'" :alt="place.name"
+                class="w-28 shrink-0 self-stretch bg-gray-100 object-cover" />
             </div>
-            <button type="button" @click="selectPlace(place)" :aria-label="'Show details for ' + place.name"
-              class="absolute inset-0 z-0 w-full cursor-pointer rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"></button>
-            <button type="button" @click.stop="selectPlace(place)"
-              class="absolute bottom-3 right-4 z-10 text-sm font-medium text-gray-500 transition-colors hover:text-gray-700 hover:underline">
-              View details &rarr;
+            <button v-if="showCreatePlan || activePlan" type="button" :data-add-to-plan="place.id" :data-place-name="place.name"
+              :data-place-category="place.category" :data-place-latitude="place.latitude"
+              :data-place-longitude="place.longitude" :aria-label="'Add ' + place.name + ' to a plan'"
+              class="absolute bottom-3 right-3 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-gray-900 text-white shadow-lg ring-2 ring-white transition hover:scale-110 hover:bg-blue-600 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+              <img src="/images/add-to-list.svg" alt="" aria-hidden="true" class="h-5 w-5 invert" />
             </button>
           </article>
         </div>
@@ -77,7 +84,7 @@
       <!-- Map -->
       <div class="flex-1 min-w-0 relative">
         <div id="map" class="absolute inset-0 w-full h-full"></div>
-        <aside v-if="selectedPlace" role="complementary" :aria-label="'Details for ' + selectedPlace.name"
+        <aside v-if="selectedPlace" id="place-details-aside" role="complementary" :aria-label="'Details for ' + selectedPlace.name"
           class="absolute inset-y-0 right-0 z-[1000] flex w-80 max-w-full flex-col overflow-y-auto bg-white shadow-xl"
           :style="{ borderLeft: '5px solid ' + categoryColor(selectedPlace.category) }">
           <div class="relative shrink-0">
@@ -91,7 +98,7 @@
               </svg>
             </button>
           </div>
-
+          <!-- Place Details -->
           <div class="flex flex-1 flex-col gap-4 p-5">
             <div class="flex flex-col gap-2">
               <h2 class="text-xl font-semibold text-gray-900">{{ selectedPlace.name }}</h2>
@@ -107,12 +114,272 @@
               {{ selectedPlace.description }}
             </p>
             <div class="mt-auto flex justify-end pt-4">
-              <button type="button"
+              <button type="button" :data-add-to-plan="selectedPlace.id" :data-place-name="selectedPlace.name"
+                :data-place-category="selectedPlace.category" :data-place-latitude="selectedPlace.latitude"
+                :data-place-longitude="selectedPlace.longitude"
+                :aria-label="'Add ' + selectedPlace.name + ' to a plan'"
                 class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
                 Add to plan
               </button>
             </div>
           </div>
+        </aside>
+
+        <!-- Plans discovery -->
+        <aside v-if="!showCreatePlan && !activePlan" id="plans-aside" role="complementary" aria-label="Plans"
+          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
+          <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
+          <input v-model="plansQuery" type="search" placeholder="Search public plans..."
+            aria-label="Search public plans"
+            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
+          <button type="button" @click="openCreatePlan"
+            class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+            Create plan
+          </button>
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">My plans</h3>
+            <button th:if="${userPlans != null and #lists.size(userPlans) > 3}" type="button" @click="showAllPlans = !showAllPlans"
+              :aria-expanded="showAllPlans" aria-controls="my-plans-list"
+              class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">
+              Ver todos
+              <svg aria-hidden="true" class="h-4 w-4 transition-transform" :class="showAllPlans ? 'rotate-90' : ''"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+          <!-- v-pre: plan names are user input and must never reach Vue's template compiler. -->
+          <div id="my-plans-list" :class="showAllPlans ? '' : '[&_li:nth-child(n+4)]:hidden'">
+          <ul v-pre class="flex flex-col gap-2">
+            <li th:each="plan : ${userPlans}">
+              <a th:href="@{/plans/{id}(id=${plan.id})}" data-open-plan th:data-plan-id="${plan.id}"
+                th:data-plan-name="${plan.name}"
+                class="flex flex-col gap-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition hover:bg-gray-50">
+                <span class="flex items-center justify-between gap-2">
+                  <span class="min-w-0 truncate font-medium" th:text="${plan.name}">Plan</span>
+                  <span th:if="${plan.isPublic}"
+                    class="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Public</span>
+                  <span th:unless="${plan.isPublic}"
+                    class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Private</span>
+                </span>
+                <span class="text-xs text-gray-500" th:text="${plan.eventDate != null} ? ${plan.eventDate} : 'No date'"></span>
+                <span th:if="${plan.description != null and !#strings.isEmpty(plan.description)}"
+                  class="line-clamp-2 text-xs text-gray-600" th:text="${plan.description}"></span>
+              </a>
+            </li>
+            <li th:if="${#lists.isEmpty(userPlans)}" class="text-sm text-gray-500">
+              You haven't created any plans yet.
+            </li>
+          </ul>
+          </div>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Public plans nearby</h3>
+          <ul class="flex flex-col gap-3">
+            <li v-for="plan in filteredPlans" :key="plan.id"
+              class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <h4 class="text-base font-medium text-gray-900">{{ plan.name }}</h4>
+              <p class="text-xs text-gray-500">{{ plan.eventDate }} &middot; {{ plan.placesCount }} places</p>
+              <p class="mt-1 text-sm text-gray-600 line-clamp-2">{{ plan.description }}</p>
+            </li>
+          </ul>
+          <p v-if="filteredPlans.length === 0" class="text-sm text-gray-500">No plans found.</p>
+        </aside>
+
+        <!-- Existing plan being edited: places are added from the Places aside -->
+        <aside v-if="activePlan" id="plans-aside" role="complementary" aria-labelledby="active-plan-title"
+          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-3 overflow-y-auto bg-white p-5 shadow-xl">
+          <div class="flex items-center justify-between gap-2">
+            <h2 id="active-plan-title" class="min-w-0 truncate text-xl font-semibold text-gray-900">{{ activePlan.name }}</h2>
+            <button type="button" @click="closeActivePlan" aria-label="Close plan"
+              class="rounded-full p-1 text-gray-600 hover:bg-gray-100">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p class="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            Usá el botón + de los lugares del panel derecho para agregarlos a este plan.</p>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Itinerary ({{ activePlan.entries.length }})</h3>
+          <p v-if="activePlan.entries.length === 0" class="text-sm text-gray-500">No places yet.</p>
+          <ol class="flex flex-col gap-2">
+            <li v-for="(entry, index) in activePlan.entries" :key="entry.id"
+              class="rounded-md border border-gray-200 bg-gray-50 p-3">
+              <div class="flex items-center gap-2">
+                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-medium text-white">{{ index + 1 }}</span>
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ entry.name }}</span>
+              </div>
+              <p v-if="entry.visitDate || entry.visitTime" class="mt-1 text-xs text-gray-500">
+                {{ entry.visitDate }} {{ entry.visitTime }}</p>
+            </li>
+          </ol>
+          <a :href="'/plans/' + activePlan.id"
+            class="mt-auto rounded-md bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-gray-700">
+            View plan details
+          </a>
+        </aside>
+
+        <!-- Add to plan modal -->
+        <div v-if="showAddToPlan" @click.self="closeAddToPlan" @keydown.esc="closeAddToPlan"
+          class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="add-to-plan-title"
+            class="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white p-6 shadow-md">
+            <h2 id="add-to-plan-title" class="text-2xl font-semibold text-gray-900">Agregar a plan</h2>
+            <p class="mt-2 text-sm text-gray-600">Selecciona un plan para agregar <strong>{{ placeToAdd?.name }}</strong></p>
+            <div class="mt-4 flex flex-col gap-3">
+              <select v-model="selectedPlanId" aria-label="Seleccionar plan"
+                class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                <option value="" disabled>Selecciona un plan...</option>
+                <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id">
+                  {{ plan.name }} ({{ plan.eventDate || 'Sin fecha' }})
+                </option>
+              </select>
+              <p v-if="availablePlans.length === 0" class="text-sm text-gray-500">
+                No hay planes disponibles para agregar este lugar.
+              </p>
+            </div>
+            <div class="mt-4 flex justify-end gap-2">
+              <button type="button" @click="closeAddToPlan"
+                class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300">
+                Cancelar
+              </button>
+              <button type="button" @click="confirmAddToPlan" :disabled="!selectedPlanId"
+                class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                Agregar
+              </button>
+            </div>
+            <div class="mt-3 border-t border-gray-200 pt-3">
+              <button type="button" @click="createNewPlan"
+                class="w-full rounded-md border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+                + Crear nuevo plan
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create plan: replaces the Plans aside in place, leaving the map interactive -->
+        <aside v-if="showCreatePlan" id="plans-aside" role="complementary" aria-labelledby="create-plan-title"
+          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col overflow-hidden bg-white p-5 shadow-xl">
+          <div class="flex items-center justify-between gap-2">
+            <h2 id="create-plan-title" class="text-xl font-semibold text-gray-900">Crear plan</h2>
+            <button type="button" @click="closeCreatePlan" aria-label="Close create plan form"
+              class="rounded-full p-1 text-gray-600 hover:bg-gray-100">
+              <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+            <div class="mb-4 mt-2" aria-live="polite">
+              <p class="mb-1 text-sm text-gray-500">Paso {{ planStep }} de 2:
+                {{ planStep === 1 ? 'Datos del plan' : 'Lugares' }}</p>
+              <div class="flex gap-2">
+                <span class="h-1.5 flex-1 rounded-full" :class="planStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'"></span>
+                <span class="h-1.5 flex-1 rounded-full" :class="planStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'"></span>
+              </div>
+            </div>
+            <form th:action="@{/plans}" method="POST" @submit="onPlanSubmit" class="flex min-h-0 flex-1 flex-col">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+              <div class="flex min-h-0 flex-1 overflow-hidden">
+                <div class="flex w-[200%] shrink-0 transition-transform duration-300 ease-in-out"
+                  :class="planStep === 2 ? '-translate-x-1/2' : 'translate-x-0'">
+                  <!-- Step 1 -->
+                  <div class="w-1/2 shrink-0 overflow-y-auto px-1" :inert="planStep !== 1 ? '' : null">
+                    <div>
+                      <label for="plan-name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del
+                        plan</label>
+                      <input type="text" id="plan-name" name="name" required ref="planNameInput"
+                        placeholder="Ej: Salida por Buenos Aires"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div class="mt-4">
+                      <label for="plan-description"
+                        class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
+                      <textarea id="plan-description" name="description" rows="4"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"></textarea>
+                    </div>
+                    <div class="mt-4">
+                      <label for="plan-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
+                      <input type="date" id="plan-date" name="eventDate"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div class="mt-4 flex items-center gap-2">
+                      <input type="checkbox" id="plan-public" name="isPublic" value="true"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="hidden" name="_isPublic" value="on" />
+                      <label for="plan-public" class="text-sm font-medium text-gray-700">Hacer público este
+                        plan</label>
+                    </div>
+                  </div>
+
+                  <!-- Step 2 -->
+                  <div class="flex w-1/2 shrink-0 flex-col gap-3 overflow-y-auto px-1"
+                    :inert="planStep !== 2 ? '' : null">
+                    <p class="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                      Usá el botón + de los lugares del panel derecho para agregarlos a este plan.</p>
+
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                      In this plan ({{ draftPlaces.length }})</h3>
+                    <p v-if="draftPlaces.length === 0" class="text-sm text-gray-500">
+                      Add at least one place. You can add the same place more than once.</p>
+                    <ol class="flex flex-col gap-2">
+                      <li v-for="(item, index) in draftPlaces" :key="item.key"
+                        class="rounded-md border border-gray-200 bg-gray-50 p-3">
+                        <input type="hidden" :name="'places[' + index + '].placeId'" :value="item.place.id" />
+                        <div class="flex items-center gap-2">
+                          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-medium text-white">{{ index + 1 }}</span>
+                          <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ item.place.name }}</span>
+                          <button type="button" @click="moveDraft(index, -1)" :disabled="index === 0"
+                            aria-label="Move up"
+                            class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&uarr;</button>
+                          <button type="button" @click="moveDraft(index, 1)"
+                            :disabled="index === draftPlaces.length - 1" aria-label="Move down"
+                            class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&darr;</button>
+                          <button type="button" @click="removeDraft(index)" aria-label="Remove place"
+                            class="rounded p-1 text-red-600 hover:bg-red-100">&times;</button>
+                        </div>
+                        <input type="text" v-model="item.description" :name="'places[' + index + '].description'"
+                          placeholder="Nota (opcional)" aria-label="Nota"
+                          class="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
+                        <div class="mt-2 flex gap-2">
+                          <input type="date" v-model="item.visitDate" :name="'places[' + index + '].visitDate'"
+                            aria-label="Fecha de visita"
+                            class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm" />
+                          <input type="time" v-model="item.visitTime" :name="'places[' + index + '].visitTime'"
+                            aria-label="Hora de visita"
+                            class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm" />
+                        </div>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 flex justify-end gap-2">
+                <template v-if="planStep === 1">
+                  <button type="button" @click="closeCreatePlan"
+                    class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
+                    Cancelar
+                  </button>
+                  <button type="button" @click="nextPlanStep"
+                    class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
+                    Siguiente
+                  </button>
+                </template>
+                <template v-else>
+                  <button type="button" @click="planStep = 1"
+                    class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
+                    Atrás
+                  </button>
+                  <button type="submit" :disabled="draftPlaces.length === 0"
+                    class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    Crear plan
+                  </button>
+                </template>
+              </div>
+            </form>
         </aside>
       </div>
     </div>
@@ -121,6 +388,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <!-- Add to Plan functionality -->
+    <script src="/js/add-to-plan.js"></script>
     <!-- Lucide, vendorizado junto a Vue y Tailwind. Va antes del script de Vue porque el
          mapa de iconos se construye al montar la app, y un script clásico se ejecuta en
          orden: cuando corra createElement, window.lucide ya existe. -->
@@ -137,6 +406,23 @@
           const selectedCategory = ref('');
           const searchQuery = ref('');
           const categories = ref([]);
+          const plansQuery = ref('');
+          const showAllPlans = ref(false);
+          const showCreatePlan = ref(false);
+          const planNameInput = ref(null);
+          const planStep = ref(1);
+          const draftPlaces = ref([]);
+          const showAddToPlan = ref(false);
+          const placeToAdd = ref(null);
+          const availablePlans = ref([]);
+          const selectedPlanId = ref('');
+          let nextDraftKey = 0;
+          // TODO: replace with public/nearby plans from the API once it exists.
+          const mockPlans = ref([
+            { id: 1, name: 'Weekend in San Telmo', description: 'Antique market, tango and a long dinner.', eventDate: '2026-10-18', placesCount: 5 },
+            { id: 2, name: 'Museum day', description: 'Three museums in one afternoon.', eventDate: '2026-10-25', placesCount: 3 },
+            { id: 3, name: 'Sunset at Costanera', description: 'Walk by the river and street food.', eventDate: '2026-11-02', placesCount: 4 }
+          ]);
           let map = null;
           let mapResizeObserver = null;
           let markers = [];
@@ -221,20 +507,136 @@
             updateMarkers();
           };
 
-          const focusPlace = (place) => {
+          const overlayWidth = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.offsetWidth : 0;
+          };
+
+          const focusPlace = async (place) => {
             const marker = markersByPlaceId.get(place.id);
             if (!map || !marker) return;
 
+            // The details aside is rendered after the reactive update.
+            await nextTick();
             map.stop();
             // Instant: a second animated setView issued mid-zoom-animation is superseded by
             // the first one's target, so rapid card clicks would land on the wrong marker.
             map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: false });
+            // Plans (left) and details (right) overlay the map: center on the uncovered area.
+            const offsetX = (overlayWidth('plans-aside') - overlayWidth('place-details-aside')) / 2;
+            if (offsetX) map.panBy([-offsetX, 0], { animate: false });
             marker.openPopup();
           };
 
           const selectPlace = (place) => {
             selectedPlace.value = place;
             focusPlace(place);
+          };
+
+          const filteredPlans = computed(() => {
+            const query = plansQuery.value.trim().toLowerCase();
+            return mockPlans.value.filter(plan => !query || plan.name.toLowerCase().includes(query));
+          });
+
+          const openCreatePlan = async () => {
+            showCreatePlan.value = true;
+            await nextTick();
+            if (planNameInput.value) planNameInput.value.focus();
+          };
+
+          const closeCreatePlan = () => {
+            showCreatePlan.value = false;
+            planStep.value = 1;
+            draftPlaces.value = [];
+          };
+
+          const activePlan = ref(null);
+
+          const loadActiveEntries = async (planId) => {
+            const response = await fetch('/api/plans/' + planId + '/places');
+            if (!response.ok) throw new Error('GET itinerary ' + response.status);
+            return response.json();
+          };
+
+          const openActivePlan = async (id, name) => {
+            try {
+              const entries = await loadActiveEntries(id);
+              showCreatePlan.value = false;
+              activePlan.value = { id, name, entries };
+            } catch (error) {
+              console.error(error);
+              alert('Error al cargar el plan');
+            }
+          };
+
+          const closeActivePlan = () => {
+            activePlan.value = null;
+          };
+
+          const addToActivePlan = async (place) => {
+            const plan = activePlan.value;
+            const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+            try {
+              const response = await fetch('/api/plans/' + plan.id + '/places?placeId=' + place.id, {
+                method: 'POST',
+                headers: { [csrfHeader]: csrfToken }
+              });
+              if (response.status === 409) {
+                alert('El destino ya se encuentra en el plan');
+                return;
+              }
+              if (!response.ok) throw new Error('POST ' + response.status);
+              plan.entries = await loadActiveEntries(plan.id);
+            } catch (error) {
+              console.error(error);
+              alert('Error al agregar el lugar al plan');
+            }
+          };
+
+          document.addEventListener('click', (event) => {
+            const link = event.target.closest('[data-open-plan]');
+            if (!link) return;
+            event.preventDefault();
+            openActivePlan(link.dataset.planId, link.dataset.planName);
+          });
+
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && activePlan.value) closeActivePlan();
+          });
+
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && showCreatePlan.value) closeCreatePlan();
+          });
+
+          // The same place may be added repeatedly, so rows are keyed by their own counter.
+          const addToDraft = (place) => {
+            draftPlaces.value.push({ key: nextDraftKey++, place, description: '', visitDate: '', visitTime: '' });
+          };
+
+          const removeDraft = (index) => {
+            draftPlaces.value.splice(index, 1);
+          };
+
+          const moveDraft = (index, offset) => {
+            const target = index + offset;
+            if (target < 0 || target >= draftPlaces.value.length) return;
+            const [item] = draftPlaces.value.splice(index, 1);
+            draftPlaces.value.splice(target, 0, item);
+          };
+
+          const nextPlanStep = () => {
+            if (planNameInput.value && !planNameInput.value.reportValidity()) return;
+            planStep.value = 2;
+          };
+
+          const onPlanSubmit = (event) => {
+            if (planStep.value === 1) {
+              event.preventDefault();
+              nextPlanStep();
+            } else if (draftPlaces.value.length === 0) {
+              event.preventDefault();
+            }
           };
 
           const closeDetails = () => {
@@ -280,6 +682,79 @@
             });
           };
 
+          const closeAddToPlan = () => {
+            showAddToPlan.value = false;
+            placeToAdd.value = null;
+            availablePlans.value = [];
+          };
+
+          const confirmAddToPlan = async () => {
+            if (!placeToAdd.value || !selectedPlanId.value) return;
+            // Emit event for the external JS module to handle the API call
+            const event = new CustomEvent('confirm-add-to-plan', {
+              detail: {
+                planId: selectedPlanId.value,
+                placeId: placeToAdd.value.id
+              }
+            });
+            document.dispatchEvent(event);
+            closeAddToPlan();
+          };
+
+          const createNewPlan = () => {
+            // La creación ya no vive en /plans/new: se abre el panel de creación de /explore con el
+            // lugar pendiente ya cargado en el borrador. El modal "Agregar a plan" se cierra
+            // después de copiar el lugar, porque tapa el panel (overlay z-2000 sobre aside z-1000).
+            const pendingPlace = placeToAdd.value;
+            closeAddToPlan();
+            if (pendingPlace) {
+              addToDraft(pendingPlace);
+            }
+            openCreatePlan();
+          };
+
+          // Listen for add-to-plan events from the external JavaScript module
+          document.addEventListener('add-to-plan', async (event) => {
+            const place = event.detail;
+
+            if (showCreatePlan.value) {
+              addToDraft(place);
+              return;
+            }
+            if (activePlan.value) {
+              await addToActivePlan(place);
+              return;
+            }
+
+            placeToAdd.value = place;
+
+            try {
+              const response = await fetch('/api/plans');
+              if (!response.ok) {
+                const bodyText = await response.text().catch(() => '(sin cuerpo)');
+                console.error('GET /api/plans ->', response.status, response.statusText, bodyText);
+                throw new Error('Failed to fetch plans (' + response.status + ')');
+              }
+
+              const userPlans = await response.json();
+
+              const plansWithoutPlace = userPlans.filter(plan =>
+                !plan.planPlaces.some(pp => pp.placeId === place.id)
+              );
+
+              // La modal se abre siempre (tengas 0, algunos o todos los
+              // planes ocupados por este lugar): desde ahí siempre se puede
+              // crear un plan nuevo, y si hay planes disponibles también se
+              // puede elegir uno existente.
+              availablePlans.value = plansWithoutPlace;
+              selectedPlanId.value = '';
+              showAddToPlan.value = true;
+            } catch (error) {
+              console.error('Error fetching plans:', error);
+              alert('Error al cargar los planes');
+            }
+          });
+
           onMounted(async () => {
             await nextTick();
 
@@ -298,6 +773,8 @@
               center: [-34.6037, -58.3816],
               zoom: 13
             });
+            // Plans aside overlays the left edge: center on the uncovered area.
+            map.panBy([-overlayWidth('plans-aside') / 2, 0], { animate: false });
 
             mapResizeObserver = new ResizeObserver(() => {
               map.invalidateSize({ pan: false });
@@ -340,7 +817,30 @@
             applyFilters,
             focusPlace,
             selectPlace,
-            closeDetails
+            closeDetails,
+            plansQuery,
+            showAllPlans,
+            filteredPlans,
+            showCreatePlan,
+            planNameInput,
+            openCreatePlan,
+            closeCreatePlan,
+            planStep,
+            draftPlaces,
+            activePlan,
+            closeActivePlan,
+            addToDraft,
+            removeDraft,
+            moveDraft,
+            nextPlanStep,
+            onPlanSubmit,
+            showAddToPlan,
+            placeToAdd,
+            availablePlans,
+            selectedPlanId,
+            closeAddToPlan,
+            confirmAddToPlan,
+            createNewPlan
           };
         }
       }).mount('#app');

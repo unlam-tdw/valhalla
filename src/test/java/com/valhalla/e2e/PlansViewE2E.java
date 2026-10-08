@@ -65,12 +65,6 @@ public class PlansViewE2E extends E2eBase {
   }
 
   private void givenAPlanExists() {
-    this.plans.navigateToNewPlan();
-    this.plans.waitForPath("/plans/new");
-    this.plans.typeName(PLAN_NAME);
-    this.plans.typeDescription("Un viaje de prueba");
-    this.plans.typeEventDate("2026-12-31");
-    this.plans.clickCreate();
-    this.plans.waitForDetailPath();
+    this.plans.createPlanViaExplore(PLAN_NAME, "Un viaje de prueba", "2026-12-31");
   }
 }

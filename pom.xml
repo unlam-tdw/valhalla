@@ -265,13 +265,13 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>format-code</id>
-                        <!-- Runs in the 'process-sources' phase to format the code automatically
-                             before compilation and tests -->
+                        <id>format-check</id>
+                        <!-- Verifies formatting without touching files: a build must never rewrite
+                             the working tree. Format explicitly with `gate.ps1 check -Fix`
+                             (or `mvn prettier:write`). -->
                         <phase>process-sources</phase>
                         <goals>
-                            <!-- The 'write' goal rewrites files with the correct format -->
-                            <goal>write</goal>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -424,6 +424,11 @@
                         <exclude>com/valhalla/domain/user/User.class</exclude>
                         <exclude>com/valhalla/domain/plan/Plan.class</exclude>
                         <exclude>com/valhalla/presentation/plan/PlanRequest.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanPlaceRequest.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanPlaceUpdateRequest.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanRestController$PlanSummary.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanRestController$PlanPlaceSummary.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanPlaceRestController$ItineraryEntry.class</exclude>
                         <exclude>com/valhalla/presentation/user/*Request.class</exclude>
                         <exclude>com/valhalla/presentation/shared/*Request.class</exclude>
                         <exclude>com/valhalla/presentation/shared/UserSession.class</exclude>

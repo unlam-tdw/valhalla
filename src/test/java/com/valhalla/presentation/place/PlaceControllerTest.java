@@ -25,7 +25,8 @@ public class PlaceControllerTest {
   @BeforeEach
   public void init() {
     placeServiceMock = mock(PlaceService.class);
-    controller = new PlaceController(placeServiceMock);
+    controller =
+      new PlaceController(placeServiceMock, mock(com.valhalla.domain.plan.PlanService.class));
   }
 
   @Test
@@ -33,7 +34,7 @@ public class PlaceControllerTest {
     List<Place> places = List.of(place(1L, "MALBA", PlaceCategory.MUSEUM));
     when(placeServiceMock.getAllPlaces()).thenReturn(places);
 
-    ModelAndView result = controller.listPlaces(null, null);
+    ModelAndView result = controller.listPlaces(null, null, null);
 
     assertThat(result.getViewName(), is(equalTo("pages/places/list")));
     assertThat(result.getModel().get("places"), is(sameInstance(places)));
@@ -45,7 +46,7 @@ public class PlaceControllerTest {
     List<Place> places = List.of(place(1L, "Cafe Tortoni", PlaceCategory.CAFE));
     when(placeServiceMock.getPlacesByCategory(PlaceCategory.CAFE)).thenReturn(places);
 
-    ModelAndView result = controller.listPlaces("CAFE", null);
+    ModelAndView result = controller.listPlaces("CAFE", null, null);
 
     assertThat(result.getModel().get("places"), is(sameInstance(places)));
     verify(placeServiceMock).getPlacesByCategory(PlaceCategory.CAFE);
@@ -56,7 +57,7 @@ public class PlaceControllerTest {
     List<Place> places = List.of(place(1L, "Parrilla Don Julio", PlaceCategory.RESTAURANT));
     when(placeServiceMock.searchPlaces("Don", PlaceCategory.RESTAURANT)).thenReturn(places);
 
-    ModelAndView result = controller.listPlaces("RESTAURANT", "Don");
+    ModelAndView result = controller.listPlaces("RESTAURANT", "Don", null);
 
     assertThat(result.getModel().get("places"), is(sameInstance(places)));
     verify(placeServiceMock).searchPlaces("Don", PlaceCategory.RESTAURANT);
@@ -67,7 +68,7 @@ public class PlaceControllerTest {
     List<Place> places = List.of(place(1L, "Parrilla Don Julio", PlaceCategory.RESTAURANT));
     when(placeServiceMock.searchPlaces("Don")).thenReturn(places);
 
-    ModelAndView result = controller.listPlaces(null, "Don");
+    ModelAndView result = controller.listPlaces(null, "Don", null);
 
     assertThat(result.getModel().get("places"), is(sameInstance(places)));
     verify(placeServiceMock).searchPlaces("Don");
@@ -75,7 +76,7 @@ public class PlaceControllerTest {
 
   @Test
   public void shouldReturnNoPlacesForUnknownCategory() {
-    ModelAndView result = controller.listPlaces("UNKNOWN", "Don");
+    ModelAndView result = controller.listPlaces("UNKNOWN", "Don", null);
 
     assertThat(result.getModel().get("places"), is(equalTo(List.of())));
     verifyNoInteractions(placeServiceMock);

@@ -70,9 +70,10 @@ mvn checkstyle:checkstyle
 
 ## Prettier (Maven Plugin)
 
-Automatically formats Java code so it complies with the style rules.
+Formats Java code so it complies with the style rules. The build only **checks** formatting
+(`prettier:check`) and never rewrites files; formatting is an explicit action.
 
-- **Runs in:** `process-sources` phase (before compiling).
+- **Runs in:** `process-sources` phase (before compiling), in check-only mode.
 
 ```shell
 # Formats and overwrites the files with the correct style
@@ -134,11 +135,9 @@ rd /s /q .code-quality\jacoco & mvn clean test
 `check` invokes `prettier:check`, so it never reformats your tree — `-Fix` is the explicit
 opt-in for that.
 
-That matters when comparing with Maven. `mvn validate` on its own is safe (it stops at the
-`validate` phase, before Prettier's `write` at `process-sources`), but every longer goal —
-`mvn test`, `mvn package`, `mvn verify` — reaches `process-sources` and **rewrites your
-files**. Use `gate.ps1 check` when you want to look at a style problem without losing an
-unrelated change.
+Maven builds (`mvn test`, `mvn package`, `mvn verify`) run `prettier:check` at
+`process-sources` and fail on badly formatted code, but they never rewrite your files. Run
+`gate.ps1 check -Fix` to format.
 
 `-Fast` on any test command skips these gates along with JaCoCo (it turns on the `dev`
 profile). `coverage` ignores `-Fast`, since that profile disables JaCoCo and there would be

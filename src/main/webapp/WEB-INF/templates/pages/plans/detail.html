@@ -1,102 +1,609 @@
-<!DOCTYPE HTML>
-<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" th:content="${_csrf.token}">
+    <meta name="csrf-header" th:content="${_csrf.headerName}">
 
-<head th:replace="~{layouts/base :: head('Detalle del plan')}"></head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
+    <style>
+        #map {
+            height: 480px;
+            width: 100%;
+            border-radius: 8px;
+        }
+        .itinerary-panel { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: 8px; padding: 20px; }
+        .itinerary-heading { color: var(--bs-body-color); letter-spacing: -0.03em; }
+        .itinerary-count { background: var(--bs-secondary-bg); color: var(--bs-body-color); border-radius: 20px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
+        .itinerary-list { list-style: none; padding: 0; margin: 12px 0 0; }
+        .place-item { position: relative; display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
+        .place-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 50%; bottom: -50%; border-left: 2px dashed var(--bs-border-color); }
+        .place-item[draggable="true"] { cursor: grab; }
+        .place-item[draggable="true"]:active { cursor: grabbing; }
+        .itinerary-step { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-secondary-bg); color: var(--bs-body-color); font-weight: 700; z-index: 1; }
+        .itinerary-stop { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--bs-border-color); border-radius: 8px; background: white; transition: transform .18s, box-shadow .18s; }
+        .itinerary-stop:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,.06); }
+        .stop-content { flex: 1; min-width: 0; }
+        .stop-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
+        .place-item:last-child { padding-bottom: 0; }
+        .stop-actions button { white-space: nowrap; }
+        .stop-category { display: inline-flex; align-items: center; gap: 7px; color: var(--bs-secondary-color); background: var(--bs-light); border-radius: 4px; padding: 2px 6px; font-size: .72rem; font-weight: 600; }
+        .stop-title { display: block; border: 0; padding: 0; margin: 0; background: none; color: var(--bs-body-color); font-size: 1rem; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
+        .stop-title:hover { color: var(--bs-secondary); }
+        .stop-schedule { display: flex; flex-wrap: wrap; gap: 12px; color: var(--bs-secondary-color); font-size: .82rem; }
+        .stop-description { color: var(--bs-secondary-color); font-size: .85rem; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .stop-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+        .stop-details { border: 1px solid var(--bs-secondary); border-radius: 6px; background: var(--bs-secondary); color: white; padding: 5px 10px; font-size: .8rem; font-weight: 600; }
+        .stop-details:hover { background: #5c636a; }
+        .stop-remove { border: 0; border-radius: 20px; background: transparent; color: var(--bs-danger); padding: 5px 6px; font-size: .8rem; }
+        .stop-remove:hover { background: var(--bs-light); }
+        .stop-title:focus-visible, .stop-details:focus-visible, .stop-remove:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 4px; }
+        .itinerary-empty { padding: 28px 18px; margin-top: 20px; text-align: center; background: var(--bs-light); border-radius: 16px; color: var(--bs-secondary-color); }
+        @media (max-width: 575px) {
+            #plan-app { padding-left: 16px !important; padding-right: 16px !important; }
+            #plan-app > .d-flex:first-child { flex-wrap: wrap; gap: 12px; }
+            #plan-app h2 { overflow-wrap: anywhere; max-width: 100%; }
+            .itinerary-panel { padding: 18px; }
+            .place-item { gap: 8px; }
+            .stop-actions { flex-direction: column; gap: 2px; }
+            .itinerary-stop { padding: 10px; gap: 8px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .itinerary-stop { transition: none; } .itinerary-stop:hover { transform: none; } }
+
+        .custom-div-icon {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .custom-map-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            border: 2px solid white;
+            font-size: 13px;
+            margin-top: -15px;
+            margin-left: -15px;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .cat-RESTAURANT { background-color: #dc3545; }
+        .cat-NIGHTLIFE  { background-color: #6f42c1; }
+        .cat-MUSEUM     { background-color: #0d6efd; }
+        .cat-SHOPPING   { background-color: #fd7e14; }
+        .cat-CAFE       { background-color: #d63384; }
+        .cat-PARK       { background-color: #198754; }
+        .cat-CULTURE    { background-color: #0dcaf0; }
+        .cat-BAR        { background-color: #ffc107; color: #000; }
+        .cat-DEFAULT    { background-color: #6c757d; }
+
+        .in-itinerary {
+            border: 3px solid #ffc107 !important;
+            transform: scale(1.15);
+            z-index: 1000 !important;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
+            70% { transform: scale(1.15); box-shadow: 0 0 0 12px rgba(13, 110, 253, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+        }
+
+        .single-place-pulse {
+            animation: pulse-ring 1.8s infinite ease-in-out;
+            border: 3px solid #0d6efd !important;
+            z-index: 1000 !important;
+        }
+    </style>
+
+    <!-- Bootstrap's utilities ship !important, so on a page that owns its <head> (Bootstrap has
+         to load before the Tailwind stack) source order alone cannot re-pin brand tokens on the
+         nav. This block lands last in the head, unlayered, and re-asserts them, plus the heading
+         scale that Tailwind preflight would otherwise squash down to inherit. -->
+    <th:block th:replace="~{layouts/base :: headContent(${plan.name})}"></th:block>
+
+    <style>
+        nav .text-secondary { color: var(--secondary) !important; }
+        nav .bg-primary { background-color: var(--primary) !important; }
+        nav .bg-secondary { background-color: var(--secondary) !important; }
+        nav .hover\:bg-primary:hover { background-color: var(--primary) !important; }
+        nav .hover\:bg-secondary:hover { background-color: var(--secondary) !important; }
+        nav .hover\:text-white:hover { color: var(--white) !important; }
+        nav .text-black { color: var(--black) !important; }
+        /* Bootstrap's reboot is unlayered, so it beats the layered Tailwind utilities: it paints
+           every <a> with the link color and an underline, and squares every button. Scoped to the
+           nav so the Bootstrap-styled page body keeps its own reboot styling. */
+        nav a { color: inherit; text-decoration: none; }
+        nav a:hover { color: var(--white) !important; }
+        nav button { border-radius: 0.375rem; }
+        nav.px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+        nav .px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+        nav .py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+        nav .gap-4 { gap: 1.5rem !important; }
+        nav.shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important; }
+        main h2 { font-size: 2rem; }
+        main h4 { font-size: 1.5rem; }
+        main h5 { font-size: 1.25rem; }
+    </style>
+</head>
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
-  <main class="flex-1 p-4">
-    <div class="mx-auto max-w-2xl">
-      <div class="mb-6 flex items-center justify-between">
-        <h2 class="text-2xl font-semibold text-gray-900" th:text="${plan.name}">Nombre del plan</h2>
-        <a th:href="@{/plans}"
-          class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
-          Volver a planes
-        </a>
-      </div>
-
-      <section class="mb-6 rounded-lg bg-white p-6 shadow-md">
-        <p class="text-gray-600" th:text="${plan.description}">Descripción del plan</p>
-
-        <dl class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div class="rounded-md bg-gray-50 p-3">
-            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Fecha</dt>
-            <dd class="mt-1 text-sm text-gray-900" th:text="${plan.eventDate}">00/00/0000</dd>
-          </div>
-          <div class="rounded-md bg-gray-50 p-3">
-            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Visibilidad</dt>
-            <dd class="mt-1 text-sm text-gray-900" th:text="${plan.isPublic} ? 'Público' : 'Privado'">Público</dd>
-          </div>
-          <div class="rounded-md bg-gray-50 p-3">
-            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Administrador</dt>
-            <dd class="mt-1 text-sm text-gray-900"
-              th:text="${(plan.administrator?.firstName ?: '') + ' ' + (plan.administrator?.lastName ?: '')}">
-              Usuario
-            </dd>
-          </div>
-          <div class="rounded-md bg-gray-50 p-3">
-            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Código</dt>
-            <dd class="mt-1 font-mono text-sm text-gray-900" th:text="${plan.shortCode}">ABCD1234</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section class="mb-6 rounded-lg bg-white p-6 shadow-md">
-        <h3 class="mb-4 text-lg font-semibold text-gray-900">Editar plan</h3>
-
-        <form th:action="@{/plans/{id}(id=${plan.id})}" th:object="${plan}" method="POST">
-          <input type="hidden" name="_method" value="PUT" />
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-
-          <div>
-            <label for="name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del plan</label>
-            <input type="text" id="name" th:field="*{name}"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
-          </div>
-
-          <div class="mt-4">
-            <label for="description" class="mb-1 block text-sm font-medium text-gray-700">Descripción</label>
-            <textarea id="description" th:field="*{description}" rows="4"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"></textarea>
-          </div>
-
-          <div class="mt-4">
-            <label for="eventDate" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
-            <input type="date" id="eventDate" th:field="*{eventDate}"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
-          </div>
-
-          <div class="mt-4 flex items-center gap-2">
-            <input type="checkbox" id="isPublic" th:field="*{isPublic}"
-              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-            <label for="isPublic" class="text-sm font-medium text-gray-700">Hacer público este plan</label>
-          </div>
-
-          <div class="mt-6 flex justify-end">
-            <button type="submit"
-              class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700">
-              Guardar cambios
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section class="rounded-lg bg-white p-6 shadow-md">
-        <h3 class="mb-2 text-lg font-semibold text-gray-900">Eliminar plan</h3>
-        <p class="text-sm text-gray-600">La eliminación no se puede deshacer.</p>
-
-        <form th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST" class="mt-4 flex justify-end">
-          <input type="hidden" name="_method" value="DELETE" />
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-          <button type="submit"
-            class="rounded-md bg-red-600 px-4 py-2 font-medium text-white transition hover:bg-red-700">
-            Eliminar plan
-          </button>
-        </form>
-      </section>
+<main class="container-fluid px-5">
+    <div id="plan-app">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold m-0" th:text="${plan.name}">Nombre del plan</h2>
+        <a th:href="@{/plans}" class="btn btn-secondary">Volver a planes</a>
     </div>
-  </main>
 
+    <div class="d-flex justify-content-end mb-4">
+        <form th:if="${isPlanAdministrator}" th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+            <button type="submit" class="btn btn-danger">Eliminar plan</button>
+        </form>
+        <form th:unless="${isPlanAdministrator}" th:action="@{/plans/{id}/leave(id=${plan.id})}" method="POST">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+            <button type="submit" class="btn btn-outline-danger">Salir del plan</button>
+        </form>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm p-3 mb-4">
+                <div id="map"></div>
+            </div>
+
+            <div th:if="${isPlanAdministrator}" class="card border-0 shadow-sm p-4 mb-4">
+                <h5 class="fw-bold mb-3">Agregar lugar al plan</h5>
+                <div class="row g-2">
+                    <div class="col-md-9">
+                        <select v-model="selectedPlaceId" class="form-select">
+                            <option :value="null" disabled>-- Seleccionar un lugar disponible --</option>
+                            <option v-for="place in availablePlaces" :key="place.id" :value="place.id">
+                                {{ place.name }} ({{ place.category }})
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId || saving">
+                            + Agregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <section class="itinerary-panel" aria-labelledby="itinerary-heading">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
+                    <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
+                </div>
+                <p class="text-muted small mt-2 mb-0" th:if="${isPlanAdministrator}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
+                <div v-if="planPlaces.length === 0" class="itinerary-empty">
+                    <i class="fa-solid fa-map-location-dot fs-3 mb-3" aria-hidden="true"></i>
+                    <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
+                    <span class="small">Los lugares del plan aparecer&aacute;n ac&aacute;.</span>
+                </div>
+                <ol class="itinerary-list">
+                    <li v-for="(item, index) in planPlaces"
+                        :key="item.entryId || index"
+                        class="place-item"
+                        th:attr="draggable=${isPlanAdministrator}"
+                        @dragstart="onDragStart(index)"
+                        @dragover.prevent
+                        @drop="onDrop(index)">
+                        <span class="itinerary-step">{{ index + 1 }}</span>
+                        <div class="itinerary-stop">
+                            <div class="stop-content">
+                                <div class="stop-heading">
+                                    <button type="button" class="stop-title" @click="showPlace(item)">{{ item.name }}</button>
+                                    <span class="stop-category"><i :class="['fa-solid', getCategoryIcon(item.category)]" aria-hidden="true"></i>{{ getCategoryLabel(item.category) }}</span>
+                                </div>
+                                <div class="stop-schedule">
+                                    <span v-if="item.visitDate"><i class="fa-regular fa-calendar me-1" aria-hidden="true"></i>{{ formatVisitDate(item.visitDate) }}</span>
+                                    <span v-if="item.visitTime"><i class="fa-regular fa-clock me-1" aria-hidden="true"></i>{{ item.visitTime.slice(0, 5) }}</span>
+                                    <span v-if="!item.visitDate && !item.visitTime">Horario por definir</span>
+                                </div>
+                                <p v-if="item.description" class="stop-description">{{ item.description }}</p>
+                            </div>
+                            <div class="stop-actions">
+                                <button type="button" class="stop-details" @click="showPlace(item)">Ver m&aacute;s</button>
+                                <button th:if="${isPlanAdministrator}" @click="removePlace(index)" type="button" class="stop-remove" :disabled="saving">
+                                    <i class="fa-regular fa-trash-can me-1" aria-hidden="true"></i>Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </li>
+                </ol>
+            </section>
+        </div>
+
+        <div class="col-md-5">
+            <div id="plan-summary" class="card border-0 shadow-sm p-4 mb-4">
+                <div class="row g-3">
+                    <div class="col-12 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">DESCRIPCI&Oacute;N</small>
+                        <p id="plan-description" class="mb-0 text-break" style="white-space: pre-wrap;"
+                           th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
+                    </div>
+                    <div class="col-6 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">FECHA</small>
+                        <span th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'yyyy-MM-dd') : 'Sin fecha'}">2026-10-16</span>
+                    </div>
+                    <div class="col-6 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">HORA</small>
+                        <span th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
+                    </div>
+                    <div class="col-6 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">VISIBILIDAD</small>
+                        <span th:text="${plan.isPublic != null && plan.isPublic ? 'Público' : 'Privado'}">Privado</span>
+                    </div>
+                    <div class="col-6 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">ADMINISTRADOR</small>
+                        <span th:text="${plan.administrator != null ? plan.administrator.email : 'Sin administrador'}">Administrador</span>
+                    </div>
+                    <div class="col-6 bg-light p-3 rounded">
+                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">CÓDIGO</small>
+                        <span th:text="${plan.shortCode}">BD0F615A</span>
+                    </div>
+                </div>
+            </div>
+
+            <section class="card border-0 shadow-sm p-4 mb-4" aria-labelledby="participants-heading">
+                <h5 id="participants-heading" class="fw-bold mb-3">
+                    Participantes <span class="badge bg-secondary" th:text="${participantEmails == null ? 0 : #lists.size(participantEmails)}">0</span>
+                </h5>
+                <p class="text-muted small mb-0" th:if="${#lists.isEmpty(participantEmails)}">Todav&iacute;a no se ha unido nadie al plan.</p>
+                <ol class="list-group list-group-numbered" th:unless="${#lists.isEmpty(participantEmails)}">
+                    <li class="list-group-item text-break" th:each="email : ${participantEmails}" th:text="${email}">usuario@ejemplo.com</li>
+                </ol>
+            </section>
+
+            <div th:if="${isPlanAdministrator}" class="card border-0 shadow-sm p-4">
+                <h5 class="fw-bold mb-3">Editar plan</h5>
+
+                <form th:action="@{/plans/{id}(id=${plan.id})}" th:object="${plan}" method="POST">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Nombre del plan</label>
+                        <input type="text" th:field="*{name}" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Descripción</label>
+                        <textarea th:field="*{description}" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Fecha</label>
+                        <input type="date" th:field="*{eventDate}" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="eventTime" class="form-label text-muted small">Hora</label>
+                        <input type="time" th:field="*{eventTime}" class="form-control" />
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="isPublic" th:field="*{isPublic}" />
+                        <label class="form-check-label text-secondary small" for="isPublic">
+                            Hacer público este plan
+                        </label>
+                    </div>
+
+                    <div v-for="(item, index) in planPlaces" :key="index">
+                        <input type="hidden" :name="'places[' + index + '].placeId'" :value="item.id" />
+                        <input type="hidden" :name="'places[' + index + '].description'" :value="item.description || ''" />
+                        <input type="hidden" :name="'places[' + index + '].visitDate'" :value="item.visitDate || ''" />
+                        <input type="hidden" :name="'places[' + index + '].visitTime'" :value="item.visitTime || ''" />
+                        <input type="hidden" :name="'places[' + index + '].sortOrder'" :value="index + 1" />
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary px-4 fw-bold" :disabled="saving">Guardar cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <p v-if="requestError" class="alert alert-danger mt-3" role="alert">{{ requestError }}</p>
+    <dialog ref="placeDialog" aria-labelledby="place-detail-title" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%;">
+        <template v-if="selectedEntry">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 id="place-detail-title" class="m-0">{{ selectedEntry.name }}</h4>
+                <button type="button" class="btn-close" aria-label="Cerrar" @click="$refs.placeDialog.close()"></button>
+            </div>
+            <dl>
+                <dt>Dirección</dt><dd>{{ selectedEntry.address || 'Sin dirección' }}</dd>
+                <dt>Categoría</dt><dd>{{ selectedEntry.category || 'Sin categoría' }}</dd>
+                <dt>Descripción del lugar</dt><dd>{{ selectedEntry.placeDescription || 'Sin descripción' }}</dd>
+                <dt>Descripción de la visita</dt><dd>{{ selectedEntry.description || 'Sin descripción' }}</dd>
+                <dt>Fecha de visita</dt><dd>{{ selectedEntry.visitDate || 'Sin fecha' }}</dd>
+                <dt>Hora de visita</dt><dd>{{ selectedEntry.visitTime || 'Sin hora' }}</dd>
+                <dt>Posición en el itinerario</dt><dd>{{ selectedEntry.sortOrder }}</dd>
+            </dl>
+        </template>
+    </dialog>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script th:inline="javascript">
+    const { createApp } = Vue;
+    const itineraryUrl = /*[[@{/api/plans/{id}/places(id=${plan.id})}]]*/ '';
+    const catalogUrl = /*[[@{/api/places}]]*/ '';
+
+    createApp({
+        data() {
+            const seederPlaces = [
+                { id: 1, name: "El Sanjuanino", category: "RESTAURANT", address: "Av. del Libertador 1234", latitude: -34.5895, longitude: -58.4095 },
+                { id: 2, name: "La Viruta", category: "NIGHTLIFE", address: "Armenia 1366", latitude: -34.6025, longitude: -58.4185 },
+                { id: 3, name: "MALBA", category: "MUSEUM", address: "Av. Figueroa Alcorta 3415", latitude: -34.5833, longitude: -58.3928 },
+                { id: 4, name: "Plaza Serrano", category: "SHOPPING", address: "Plaza Cortazar, Palermo", latitude: -34.5818, longitude: -58.4187 },
+                { id: 5, name: "Cafe Tortoni", category: "CAFE", address: "Av. de Mayo 825", latitude: -34.6083, longitude: -58.3722 },
+                { id: 6, name: "Parque Tres de Febrero", category: "PARK", address: "Palermo", latitude: -34.5747, longitude: -58.4103 },
+                { id: 7, name: "El Ateneo Grand Splendid", category: "CULTURE", address: "Av. Santa Fe 1860", latitude: -34.5967, longitude: -58.3817 },
+                { id: 8, name: "Cerveceria General San Martin", category: "BAR", address: "Av. Corrientes 1475", latitude: -34.6033, longitude: -58.3817 },
+                { id: 9, name: "Planetario Galileo Galilei", category: "CULTURE", address: "Av. Sarmiento s/n", latitude: -34.5725, longitude: -58.4172 },
+                { id: 10, name: "Parrilla Don Julio", category: "RESTAURANT", address: "Guatemala 4699", latitude: -34.5892, longitude: -58.4262 }
+            ];
+
+            const backendAllPlaces = /*[[${allPlaces}]]*/ [] || [];
+            const backendPlanPlaces = /*[[${itineraryPlaces}]]*/ [] || [];
+
+            const parsePlace = (p) => {
+                if (!p) return null;
+                const target = p.place ? p.place : p;
+                return {
+                    entryId: p.entryId || null,
+                    description: p.description,
+                    visitDate: p.visitDate,
+                    visitTime: p.visitTime,
+                    id: target.id,
+                    name: target.name || 'Sin nombre',
+                    category: target.category || 'DEFAULT',
+                    latitude: target.latitude || target.lat,
+                    longitude: target.longitude || target.lng
+                };
+            };
+
+            const normalizedAllPlaces = (backendAllPlaces && backendAllPlaces.length > 0)
+                ? backendAllPlaces.map(parsePlace).filter(p => p && p.id)
+                : seederPlaces;
+
+            const normalizedPlanPlaces = backendPlanPlaces.map(parsePlace).filter(p => p && p.id);
+
+            return {
+                map: null,
+                markers: [],
+                routeLine: null,
+                selectedPlaceId: null,
+                draggedIndex: null,
+                selectedEntry: null,
+                requestError: '',
+                saving: false,
+                allPlaces: normalizedAllPlaces,
+                planPlaces: normalizedPlanPlaces
+            };
+        },
+        computed: {
+            availablePlaces() {
+                const addedIds = this.planPlaces.map(p => p.id);
+                return this.allPlaces.filter(p => !addedIds.includes(p.id));
+            }
+        },
+        async mounted() {
+            try {
+                const response = await fetch(catalogUrl);
+                if (!response.ok) throw new Error('No se pudo cargar el listado de lugares.');
+                this.allPlaces = await response.json();
+            } catch (error) {
+                this.allPlaces = [];
+                this.requestError = error.message;
+            }
+            this.initMap();
+        },
+        methods: {
+            async itineraryRequest(path = '', options = {}) {
+                const headers = { ...options.headers };
+                headers[document.querySelector('meta[name="csrf-header"]').content] = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch(itineraryUrl + path, { ...options, headers });
+                if (!response.ok || response.redirected) throw new Error('No se pudo actualizar o consultar el lugar. Intenta nuevamente.');
+                const text = await response.text();
+                return text ? JSON.parse(text) : null;
+            },
+            async showPlace(item) {
+                this.requestError = '';
+                try {
+                    const entries = await this.itineraryRequest();
+                    this.selectedEntry = entries.find(entry => entry.id === item.entryId);
+                    if (!this.selectedEntry) throw new Error('Este lugar ya no pertenece al plan. Actualiza la página.');
+                    this.$refs.placeDialog.showModal();
+                } catch (error) { this.requestError = error.message; }
+            },
+            formatVisitDate(value) {
+                const [year, month, day] = value.split('-');
+                return `${day}/${month}/${year}`;
+            },
+            getCategoryLabel(category) {
+                const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
+                return labels[category] || 'Lugar';
+            },
+            getCategoryIcon(category) {
+                const icons = {
+                    RESTAURANT: 'fa-utensils',
+                    NIGHTLIFE:  'fa-wine-glass-alt',
+                    MUSEUM:     'fa-landmark',
+                    SHOPPING:   'fa-shopping-bag',
+                    CAFE:       'fa-coffee',
+                    PARK:       'fa-tree',
+                    CULTURE:    'fa-book',
+                    BAR:        'fa-beer-mug-empty',
+                    SPORT:      'fa-futbol',
+                    DEFAULT:    'fa-map-marker-alt'
+                };
+                return icons[category] || icons.DEFAULT;
+            },
+
+            initMap() {
+                this.map = L.map('map').setView([-34.59, -58.40], 12);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(this.map);
+
+                this.renderMarkers();
+            },
+
+            renderMarkers(focusPlaceId = null) {
+                this.markers.forEach(m => this.map.removeLayer(m));
+                this.markers = [];
+                if (this.routeLine) {
+                    this.map.removeLayer(this.routeLine);
+                    this.routeLine = null;
+                }
+
+                const isSinglePlace = this.planPlaces.length === 1;
+                const routeLatLngs = [];
+                const bounds = [];
+
+                if (this.allPlaces.length > 0) {
+                    this.allPlaces.forEach((place) => {
+                        if (place.latitude && place.longitude) {
+                            const itineraryIndex = this.planPlaces.findIndex(p => p.id === place.id);
+                            const isInPlan = itineraryIndex !== -1;
+
+                            const categoryClass = 'cat-' + place.category;
+                            const iconClass = this.getCategoryIcon(place.category);
+
+                            let activeClass = '';
+                            let innerContent = '<i class="fa-solid ' + iconClass + '"></i>';
+
+                            if (isInPlan) {
+                                if (isSinglePlace) {
+                                    activeClass = 'single-place-pulse';
+                                    innerContent = '<i class="fa-solid ' + iconClass + '"></i>';
+                                } else {
+                                    activeClass = 'in-itinerary';
+                                    innerContent = '<span>' + (itineraryIndex + 1) + '</span>';
+                                }
+                            }
+
+                            const customHtml = '<div class="custom-map-icon ' + categoryClass + ' ' + activeClass + '">' + innerContent + '</div>';
+
+                            const customIcon = L.divIcon({
+                                html: customHtml,
+                                className: 'custom-div-icon',
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            });
+
+                            let popupText = '<b>' + place.name + '</b><br><small>' + place.category + '</small>';
+                            if (isInPlan) {
+                                if (isSinglePlace) {
+                                    popupText = '<b>📍 Único lugar seleccionado:</b><br><strong>' + place.name + '</strong>';
+                                } else {
+                                    popupText = '<b>Paso ' + (itineraryIndex + 1) + ': ' + place.name + '</b><br><small class="text-success">✔ En el itinerario</small>';
+                                }
+                            }
+
+                            const marker = L.marker([place.latitude, place.longitude], { icon: customIcon })
+                                .addTo(this.map)
+                                .bindPopup(popupText);
+
+                            this.markers.push(marker);
+                            bounds.push([place.latitude, place.longitude]);
+
+                            if ((focusPlaceId && place.id === focusPlaceId) || (isSinglePlace && isInPlan && focusPlaceId)) {
+                                this.map.flyTo([place.latitude, place.longitude], 13, { duration: 1.0 });
+                                setTimeout(() => marker.openPopup(), 1000);
+                            }
+                        }
+                    });
+                }
+
+                if (this.planPlaces.length > 1) {
+                    this.planPlaces.forEach(place => {
+                        if (place.latitude && place.longitude) {
+                            routeLatLngs.push([place.latitude, place.longitude]);
+                        }
+                    });
+
+                    this.routeLine = L.polyline(routeLatLngs, {
+                        color: '#0d6efd',
+                        weight: 3,
+                        opacity: 0.8,
+                        dashArray: '6, 6'
+                    }).addTo(this.map);
+                }
+
+                if (!focusPlaceId && bounds.length > 0) {
+                    this.map.fitBounds(bounds, { padding: [60, 60] });
+                }
+            },
+
+            async addPlace() {
+                if (this.saving) return;
+                this.saving = true;
+                this.requestError = '';
+                const placeObj = this.allPlaces.find(p => p.id === this.selectedPlaceId);
+                try {
+                    if (placeObj) {
+                        const entry = await this.itineraryRequest('?placeId=' + placeObj.id, { method: 'POST' });
+                        const addedId = placeObj.id;
+                        this.planPlaces.push({ ...placeObj, entryId: entry.id, description: entry.description, visitDate: entry.visitDate, visitTime: entry.visitTime });
+                        this.selectedPlaceId = null;
+                        this.renderMarkers(addedId);
+                    }
+                } catch (error) {
+                    this.requestError = error.message;
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            async removePlace(index) {
+                if (this.saving) return;
+                this.saving = true;
+                this.requestError = '';
+                try {
+                    await this.itineraryRequest('/' + this.planPlaces[index].entryId, { method: 'DELETE' });
+                    this.planPlaces.splice(index, 1);
+                    this.renderMarkers();
+                } catch (error) { this.requestError = error.message; }
+                finally { this.saving = false; }
+            },
+
+            onDragStart(index) {
+                this.draggedIndex = index;
+            },
+
+            async onDrop(dropIndex) {
+                if (this.saving) return;
+                if (this.draggedIndex !== null && this.draggedIndex !== dropIndex) {
+                    this.saving = true;
+                    this.requestError = '';
+                    const previous = [...this.planPlaces];
+                    const movedItem = this.planPlaces.splice(this.draggedIndex, 1)[0];
+                    this.planPlaces.splice(dropIndex, 0, movedItem);
+                    this.draggedIndex = null;
+                    this.renderMarkers();
+                    try {
+                        await this.itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.planPlaces.map(item => item.entryId)) });
+                    } catch (error) { this.planPlaces = previous; this.renderMarkers(); this.requestError = error.message; }
+                    finally { this.saving = false; }
+                }
+            }
+        }
+    }).mount('#plan-app');
+</script>
+</main>
 </body>
-
 </html>

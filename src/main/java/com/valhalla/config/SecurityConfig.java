@@ -126,10 +126,13 @@ public class SecurityConfig {
   public SecurityFilterChain defaultFilterChain(HttpSecurity http, SessionRegistry sessionRegistry)
     throws Exception {
     http
-      .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
       .authorizeHttpRequests(auth ->
         auth
-          .requestMatchers("/", "/share/**", "/api/**", "/reload/**")
+          .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/**", "/explore")
+          .permitAll()
+          .requestMatchers("/api/**")
+          .authenticated()
+          .requestMatchers("/", "/share/**", "/reload/**")
           .permitAll()
           .requestMatchers("/css/**", "/js/**", "/images/**", "/manifest.json")
           .permitAll()
