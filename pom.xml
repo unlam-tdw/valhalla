@@ -426,6 +426,9 @@
                         <exclude>com/valhalla/presentation/plan/PlanRequest.class</exclude>
                         <exclude>com/valhalla/presentation/plan/PlanPlaceRequest.class</exclude>
                         <exclude>com/valhalla/presentation/plan/PlanPlaceUpdateRequest.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanRestController$PlanSummary.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanRestController$PlanPlaceSummary.class</exclude>
+                        <exclude>com/valhalla/presentation/plan/PlanPlaceRestController$ItineraryEntry.class</exclude>
                         <exclude>com/valhalla/presentation/user/*Request.class</exclude>
                         <exclude>com/valhalla/presentation/shared/*Request.class</exclude>
                         <exclude>com/valhalla/presentation/shared/UserSession.class</exclude>
