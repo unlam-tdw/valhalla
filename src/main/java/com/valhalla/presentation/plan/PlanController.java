@@ -30,6 +30,7 @@ public class PlanController {
 
   private static final String VIEW_PLANS_LIST = "pages/plans/list";
   private static final String VIEW_PLAN_DETAIL = "pages/plans/detail";
+  private static final String VIEW_PUBLIC_PLAN = "pages/plans/public";
   private static final String REDIRECT_PLANS = "redirect:/plans";
   private static final String REDIRECT_PLAN_DETAIL = "redirect:/plans/";
   private static final String REDIRECT_EXPLORE = "redirect:/explore";
@@ -73,6 +74,23 @@ public class PlanController {
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
+  }
+
+  /**
+   * Vista publica read-only de un plan compartido. La visibilidad la decide el servicio: un plan
+   * privado responde igual que un id inexistente. La autenticacion no se consulta todavia: los
+   * CTAs y los flags de sesion llegan con el ticket de la vista publica.
+   */
+  @GetMapping("/{id}/public")
+  public ModelAndView showPublicPlan(@PathVariable Long id) {
+    Plan plan = planService.getPublicPlan(id);
+    Map<String, Object> model = new ModelMap();
+    model.put(ATTR_PLAN, plan);
+    model.put(
+      "itineraryPlaces",
+      plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
+    );
+    return new ModelAndView(VIEW_PUBLIC_PLAN, model);
   }
 
   @PostMapping

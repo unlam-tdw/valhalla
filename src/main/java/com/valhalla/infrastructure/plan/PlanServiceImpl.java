@@ -102,6 +102,22 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public Plan getPublicPlan(Long id) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (!plan.getIsPublic()) {
+      // Privado e inexistente responden igual: la vista publica no confirma que el plan exista.
+      throw new PlanNotFoundException();
+    }
+    // El detalle publico renderiza administrador y lugares despues de cerrar la transaccion.
+    if (plan.getAdministrator() != null) {
+      plan.getAdministrator().getEmail();
+    }
+    plan.getPlanPlaces().forEach(entry -> entry.getPlace().getName());
+    return plan;
+  }
+
+  @Override
   public void leavePlan(Long id, String userEmail) {
     Plan plan = getParticipatingPlan(id, userEmail);
     if (plan.isAdministrator(userEmail)) {

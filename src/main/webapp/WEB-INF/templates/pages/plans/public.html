@@ -1,0 +1,53 @@
+<!DOCTYPE HTML>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+
+<!-- Vista publica read-only de un plan compartido [PVP]. Es el destino de /plans/{id}/public:
+     no hereda los formularios de edicion de pages/plans/detail.html. Usa unicamente el modelo
+     que arma PlanController.showPublicPlan (@{plan} + itineraryPlaces). -->
+<head th:replace="~{layouts/base :: head(${plan.name})}"></head>
+
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+
+  <main class="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Plan público</p>
+    <h1 class="mt-1 text-3xl font-bold text-black" th:text="${plan.name}">Plan</h1>
+
+    <p class="mt-2 text-gray-600" th:if="${!#strings.isEmpty(plan.description)}"
+      th:text="${plan.description}"></p>
+
+    <p class="mt-2 text-gray-700" th:if="${plan.eventDate != null or plan.eventTime != null}">
+      <strong>Fecha:</strong>
+      <span th:if="${plan.eventDate != null}" th:text="${plan.eventDate}"></span>
+      <span th:if="${plan.eventTime != null}" th:text="| ${plan.eventTime}|"></span>
+    </p>
+
+    <section class="mt-6 rounded-lg bg-white p-6 shadow">
+      <h2 class="mb-4 text-xl font-bold text-black">Itinerario</h2>
+
+      <ol class="space-y-4" th:if="${!#lists.isEmpty(itineraryPlaces)}">
+        <li class="flex gap-3" th:each="stop, it : ${itineraryPlaces}">
+          <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-200 font-bold"
+            th:text="${it.count}">1</span>
+          <div>
+            <p class="font-semibold text-black" th:text="${stop.name}">Lugar</p>
+            <p class="text-xs uppercase tracking-wide text-gray-500" th:if="${stop.category != null}"
+              th:text="${stop.category}">CATEGORY</p>
+            <p class="text-sm text-gray-600" th:if="${!#strings.isEmpty(stop.description)}"
+              th:text="${stop.description}"></p>
+            <p class="text-sm text-gray-500" th:if="${stop.visitDate != null or stop.visitTime != null}">
+              <span th:if="${stop.visitDate != null}" th:text="${stop.visitDate}"></span>
+              <span th:if="${stop.visitTime != null}" th:text="| ${stop.visitTime}|"></span>
+            </p>
+          </div>
+        </li>
+      </ol>
+
+      <p class="text-gray-500" th:if="${#lists.isEmpty(itineraryPlaces)}">
+        Este plan todavía no tiene lugares.
+      </p>
+    </section>
+  </main>
+
+</body>
+
+</html>
