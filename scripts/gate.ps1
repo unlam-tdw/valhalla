@@ -9,10 +9,10 @@
       .\scripts\gate.ps1 list                     every class per layer, with counts
       .\scripts\gate.ps1 list UserServiceTest     the methods in one class
       .\scripts\gate.ps1 list=e2e                 one layer only
-      .\scripts\gate.ps1 unit                     64 tests, no Spring context, no Docker
+      .\scripts\gate.ps1 unit                     no Spring context, no Docker
       .\scripts\gate.ps1 unit=UserServiceTest     one class
       .\scripts\gate.ps1 unit=UserServiceTest#shouldCreateUser
-      .\scripts\gate.ps1 integration              56 MockMvc tests, in-memory HSQLDB
+      .\scripts\gate.ps1 integration              MockMvc tests, in-memory HSQLDB
       .\scripts\gate.ps1 integration=AuthControllerTest
       .\scripts\gate.ps1 e2e                      all E2E, with the stack brought up
       .\scripts\gate.ps1 e2e=LoginViewE2E -Headed one E2E class
@@ -62,9 +62,9 @@ Commands
   list                  the classes per layer, with test counts; list=unit|integration|e2e narrows it
   list <Class>           the methods in one class, fully qualified (both packages if the
                          name exists twice)
-  unit                  every unit test              64 tests, no Spring context, no Docker
+  unit                  every unit test              no Spring context, no Docker
   unit=<target>         one class, or Class#method
-  integration           every MockMvc integration   56 tests, in-memory HSQLDB, no Docker
+  integration           every MockMvc integration   in-memory HSQLDB, no Docker
   integration=<target>  one class, or Class#method
   e2e                   every E2E                   brings up PostgreSQL + Chromium;
   e2e=<target>          one class, or Class#method  unit and integration are skipped
@@ -134,7 +134,7 @@ reset-db DESTROYS ALL LOCAL DATA
 # friends out.
 #
 # The gap between `@Test` and `void name(` is `[^;]*?`, and both of its ends are load
-# bearing. `[^;{}]` looks safer and silently drops 27 of 136 methods, because Spring
+# bearing. `[^;{}]` looks safer and silently drops 27 of 382 methods, because Spring
 # annotations carry braces: @WithMockUser(..., roles = { "ADMIN" }). A `;` is the honest
 # stop, since it means the match has walked out of the declaration and into a statement.
 $testMethod = '@Test\b[^;]*?\bvoid\s+([A-Za-z0-9_]+)\s*\('
@@ -147,7 +147,7 @@ $integrationPath = '**/integration/*Test'
 $unitPatterns = "!**/e2e/**,!**/integration/**"
 # A -Dtest value nothing can match. Combined with the surefire-prefixed
 # failIfNoSpecifiedTests switch it runs zero surefire tests without failing, which is how
-# `e2e` means E2E and not E2E-plus-the-other-136. The `surefire.` prefix is the point:
+# `e2e` means E2E and not E2E-plus-the-other-layers. The `surefire.` prefix is the point:
 # failsafe reads `failIfNoTests` from the pom, and a bare -DfailIfNoTests=false would
 # disarm it, letting a bogus -Dit.test name report a green build over zero tests.
 $surefireNone = '__NoUnitGate__'
@@ -367,7 +367,7 @@ if ($targets -match 'E2E' -and $command -in 'unit', 'integration') {
 # ---- list ----------------------------------------------------------------------------
 if ($command -eq 'list') {
     # Two shapes on purpose. `list` answers "which class do I run", which is a question
-    # about classes and their weight; the 136 method names belong to the next question,
+    # about classes and their weight; every method name belongs to the next question,
     # "which method in it", and printing them all up front buries the answer to the first
     # one under a wall of names you cannot run.
     #
@@ -600,7 +600,7 @@ switch ($command) {
         if ($targets) { $mvnArgs += "-Dit.test=$($targets -join ',')" }
         # surefire still runs inside verify. Starve it so `e2e` means E2E: a broken unit
         # test must not block a browser run, and iterating on one E2E class should not pay
-        # for 120 other tests.
+        # for the rest of the suite.
         $mvnArgs += "-Dtest=$surefireNone"
         $mvnArgs += '-Dsurefire.failIfNoSpecifiedTests=false'
     }
