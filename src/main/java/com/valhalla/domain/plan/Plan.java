@@ -59,6 +59,27 @@ public class Plan {
   )
   private List<User> participants = new ArrayList<>();
 
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+    name = "plan_editors",
+    joinColumns = @JoinColumn(name = "plan_id"),
+    inverseJoinColumns = @JoinColumn(name = "user_id"),
+    uniqueConstraints = @UniqueConstraint(columnNames = { "plan_id", "user_id" })
+  )
+  private List<User> editors = new ArrayList<>();
+
+  public List<User> getEditors() {
+    return editors;
+  }
+
+  public boolean isEditor(String email) {
+    return isParticipant(email) && editors.stream().anyMatch(user -> email.equals(user.getEmail()));
+  }
+
+  public boolean canEdit(String email) {
+    return isAdministrator(email) || isEditor(email);
+  }
+
   public List<User> getParticipants() {
     return participants;
   }

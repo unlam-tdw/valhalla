@@ -97,6 +97,53 @@ public class PlanControllerIntegrationTest {
     this.otherId = givenUser(OTHER_EMAIL);
   }
 
+  @Test
+  public void ownerAppearsInParticipantListAndCannotBeDemoted() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    mockMvc.perform(get("/plans/" + planId).with(user(OWNER_EMAIL)))
+      .andExpect(model().attribute("participantEmails", List.of(OWNER_EMAIL)));
+    for (String role : List.of("guest", "editor")) {
+      mockMvc.perform(post("/plans/" + planId + "/participants/role")
+        .with(user(OWNER_EMAIL)).with(csrf()).param("participantEmail", OWNER_EMAIL).param("role", role))
+        .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+      assertThat(planRepository.findById(planId).orElseThrow().isAdministrator(OWNER_EMAIL), is(true));
+    }
+  }
+
+  @Test
+  public void editorCanEditButCannotDeleteAndLosesAccessWhenDemoted() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = planRepository.findById(planId).orElseThrow();
+    plan.getParticipants().add(userRepository.findById(otherId).orElseThrow());
+    planRepository.save(plan);
+    mockMvc.perform(post("/plans/" + planId + "/participants/role")
+      .with(user(OTHER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+    mockMvc.perform(post("/plans/" + planId + "/participants/role")
+      .with(user(OWNER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(planRepository.findById(planId).orElseThrow().isEditor(OTHER_EMAIL), is(true));
+    mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
+      .andExpect(model().attribute("canEditPlan", true))
+      .andExpect(model().attribute("isPlanAdministrator", false));
+    mockMvc.perform(post("/plans/" + planId).with(user(OTHER_EMAIL)).with(csrf())
+      .param("name", "Edited by editor"))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    assertThat(planRepository.findById(planId).orElseThrow().getName(), is("Edited by editor"));
+    mockMvc.perform(post("/plans/" + planId + "/delete").with(user(OTHER_EMAIL)).with(csrf()))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    assertThat(planRepository.findById(planId).isPresent(), is(true));
+    mockMvc.perform(post("/plans/" + planId + "/participants/role")
+      .with(user(OWNER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL).param("role", "guest"))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    mockMvc.perform(post("/plans/" + planId).with(user(OTHER_EMAIL)).with(csrf()).param("name", "Forbidden"))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    assertThat(planRepository.findById(planId).orElseThrow().getName(), is("Edited by editor"));
+  }
+
   // --- listado ---
 
   @Test

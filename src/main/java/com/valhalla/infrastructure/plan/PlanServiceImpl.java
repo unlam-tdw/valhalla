@@ -76,8 +76,37 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public Plan getEditablePlan(Long id, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (!plan.canEdit(userEmail)) {
+      throw new PlanNotFoundException();
+    }
+    return plan;
+  }
+
+  @Override
+  public void changeParticipantRole(Long id, String participantEmail, String role, String userEmail) {
+    Plan plan = getEditablePlan(id, userEmail);
+    if (plan.isAdministrator(participantEmail)) {
+      throw new PlanNotFoundException();
+    }
+    if (!"guest".equals(role) && !"editor".equals(role)) {
+      throw new IllegalArgumentException("Unknown participant role");
+    }
+    User participant = plan.getParticipants().stream()
+      .filter(user -> user.getEmail().equals(participantEmail))
+      .findFirst().orElseThrow(PlanNotFoundException::new);
+    plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
+    if ("editor".equals(role)) {
+      plan.getEditors().add(participant);
+    }
+    planRepository.save(plan);
+  }
+
+  @Override
   public Plan updatePlan(Long id, Plan changes, String ownerEmail) {
-    Plan existing = getOwnedPlan(id, ownerEmail);
+    Plan existing = getEditablePlan(id, ownerEmail);
     existing.updateFrom(changes);
     return planRepository.save(existing);
   }
@@ -91,6 +120,7 @@ public class PlanServiceImpl implements PlanService {
     }
     // The detail view renders participants and places after this transaction has ended.
     plan.getParticipants().forEach(user -> user.getEmail());
+    plan.getEditors().forEach(user -> user.getEmail());
     plan.getPlanPlaces().forEach(entry -> entry.getPlace().getName());
     return plan;
   }
@@ -107,6 +137,7 @@ public class PlanServiceImpl implements PlanService {
     if (plan.isAdministrator(userEmail)) {
       throw new PlanNotFoundException();
     }
+    plan.getEditors().removeIf(user -> user.getEmail().equals(userEmail));
     plan.getParticipants().removeIf(user -> user.getEmail().equals(userEmail));
     planRepository.save(plan);
   }
