@@ -632,6 +632,13 @@ switch ($command) {
     }
 }
 
+# The coverage thresholds assume the whole suite, but jacoco:check sits in the `test`
+# phase, which every surefire run passes through, so a run of one layer measured only
+# that layer and failed the build with all of its own tests green (unit alone lands at
+# 0.78 line against a 0.80 bundle floor). Only a bare `all` executes everything the
+# rules assume, so only it keeps the gate; `e2e` measures nothing at all.
+if ($command -ne 'all' -or $targets) { $mvnArgs += '-Djacoco.gate.skip=true' }
+
 if ($fast) { $mvnArgs += '-Pdev' }
 if ($headed) { $mvnArgs += '-De2e.headed=true' }
 if ($slowmo -gt 0) { $mvnArgs += "-De2e.slowMo=$slowmo" }

@@ -25,6 +25,16 @@
         <hsqldb.version>2.7.4</hsqldb.version>
         <checkstyle.version>3.6.0</checkstyle.version>
         <checkstyle.runtime.version>13.8.0</checkstyle.runtime.version>
+        <!-- Whether jacoco:check enforces the coverage thresholds. Its rules are written
+             for the whole suite (bundle at least 0.80 line, domain 1.00 line and branch,
+             presentation 1.00 line), but the goal sits in the test phase, which every
+             surefire run passes through. A run of a single layer therefore measured only
+             that layer and failed the build with all of its own tests green. gate.ps1 sets
+             this to true for unit, integration, e2e and all with a target; only a bare
+             `all` executes everything the thresholds assume. Not jacoco.skip: that one
+             also disarms prepare-agent and the report, and would cost the coverage
+             matrix. -->
+        <jacoco.gate.skip>false</jacoco.gate.skip>
     </properties>
 
     <dependencies>
@@ -490,6 +500,12 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <!-- Gate toggle, see jacoco.gate.skip in <properties>. Written
+                                 here as explicit configuration because the goal's own user
+                                 property is jacoco.skip, which prepare-agent and the report
+                                 share: setting that to skip the gate would skip the report
+                                 with it. -->
+                            <skip>${jacoco.gate.skip}</skip>
                             <!-- Data file to validate -->
                             <dataFile>${project.basedir}/.code-quality/jacoco/jacoco.exec</dataFile>
                             <rules>
@@ -716,6 +732,12 @@
                 <cpd.skip>true</cpd.skip>
                 <prettier.skip>true</prettier.skip>
                 <jacoco.skip>true</jacoco.skip>
+                <!-- jacoco.skip alone no longer reaches the check goal: the check-coverage
+                     execution spells its skip out as ${jacoco.gate.skip}, and an explicit
+                     configuration wins over the goal's user property. Without this line
+                     -Fast would skip the agent and the report but still evaluate the gate
+                     against a report that was never written, which fails on a clean clone. -->
+                <jacoco.gate.skip>true</jacoco.gate.skip>
             </properties>
         </profile>
     </profiles>
