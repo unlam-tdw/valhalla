@@ -584,9 +584,13 @@ try {
         docker compose exec -T postgres createdb -U user $e2eDb
     }
 
-    # Read from the pom so a Playwright bump cannot silently drift out of sync.
-    $pwVersion = (Select-String -Path pom.xml -Pattern '<playwright\.version>([^<]+)<').Matches[0].Groups[1].Value
-    npx -y "playwright@$pwVersion" install chromium
+    # Install Chromium through the Maven-managed Playwright CLI. The browser version comes
+    # from the resolved playwright dependency (the pom's), so a bump cannot drift out of
+    # sync, and nothing is downloaded through npm: this repo has no package.json, and an
+    # `npx playwright install` there pulls a throwaway package and prints a
+    # "running without installing your project's dependencies" warning that reads like a
+    # misconfiguration when it is just npx seeing a Java project.
+    mvn -q exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install chromium"
     if ($LASTEXITCODE -ne 0) { throw 'playwright install failed' }
 
     # Jetty and failsafe must agree: Jetty needs the schema, ResetDatabase needs the
