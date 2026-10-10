@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -58,13 +59,15 @@ public class PlanController {
     Map<String, Object> model = new ModelMap();
     Plan plan = planService.getParticipatingPlan(id, authentication.getName());
     model.put(ATTR_PLAN, plan);
+    model.put("canEditPlan", plan.canEdit(authentication.getName()));
     model.put("isPlanAdministrator", plan.isAdministrator(authentication.getName()));
     model.put(
       "participantEmails",
-      plan
-        .getParticipants()
-        .stream()
-        .map(User::getEmail)
+      Stream.concat(
+        Stream.ofNullable(plan.getAdministrator()).map(User::getEmail),
+        plan.getParticipants().stream().map(User::getEmail)
+      )
+        .distinct()
         .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
         .toList()
     );
@@ -115,6 +118,17 @@ public class PlanController {
   public ModelAndView deletePlan(@PathVariable Long id, Authentication authentication) {
     planService.deleteOwnedPlan(id, authentication.getName());
     return new ModelAndView(REDIRECT_PLANS);
+  }
+
+  @PostMapping("/{id}/participants/role")
+  public ModelAndView changeParticipantRole(
+    @PathVariable Long id,
+    @RequestParam String participantEmail,
+    @RequestParam String role,
+    Authentication authentication
+  ) {
+    planService.changeParticipantRole(id, participantEmail, role, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }
 
   @PostMapping("/{id}/leave")
