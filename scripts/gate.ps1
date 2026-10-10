@@ -20,7 +20,7 @@
       .\scripts\gate.ps1 all=UserServiceTest+LoginViewE2E
       .\scripts\gate.ps1 reset-db                 throws the local database away and rebuilds it
       .\scripts\gate.ps1 check                    Checkstyle, PMD, CPD, Prettier
-      .\scripts\gate.ps1 coverage                 runs the suite, prints coverage per package
+      .\scripts\gate.ps1 coverage                 runs the suite, prints the coverage matrix
 
     Bare `.\scripts\gate.ps1` prints this help rather than starting a build.
 
@@ -71,7 +71,7 @@ Commands
   all                   unit + integration + e2e    one `mvn verify`, stack included
   all=<a>+<b>           a mix; + separates, e2e names go to failsafe, the rest to surefire
   check                 Checkstyle, PMD, CPD, Prettier. Changes nothing
-  coverage              runs the whole suite, prints line coverage per package
+  coverage              runs the whole suite, prints the coverage matrix
   reset-db              DESTROYS every local database and rebuilds it. See below
 
   No command means help. Nothing runs unless you name a layer.
@@ -103,6 +103,21 @@ Examples
   .\scripts\gate.ps1 coverage
   .\scripts\gate.ps1 list=e2e
   .\scripts\gate.ps1 reset-db
+
+Coverage matrix
+  unit, integration and all end with one: LINE, BRANCH and METHOD ratios per package,
+  a TOTAL row, and the path to the html report. `coverage` prints the same table. A
+  class or method target prints it too, scoped to what that run alone covered.
+
+  It appears only when this run actually wrote the report. jacoco:report sits in the
+  `test` phase after surefire, with no testFailureIgnore, so a failing run stops the
+  build before the report is generated and the csv on disk is an older one; showing
+  that would pass old numbers off as new. -Fast skips JaCoCo (jacoco.skip) and lands
+  in the same place.
+
+  `e2e` never prints one. The app under test runs in Jetty's JVM, which prepare-agent
+  does not instrument, and surefire is starved with __NoUnitGate__, so an E2E run
+  yields no coverage at all.
 
 reset-db DESTROYS ALL LOCAL DATA
   JpaConfig sets hibernate.hbm2ddl.auto=update and there is no Flyway or Liquibase in the pom.
@@ -172,6 +187,88 @@ function Stop-With($message) {
     Write-Host $message
     Set-Location $originalLocation
     exit 1
+}
+
+# One metric as a right-aligned percentage. JaCoCo reports zero branches for a class
+# with none, and 0/0 has to read `n/a`: 100.0% would claim branch coverage that was
+# never exercised, 0.0% would claim the opposite.
+function Format-CoverageRatio([int]$covered, [int]$missed) {
+    $total = $covered + $missed
+    if ($total -le 0) { return 'n/a' }
+    '{0:P1}' -f ($covered / $total)
+}
+
+# The csv mtime, or $null when there is no csv. Compared before and after a Maven run
+# to tell whether the report on disk is this run's.
+function Get-CoverageStamp {
+    if (Test-Path $jacocoCsv) { (Get-Item $jacocoCsv).LastWriteTimeUtc } else { $null }
+}
+
+# True only when this run rewrote the report.
+#
+# The mtime, not the exit code, and not the phase order: jacoco:report and
+# jacoco:check both sit in `test` after surefire with no testFailureIgnore, so a
+# failing test stops the build before the report runs and leaves the previous csv
+# behind, while a jacoco:check failure exits non-zero *after* a fresh report. The
+# exit code therefore gets both directions wrong, whereas the file already knows. It
+# also covers -Fast (jacoco.skip) without a second condition.
+function Test-CoverageFresh([object]$before) {
+    $after = Get-CoverageStamp
+    return ($null -ne $after -and $after -ne $before)
+}
+
+# The one coverage table, at the end of every gate that just produced a fresh report.
+# Three metrics because they answer three different questions: LINE is what
+# jacoco:check enforces, BRANCH is the second half of that rule in domain, and METHOD
+# counts classes entirely covered rather than merely touched. INSTRUCTION and
+# COMPLEXITY are dropped as redundant with LINE.
+#
+# Never called after `e2e`: the app under test runs in Jetty's JVM, which
+# prepare-agent does not instrument, and surefire is starved with __NoUnitGate__, so
+# there is no honest matrix to show and no note that would teach the wrong lesson.
+function Show-CoverageMatrix {
+    if (-not (Test-Path $jacocoCsv)) {
+        Write-Host "[coverage] no report at $jacocoCsv -- the run did not reach the report phase."
+        return
+    }
+
+    # The csv's GROUP column is the pom's <name> ("spring web mvc"), not the
+    # artifactId, so it cannot be used to scope the report. The package prefix is
+    # what identifies the module, and taking it from <groupId> rather than hardcoding
+    # it means a report left behind by a module rename cannot be averaged in silently.
+    $groupId = (Select-String -Path pom.xml -Pattern '<groupId>([^<]+)<').Matches[0].Groups[1].Value
+    $rows = @(Import-Csv $jacocoCsv | Where-Object { $_.PACKAGE -like "$groupId.*" })
+    if (-not $rows) {
+        Write-Host "[coverage] $jacocoCsv has no rows under $groupId."
+        return
+    }
+
+    $metrics = 'LINE', 'BRANCH', 'METHOD'
+    $sum = @{}
+    foreach ($m in $metrics) { $sum[$m] = @{ Covered = 0; Missed = 0 } }
+
+    Write-Host ''
+    Write-Host 'coverage by package (this run)'
+    Write-Host ('  {0,-46} {1,9} {2,9} {3,9}' -f 'package', 'LINE', 'BRANCH', 'METHOD')
+
+    foreach ($group in ($rows | Group-Object PACKAGE | Sort-Object Name)) {
+        $cell = @{}
+        foreach ($m in $metrics) {
+            $covered = ($group.Group | Measure-Object -Property "${m}_COVERED" -Sum).Sum
+            $missed = ($group.Group | Measure-Object -Property "${m}_MISSED" -Sum).Sum
+            $sum[$m].Covered += $covered
+            $sum[$m].Missed += $missed
+            $cell[$m] = Format-CoverageRatio $covered $missed
+        }
+        Write-Host ('  {0,-46} {1,9} {2,9} {3,9}' -f $group.Name, $cell['LINE'], $cell['BRANCH'], $cell['METHOD'])
+    }
+
+    Write-Host ('  {0,-46} {1,9} {2,9} {3,9}' -f 'TOTAL',
+        (Format-CoverageRatio $sum['LINE'].Covered $sum['LINE'].Missed),
+        (Format-CoverageRatio $sum['BRANCH'].Covered $sum['BRANCH'].Missed),
+        (Format-CoverageRatio $sum['METHOD'].Covered $sum['METHOD'].Missed))
+    Write-Host ''
+    Write-Host "html report  $jacocoHtml"
 }
 
 # if/elseif rather than switch: switch keeps evaluating after a match and falls through to
@@ -445,45 +542,31 @@ if ($command -eq 'coverage') {
 
     # haltOnFailure=false: the pom's jacoco:check is bound to the test phase and would
     # fail the run on a sub-threshold suite, taking the report with it. Coverage is worth
-    # looking at most when tests are failing or barely passing, so the number must survive
-    # a red run.
+    # looking at most when tests are failing or barely passing, so a below-threshold
+    # suite must not cost you the numbers.
+    #
+    # It does not help when surefire itself fails: surefire runs earlier in the same
+    # phase, so the build stops before jacoco:report ever executes. That is what the
+    # freshness check below exists for -- it refuses to pass an older csv off as this
+    # run's, which is what this command did before.
+    $stamp = Get-CoverageStamp
     & mvn test '-Djacoco.haltOnFailure=false'
     $exitCode = $LASTEXITCODE
 
-    if (Test-Path $jacocoCsv) {
-        # The csv's GROUP column is the pom's <name> ("spring web mvc"), not the
-        # artifactId, so it cannot be used to scope the report. The package prefix is
-        # what identifies the module, and taking it from <groupId> rather than hardcoding
-        # it means a report left behind by a module rename cannot be averaged in silently.
-        $groupId = (Select-String -Path pom.xml -Pattern '<groupId>([^<]+)<').Matches[0].Groups[1].Value
-        $rows = @(Import-Csv $jacocoCsv | Where-Object { $_.PACKAGE -like "$groupId.*" })
-        if (-not $rows) {
-            Write-Host "[coverage] $jacocoCsv has no rows under $groupId."
-        }
-        else {
-            Write-Host ''
-            Write-Host 'line coverage by package'
-            Write-Host ('  {0,-46} {1,7} {2,7} {3,8}' -f 'package', 'covered', 'total', 'ratio')
-            $totals = [ordered]@{ Covered = 0; Total = 0 }
-            foreach ($group in ($rows | Group-Object PACKAGE | Sort-Object Name)) {
-                $covered = ($group.Group | Measure-Object -Property LINE_COVERED -Sum).Sum
-                $missed = ($group.Group | Measure-Object -Property LINE_MISSED -Sum).Sum
-                $total = $covered + $missed
-                $totals.Covered += $covered
-                $totals.Total += $total
-                $ratio = if ($total) { '{0:P1}' -f ($covered / $total) } else { 'n/a' }
-                Write-Host ('  {0,-46} {1,7} {2,7} {3,8}' -f $group.Name, $covered, $total, $ratio)
-            }
-            $overall = if ($totals.Total) { '{0:P1}' -f ($totals.Covered / $totals.Total) } else { 'n/a' }
-            Write-Host ('  {0,-46} {1,7} {2,7} {3,8}' -f 'TOTAL', $totals.Covered, $totals.Total, $overall)
-        }
-        Write-Host ''
-        Write-Host "html report  $jacocoHtml"
+    if (Test-CoverageFresh $stamp) {
+        Show-CoverageMatrix
+        if ($exitCode -ne 0) { Write-Host "[coverage] the suite itself failed (exit $exitCode); the numbers above are partial." }
     }
     else {
-        Write-Host "[coverage] no report at $jacocoCsv -- the run did not reach the report phase."
+        if (Test-Path $jacocoCsv) {
+            Write-Host "[coverage] the suite stopped before jacoco:report, so $jacocoCsv still holds an"
+            Write-Host "[coverage] older run and is not shown as this one's."
+        }
+        else {
+            Write-Host "[coverage] no report at $jacocoCsv -- the run did not reach the report phase."
+        }
+        if ($exitCode -ne 0) { Write-Host "[coverage] the suite itself failed (exit $exitCode)." }
     }
-    if ($exitCode -ne 0) { Write-Host "[coverage] the suite itself failed (exit $exitCode); the numbers above are partial." }
 
     Set-Location $originalLocation
     exit $exitCode
@@ -559,8 +642,11 @@ if ($port -gt 0) { $mvnArgs += "-Djetty.port=$port" }
 # unit and integration run on in-memory HSQLDB, so they stay a plain mvn call: no
 # container, no env to mutate, nothing to tear down on Ctrl+C.
 if (-not $needsStack) {
+    $stamp = Get-CoverageStamp
     & mvn @mvnArgs
     $exitCode = $LASTEXITCODE
+    if (Test-CoverageFresh $stamp) { Show-CoverageMatrix }
+    else { Write-Host '[coverage] no report from this run, so there is no matrix to show.' }
     Set-Location $originalLocation
     exit $exitCode
 }
@@ -600,6 +686,7 @@ try {
     $env:DB_USER = 'user'
     $env:DB_PASSWORD = 'user'
 
+    $stamp = Get-CoverageStamp
     & mvn @mvnArgs
     $exitCode = $LASTEXITCODE
 }
@@ -620,6 +707,15 @@ finally {
         if ($null -eq $savedEnv[$name]) { Remove-Item "env:$name" -ErrorAction SilentlyContinue }
         else { [Environment]::SetEnvironmentVariable($name, $savedEnv[$name]) }
     }
+}
+
+# `all` ends with the matrix. `e2e` ends with nothing: its app ran inside Jetty's
+# uninstrumented JVM and its surefire was starved with __NoUnitGate__, so a report
+# there would be neither fresh nor about the tests it just ran. The reason is printed
+# nowhere on purpose -- a note would invite reading the next stale csv as an E2E one.
+if ($command -eq 'all') {
+    if (Test-CoverageFresh $stamp) { Show-CoverageMatrix }
+    else { Write-Host '[coverage] no report from this run, so there is no matrix to show.' }
 }
 
 exit $exitCode
