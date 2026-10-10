@@ -152,6 +152,10 @@
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
             <button type="submit" class="btn btn-outline-danger">Salir del plan</button>
         </form>
+        <form th:action="@{/plans/{id}/clone(id=${plan.id})}" method="POST">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+            <button type="submit" class="btn btn-outline-primary">Clonar plan</button>
+        </form>
     </div>
 
     <div class="row g-4">
