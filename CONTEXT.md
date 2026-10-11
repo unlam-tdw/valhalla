@@ -12,6 +12,10 @@
 
 **Editor**: A Plan participant who can modify the plan and itinerary and change participant roles. Only the administrator (owner) can delete the Plan. Leaving the Plan removes the Editor role.
 
+The owner and Editors can remove Participants from a Plan. Only the owner can remove
+Editors. The owner cannot be removed. Removal revokes participation and the Editor
+role for that Plan without deleting the User's account.
+
 ## Categories
 
 | Term | Definition |
@@ -37,6 +41,12 @@ Whether a plan can be read through its shared link. A boolean on the Plan, not a
 | **Private plan** | `isPublic` is false: the plan is visible only to its owner and its participants |
 
 ## Key Concepts
+
+**Plan invitation**: A pending invitation sent by a registered User to another registered
+User for a Plan, with the proposed Participant or Editor role and the inviter's identity.
+Only the recipient can accept or reject it from My Plans. Sending an invitation does not
+grant participation or access to a private Plan. Acceptance grants the proposed role;
+rejection leaves participation unchanged. Both responses remove the pending invitation.
 
 | Term | Definition |
 |------|------------|
