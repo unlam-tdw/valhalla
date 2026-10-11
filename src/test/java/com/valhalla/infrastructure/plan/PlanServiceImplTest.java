@@ -79,8 +79,10 @@ public class PlanServiceImplTest {
     User invited = owner(9L, OTHER_EMAIL);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(invited));
     planService.inviteParticipant(PLAN_ID, " " + OTHER_EMAIL + " ", "editor", OWNER_EMAIL);
-    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
-    assertThat(plan.isEditor(OTHER_EMAIL), is(true));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+    assertThat(plan.getInvitations().getFirst().getRole(), is("editor"));
+    assertThat(plan.getInvitations().getFirst().getInviter().getEmail(), is(OWNER_EMAIL));
     verify(planRepositoryMock).save(plan);
   }
 
@@ -90,11 +92,13 @@ public class PlanServiceImplTest {
     User editor = owner(8L, OTHER_EMAIL);
     plan.getParticipants().add(editor);
     plan.getEditors().add(editor);
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(editor));
     User invited = owner(9L, UNKNOWN_EMAIL);
     when(userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.of(invited));
     planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OTHER_EMAIL);
-    assertThat(plan.isParticipant(UNKNOWN_EMAIL), is(true));
+    assertThat(plan.isParticipant(UNKNOWN_EMAIL), is(false));
     assertThat(plan.isEditor(UNKNOWN_EMAIL), is(false));
+    assertThat(plan.getInvitations().getFirst().getRole(), is("guest"));
     verify(planRepositoryMock).save(plan);
   }
 
@@ -102,9 +106,11 @@ public class PlanServiceImplTest {
   public void authenticatedVisitorCanInviteParticipantToPublicPlan() {
     Plan plan = invitationPlan(true);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(owner(9L, OTHER_EMAIL)));
+    when(userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.of(owner(10L, UNKNOWN_EMAIL)));
     planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", UNKNOWN_EMAIL);
-    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
     assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+    assertThat(plan.getInvitations().size(), is(1));
     verify(planRepositoryMock).save(plan);
   }
 
@@ -151,6 +157,7 @@ public class PlanServiceImplTest {
     plan.setAdministrator(owner(OWNER_ID, OWNER_EMAIL));
     plan.setIsPublic(isPublic);
     when(planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
+    when(userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(plan.getAdministrator()));
     return plan;
   }
 

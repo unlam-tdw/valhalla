@@ -51,6 +51,7 @@ public class PlanController {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLANS, planService.getPlansByUserEmail(authentication.getName()));
     model.put("participantPlans", planService.getParticipantPlans(authentication.getName()));
+    model.put("pendingInvitations", planService.getPendingInvitations(authentication.getName()));
     return new ModelAndView(VIEW_PLANS_LIST, model);
   }
 
@@ -142,6 +143,18 @@ public class PlanController {
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }
 
+  @PostMapping("/{id}/participants/remove")
+  public ModelAndView removeParticipant(
+    @PathVariable Long id,
+    @RequestParam String participantEmail,
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
+  ) {
+    planService.removeParticipant(id, participantEmail, authentication.getName());
+    redirectAttributes.addFlashAttribute("participantSuccess", "La persona fue eliminada del plan.");
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
   @PostMapping("/{id}/participants/invite")
   public ModelAndView inviteParticipant(
     @PathVariable Long id,
@@ -152,7 +165,7 @@ public class PlanController {
   ) {
     try {
       planService.inviteParticipant(id, participantEmail, role, authentication == null ? null : authentication.getName());
-      redirectAttributes.addFlashAttribute("invitationSuccess", "La persona fue incorporada al plan.");
+      redirectAttributes.addFlashAttribute("invitationSuccess", "Invitación enviada. La persona podrá aceptarla o rechazarla en Mis planes.");
     } catch (IllegalArgumentException exception) {
       redirectAttributes.addFlashAttribute("invitationError", exception.getMessage());
     }
@@ -162,6 +175,19 @@ public class PlanController {
   @PostMapping("/{id}/leave")
   public ModelAndView leavePlan(@PathVariable Long id, Authentication authentication) {
     planService.leavePlan(id, authentication.getName());
+    return new ModelAndView(REDIRECT_PLANS);
+  }
+
+  @PostMapping("/{id}/invitations/{invitationId}/respond")
+  public ModelAndView respondToInvitation(
+    @PathVariable Long id,
+    @PathVariable Long invitationId,
+    @RequestParam boolean accept,
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
+  ) {
+    planService.respondToInvitation(id, invitationId, accept, authentication.getName());
+    redirectAttributes.addFlashAttribute("invitationResponse", accept ? "Invitación aceptada." : "Invitación rechazada.");
     return new ModelAndView(REDIRECT_PLANS);
   }
 

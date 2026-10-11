@@ -4,6 +4,7 @@ import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserNotFoundException;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanInvitation;
 import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
@@ -105,6 +106,22 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
+  public void removeParticipant(Long id, String participantEmail, String userEmail) {
+    Plan plan = getEditablePlan(id, userEmail);
+    if (
+      plan.isAdministrator(participantEmail) ||
+      !plan.isParticipant(participantEmail) ||
+      (plan.isEditor(participantEmail) && !plan.isAdministrator(userEmail))
+    ) {
+      throw new PlanNotFoundException();
+    }
+    plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
+    plan.getParticipants().removeIf(user -> user.getEmail().equals(participantEmail));
+    plan.getInvitations().removeIf(invitation -> invitation.getRecipient().getEmail().equals(participantEmail));
+    planRepository.save(plan);
+  }
+
+  @Override
   public void inviteParticipant(Long id, String participantEmail, String role, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
     boolean canEdit = plan.canEdit(userEmail);
@@ -127,10 +144,44 @@ public class PlanServiceImpl implements PlanService {
     if (plan.isAdministrator(email) || plan.isParticipant(email)) {
       throw new IllegalArgumentException("Esta persona ya forma parte del plan.");
     }
-    plan.getParticipants().add(participant);
-    if ("editor".equals(role)) {
-      plan.getEditors().add(participant);
+    if (plan.getInvitations().stream().anyMatch(invitation -> email.equals(invitation.getRecipient().getEmail()))) {
+      throw new IllegalArgumentException("Esta persona ya tiene una invitación pendiente.");
     }
+    User inviter = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
+    plan.getInvitations().add(new PlanInvitation(plan, participant, inviter, role));
+    planRepository.save(plan);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<PendingInvitation> getPendingInvitations(String userEmail) {
+    return planRepository.findByInvitationsRecipientEmail(userEmail).stream()
+      .flatMap(plan -> plan.getInvitations().stream())
+      .filter(invitation -> invitation.getRecipient().getEmail().equals(userEmail))
+      .map(invitation -> {
+        User inviter = invitation.getInviter();
+        String name = ((inviter.getFirstName() == null ? "" : inviter.getFirstName()) + " " +
+          (inviter.getLastName() == null ? "" : inviter.getLastName())).trim();
+        return new PendingInvitation(invitation.getId(), invitation.getPlan().getId(),
+          invitation.getPlan().getName(), name, inviter.getEmail(), invitation.getRole());
+      })
+      .sorted(java.util.Comparator.comparing(PendingInvitation::id).reversed())
+      .toList();
+  }
+
+  @Override
+  public void respondToInvitation(Long planId, Long invitationId, boolean accept, String userEmail) {
+    Plan plan = planRepository.findById(planId).orElseThrow(PlanNotFoundException::new);
+    PlanInvitation invitation = plan.getInvitations().stream()
+      .filter(item -> item.getId().equals(invitationId) && item.getRecipient().getEmail().equals(userEmail))
+      .findFirst().orElseThrow(PlanNotFoundException::new);
+    if (accept && !plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
+      plan.getParticipants().add(invitation.getRecipient());
+      if ("editor".equals(invitation.getRole())) {
+        plan.getEditors().add(invitation.getRecipient());
+      }
+    }
+    plan.getInvitations().remove(invitation);
     planRepository.save(plan);
   }
 

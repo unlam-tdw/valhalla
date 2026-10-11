@@ -650,12 +650,14 @@ public class PlanControllerIntegrationTest {
       .andExpect(redirectedUrl("/plans/" + planId));
     this.entityManager.flush();
     this.entityManager.clear();
-    assertThat(this.planRepository.findById(planId).orElseThrow().isParticipant(OTHER_EMAIL), is(true));
+    Plan saved = this.planRepository.findById(planId).orElseThrow();
+    assertThat(saved.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(saved.getInvitations().size(), is(1));
   }
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void ownerInvitationPersistsEditorAndUnknownEmailShowsFeedback() throws Exception {
+  public void ownerInvitationRemainsPendingUntilRecipientAccepts() throws Exception {
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
     this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
       .param("participantEmail", "unknown@test.com"))
@@ -667,8 +669,171 @@ public class PlanControllerIntegrationTest {
     this.entityManager.flush();
     this.entityManager.clear();
     Plan saved = this.planRepository.findById(planId).orElseThrow();
+    assertThat(saved.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(saved.isEditor(OTHER_EMAIL), is(false));
+    Long invitationId = saved.getInvitations().getFirst().getId();
+    this.mockMvc.perform(get("/plans").with(user(OTHER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(model().attribute("pendingInvitations", hasSize(1)))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString("Invitaciones pendientes")))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString(OWNER_EMAIL)))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString("Test User")));
+    this.mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(post("/plans/" + planId + "/invitations/" + invitationId + "/respond")
+      .with(user(OTHER_EMAIL)).with(csrf()).param("accept", "true"))
+      .andExpect(redirectedUrl("/plans"));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    saved = this.planRepository.findById(planId).orElseThrow();
     assertThat(saved.isParticipant(OTHER_EMAIL), is(true));
     assertThat(saved.isEditor(OTHER_EMAIL), is(true));
+    assertThat(saved.getInvitations(), is(empty()));
+    this.mockMvc.perform(get("/plans").with(user(OTHER_EMAIL)))
+      .andExpect(model().attribute("pendingInvitations", hasSize(0)))
+      .andExpect(model().attribute("participantPlans", hasSize(1)));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void onlyRecipientCanRejectAndRepeatedResponsesCannotJoin() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    String invitePath = "/plans/" + planId + "/participants/invite";
+    this.mockMvc.perform(post(invitePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    Long invitationId = plan.getInvitations().getFirst().getId();
+    this.mockMvc.perform(post(invitePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("invitationError"));
+    String respondPath = "/plans/" + planId + "/invitations/" + invitationId + "/respond";
+    this.mockMvc.perform(post(respondPath).with(csrf()).param("accept", "true"))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(get("/plans"))
+      .andExpect(model().attribute("pendingInvitations", hasSize(0)));
+    this.mockMvc.perform(post(respondPath).with(user(OTHER_EMAIL)).param("accept", "false"))
+      .andExpect(status().isForbidden());
+    this.mockMvc.perform(post(respondPath).with(user(OTHER_EMAIL)).with(csrf()).param("accept", "false"))
+      .andExpect(redirectedUrl("/plans"));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    plan = this.planRepository.findById(planId).orElseThrow();
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(plan.getInvitations(), is(empty()));
+    this.mockMvc.perform(post(respondPath).with(user(OTHER_EMAIL)).with(csrf()).param("accept", "true"))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(post(invitePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    plan = this.planRepository.findById(planId).orElseThrow();
+    Long nextInvitationId = plan.getInvitations().getFirst().getId();
+    this.mockMvc.perform(post("/plans/" + planId + "/invitations/" + nextInvitationId + "/respond")
+      .with(user(OTHER_EMAIL)).with(csrf()).param("accept", "true"))
+      .andExpect(redirectedUrl("/plans"));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    plan = this.planRepository.findById(planId).orElseThrow();
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void deletingPlanRemovesPendingInvitations() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.entityManager.flush();
+    this.mockMvc.perform(post("/plans/" + planId + "/delete").with(csrf()))
+      .andExpect(redirectedUrl("/plans"));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    this.mockMvc.perform(get("/plans").with(user(OTHER_EMAIL)))
+      .andExpect(model().attribute("pendingInvitations", hasSize(0)));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void ownerCanRemoveEditorAndOwnerCannotBeRemoved() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    User editor = this.userRepository.findById(this.otherId).orElseThrow();
+    plan.getParticipants().add(editor);
+    plan.getEditors().add(editor);
+    this.planRepository.save(plan);
+    String removePath = "/plans/" + planId + "/participants/remove";
+    this.mockMvc.perform(get("/plans/" + planId))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString("Eliminar del plan a " + OTHER_EMAIL)));
+    this.mockMvc.perform(post(removePath).param("participantEmail", OTHER_EMAIL))
+      .andExpect(status().isForbidden());
+    this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", OWNER_EMAIL))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(true));
+    this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(redirectedUrl("/plans/" + planId))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("participantSuccess"));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    plan = this.planRepository.findById(planId).orElseThrow();
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(plan.getEditors(), is(empty()));
+    assertThat(this.userRepository.findById(this.otherId).isPresent(), is(true));
+    this.mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(get("/plans").with(user(OTHER_EMAIL)))
+      .andExpect(model().attribute("participantPlans", hasSize(0)));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void editorCanRemoveParticipantButCannotRemoveEditorsOrOwner() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    User editor = this.userRepository.findById(this.otherId).orElseThrow();
+    User guest = this.userRepository.findById(givenUser("guest@test.com")).orElseThrow();
+    User secondEditor = this.userRepository.findById(givenUser("editor@test.com")).orElseThrow();
+    plan.getParticipants().addAll(List.of(editor, guest, secondEditor));
+    plan.getEditors().addAll(List.of(editor, secondEditor));
+    this.planRepository.save(plan);
+    String html = this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    assertThat(html, containsString("Eliminar del plan a guest@test.com"));
+    assertThat(html, not(containsString("Eliminar del plan a editor@test.com")));
+    assertThat(html, not(containsString("Eliminar del plan a " + OTHER_EMAIL)));
+    String removePath = "/plans/" + planId + "/participants/remove";
+    for (String email : List.of(OWNER_EMAIL, OTHER_EMAIL, secondEditor.getEmail(), "unknown@test.com")) {
+      this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", email))
+        .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    }
+    this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", guest.getEmail()))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    plan = this.planRepository.findById(planId).orElseThrow();
+    assertThat(plan.isParticipant(guest.getEmail()), is(false));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(true));
+    assertThat(plan.isEditor(secondEditor.getEmail()), is(true));
+  }
+
+  @Test
+  public void publicReadersCannotRemoveParticipants() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
+    this.planRepository.save(plan);
+    String removePath = "/plans/" + planId + "/participants/remove";
+    this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+    this.mockMvc.perform(post(removePath).with(user(OTHER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(post(removePath).with(user("visitor@test.com")).with(csrf()).param("participantEmail", OTHER_EMAIL))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(not(containsString("Eliminar del plan"))));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
   }
 
   private Long givenUser(String email) {

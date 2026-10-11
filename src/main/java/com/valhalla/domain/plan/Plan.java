@@ -68,6 +68,13 @@ public class Plan {
   )
   private List<User> editors = new ArrayList<>();
 
+  @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<PlanInvitation> invitations = new ArrayList<>();
+
+  public List<PlanInvitation> getInvitations() {
+    return invitations;
+  }
+
   public List<User> getEditors() {
     return editors;
   }

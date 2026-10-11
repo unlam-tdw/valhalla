@@ -256,6 +256,7 @@
             </div>
 
             <section class="card border-0 shadow-sm p-4 mb-4" aria-labelledby="participants-heading">
+                <div th:if="${participantSuccess}" class="alert alert-success" role="status" th:text="${participantSuccess}"></div>
                 <div th:if="${invitationSuccess}" class="alert alert-success" role="status" th:text="${invitationSuccess}"></div>
                 <div th:if="${invitationError}" class="alert alert-danger" role="alert" th:text="${invitationError}"></div>
                 <form th:if="${canInvite}" th:action="@{/plans/{id}/participants/invite(id=${plan.id})}" method="POST" class="mb-4">
@@ -263,7 +264,7 @@
                     <h5 class="fw-bold mb-3">Invitar a alguien</h5>
                     <label for="invitation-email" class="form-label">Correo electr&oacute;nico</label>
                     <input id="invitation-email" name="participantEmail" type="email" required class="form-control mb-2" placeholder="persona@ejemplo.com" />
-                    <p class="text-muted small">La persona debe tener una cuenta registrada. Se incorporar&aacute; directamente al plan.</p>
+                    <p class="text-muted small">La persona debe tener una cuenta registrada. Podr&aacute; aceptar o rechazar la invitaci&oacute;n en Mis planes.</p>
                     <div th:if="${canEditPlan}" class="mb-3">
                         <label for="invitation-role" class="form-label">Rol</label>
                         <select id="invitation-role" name="role" class="form-select">
@@ -294,6 +295,11 @@
                                 <option value="editor" th:selected="${plan.isEditor(email)}">Editor</option>
                             </select>
                             <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Guardar rol</button>
+                        </form>
+                        <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/remove(id=${plan.id})}" method="POST" class="mb-0">
+                            <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                            <input type="hidden" name="participantEmail" th:value="${email}" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Eliminar del plan a ' + email}">Eliminar del plan</button>
                         </form>
                     </li>
                 </ol>
