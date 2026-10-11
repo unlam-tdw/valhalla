@@ -3,6 +3,7 @@ package com.valhalla.infrastructure.plan;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
@@ -245,6 +246,48 @@ public class PlanServiceImplTest {
     verify(this.planRepositoryMock, never()).findByAdministratorId(any());
   }
 
+  // --- getPublicPlans [PPV] ---
+
+  @Test
+  public void U05_getPublicPlans_devuelveLosPlanesQueExponeElRepositorio() {
+    // given: el filtro isPublic = true vive en la query del repositorio, no en el servicio
+    List<Plan> publicos = List.of(ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findByIsPublicTrue()).thenReturn(publicos);
+
+    // when
+    List<Plan> result = this.planService.getPublicPlans();
+
+    // then
+    assertThat(result, is(equalTo(publicos)));
+    verify(this.planRepositoryMock, times(1)).findByIsPublicTrue();
+  }
+
+  @Test
+  public void U06_getPublicPlans_sinNingunPlanPublicoDevuelveListaVacia() {
+    // given
+    when(this.planRepositoryMock.findByIsPublicTrue()).thenReturn(List.of());
+
+    // when
+    List<Plan> result = this.planService.getPublicPlans();
+
+    // then: la base vacia es un caso normal, no una excepcion (AC-06)
+    assertThat(result, is(empty()));
+    verify(this.planRepositoryMock, times(1)).findByIsPublicTrue();
+  }
+
+  @Test
+  public void U07_getPublicPlans_noLlamaASaveNiModificaPlanes() {
+    // given
+    when(this.planRepositoryMock.findByIsPublicTrue())
+      .thenReturn(List.of(ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL))));
+
+    // when
+    this.planService.getPublicPlans();
+
+    // then: es una lectura, el listado no escribe ni ordena nada (AC-05)
+    assertNothingWasMutated();
+  }
+
   // --- getOwnedPlan ---
 
   @Test
@@ -390,6 +433,196 @@ public class PlanServiceImplTest {
     );
     verify(this.planRepositoryMock, never()).deleteById(any());
     verify(this.planRepositoryMock, never()).save(any(Plan.class));
+  }
+
+  // --- clonePlan [CLO "Usar plan"] ---
+
+  @Test
+  public void clonePlan_copiaElPlanConElClonadorComoDuenoYShortCodeNuevo() {
+    // given
+    User cloner = owner(OWNER_ID, OWNER_EMAIL);
+    Plan source = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    source.setShortCode("ORIGINAL");
+    source.setIsPublic(true);
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(false);
+    when(this.planRepositoryMock.save(any(Plan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OWNER_EMAIL);
+
+    // then: dueño nuevo, codigo nuevo y nunca el del original
+    assertThat(copy.getAdministrator(), is(sameInstance(cloner)));
+    assertThat(copy.getShortCode(), matchesPattern(SHORT_CODE_PATTERN));
+    assertThat(copy.getShortCode(), is(not(equalTo("ORIGINAL"))));
+    assertThat(copy.getParticipants(), is(empty()));
+    verify(this.planRepositoryMock, times(1)).save(copy);
+  }
+
+  @Test
+  public void clonePlan_laCopiaNacePrivadaAunqueElOriginalSeaPublico() {
+    // given
+    Plan source = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    source.setIsPublic(true);
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(false);
+    when(this.planRepositoryMock.save(any(Plan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OWNER_EMAIL);
+
+    // then: publicar la copia es decision del nuevo dueño
+    assertThat(copy.getIsPublic(), is(false));
+    assertThat(source.getIsPublic(), is(true));
+  }
+
+  @Test
+  public void clonePlan_copiaNombreDescripcionYFechas() {
+    // given
+    Plan source = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    source.setIsPublic(true);
+    source.setName("Original");
+    source.setDescription("Descripcion original");
+    source.setEventDate(LocalDate.of(2026, 12, 31));
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(false);
+    when(this.planRepositoryMock.save(any(Plan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OWNER_EMAIL);
+
+    // then
+    assertThat(copy.getName(), is(equalTo("Original")));
+    assertThat(copy.getDescription(), is(equalTo("Descripcion original")));
+    assertThat(copy.getEventDate(), is(equalTo(LocalDate.of(2026, 12, 31))));
+  }
+
+  @Test
+  public void clonePlan_copiaElItinerarioReferenciandoLosMismosLugares() {
+    // given: un plan con dos paradas, fechas y orden propios
+    Place malba = new Place();
+    malba.setId(5L);
+    Place tortoni = new Place();
+    tortoni.setId(6L);
+    Plan source = new Plan();
+    source.setId(PLAN_ID);
+    source.setName("Con itinerario");
+    source.setIsPublic(true);
+    PlanPlace first = new PlanPlace();
+    first.setPlace(malba);
+    first.setDescription("Sala 2");
+    first.setSortOrder(1);
+    PlanPlace second = new PlanPlace();
+    second.setPlace(tortoni);
+    second.setSortOrder(2);
+    source.addPlanPlace(first);
+    source.addPlanPlace(second);
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(false);
+    when(this.planRepositoryMock.save(any(Plan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OWNER_EMAIL);
+
+    // then: las paradas se copian en orden, con los mismos Place persistidos (no duplicados)
+    assertThat(copy.getPlanPlaces(), hasSize(2));
+    assertThat(copy.getPlanPlaces().get(0).getPlace(), is(sameInstance(malba)));
+    assertThat(copy.getPlanPlaces().get(0).getDescription(), is(equalTo("Sala 2")));
+    assertThat(copy.getPlanPlaces().get(0).getSortOrder(), is(equalTo(1)));
+    assertThat(copy.getPlanPlaces().get(1).getPlace(), is(sameInstance(tortoni)));
+    assertThat(copy.getPlanPlaces().get(1).getSortOrder(), is(equalTo(2)));
+    // los PlanPlace de la copia son objetos nuevos: el original no recibe sus entidades
+    assertThat(copy.getPlanPlaces().get(0), is(not(sameInstance(first))));
+  }
+
+  @Test
+  public void clonePlan_clonaUnPlanPrivadoDelQueSoyAdministrador() {
+    // given
+    Plan source = ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL));
+    source.setIsPublic(false);
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(false);
+    when(this.planRepositoryMock.save(any(Plan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OWNER_EMAIL);
+
+    // then
+    assertThat(copy, is(notNullValue()));
+    verify(this.planRepositoryMock, times(1)).save(copy);
+  }
+
+  @Test
+  public void clonePlan_clonaUnPlanPrivadoDelQueSoyParticipant() {
+    // given
+    Plan source = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    source.setIsPublic(false);
+    source.getParticipants().add(owner(OWNER_ID, OWNER_EMAIL));
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(false);
+    when(this.planRepositoryMock.save(any(Plan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OWNER_EMAIL);
+
+    // then: el participant clona, aunque su copia no arranque con participants
+    assertThat(copy, is(notNullValue()));
+    assertThat(copy.getParticipants(), is(empty()));
+  }
+
+  @Test
+  public void clonePlan_noClonaUnPlanPrivadoAjenoYNoLoConfiesaExistente() {
+    // given: privado, de otro, y el clonador ni siquiera es participant
+    Plan source = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    source.setIsPublic(false);
+    source.setName("Privado ajeno");
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+
+    // when and then: mismo error que un id inexistente — no se filtra su existencia
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> this.planService.clonePlan(PLAN_ID, OWNER_EMAIL)
+    );
+    assertThat(source.getName(), is(equalTo("Privado ajeno")));
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void clonePlan_fallaSiElPlanNoExiste() {
+    // given
+    when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findById(99L)).thenReturn(Optional.empty());
+
+    // when and then
+    assertThrows(PlanNotFoundException.class, () -> this.planService.clonePlan(99L, OWNER_EMAIL));
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void clonePlan_fallaSiElClonadorNoExisteYSinTocarLosPlanes() {
+    // given
+    when(this.userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.empty());
+
+    // when and then
+    assertThrows(
+      UserNotFoundException.class,
+      () -> this.planService.clonePlan(PLAN_ID, UNKNOWN_EMAIL)
+    );
+    verifyNoInteractions(this.planRepositoryMock);
   }
 
   // --- fixtures ---

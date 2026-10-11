@@ -49,8 +49,8 @@ public class BrandingViewE2E extends E2eBase {
     // El alta genera la clave; el panel la muestra una sola vez en /admin/users.
     login.typePassword(generatedPassword);
     login.clickSignIn();
-    // USER landing: LoginRedirects sends a signed-in USER to /explore, never to "/".
-    new WebPage(page).waitForPath("/explore");
+    // USER landing: LoginRedirects manda una sesión de USER al feed /plans/public, nunca a "/".
+    new WebPage(page).waitForPath("/plans/public");
 
     WebPage landing = new WebPage(page);
     assertThat("the user sees the brand too", landing.getNavbarBrand(), equalToIgnoringCase(BRAND));

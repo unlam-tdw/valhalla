@@ -54,11 +54,12 @@ public class UserAuthViewE2E extends E2eBase {
     // could see the difference between a live item and a 404 waiting to be clicked. PlanController
     // landed in 03-PLN, so "Plans" belongs back in the set and now has somewhere to resolve to.
     // The Explore link arrived with the map feature in 03-PLC and resolves to /explore, so it
-    // belongs in the set too.
+    // belongs in the set too. "Planes públicos" llegó con 14-PPV y resuelve a /plans/public, el
+    // home del usuario logueado (el feed exige sesión, así que sin sesión ni siquiera aparece).
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("PlanIt", "Explore", "Plans", "Logout")
+      contains("PlanIt", "Planes públicos", "Explore", "Plans", "Logout")
     );
   }
 
@@ -74,15 +75,15 @@ public class UserAuthViewE2E extends E2eBase {
 
     givenUserSignsInWith(EMAIL, tempPassword);
 
-    thenShouldBeOnPath("/explore");
+    thenShouldBeOnPath("/plans/public");
   }
 
   @Test
   void shouldSignOutAndReturnToLogin() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
-    // The constructor navigates, and /auth/login bounces a live session back to /explore: the
-    // page object ends up on the navbar that carries the Logout button, and stays on the browser
-    // the logout notice will render in.
+    // The constructor navigates, y /auth/login reenvía una sesión viva al home del usuario
+    // (/plans/public): la page object queda sobre el navbar que trae el botón Logout, y se queda
+    // en el navegador donde se va a renderizar el aviso de cierre.
     LoginPage loginPage = new LoginPage(page, "/auth/login");
 
     loginPage.clickLogout();
@@ -190,8 +191,8 @@ public class UserAuthViewE2E extends E2eBase {
     registerPage.clickRegister();
 
     // Registrarse deja la sesión abierta: el mismo redirect que haría un login normal, sin pasar
-    // por el formulario de login (AC-01).
-    thenShouldBeOnPath("/explore");
+    // por el formulario de login (AC-01). El home del usuario es el feed de planes públicos.
+    thenShouldBeOnPath("/plans/public");
   }
 
   /**

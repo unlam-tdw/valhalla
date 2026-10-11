@@ -76,7 +76,7 @@ public class SecurityConfigTest {
   public void shouldRedirectACommonUserAwayFromTheAdminHome() throws Exception {
     this.mockMvc.perform(get("/admin/home"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
   }
 
   @Test
@@ -91,7 +91,7 @@ public class SecurityConfigTest {
   public void shouldRedirectACommonUserAwayFromAdminUsers() throws Exception {
     this.mockMvc.perform(get("/admin/users"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
   }
 
   /** Y al revés: un ADMIN que cruza a /auth/** vuelve a /admin/home, no a la landing. */

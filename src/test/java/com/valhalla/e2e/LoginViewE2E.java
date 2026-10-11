@@ -101,9 +101,9 @@ public class LoginViewE2E extends E2eBase {
   }
 
   private void thenShouldBeRedirectedToLanding() throws MalformedURLException {
-    loginPage.waitForPath("/explore");
+    loginPage.waitForPath("/plans/public");
     URL url = loginPage.getCurrentUrl();
-    assertThat(url.getPath(), matchesPattern("^/explore(?:;jsessionid=[^/\\s]+)?$"));
+    assertThat(url.getPath(), matchesPattern("^/plans/public(?:;jsessionid=[^/\\s]+)?$"));
   }
 
   private void thenShouldSeeAnErrorMessage() {
