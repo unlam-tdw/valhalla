@@ -595,6 +595,82 @@ public class PlanControllerIntegrationTest {
 
   // --- fixtures ---
 
+  @Test
+  public void anonymousPublicPlanIsReadOnlyAndRendersFullName() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    this.planRepository.save(plan);
+    String html = this.mockMvc.perform(get("/plans/" + planId))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    assertThat(html, not(containsString("Invitar a alguien")));
+    assertThat(html, containsString("Test User"));
+    assertThat(html, containsString(OWNER_EMAIL));
+    assertThat(html, not(containsString("Salir del plan")));
+    assertThat(html, not(containsString("Editar plan")));
+    assertThat(html, not(containsString("Eliminar plan")));
+    assertThat(html, not(containsString("Guardar rol")));
+    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite")
+      .param("participantEmail", OTHER_EMAIL)).andExpect(status().isForbidden());
+    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
+      .param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
+      .param("participantEmail", OTHER_EMAIL).param("role", "guest"))
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+    for (String path : List.of("", "/delete", "/leave", "/participants/role")) {
+      this.mockMvc.perform(post("/plans/" + planId + path).with(csrf()))
+        .andExpect(redirectedUrlPattern("**/auth/login"));
+    }
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan saved = this.planRepository.findById(planId).orElseThrow();
+    assertThat(saved.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(saved.isEditor(OTHER_EMAIL), is(false));
+  }
+
+  @Test
+  public void anonymousCannotReadPrivatePlan() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    this.mockMvc.perform(get("/plans/" + planId))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void authenticatedVisitorCanInviteToPublicPlan() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    this.planRepository.save(plan);
+    this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk())
+      .andExpect(model().attribute("canInvite", true));
+    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
+      .param("participantEmail", OTHER_EMAIL).param("role", "guest"))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    assertThat(this.planRepository.findById(planId).orElseThrow().isParticipant(OTHER_EMAIL), is(true));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void ownerInvitationPersistsEditorAndUnknownEmailShowsFeedback() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
+      .param("participantEmail", "unknown@test.com"))
+      .andExpect(redirectedUrl("/plans/" + planId))
+      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("invitationError"));
+    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
+      .param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+      .andExpect(redirectedUrl("/plans/" + planId));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan saved = this.planRepository.findById(planId).orElseThrow();
+    assertThat(saved.isParticipant(OTHER_EMAIL), is(true));
+    assertThat(saved.isEditor(OTHER_EMAIL), is(true));
+  }
+
   private Long givenUser(String email) {
     User user = new User();
     user.setEmail(email);

@@ -57,10 +57,21 @@ public class PlanController {
   @GetMapping("/{id}")
   public ModelAndView showPlan(@PathVariable Long id, Authentication authentication) {
     Map<String, Object> model = new ModelMap();
-    Plan plan = planService.getParticipatingPlan(id, authentication.getName());
+    String userEmail = authentication == null ? null : authentication.getName();
+    Plan plan = planService.getParticipatingPlan(id, userEmail);
     model.put(ATTR_PLAN, plan);
-    model.put("canEditPlan", plan.canEdit(authentication.getName()));
-    model.put("isPlanAdministrator", plan.isAdministrator(authentication.getName()));
+    model.put("canEditPlan", plan.canEdit(userEmail));
+    model.put("isPlanAdministrator", plan.isAdministrator(userEmail));
+    model.put("isPlanParticipant", plan.isParticipant(userEmail));
+    model.put("canInvite", userEmail != null && (plan.canEdit(userEmail) || plan.getIsPublic()));
+    model.put(
+      "participants",
+      Stream.concat(Stream.ofNullable(plan.getAdministrator()), plan.getParticipants().stream())
+        .collect(java.util.stream.Collectors.toMap(User::getEmail, user -> user, (first, second) -> first))
+        .values().stream()
+        .sorted(Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
+        .toList()
+    );
     model.put(
       "participantEmails",
       Stream.concat(
@@ -128,6 +139,23 @@ public class PlanController {
     Authentication authentication
   ) {
     planService.changeParticipantRole(id, participantEmail, role, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
+  @PostMapping("/{id}/participants/invite")
+  public ModelAndView inviteParticipant(
+    @PathVariable Long id,
+    @RequestParam String participantEmail,
+    @RequestParam(defaultValue = "guest") String role,
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
+  ) {
+    try {
+      planService.inviteParticipant(id, participantEmail, role, authentication == null ? null : authentication.getName());
+      redirectAttributes.addFlashAttribute("invitationSuccess", "La persona fue incorporada al plan.");
+    } catch (IllegalArgumentException exception) {
+      redirectAttributes.addFlashAttribute("invitationError", exception.getMessage());
+    }
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }
 

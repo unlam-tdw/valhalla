@@ -8,6 +8,7 @@ public interface PlanService {
   Plan getOwnedPlan(Long id, String ownerEmail);
   Plan getEditablePlan(Long id, String userEmail);
   void changeParticipantRole(Long id, String participantEmail, String role, String userEmail);
+  void inviteParticipant(Long id, String participantEmail, String role, String userEmail);
   Plan getParticipatingPlan(Long id, String userEmail);
   List<Plan> getParticipantPlans(String userEmail);
   void leavePlan(Long id, String userEmail);

@@ -105,6 +105,36 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
+  public void inviteParticipant(Long id, String participantEmail, String role, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    boolean canEdit = plan.canEdit(userEmail);
+    if (
+      userEmail == null ||
+      userEmail.isBlank() ||
+      (!canEdit && (!plan.getIsPublic() || !"guest".equals(role)))
+    ) {
+      throw new PlanNotFoundException();
+    }
+    if (!"guest".equals(role) && !"editor".equals(role)) {
+      throw new IllegalArgumentException("Rol de participante inválido.");
+    }
+    if (participantEmail == null || participantEmail.isBlank()) {
+      throw new IllegalArgumentException("Ingresá un correo electrónico.");
+    }
+    User participant = userRepository.findByEmail(participantEmail.trim())
+      .orElseThrow(() -> new IllegalArgumentException("No hay una persona registrada con ese correo."));
+    String email = participant.getEmail();
+    if (plan.isAdministrator(email) || plan.isParticipant(email)) {
+      throw new IllegalArgumentException("Esta persona ya forma parte del plan.");
+    }
+    plan.getParticipants().add(participant);
+    if ("editor".equals(role)) {
+      plan.getEditors().add(participant);
+    }
+    planRepository.save(plan);
+  }
+
+  @Override
   public Plan updatePlan(Long id, Plan changes, String ownerEmail) {
     Plan existing = getEditablePlan(id, ownerEmail);
     existing.updateFrom(changes);
@@ -115,7 +145,7 @@ public class PlanServiceImpl implements PlanService {
   @Transactional(readOnly = true)
   public Plan getParticipatingPlan(Long id, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
-    if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
+    if (!plan.getIsPublic() && !plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       throw new PlanNotFoundException();
     }
     // The detail view renders participants and places after this transaction has ended.
@@ -134,7 +164,7 @@ public class PlanServiceImpl implements PlanService {
   @Override
   public void leavePlan(Long id, String userEmail) {
     Plan plan = getParticipatingPlan(id, userEmail);
-    if (plan.isAdministrator(userEmail)) {
+    if (plan.isAdministrator(userEmail) || !plan.isParticipant(userEmail)) {
       throw new PlanNotFoundException();
     }
     plan.getEditors().removeIf(user -> user.getEmail().equals(userEmail));

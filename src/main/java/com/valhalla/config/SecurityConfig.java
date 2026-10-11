@@ -132,6 +132,8 @@ public class SecurityConfig {
           .permitAll()
           .requestMatchers("/api/**")
           .authenticated()
+          .requestMatchers(org.springframework.http.HttpMethod.GET, "/plans/{id:[0-9]+}")
+          .permitAll()
           .requestMatchers("/", "/share/**", "/reload/**")
           .permitAll()
           .requestMatchers("/css/**", "/js/**", "/images/**", "/manifest.json")
