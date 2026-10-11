@@ -7,6 +7,47 @@
 
 El usuario puede crear, editar y eliminar planes con nombre, descripcion, fecha y visibilidad (publico/privado). Cada plan tiene un shortCode unico para compartir.
 
+## Invitaciones y participantes en el detalle
+
+Desde `/plans/{id}`, el dueño y los editores pueden incorporar a una persona
+registrada mediante su correo y elegir el rol Participante o Editor. La incorporación
+es directa: no se envía un email ni se requiere aceptar una invitación.
+
+En un plan público, cualquier usuario con sesión iniciada puede incorporar
+personas registradas con el rol Participante. La asignación del rol Editor queda
+reservada al dueño y a los editores. En un plan privado, solo ellos pueden invitar;
+el detalle es accesible al dueño y a los participantes.
+
+Los planes públicos se pueden consultar en `/plans/{id}` sin registrarse ni iniciar
+sesión. Para visitantes anónimos, el detalle es de solo lectura: no muestra formularios
+para invitar, editar, eliminar, cambiar roles o salir del plan. Los intentos de escritura
+sin sesión requieren iniciar sesión aunque se envíe un token CSRF válido. Los planes
+privados mantienen su restricción de acceso. Consultar información de los lugares
+y navegar por el mapa no modifica el plan.
+
+Si el detalle falla al evaluar `isPlanParticipant` con un valor nulo, comprobar que
+el controlador y la plantilla correspondan a la misma versión. En desarrollo con
+Docker, `docker compose restart app` recompila y carga las clases actualizadas.
+La condición del formulario para salir del plan compara explícitamente los valores
+booleanos para tolerar la ausencia de ese atributo durante una actualización.
+
+El formulario envía `POST /plans/{id}/participants/invite`, con `participantEmail`
+y `role` (`guest` para Participante, valor predeterminado; `editor` para Editor).
+La operación requiere una sesión iniciada, valida los permisos en el servicio y
+requiere un token CSRF. Si el correo no está registrado o la persona ya pertenece
+al plan, muestra un mensaje en el detalle sin modificar los participantes ni sus roles.
+
+La lista incluye al dueño una sola vez y muestra primero el nombre completo y luego
+el correo de cada persona, junto con su rol. Mantiene el orden por correo sin
+distinguir mayúsculas y minúsculas. Solo quienes pertenecen al plan pueden salir;
+el dueño no puede hacerlo.
+
+La cobertura en `PlanServiceImplTest` y `PlanControllerIntegrationTest` verifica
+invitaciones del dueño y de editores, invitaciones de usuarios con sesión a planes públicos,
+consulta anónima de solo lectura y rechazo de escrituras anónimas,
+rechazo de permisos insuficientes, correos desconocidos y duplicados, persistencia
+de roles, protección CSRF y visualización del nombre completo y correo.
+
 ## Pre-requisitos
 
 - [LOG] completed (Spring Security configured)
