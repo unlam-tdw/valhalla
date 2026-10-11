@@ -110,6 +110,11 @@ visto en un plan propio.
   original; heredarlo pondria los joins de ambas copias en la misma canasta.
 - **El clon reutiliza `generateUniqueShortCode()`.** Es private en `PlanServiceImpl`; al estar la
   copia en la misma clase no hace falta exponerlo.
+- **El endpoint y el CTA llegaron con [PPV].** `POST /plans/{id}/clone` y el boton "Usar plan"
+  del feed (`/plans/public`) se implementaron dentro de la card PPV por decision del equipo:
+  usar un plan ajeno es sacarle copia. La superficie que esta spec imagina —el CTA "Clonar plan"
+  dentro de la vista publica `/plans/{id}/public`— depende de [PVP] y sigue pendiente; el
+  endpoint, en cambio, ya existe y es el que usa el feed.
 
 ## Referencia de Implementacion
 

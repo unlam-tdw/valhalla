@@ -119,7 +119,7 @@ public class AuthControllerTest {
           .param("confirmPassword", PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
 
     this.mockMvc.perform(get("/plans").session(session))
       .andExpect(status().isOk())
@@ -199,7 +199,7 @@ public class AuthControllerTest {
           .param("password", USER_PASSWORD)
       )
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
   }
 
   @Test
@@ -271,7 +271,7 @@ public class AuthControllerTest {
 
     logIn(email, tempPassword)
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
   }
 
   // --- I-09 ---
@@ -297,7 +297,7 @@ public class AuthControllerTest {
           .param("username", USER_EMAIL)
           .param("password", USER_PASSWORD)
       )
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
 
     this.mockMvc.perform(post("/auth/logout").session(session).with(csrf()))
       .andExpect(status().is3xxRedirection())
@@ -317,7 +317,7 @@ public class AuthControllerTest {
   public void shouldRedirectAwayFromTheUserLoginPageWhenAlreadySignedIn() throws Exception {
     this.mockMvc.perform(get("/auth/login"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
   }
 
   @Test

@@ -115,7 +115,7 @@ public class LoginControllerTest {
   public void shouldRedirectACommonUserToTheExploreWhenAlreadySignedIn() throws Exception {
     this.mockMvc.perform(get("/admin/login"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl("/explore"));
+      .andExpect(redirectedUrl("/plans/public"));
   }
 
   /**

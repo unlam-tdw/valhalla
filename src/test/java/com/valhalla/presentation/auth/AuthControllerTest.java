@@ -134,7 +134,7 @@ public class AuthControllerTest {
       )
     );
 
-    assertThat(view, is("redirect:/explore"));
+    assertThat(view, is("redirect:/plans/public"));
   }
 
   // --- U-03, U-04 ---
@@ -156,7 +156,7 @@ public class AuthControllerTest {
   /**
    * U-04: registrar ya no termina en el form de login. El mismo paso que crea la cuenta la abre
    * (ProgrammaticSignIn) y el destino sale de la misma regla que un login normal, que para un
-   * rol USER es /explore.
+   * rol USER es el feed de planes publicos /plans/public.
    */
   @Test
   public void shouldSignInAndRedirectToTheExploreAfterSuccessfulRegistration() {
@@ -178,7 +178,7 @@ public class AuthControllerTest {
       httpResponse
     );
 
-    assertThat(view, is("redirect:/explore"));
+    assertThat(view, is("redirect:/plans/public"));
     verify(loginService).register(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
     verify(programmaticSignIn).signIn(EMAIL, httpRequest, httpResponse);
   }

@@ -130,6 +130,9 @@ public class SecurityConfig {
         auth
           .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/**", "/explore")
           .permitAll()
+          // [PPV, decision de producto] El feed de planes publicos es para usuarios con sesion:
+          // /plans/** entera vive detras de authenticated(), asi que un anonimo que llegue a
+          // /plans/public aterriza en /auth/login.
           .requestMatchers("/api/**")
           .authenticated()
           .requestMatchers("/", "/share/**", "/reload/**")
