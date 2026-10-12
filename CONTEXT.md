@@ -16,6 +16,10 @@ The owner and Editors can remove Participants from a Plan. Only the owner can re
 Editors. The owner cannot be removed. Removal revokes participation and the Editor
 role for that Plan without deleting the User's account.
 
+**PlanManager**: Embedded component of a Plan that groups its Participants, Editors
+and pending Invitations. It preserves the existing persistence tables and the Plan's
+public methods for accessing these collections.
+
 ## Categories
 
 | Term | Definition |

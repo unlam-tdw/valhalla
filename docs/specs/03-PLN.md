@@ -71,6 +71,17 @@ rol y versión para controlar respuestas concurrentes. La combinación de plan y
 destinatario es única. Eliminar un plan elimina también sus invitaciones pendientes.
 Las participaciones existentes se mantienen; no se convierten en invitaciones.
 
+`Plan` agrupa participantes, editores e invitaciones en el componente embebido
+`PlanManager`. Las tablas `plan_participants`, `plan_editors` y `plan_invitations`
+conservan sus nombres, columnas, restricciones y relaciones; esta refactorización
+no necesita migrar datos. Los métodos públicos de `Plan` delegan en el componente.
+Las consultas de participación e invitaciones recorren `plan.planManager`.
+
+Los nombres de columnas y roles utilizados repetidamente se centralizan en constantes.
+La creación de invitaciones separa la validación de permisos, rol, búsqueda del
+destinatario y comprobación de pertenencia o invitación pendiente, conservando el
+comportamiento y los mensajes. Las reglas de PMD permanecen activadas sin supresiones.
+
 La cobertura en `PlanServiceImplTest` y `PlanControllerIntegrationTest` verifica
 invitaciones del dueño y de editores, invitaciones de usuarios con sesión a planes públicos,
 consulta anónima de solo lectura y rechazo de escrituras anónimas,
