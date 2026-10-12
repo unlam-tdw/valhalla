@@ -67,18 +67,23 @@ public class PlanController {
     model.put("canInvite", userEmail != null && (plan.canEdit(userEmail) || plan.getIsPublic()));
     model.put(
       "participants",
-      Stream.concat(Stream.ofNullable(plan.getAdministrator()), plan.getParticipants().stream())
-        .collect(java.util.stream.Collectors.toMap(User::getEmail, user -> user, (first, second) -> first))
-        .values().stream()
+      Stream
+        .concat(Stream.ofNullable(plan.getAdministrator()), plan.getParticipants().stream())
+        .collect(
+          java.util.stream.Collectors.toMap(User::getEmail, user -> user, (first, second) -> first)
+        )
+        .values()
+        .stream()
         .sorted(Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
         .toList()
     );
     model.put(
       "participantEmails",
-      Stream.concat(
-        Stream.ofNullable(plan.getAdministrator()).map(User::getEmail),
-        plan.getParticipants().stream().map(User::getEmail)
-      )
+      Stream
+        .concat(
+          Stream.ofNullable(plan.getAdministrator()).map(User::getEmail),
+          plan.getParticipants().stream().map(User::getEmail)
+        )
         .distinct()
         .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
         .toList()
@@ -151,7 +156,10 @@ public class PlanController {
     org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
   ) {
     planService.removeParticipant(id, participantEmail, authentication.getName());
-    redirectAttributes.addFlashAttribute("participantSuccess", "La persona fue eliminada del plan.");
+    redirectAttributes.addFlashAttribute(
+      "participantSuccess",
+      "La persona fue eliminada del plan."
+    );
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }
 
@@ -164,8 +172,16 @@ public class PlanController {
     org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
   ) {
     try {
-      planService.inviteParticipant(id, participantEmail, role, authentication == null ? null : authentication.getName());
-      redirectAttributes.addFlashAttribute("invitationSuccess", "Invitación enviada. La persona podrá aceptarla o rechazarla en Mis planes.");
+      planService.inviteParticipant(
+        id,
+        participantEmail,
+        role,
+        authentication == null ? null : authentication.getName()
+      );
+      redirectAttributes.addFlashAttribute(
+        "invitationSuccess",
+        "Invitación enviada. La persona podrá aceptarla o rechazarla en Mis planes."
+      );
     } catch (IllegalArgumentException exception) {
       redirectAttributes.addFlashAttribute("invitationError", exception.getMessage());
     }
@@ -187,7 +203,10 @@ public class PlanController {
     org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
   ) {
     planService.respondToInvitation(id, invitationId, accept, authentication.getName());
-    redirectAttributes.addFlashAttribute("invitationResponse", accept ? "Invitación aceptada." : "Invitación rechazada.");
+    redirectAttributes.addFlashAttribute(
+      "invitationResponse",
+      accept ? "Invitación aceptada." : "Invitación rechazada."
+    );
     return new ModelAndView(REDIRECT_PLANS);
   }
 

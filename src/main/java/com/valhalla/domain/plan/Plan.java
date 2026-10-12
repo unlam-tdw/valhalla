@@ -11,13 +11,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -50,37 +47,21 @@ public class Plan {
   @JoinColumn(name = "administrator_id")
   private User administrator;
 
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-    name = "plan_participants",
-    joinColumns = @JoinColumn(name = "plan_id"),
-    inverseJoinColumns = @JoinColumn(name = "user_id"),
-    uniqueConstraints = @UniqueConstraint(columnNames = { "plan_id", "user_id" })
-  )
-  private List<User> participants = new ArrayList<>();
-
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-    name = "plan_editors",
-    joinColumns = @JoinColumn(name = "plan_id"),
-    inverseJoinColumns = @JoinColumn(name = "user_id"),
-    uniqueConstraints = @UniqueConstraint(columnNames = { "plan_id", "user_id" })
-  )
-  private List<User> editors = new ArrayList<>();
-
-  @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<PlanInvitation> invitations = new ArrayList<>();
+  @Embedded
+  private PlanManager planManager = new PlanManager();
 
   public List<PlanInvitation> getInvitations() {
-    return invitations;
+    return planManager.getInvitations();
   }
 
   public List<User> getEditors() {
-    return editors;
+    return planManager.getEditors();
   }
 
   public boolean isEditor(String email) {
-    return isParticipant(email) && editors.stream().anyMatch(user -> email.equals(user.getEmail()));
+    return (
+      isParticipant(email) && getEditors().stream().anyMatch(user -> email.equals(user.getEmail()))
+    );
   }
 
   public boolean canEdit(String email) {
@@ -88,7 +69,7 @@ public class Plan {
   }
 
   public List<User> getParticipants() {
-    return participants;
+    return planManager.getParticipants();
   }
 
   public boolean isAdministrator(String email) {
@@ -96,7 +77,9 @@ public class Plan {
   }
 
   public boolean isParticipant(String email) {
-    return email != null && participants.stream().anyMatch(user -> email.equals(user.getEmail()));
+    return (
+      email != null && getParticipants().stream().anyMatch(user -> email.equals(user.getEmail()))
+    );
   }
 
   @OneToMany(mappedBy = "plan", fetch = FetchType.EAGER, cascade = CascadeType.ALL)

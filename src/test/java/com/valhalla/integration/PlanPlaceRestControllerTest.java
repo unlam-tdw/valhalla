@@ -37,8 +37,18 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
     String email = editor.getEmail();
     PlanPlace firstEntry = itineraryService.addPlaceToPlan(plan.getId(), first, email);
     PlanPlace secondEntry = itineraryService.addPlaceToPlan(plan.getId(), second, email);
-    itineraryService.updatePlanPlace(plan.getId(), firstEntry.getId(), java.time.LocalDate.of(2026, 12, 1), java.time.LocalTime.of(10, 30), email);
-    itineraryService.reorderPlaces(plan.getId(), java.util.List.of(secondEntry.getId(), firstEntry.getId()), email);
+    itineraryService.updatePlanPlace(
+      plan.getId(),
+      firstEntry.getId(),
+      java.time.LocalDate.of(2026, 12, 1),
+      java.time.LocalTime.of(10, 30),
+      email
+    );
+    itineraryService.reorderPlaces(
+      plan.getId(),
+      java.util.List.of(secondEntry.getId(), firstEntry.getId()),
+      email
+    );
     assertEquals(2, firstEntry.getSortOrder());
     assertEquals(java.time.LocalTime.of(10, 30), firstEntry.getVisitTime());
     itineraryService.removePlaceFromPlan(plan.getId(), firstEntry.getId(), email);

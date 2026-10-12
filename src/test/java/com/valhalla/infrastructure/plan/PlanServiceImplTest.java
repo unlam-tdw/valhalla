@@ -105,8 +105,10 @@ public class PlanServiceImplTest {
   @Test
   public void authenticatedVisitorCanInviteParticipantToPublicPlan() {
     Plan plan = invitationPlan(true);
-    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(owner(9L, OTHER_EMAIL)));
-    when(userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.of(owner(10L, UNKNOWN_EMAIL)));
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL))
+      .thenReturn(Optional.of(owner(9L, OTHER_EMAIL)));
+    when(userRepositoryMock.findByEmail(UNKNOWN_EMAIL))
+      .thenReturn(Optional.of(owner(10L, UNKNOWN_EMAIL)));
     planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", UNKNOWN_EMAIL);
     assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
     assertThat(plan.isEditor(OTHER_EMAIL), is(false));
@@ -117,7 +119,10 @@ public class PlanServiceImplTest {
   @Test
   public void anonymousCannotInviteParticipantToPublicPlan() {
     Plan plan = invitationPlan(true);
-    assertThrows(PlanNotFoundException.class, () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", null));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", null)
+    );
     assertThat(plan.getParticipants(), is(empty()));
     verify(planRepositoryMock, never()).save(any());
   }
@@ -125,7 +130,10 @@ public class PlanServiceImplTest {
   @Test
   public void publicVisitorsCannotGrantEditorRole() {
     Plan plan = invitationPlan(true);
-    assertThrows(PlanNotFoundException.class, () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "editor", null));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "editor", null)
+    );
     assertThat(plan.getParticipants(), is(empty()));
     verify(planRepositoryMock, never()).save(any());
   }
@@ -134,19 +142,28 @@ public class PlanServiceImplTest {
   public void privateParticipantCannotInvite() {
     Plan plan = invitationPlan(false);
     plan.getParticipants().add(owner(8L, OTHER_EMAIL));
-    assertThrows(PlanNotFoundException.class, () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OTHER_EMAIL));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OTHER_EMAIL)
+    );
     verify(planRepositoryMock, never()).save(any());
   }
 
   @Test
   public void invitationRejectsUnknownEmailAndDuplicateWithoutChangingRole() {
     Plan plan = invitationPlan(false);
-    assertThrows(IllegalArgumentException.class, () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OWNER_EMAIL));
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OWNER_EMAIL)
+    );
     User existing = owner(9L, OTHER_EMAIL);
     plan.getParticipants().add(existing);
     plan.getEditors().add(existing);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(existing));
-    assertThrows(IllegalArgumentException.class, () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", OWNER_EMAIL));
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", OWNER_EMAIL)
+    );
     assertThat(plan.isEditor(OTHER_EMAIL), is(true));
     assertThat(plan.getParticipants().size(), is(1));
     verify(planRepositoryMock, never()).save(any());
@@ -157,7 +174,8 @@ public class PlanServiceImplTest {
     plan.setAdministrator(owner(OWNER_ID, OWNER_EMAIL));
     plan.setIsPublic(isPublic);
     when(planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
-    when(userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(plan.getAdministrator()));
+    when(userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(plan.getAdministrator()));
     return plan;
   }
 

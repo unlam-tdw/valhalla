@@ -21,6 +21,7 @@ public interface PlanService {
     String inviterEmail,
     String role
   ) {}
+
   Plan getParticipatingPlan(Long id, String userEmail);
   List<Plan> getParticipantPlans(String userEmail);
   void leavePlan(Long id, String userEmail);

@@ -100,13 +100,23 @@ public class PlanControllerIntegrationTest {
   @Test
   public void ownerAppearsInParticipantListAndCannotBeDemoted() throws Exception {
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
-    mockMvc.perform(get("/plans/" + planId).with(user(OWNER_EMAIL)))
+    mockMvc
+      .perform(get("/plans/" + planId).with(user(OWNER_EMAIL)))
       .andExpect(model().attribute("participantEmails", List.of(OWNER_EMAIL)));
     for (String role : List.of("guest", "editor")) {
-      mockMvc.perform(post("/plans/" + planId + "/participants/role")
-        .with(user(OWNER_EMAIL)).with(csrf()).param("participantEmail", OWNER_EMAIL).param("role", role))
+      mockMvc
+        .perform(
+          post("/plans/" + planId + "/participants/role")
+            .with(user(OWNER_EMAIL))
+            .with(csrf())
+            .param("participantEmail", OWNER_EMAIL)
+            .param("role", role)
+        )
         .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
-      assertThat(planRepository.findById(planId).orElseThrow().isAdministrator(OWNER_EMAIL), is(true));
+      assertThat(
+        planRepository.findById(planId).orElseThrow().isAdministrator(OWNER_EMAIL),
+        is(true)
+      );
     }
   }
 
@@ -116,30 +126,58 @@ public class PlanControllerIntegrationTest {
     Plan plan = planRepository.findById(planId).orElseThrow();
     plan.getParticipants().add(userRepository.findById(otherId).orElseThrow());
     planRepository.save(plan);
-    mockMvc.perform(post("/plans/" + planId + "/participants/role")
-      .with(user(OTHER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+    mockMvc
+      .perform(
+        post("/plans/" + planId + "/participants/role")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("role", "editor")
+      )
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     assertThat(plan.isEditor(OTHER_EMAIL), is(false));
-    mockMvc.perform(post("/plans/" + planId + "/participants/role")
-      .with(user(OWNER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+    mockMvc
+      .perform(
+        post("/plans/" + planId + "/participants/role")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("role", "editor")
+      )
       .andExpect(redirectedUrl("/plans/" + planId));
     entityManager.flush();
     entityManager.clear();
     assertThat(planRepository.findById(planId).orElseThrow().isEditor(OTHER_EMAIL), is(true));
-    mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
+    mockMvc
+      .perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
       .andExpect(model().attribute("canEditPlan", true))
       .andExpect(model().attribute("isPlanAdministrator", false));
-    mockMvc.perform(post("/plans/" + planId).with(user(OTHER_EMAIL)).with(csrf())
-      .param("name", "Edited by editor"))
+    mockMvc
+      .perform(
+        post("/plans/" + planId)
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("name", "Edited by editor")
+      )
       .andExpect(redirectedUrl("/plans/" + planId));
     assertThat(planRepository.findById(planId).orElseThrow().getName(), is("Edited by editor"));
-    mockMvc.perform(post("/plans/" + planId + "/delete").with(user(OTHER_EMAIL)).with(csrf()))
+    mockMvc
+      .perform(post("/plans/" + planId + "/delete").with(user(OTHER_EMAIL)).with(csrf()))
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     assertThat(planRepository.findById(planId).isPresent(), is(true));
-    mockMvc.perform(post("/plans/" + planId + "/participants/role")
-      .with(user(OWNER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL).param("role", "guest"))
+    mockMvc
+      .perform(
+        post("/plans/" + planId + "/participants/role")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("role", "guest")
+      )
       .andExpect(redirectedUrl("/plans/" + planId));
-    mockMvc.perform(post("/plans/" + planId).with(user(OTHER_EMAIL)).with(csrf()).param("name", "Forbidden"))
+    mockMvc
+      .perform(
+        post("/plans/" + planId).with(user(OTHER_EMAIL)).with(csrf()).param("name", "Forbidden")
+      )
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     assertThat(planRepository.findById(planId).orElseThrow().getName(), is("Edited by editor"));
   }
@@ -601,8 +639,12 @@ public class PlanControllerIntegrationTest {
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.setIsPublic(true);
     this.planRepository.save(plan);
-    String html = this.mockMvc.perform(get("/plans/" + planId))
-      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
     assertThat(html, not(containsString("Invitar a alguien")));
     assertThat(html, containsString("Test User"));
     assertThat(html, containsString(OWNER_EMAIL));
@@ -610,13 +652,23 @@ public class PlanControllerIntegrationTest {
     assertThat(html, not(containsString("Editar plan")));
     assertThat(html, not(containsString("Eliminar plan")));
     assertThat(html, not(containsString("Guardar rol")));
-    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite")
-      .param("participantEmail", OTHER_EMAIL)).andExpect(status().isForbidden());
-    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
-      .param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite").param("participantEmail", OTHER_EMAIL)
+      )
+      .andExpect(status().isForbidden());
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite")
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("role", "editor")
+      )
       .andExpect(redirectedUrlPattern("**/auth/login"));
-    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
-      .param("participantEmail", OTHER_EMAIL).param("role", "guest"))
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite")
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("role", "guest")
+      )
       .andExpect(redirectedUrlPattern("**/auth/login"));
     for (String path : List.of("", "/delete", "/leave", "/participants/role")) {
       this.mockMvc.perform(post("/plans/" + planId + path).with(csrf()))
@@ -632,8 +684,7 @@ public class PlanControllerIntegrationTest {
   @Test
   public void anonymousCannotReadPrivatePlan() throws Exception {
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
-    this.mockMvc.perform(get("/plans/" + planId))
-      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(get("/plans/" + planId)).andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
   }
 
   @Test
@@ -643,10 +694,15 @@ public class PlanControllerIntegrationTest {
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.setIsPublic(true);
     this.planRepository.save(plan);
-    this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk())
+    this.mockMvc.perform(get("/plans/" + planId))
+      .andExpect(status().isOk())
       .andExpect(model().attribute("canInvite", true));
-    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
-      .param("participantEmail", OTHER_EMAIL).param("role", "guest"))
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite")
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("role", "guest")
+      )
       .andExpect(redirectedUrl("/plans/" + planId));
     this.entityManager.flush();
     this.entityManager.clear();
@@ -659,12 +715,23 @@ public class PlanControllerIntegrationTest {
   @WithMockUser(username = OWNER_EMAIL)
   public void ownerInvitationRemainsPendingUntilRecipientAccepts() throws Exception {
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
-    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
-      .param("participantEmail", "unknown@test.com"))
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite")
+          .with(csrf())
+          .param("participantEmail", "unknown@test.com")
+      )
       .andExpect(redirectedUrl("/plans/" + planId))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("invitationError"));
-    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf())
-      .param("participantEmail", OTHER_EMAIL).param("role", "editor"))
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .flash()
+          .attributeExists("invitationError")
+      );
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite")
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("role", "editor")
+      )
       .andExpect(redirectedUrl("/plans/" + planId));
     this.entityManager.flush();
     this.entityManager.clear();
@@ -675,13 +742,29 @@ public class PlanControllerIntegrationTest {
     this.mockMvc.perform(get("/plans").with(user(OTHER_EMAIL)))
       .andExpect(status().isOk())
       .andExpect(model().attribute("pendingInvitations", hasSize(1)))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString("Invitaciones pendientes")))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString(OWNER_EMAIL)))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString("Test User")));
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .content()
+          .string(containsString("Invitaciones pendientes"))
+      )
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .content()
+          .string(containsString(OWNER_EMAIL))
+      )
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .content()
+          .string(containsString("Test User"))
+      );
     this.mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
-    this.mockMvc.perform(post("/plans/" + planId + "/invitations/" + invitationId + "/respond")
-      .with(user(OTHER_EMAIL)).with(csrf()).param("accept", "true"))
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/invitations/" + invitationId + "/respond")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("accept", "true")
+      )
       .andExpect(redirectedUrl("/plans"));
     this.entityManager.flush();
     this.entityManager.clear();
@@ -706,7 +789,11 @@ public class PlanControllerIntegrationTest {
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     Long invitationId = plan.getInvitations().getFirst().getId();
     this.mockMvc.perform(post(invitePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("invitationError"));
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .flash()
+          .attributeExists("invitationError")
+      );
     String respondPath = "/plans/" + planId + "/invitations/" + invitationId + "/respond";
     this.mockMvc.perform(post(respondPath).with(csrf()).param("accept", "true"))
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
@@ -714,14 +801,18 @@ public class PlanControllerIntegrationTest {
       .andExpect(model().attribute("pendingInvitations", hasSize(0)));
     this.mockMvc.perform(post(respondPath).with(user(OTHER_EMAIL)).param("accept", "false"))
       .andExpect(status().isForbidden());
-    this.mockMvc.perform(post(respondPath).with(user(OTHER_EMAIL)).with(csrf()).param("accept", "false"))
+    this.mockMvc.perform(
+        post(respondPath).with(user(OTHER_EMAIL)).with(csrf()).param("accept", "false")
+      )
       .andExpect(redirectedUrl("/plans"));
     this.entityManager.flush();
     this.entityManager.clear();
     plan = this.planRepository.findById(planId).orElseThrow();
     assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
     assertThat(plan.getInvitations(), is(empty()));
-    this.mockMvc.perform(post(respondPath).with(user(OTHER_EMAIL)).with(csrf()).param("accept", "true"))
+    this.mockMvc.perform(
+        post(respondPath).with(user(OTHER_EMAIL)).with(csrf()).param("accept", "true")
+      )
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     this.mockMvc.perform(post(invitePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
       .andExpect(redirectedUrl("/plans/" + planId));
@@ -729,8 +820,12 @@ public class PlanControllerIntegrationTest {
     this.entityManager.clear();
     plan = this.planRepository.findById(planId).orElseThrow();
     Long nextInvitationId = plan.getInvitations().getFirst().getId();
-    this.mockMvc.perform(post("/plans/" + planId + "/invitations/" + nextInvitationId + "/respond")
-      .with(user(OTHER_EMAIL)).with(csrf()).param("accept", "true"))
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/invitations/" + nextInvitationId + "/respond")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("accept", "true")
+      )
       .andExpect(redirectedUrl("/plans"));
     this.entityManager.flush();
     this.entityManager.clear();
@@ -743,7 +838,11 @@ public class PlanControllerIntegrationTest {
   @WithMockUser(username = OWNER_EMAIL)
   public void deletingPlanRemovesPendingInvitations() throws Exception {
     Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
-    this.mockMvc.perform(post("/plans/" + planId + "/participants/invite").with(csrf()).param("participantEmail", OTHER_EMAIL))
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite")
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+      )
       .andExpect(redirectedUrl("/plans/" + planId));
     this.entityManager.flush();
     this.mockMvc.perform(post("/plans/" + planId + "/delete").with(csrf()))
@@ -765,7 +864,11 @@ public class PlanControllerIntegrationTest {
     this.planRepository.save(plan);
     String removePath = "/plans/" + planId + "/participants/remove";
     this.mockMvc.perform(get("/plans/" + planId))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(containsString("Eliminar del plan a " + OTHER_EMAIL)));
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .content()
+          .string(containsString("Eliminar del plan a " + OTHER_EMAIL))
+      );
     this.mockMvc.perform(post(removePath).param("participantEmail", OTHER_EMAIL))
       .andExpect(status().isForbidden());
     this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", OWNER_EMAIL))
@@ -773,7 +876,11 @@ public class PlanControllerIntegrationTest {
     assertThat(plan.isEditor(OTHER_EMAIL), is(true));
     this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
       .andExpect(redirectedUrl("/plans/" + planId))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("participantSuccess"));
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .flash()
+          .attributeExists("participantSuccess")
+      );
     this.entityManager.flush();
     this.entityManager.clear();
     plan = this.planRepository.findById(planId).orElseThrow();
@@ -797,13 +904,22 @@ public class PlanControllerIntegrationTest {
     plan.getParticipants().addAll(List.of(editor, guest, secondEditor));
     plan.getEditors().addAll(List.of(editor, secondEditor));
     this.planRepository.save(plan);
-    String html = this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk())
-      .andReturn().getResponse().getContentAsString();
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
     assertThat(html, containsString("Eliminar del plan a guest@test.com"));
     assertThat(html, not(containsString("Eliminar del plan a editor@test.com")));
     assertThat(html, not(containsString("Eliminar del plan a " + OTHER_EMAIL)));
     String removePath = "/plans/" + planId + "/participants/remove";
-    for (String email : List.of(OWNER_EMAIL, OTHER_EMAIL, secondEditor.getEmail(), "unknown@test.com")) {
+    for (String email : List.of(
+      OWNER_EMAIL,
+      OTHER_EMAIL,
+      secondEditor.getEmail(),
+      "unknown@test.com"
+    )) {
       this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", email))
         .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     }
@@ -827,12 +943,23 @@ public class PlanControllerIntegrationTest {
     String removePath = "/plans/" + planId + "/participants/remove";
     this.mockMvc.perform(post(removePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
       .andExpect(redirectedUrlPattern("**/auth/login"));
-    this.mockMvc.perform(post(removePath).with(user(OTHER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL))
+    this.mockMvc.perform(
+        post(removePath).with(user(OTHER_EMAIL)).with(csrf()).param("participantEmail", OTHER_EMAIL)
+      )
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
-    this.mockMvc.perform(post(removePath).with(user("visitor@test.com")).with(csrf()).param("participantEmail", OTHER_EMAIL))
+    this.mockMvc.perform(
+        post(removePath)
+          .with(user("visitor@test.com"))
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+      )
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     this.mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
-      .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(not(containsString("Eliminar del plan"))));
+      .andExpect(
+        org.springframework.test.web.servlet.result.MockMvcResultMatchers
+          .content()
+          .string(not(containsString("Eliminar del plan")))
+      );
     assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
   }
 
