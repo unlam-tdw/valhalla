@@ -55,12 +55,13 @@ public class UserAuthViewE2E extends E2eBase {
     // could see the difference between a live item and a 404 waiting to be clicked. PlanController
     // landed in 03-PLN, so "Plans" belongs back in the set and now has somewhere to resolve to.
     // The Explore link arrived with the map feature in 03-PLC and resolves to /explore, so it
-    // belongs in the set too. "Planes públicos" llegó con 14-PPV y resuelve a /plans/public, el
-    // home del usuario logueado (el feed exige sesión, así que sin sesión ni siquiera aparece).
+    // belongs in the set too. "Para vos" resuelve a /plans/public, el home del usuario logueado
+    // (el feed exige sesión, así que sin sesión ni siquiera aparece); el label cambió de
+    // "Planes públicos" cuando el feed pasó a mostrar solo planes ajenos.
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("PlanIt", "Planes públicos", "Explore", "Plans", "Logout")
+      contains("PlanIt", "Para vos", "Explore", "Plans", "Logout")
     );
   }
 

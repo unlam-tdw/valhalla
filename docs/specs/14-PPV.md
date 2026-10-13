@@ -35,12 +35,12 @@ link exacto.
 | AC-02 | Ningun plan privado aparece en el listado: ni nombre, ni datos, ni cantidad |
 | AC-03 | Cada tarjeta muestra nombre, descripcion, fecha del evento, cantidad de lugares del itinerario y nombre del administrador |
 | AC-04 | Cada tarjeta linkea a la vista publica del plan (`/plans/{id}/public`) |
-| AC-05 | Se muestra el conjunto completo sin criterio de orden: no se filtra, no se pagina, no se prioriza ningun plan |
+| AC-05 | Se muestra el conjunto sin criterio de orden, con una sola excepcion: los planes propios del logueado quedan fuera del listado (decision posterior, ver Notas); no se pagina, no se prioriza ningun plan |
 | AC-06 | Sin planes publicos, la pagina muestra un estado vacio amigable con link al registro (`/auth/register`) |
-| AC-07 | El navbar tiene link "Planes publicos" a `/plans/public`, visible tambien sin sesion |
+| AC-07 | El navbar tiene link "Para vos" a `/plans/public`, visible solo con sesion |
 | AC-08 | `GET /plans/public` es `permitAll`; el resto de `/plans/**` sigue exigiendo sesion |
 | AC-09 | El listado expone solo campos publicos: ni `shortCode`, ni emails, ni ids de participantes |
-| AC-10 | Con sesion la pagina tambien funciona igual (no cambia segun el estado de sesion) |
+| AC-10 | Con sesion la pagina tambien funciona igual salvo por AC-05: los planes propios del logueado no aparecen |
 
 ## Escenarios de Test
 
@@ -49,7 +49,8 @@ link exacto.
 | # | Test | AC que cubre |
 |---|------|-------------|
 | U-01 | `publicPlans()` retorna la vista `pages/plans/public-list` con todos los planes publicos | AC-01 |
-| U-02 | `publicPlans()` arma las tarjetas con nombre, descripcion, fecha, cantidad de lugares, administrador, `own` (si es del logueado) y `cover` (imagen generica) | AC-03 (decisiones en Notas) |
+| U-02 | `publicPlans()` arma las tarjetas con nombre, descripcion, fecha, cantidad de lugares, administrador y `cover` (imagen generica) | AC-03 (decisiones en Notas) |
+| U-02b | `publicPlans()` deja fuera del listado los planes cuyo administrator es el usuario logueado | AC-05 |
 | U-03 | `publicPlans()` con la base vacia deja la lista vacia (sin error) | AC-06 |
 | U-04 | `publicPlans()` no pone `shortCode` ni emails de participantes en el model (claves exactas, incluye `cover`) | AC-09 |
 
@@ -70,7 +71,7 @@ link exacto.
 | I-02 | `GET /plans/public` no contiene el nombre de ningun plan privado | AC-02 |
 | I-03 | `GET /plans/public` con cero planes publicos → 200 con el estado vacio | AC-06 |
 | I-04 | Cada tarjeta del listado linkea a `/plans/{id}/public` | AC-04 |
-| I-05 | "Editar" aparece solo en los planes propios del usuario logueado | decision "Editar" |
+| I-05 | Los planes propios no aparecen en el feed y ninguna tarjeta ofrece "Editar"; "Clonar Plan" una vez por plan listado | decision planes propios |
 | I-06 | Cada tarjeta muestra su cover visual (`/images/plans/cover-N.svg`, `alt` = nombre) y el SVG se sirve | decision "cover" |
 
 ### Tests de Seguridad (`integration/PlanPublicSecurityTest.java`)
@@ -86,7 +87,7 @@ link exacto.
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `PublicPlansListE2E` (T-PPV-005) | Sin sesion: el navbar no ofrece el feed y la ruta cae en login. Con sesion: tarjeta con cover que carga, "Usar plan" clona y "Editar" abre el propio | AC-01, AC-03, AC-04, AC-09 |
+| E-01 | `PublicPlansListE2E` (T-PPV-005) | Sin sesion: el navbar no ofrece el feed y la ruta cae en login. Con sesion de otro usuario: tarjeta con cover que carga y "Clonar Plan" clona; el plan propio del logueado no aparece | AC-01, AC-03, AC-04, AC-05, AC-09 |
 
 ## Notas / decisiones de diseño
 
@@ -107,16 +108,18 @@ link exacto.
   justifica; si crece, se agrega con `?page=` sin tocar los ACs de visibilidad.
 - **Feed solo con sesion (decision de producto posterior a la spec).** El AC-01/AC-07/AC-08
   originales preveian acceso anonimo; el equipo decidio que el feed es el home del usuario
-  logueado, tipo muro de Instagram. Consecuencias: el link "Planes públicos" no aparece en el
-  navbar del landing, `/plans/public` redirige a `/auth/login` sin sesion, y login y registro
-  aterrizan ahi (`LoginRedirects.USER_LANDING = "/plans/public"`). Los ACs de acceso anonimo
-  quedan vacantes hasta que el equipo diga lo contrario.
-- **"Usar plan" = clonar (el endpoint es de [CLO]).** El boton de la tarjeta ejecuta
+  logueado, tipo muro de Instagram. Consecuencias: el link "Para vos" (antes "Planes públicos")
+  no aparece en el navbar del landing, `/plans/public` redirige a `/auth/login` sin sesion, y
+  login y registro aterrizan ahi (`LoginRedirects.USER_LANDING = "/plans/public"`). Los ACs de
+  acceso anonimo quedan vacantes hasta que el equipo diga lo contrario.
+- **"Clonar Plan" = clonar (el endpoint es de [CLO]).** El boton de la tarjeta ejecuta
   `POST /plans/{id}/clone`, que pertenece a [CLO]: lo implementa `PlanController` y sus pruebas de
   seguridad son `integration/PlanCloneSecurityTest.java` (ver "Ownership del endpoint" en
   15-CLO.md). Este card solo consume ese endpoint, no duplica la logica, y deja al usuario en su
-  copia editable; las tarjetas de planes propios muestran ademas "Editar" (via el detalle). La
-  vista `/plans/{id}/public` de [PVP] ya existe y es el destino de cada tarjeta.
+  copia editable. La vista `/plans/{id}/public` de [PVP] ya existe y es el destino de cada tarjeta.
+- **El feed es solo para descubrir planes de otros (decision posterior).** Los planes propios del
+  logueado —publicos o privados— no aparecen en el listado; por eso la tarjeta no ofrece "Editar"
+  ni el model expone el flag `own`: el feed no gestiona lo propio, eso vive en `/plans`.
 - **"Crear plan" desde el feed.** Boton "+ Crear plan" en la cabecera que lleva a `/explore`,
   donde vive el modal de creacion, para el caso "nada de lo que hay me interesa".
 - **Usuarios y planes fantasma de demo.** `PublicPlanDataSeeder` siembra 5 personajes con 6
@@ -225,8 +228,8 @@ en paralelo, se agrega una sola vez y se comparte.
 File: `src/main/webapp/WEB-INF/templates/pages/plans/public-list.html` (crear)
 
 > **Ronda 2:** el template final es el de `public-list.html` en el repo: tarjetas `article` con
-> cover (`<img th:src="${plan.cover}">`), boton "Usar plan" (form a `POST /plans/{id}/clone`),
-> "Editar" si `own`, boton "+ Crear plan" y estado vacio hacia `/explore`. El snippet de abajo es
+> cover (`<img th:src="${plan.cover}">`), boton "Clonar Plan" (form a `POST /plans/{id}/clone`),
+> boton "+ Crear plan" y estado vacio hacia `/explore`. El snippet de abajo es
 > el punto de partida original.
 
 ```html
@@ -288,7 +291,7 @@ anonimo (decision de producto, ver Notas: sin sesion el link no existe y la ruta
 | `infrastructure/plan/PlanRepositoryImpl.java` | Actualizar (delegacion) |
 | `domain/plan/PlanService.java` | Actualizar (`getPublicPlans()`) |
 | `infrastructure/plan/PlanServiceImpl.java` | Actualizar (implementacion `readOnly`) |
-| `presentation/plan/PlanController.java` | Actualizar (`@GetMapping("/public")` + `planCard` con `own` y `cover`) |
+| `presentation/plan/PlanController.java` | Actualizar (`@GetMapping("/public")` + `planCard` con `cover`, filtrando planes propios) |
 | `templates/pages/plans/public-list.html` | Crear (grid de tarjetas + cover + estado vacio) |
 | `templates/components/navbar.html` | Actualizar (link solo autenticado) |
 | `resources/images/plans/cover-{1..6}.svg` | Crear (covers genericos de marca) |

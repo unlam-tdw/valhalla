@@ -9,22 +9,23 @@ import static org.hamcrest.Matchers.not;
 
 import com.microsoft.playwright.Locator;
 import com.valhalla.e2e.views.PlansPage;
+import com.valhalla.e2e.views.RegisterPage;
 import com.valhalla.e2e.views.WebPage;
+import com.valhalla.presentation.shared.LoginRedirects;
 import org.junit.jupiter.api.Test;
 
 /**
  * [PPV] E-01 / T-PPV-005: el feed de planes publicos es para usuarios con sesion.
  *
  * <p>Cubro las dos caras del contrato de producto. Sin sesion: el landing no ofrece el boton
- * "Planes públicos" en el navbar y entrar directo a /plans/public aterriza en el login. Con
- * sesion: el navbar lo ofrece, la tarjeta rinde sus datos con el href a la vista publica del plan
- * (AC-04), "Usar plan" clona el plan como copia propia y "Editar" aparece al lado del plan que es
- * tuyo.
+ * "Para vos" en el navbar y entrar directo a /plans/public aterriza en el login. Con sesion: el
+ * navbar lo ofrece, la tarjeta rinde sus datos con el href a la vista publica del plan (AC-04) y
+ * "Clonar Plan" copia el plan como propia. El plan propio del logueado nunca aparece: el feed es
+ * para descubrir planes de otros.
  *
  * <p>E2eBase limpia la base antes de cada test, asi que el unico plan publico lo crea la sesion
- * del arrange. El destino {@code /plans/{id}/public} lo renderiza [PVP]: hasta que entre, el href
- * de la tarjeta es el contrato del destino (AC-04) y no se navega a el. Cuando PVP llegue, este
- * test puede empezar a clickearlo y esperar {@code /plans/\d+/public}.
+ * del arrange, que es el admin: por eso el observador del feed es un usuario recien registrado en
+ * un contexto aparte, para quien el plan del admin es ajeno.
  *
  * <p>El nombre del plan es ASCII a proposito, no por estetica: la app responde las paginas como
  * {@code text/html;charset=iso-8859-1}, asi que el browser arma el body del form en Latin-1 y
@@ -36,9 +37,11 @@ public class PublicPlansListE2E extends E2eBase {
 
   private static final String PLAN_NAME = "Plan publico E2E";
   private static final String PLAN_DESCRIPTION = "Un plan para compartir con todos";
+  private static final String EMAIL = "visitante.ppv@unlam.edu.ar";
+  private static final String PASSWORD = "secret123";
 
   @Test
-  void T_PPV_005_visitanteNoVeElFeedYElUsuarioLogueadoLoUsaYLoEdita() {
+  void T_PPV_005_visitanteNoVeElFeedNiLoPropioYUnNuevoUsuarioLoClona() {
     WebPage web = new WebPage(page);
 
     // --- Sin sesion: el boton no existe en el landing (decision de producto) ---
@@ -53,15 +56,28 @@ public class PublicPlansListE2E extends E2eBase {
     web.navigate(web.baseUrl() + "/plans/public");
     web.waitForPath("/auth/login");
 
-    // --- Con sesion: el feed es el home y sus tarjetas funcionan ---
+    // --- El plan publico lo arma el admin, y EL NO LO VE en su propio feed ---
     givenAPublicPlanExists(); // deja la sesion admin sobre el detalle del plan creado
+    web.navigate(web.baseUrl() + LoginRedirects.USER_LANDING);
+    assertThat(
+      "el feed no lista planes propios (publicos o privados)",
+      page.locator("main article").count(),
+      is(0)
+    );
+    assertThat(page.locator("main").innerText(), containsString("Todavía no hay planes públicos"));
 
-    Locator navLink = page.locator("body > nav a:has-text('Planes públicos')");
+    // --- Con sesion de OTRO usuario: el feed es el home y sus tarjetas funcionan ---
+    newContext();
+    givenARegisteredUserOpensFeed();
+    web = new WebPage(page);
+
+    // El navbar con sesion ofrece el feed como "Para vos", una unica vez.
+    Locator navLink = page.locator("body > nav a:has-text('Para vos')");
     assertThat("el navbar con sesion ofrece el feed", navLink.count(), is(1));
     navLink.click();
-    web.waitForPath("/plans/public");
+    web.waitForPath(LoginRedirects.USER_LANDING);
 
-    // La tarjeta del plan con todos sus datos (AC-03) y el boton "Usar plan".
+    // La tarjeta del plan con todos sus datos (AC-03) y el boton "Clonar Plan".
     Locator card = page
       .locator("main article")
       .filter(new Locator.FilterOptions().setHasText(PLAN_NAME));
@@ -71,7 +87,9 @@ public class PublicPlansListE2E extends E2eBase {
     assertThat(cardText, containsString("lugar(es) en el itinerario"));
     // AC-09: el seed del E2E reinserta al admin sin nombre, y aun asi la tarjeta no filtra su email.
     assertThat(cardText, not(containsString("test@unlam.edu.ar")));
-    assertThat(card.locator("button:text-is('Usar plan')").count(), is(1));
+    assertThat(card.locator("button:text-is('Clonar Plan')").count(), is(1));
+    // El feed no gestiona planes propios: ningun CTA de edicion en la tarjeta.
+    assertThat(card.locator("a:has-text('Editar')").count(), is(0));
 
     // El cover visual de la tarjeta: imagen generica del plan, alt accesible y que SI carga.
     Locator cover = card.locator("img").first();
@@ -87,11 +105,8 @@ public class PublicPlansListE2E extends E2eBase {
     assertThat(href, matchesPattern(".*/plans/\\d+/public"));
     String sourceId = href.replaceAll(".*/plans/(\\d+)/public", "$1");
 
-    // El plan es del usuario logueado: su tarjeta ofrece Editar al lado de Usar plan.
-    assertThat(card.locator("a:has-text('Editar')").count(), is(1));
-
-    // "Usar plan" clona el plan: caigo en MI copia, con id distinto al original.
-    card.locator("button:text-is('Usar plan')").click();
+    // "Clonar Plan" clona el plan: caigo en MI copia, con id distinto al original.
+    card.locator("button:text-is('Clonar Plan')").click();
     new PlansPage(page).waitForDetailPath();
     String copyId = page.url().replaceAll(".*/plans/(\\d+)(?:[?#].*)?$", "$1");
     assertThat("la copia tiene un id propio", copyId, not(is(sourceId)));
@@ -102,5 +117,18 @@ public class PublicPlansListE2E extends E2eBase {
   private void givenAPublicPlanExists() {
     signInAsAdmin();
     new PlansPage(page).createPublicPlanViaExplore(PLAN_NAME, PLAN_DESCRIPTION, "2026-12-31");
+  }
+
+  /** Registra un usuario limpio en el contexto nuevo: la registration abre la sesion y aterriza en el feed. */
+  private void givenARegisteredUserOpensFeed() {
+    RegisterPage register = new RegisterPage(page);
+    register.typeFirstName("Veronica");
+    register.typeLastName("Visitante");
+    register.typeEmail(EMAIL);
+    register.typePassword(PASSWORD);
+    register.typeConfirmPassword(PASSWORD);
+    register.clickRegister();
+    // Contra la constante de landing, no un literal: tolera el cambio de landing sin reescribir.
+    new WebPage(page).waitForPath(LoginRedirects.USER_LANDING);
   }
 }

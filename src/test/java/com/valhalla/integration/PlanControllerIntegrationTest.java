@@ -171,8 +171,8 @@ public class PlanControllerIntegrationTest {
     String html = result.getResponse().getContentAsString();
     assertThat(html, containsString(PLAN_NAME));
     assertThat(html, containsString("href=\"/plans/" + planId + "/public\""));
-    // El boton "Usar plan" es parte de la tarjeta, uno por plan listado.
-    assertThat(occurrences(html, "Usar plan"), is(1));
+    // El boton "Clonar Plan" es parte de la tarjeta, uno por plan listado.
+    assertThat(occurrences(html, "Clonar Plan"), is(1));
   }
 
   @Test
@@ -232,7 +232,7 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void I05_getPlansPublic_muestraEditarSoloEnLosPlanesPropios() throws Exception {
+  public void I05_getPlansPublic_ocultaLosPlanesPropiosYSinEnlaceDeEditar() throws Exception {
     // given: un plan propio publico y uno ajeno publico
     givenPublicPlanFor(this.ownerId, PLAN_NAME);
     givenPublicPlanFor(this.otherId, OTHER_PLAN_NAME);
@@ -252,10 +252,12 @@ public class PlanControllerIntegrationTest {
         .getResponse()
         .getContentAsString();
 
-    // then: "Editar" solo aparece al lado del plan que es tuyo (boton Usar plan esta en todos)
-    assertThat(occurrences(oneLine(mio), " Editar "), is(1));
-    assertThat(occurrences(oneLine(ajeno), " Editar "), is(0));
-    assertThat(occurrences(ajeno, "Usar plan"), is(2));
+    // then: el feed es para descubrir planes de otros: el propio queda fuera
+    assertThat(mio, not(containsString(PLAN_NAME)));
+    assertThat(mio, containsString(OTHER_PLAN_NAME));
+    // then: ningun CTA de edicion en el feed y "Clonar Plan" una vez por plan ajeno listado
+    assertThat(oneLine(ajeno), not(containsString("Editar")));
+    assertThat(occurrences(ajeno, "Clonar Plan"), is(2));
   }
 
   @Test

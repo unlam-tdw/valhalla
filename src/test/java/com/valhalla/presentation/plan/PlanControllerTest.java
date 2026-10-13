@@ -309,7 +309,7 @@ public class PlanControllerTest {
     User administrator = new User();
     administrator.setFirstName("Ana");
     administrator.setLastName("Perez");
-    administrator.setEmail(OWNER_EMAIL);
+    administrator.setEmail("otra@persona.com");
     plan.setAdministrator(administrator);
     PlanPlace entry = new PlanPlace();
     entry.setPlace(new Place());
@@ -327,26 +327,24 @@ public class PlanControllerTest {
     assertThat(card.get("eventDate"), is(equalTo("2026-12-31")));
     assertThat(card.get("placeCount"), is(equalTo(1)));
     assertThat(card.get("administratorName"), is(equalTo("Ana Perez")));
-    // el plan es del usuario logueado (dueno@test.com): la tarjeta marca own para mostrar Editar
-    assertThat(card.get("own"), is(equalTo(true)));
     // cover generico deterministico: id 7 -> 7 % 6 + 1 -> cover-2.svg
     assertThat(card.get("cover"), is(equalTo("/images/plans/cover-2.svg")));
   }
 
   @Test
-  public void U02b_publicPlans_unPlanAjenoNoSeMarcaComoPropio() {
-    // given: el plan es de otra persona
-    Plan plan = plan(PLAN_ID, "Plan ajeno");
+  public void U02b_publicPlans_unPlanPropioNoApareceEnElListado() {
+    // given: el plan es del usuario logueado (dueno@test.com)
+    Plan plan = plan(PLAN_ID, "Mi plan propio");
     User administrator = new User();
-    administrator.setEmail("otra@persona.com");
+    administrator.setEmail(OWNER_EMAIL);
     plan.setAdministrator(administrator);
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
 
     // when
-    Map<?, ?> card = cardAt(this.controller.publicPlans(this.authentication), 0);
+    ModelAndView view = this.controller.publicPlans(this.authentication);
 
-    // then: own en false — la tarjeta no ofrece Editar sobre un plan que no es mio
-    assertThat(card.get("own"), is(equalTo(false)));
+    // then: el feed es para descubrir planes de otros: el propio queda fuera
+    assertThat(cardsOf(view), is(empty()));
   }
 
   @Test
@@ -395,7 +393,6 @@ public class PlanControllerTest {
             "eventDate",
             "placeCount",
             "administratorName",
-            "own",
             "cover"
           )
         )

@@ -61,6 +61,10 @@ public class PlanController {
    * [PPV] Feed de planes publicos, con sesion iniciada (decision de producto: el visitante cae en
    * /auth/login). El mapping literal {@code /public} tiene prioridad sobre {@code /{id}} en el
    * orden de patrones de Spring, asi que nunca llega a parsearse como un Long.
+   *
+   * <p>Los planes propios del logueado quedan fuera del listado: el feed es para descubrir planes
+   * de otros, y el propio se gestiona desde {@code GET /plans}. El filtro es por administrator,
+   * asi que alcanza con la visibilidad publica — un plan propio privado igual nunca entra.
    */
   @GetMapping("/public")
   public ModelAndView publicPlans(Authentication authentication) {
@@ -68,7 +72,12 @@ public class PlanController {
     Map<String, Object> model = new ModelMap();
     model.put(
       ATTR_PUBLIC_PLANS,
-      planService.getPublicPlans().stream().map(plan -> planCard(plan, currentEmail)).toList()
+      planService
+        .getPublicPlans()
+        .stream()
+        .filter(plan -> !plan.isAdministrator(currentEmail))
+        .map(PlanController::planCard)
+        .toList()
     );
     return new ModelAndView(VIEW_PUBLIC_LIST, model);
   }
@@ -187,7 +196,7 @@ public class PlanController {
   }
 
   /**
-   * [CLO] "Usar plan": copia el plan como tuyo y caes en tu copia editable. El email sale de la
+   * [CLO] "Clonar Plan": copia el plan como tuyo y caes en tu copia editable. El email sale de la
    * sesion, nunca del form.
    */
   @PostMapping("/{id}/clone")
@@ -242,11 +251,10 @@ public class PlanController {
   /**
    * [PPV, AC-03/AC-09] Solo campos publicos de la tarjeta: nombre, descripcion, fecha, cantidad de
    * lugares del itinerario y nombre del administrador. Ni shortCode, ni emails, ni participantes.
-   * {@code own} marca los planes que son del usuario logueado: esos muestran "Editar" en la tarjeta.
    * {@code cover} es la imagen generica del plan (id % COVER_COUNT); a futuro, una columna
    * {@code imageUrl} en Plan la reemplaza.
    */
-  private static Map<String, Object> planCard(Plan plan, String currentEmail) {
+  private static Map<String, Object> planCard(Plan plan) {
     Map<String, Object> card = new LinkedHashMap<>();
     card.put("id", plan.getId());
     card.put("name", plan.getName());
@@ -254,7 +262,6 @@ public class PlanController {
     card.put("eventDate", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     card.put("placeCount", plan.getPlanPlaces().size());
     card.put("administratorName", feedDisplayName(plan.getAdministrator()));
-    card.put("own", plan.isAdministrator(currentEmail));
     card.put(
       "cover",
       "/images/plans/cover-" + (Math.floorMod(plan.getId(), (long) COVER_COUNT) + 1) + ".svg"
