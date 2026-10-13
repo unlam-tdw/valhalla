@@ -164,7 +164,7 @@
                 <h5 class="fw-bold mb-3">Agregar lugar al plan</h5>
                 <div class="row g-2">
                     <div class="col-md-9">
-                        <select v-model="selectedPlaceId" class="form-select">
+                        <select v-model="selectedPlaceId" class="form-select" aria-label="Lugar para agregar al plan">
                             <option :value="null" disabled>-- Seleccionar un lugar disponible --</option>
                             <option v-for="place in availablePlaces" :key="place.id" :value="place.id">
                                 {{ place.name }} ({{ place.category }})
