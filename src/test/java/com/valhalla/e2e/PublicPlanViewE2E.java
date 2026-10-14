@@ -39,6 +39,52 @@ public class PublicPlanViewE2E extends E2eBase {
     assertThat(body, containsString(PLAN_DESCRIPTION));
     assertThat(body, containsString("31/12/2026"));
     assertThat(page.locator("ol li").count() > 0, is(true));
+
+    // El mapa del itinerario se renderiza con los tiles de OpenStreetMap y al menos un
+    // marcador numerado (el plan de explore tiene un lugar con coordenadas).
+    Locator map = page.locator("#plan-map");
+    assertThat(map.isVisible(), is(true));
+    page.waitForSelector("#plan-map .leaflet-marker-icon");
+    assertThat(page.locator("#plan-map .leaflet-tile").count() > 0, is(true));
+
+    // La cabecera firma el plan y dice cuanta gente lo acompana.
+    assertThat(body, containsString("Creado por"));
+    assertThat(body, containsString("participantes"));
+
+    // El anonimo ve los MISMOS CTAs que el logueado, pero como links al login con la
+    // vuelta al plan: no ejecutan join/clone directamente.
+    assertThat(page.locator("a:has-text('Unirme al plan')").count(), is(1));
+    assertThat(page.locator("a:has-text('Clonar plan')").count(), is(1));
+    assertThat(page.locator("button:has-text('Unirme al plan')").count(), is(0));
+    assertThat(page.locator("button:has-text('Clonar plan')").count(), is(0));
+    assertThat(
+      page.locator("a:has-text('Unirme al plan')").getAttribute("href"),
+      containsString("/auth/login?redirect=")
+    );
+  }
+
+  @Test
+  void T_PVP_007_elCtaAnonimoLlevaAlLoginYVuelveAlPlan() {
+    String planUrl = givenAPublicPlanUrl();
+    String password = givenANormalUser("carla@unlam.edu.ar");
+    newContext();
+
+    page.navigate(planUrl);
+    page.locator("a:has-text('Clonar plan')").click();
+
+    // Aterriza en el login conservando a donde volver.
+    page.waitForSelector("input[type='email']");
+    assertThat(page.url(), containsString("/auth/login?redirect="));
+
+    // Se rellena el form YA CARGADO (el que abrio el CTA): new LoginPage(page) navega a
+    // /admin/login y perderia el redirect, que es justo lo que este test verifica.
+    page.fill("#email", "carla@unlam.edu.ar");
+    page.fill("#password", password);
+    page.click("#btn-login");
+
+    // Termina en la vista publica del mismo plan, ahora con los CTAs de logueado.
+    page.waitForSelector("button:has-text('Clonar plan')");
+    assertThat(page.locator("button:has-text('Unirme al plan')").count(), is(1));
   }
 
   @Test
@@ -59,6 +105,9 @@ public class PublicPlanViewE2E extends E2eBase {
     String body = page.locator("body").innerText();
     assertThat(body, containsString("Unirme al plan"));
     assertThat(body, containsString("Clonar plan"));
+    // Con sesion son forms que ejecutan join/clone, no links al login.
+    assertThat(page.locator("button:has-text('Unirme al plan')").count(), is(1));
+    assertThat(page.locator("a:has-text('Clonar plan')").count(), is(0));
   }
 
   private String givenAPublicPlanUrl() {

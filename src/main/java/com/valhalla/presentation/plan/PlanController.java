@@ -121,6 +121,9 @@ public class PlanController {
     );
     // AC-03: "Creado por" en la vista pública; sin nombre de visualización se usa el email.
     model.put("administratorName", displayName(plan.getAdministrator()));
+    // Cuánta gente acompaña el plan. Es el único dato de participantes que sale al HTML: la
+    // vista pública no expone emails ni la lista (PlanPublicSecurityTest S-04).
+    model.put("participantCount", plan.getParticipants().size());
 
     String email = currentEmail(authentication);
     model.put("isLogged", email != null);

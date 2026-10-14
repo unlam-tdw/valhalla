@@ -283,6 +283,48 @@ public class PlanControllerTest {
   // --- GET /plans/public [PPV] ---
 
   @Test
+  public void T_PVP_016_showPublicPlan_exponeElContadorDeParticipantes() {
+    // given: dos personas acompanan el plan, mas su administrador (que no es participant)
+    Plan plan = plan(PLAN_ID, "Viaje publico");
+    User admin = new User();
+    admin.setEmail("admin@test.com");
+    plan.setAdministrator(admin);
+    plan.getParticipants().add(new User());
+    plan.getParticipants().add(new User());
+    when(this.planServiceMock.getPublicPlan(PLAN_ID)).thenReturn(plan);
+
+    // when
+    ModelAndView view = this.controller.showPublicPlan(PLAN_ID, this.authentication);
+
+    // then: la vista publica muestra cuanta gente lo acompana, nunca la lista ni los emails
+    assertThat(view.getModel().get("participantCount"), is(equalTo(2)));
+    assertThat(view.getModel().containsKey("participantEmails"), is(false));
+  }
+
+  @Test
+  public void T_PVP_017_showPublicPlan_exponeLasCoordenadasDeCadaParadaParaElMapa() {
+    // given: el unico stop trae lat/lng, que es lo que el mapa del template necesita
+    Plan plan = plan(PLAN_ID, "Viaje publico");
+    Place place = new Place();
+    place.setId(1L);
+    place.setName("Aeropuerto");
+    place.setLatitude(-34.8222);
+    place.setLongitude(-58.5358);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    plan.addPlanPlace(entry);
+    when(this.planServiceMock.getPublicPlan(PLAN_ID)).thenReturn(plan);
+
+    // when
+    ModelAndView view = this.controller.showPublicPlan(PLAN_ID, this.authentication);
+
+    // then
+    Map<?, ?> stop = (Map<?, ?>) ((List<?>) view.getModel().get("itineraryPlaces")).get(0);
+    assertThat(stop.get("latitude"), is(equalTo(Double.valueOf(-34.8222))));
+    assertThat(stop.get("longitude"), is(equalTo(Double.valueOf(-58.5358))));
+  }
+
+  @Test
   public void U01_publicPlans_retornaLaVistaPublicListConUnaTarjetaPorPlanPublico() {
     // given
     List<Plan> planes = List.of(

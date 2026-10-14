@@ -710,7 +710,7 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void T_CLN_002_getPlansIdPublic_sinSesionElCtaDeClonarLlevaAlLoginConservandoLaVuelta()
+  public void T_CLN_002_getPlansIdPublic_sinSesionLosCtasLlevanAlLoginConservandoLaVuelta()
     throws Exception {
     // given
     Long planId = givenPublicPlanWithPlace();
@@ -723,10 +723,13 @@ public class PlanControllerIntegrationTest {
         .getResponse()
         .getContentAsString();
 
-    // then (AC-12): el CTA no ejecuta clone, lleva al login con redirect de vuelta al plan.
-    // El parametro viaja url-encoded segun Thymeleaf, por eso el ternario / %2F.
-    assertThat(html, containsString("Inicia sesion para unirte o clonar"));
+    // then (AC-12): el anonimo ve los MISMOS CTAs que el logueado ("Unirme al plan" y
+    // "Clonar plan"), pero como links al login con redirect de vuelta al plan: no ejecutan
+    // join/clone. El parametro viaja url-encoded segun Thymeleaf, por eso el ternario / %2F.
+    assertThat(html, containsString("Unirme al plan"));
+    assertThat(html, containsString("Clonar plan"));
     assertThat(html, not(containsString("action=\"/plans/" + planId + "/clone\"")));
+    assertThat(html, not(containsString("name=\"_csrf\"")));
     assertThat(
       html,
       matchesPattern(
@@ -994,6 +997,65 @@ public class PlanControllerIntegrationTest {
     assertThat(html, not(containsString("Salir del plan")));
     assertThat(html, not(containsString("Editar plan")));
     assertThat(html, not(containsString("Agregar lugar al plan")));
+  }
+
+  @Test
+  public void T_PVP_016_getPlansIdPublic_muestraElContadorDeParticipantesSinExponerEmails()
+    throws Exception {
+    // given: el plan publico tiene dos participantes ademas de su administrador
+    Long planId = givenPublicPlanWithPlace();
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    Long otroId = givenUser("otro@test.com");
+    plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
+    plan.getParticipants().add(this.userRepository.findById(otroId).orElseThrow());
+    this.planRepository.save(plan);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: la cantidad se muestra, pero ni la lista ni los emails salen al HTML
+    assertThat(oneLine(html), containsString("2 participantes"));
+    assertThat(html, not(containsString("otro@test.com")));
+    assertThat(html, not(containsString(OTHER_EMAIL)));
+  }
+
+  @Test
+  public void T_PVP_017_getPlansIdPublic_muestraElMapaConLosLugaresDelItinerario()
+    throws Exception {
+    // given: un plan publico con dos paradas, cada una en un lugar del catalogo con lat/lng
+    Long planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    List<Place> catalog = this.placeRepository.findAll();
+    PlanPlace first = new PlanPlace();
+    first.setPlace(catalog.get(0));
+    first.setSortOrder(1);
+    PlanPlace second = new PlanPlace();
+    second.setPlace(catalog.get(1));
+    second.setSortOrder(2);
+    plan.addPlanPlace(first);
+    plan.addPlanPlace(second);
+    this.planRepository.save(plan);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: el contenedor del mapa y el JSON de paradas que Leaflet consume, con las
+    // coordenadas de cada lugar del catalogo (no se renderizan como texto, van al script)
+    assertThat(html, containsString("id=\"plan-map\""));
+    assertThat(html, containsString("leaflet"));
+    assertThat(html, containsString(String.valueOf(catalog.get(0).getLatitude())));
+    assertThat(html, containsString(String.valueOf(catalog.get(1).getLongitude())));
   }
 
   // --- fixtures ---
