@@ -15,13 +15,13 @@ import com.valhalla.presentation.shared.LoginRedirects;
 import org.junit.jupiter.api.Test;
 
 /**
- * [PPV] E-01 / T-PPV-005: el feed de planes publicos es para usuarios con sesion.
+ * [PPV] E-01 / T-PPV-005: el feed "Para vos" ({@code GET /for-you}) es visible con y sin sesion.
  *
- * <p>Cubro las dos caras del contrato de producto. Sin sesion: el landing no ofrece el boton
- * "Para vos" en el navbar y entrar directo a /plans/public aterriza en el login. Con sesion: el
- * navbar lo ofrece, la tarjeta rinde sus datos con el href a la vista publica del plan (AC-04) y
- * "Clonar Plan" copia el plan como propia. El plan propio del logueado nunca aparece: el feed es
- * para descubrir planes de otros.
+ * <p>Cubro las tres caras del contrato de producto. Sin sesion: el navbar ofrece "Para vos", entrar
+ * directo a /for-you rinde el feed (no rebota en el login) y el CTA "Clonar Plan" de la tarjeta es
+ * un link al login con la vuelta. Con sesion: el navbar lo ofrece, la tarjeta rinde sus datos con
+ * el href a la vista publica del plan (AC-04) y "Clonar Plan" copia el plan como propia. El plan
+ * propio del logueado nunca aparece: el feed es para descubrir planes de otros.
  *
  * <p>E2eBase limpia la base antes de cada test, asi que el unico plan publico lo crea la sesion
  * del arrange, que es el admin: por eso el observador del feed es un usuario recien registrado en
@@ -41,20 +41,21 @@ public class PublicPlansListE2E extends E2eBase {
   private static final String PASSWORD = "secret123";
 
   @Test
-  void T_PPV_005_visitanteNoVeElFeedNiLoPropioYUnNuevoUsuarioLoClona() {
+  void T_PPV_005_visitanteVeElFeedSinSesionYUnNuevoUsuarioLoClona() {
     WebPage web = new WebPage(page);
 
-    // --- Sin sesion: el boton no existe en el landing (decision de producto) ---
+    // --- Sin sesion: el navbar ofrece el feed como "Para vos" ---
     web.navigate(web.baseUrl() + "/");
     assertThat(
-      "el navbar sin sesion no ofrece el feed",
+      "el navbar sin sesion ofrece el feed",
       web.getNavbarItems(),
-      contains("PlanIt", "Register", "Login")
+      contains("PlanIt", "Para vos", "Register", "Login")
     );
-
-    // ...y entrar directo a la ruta cae en login.
-    web.navigate(web.baseUrl() + "/plans/public");
-    web.waitForPath("/auth/login");
+    assertThat(
+      "el link del navbar sin sesion apunta a /for-you",
+      page.locator("body > nav a:has-text('Para vos')").getAttribute("href"),
+      containsString("/for-you")
+    );
 
     // --- El plan publico lo arma el admin, y EL NO LO VE en su propio feed ---
     givenAPublicPlanExists(); // deja la sesion admin sobre el detalle del plan creado
@@ -65,6 +66,24 @@ public class PublicPlansListE2E extends E2eBase {
       is(0)
     );
     assertThat(page.locator("main").innerText(), containsString("Todavía no hay planes públicos"));
+
+    // --- Sin sesion, directo a la ruta: el feed rinde el listado, sin redirect a login ---
+    newContext();
+    web = new WebPage(page);
+    web.navigate(web.baseUrl() + "/for-you");
+    web.waitForPath("/for-you");
+
+    Locator anonCard = page
+      .locator("main article")
+      .filter(new Locator.FilterOptions().setHasText(PLAN_NAME));
+    assertThat("el visitante ve el plan publico en el feed", anonCard.count(), is(1));
+    // El CTA anónimo es un link al login con la vuelta, no un form POST que se pierde.
+    assertThat(anonCard.locator("a:has-text('Clonar Plan')").count(), is(1));
+    assertThat(anonCard.locator("button:has-text('Clonar Plan')").count(), is(0));
+    assertThat(
+      anonCard.locator("a:has-text('Clonar Plan')").getAttribute("href"),
+      containsString("/auth/login?redirect=")
+    );
 
     // --- Con sesion de OTRO usuario: el feed es el home y sus tarjetas funcionan ---
     newContext();

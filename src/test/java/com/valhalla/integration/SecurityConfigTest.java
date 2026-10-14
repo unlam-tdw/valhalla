@@ -60,6 +60,12 @@ public class SecurityConfigTest {
     this.mockMvc.perform(get("/")).andExpect(status().isOk());
   }
 
+  /** [PPV] El feed "Para vos" es visible con y sin sesion: el visitante no rebota en el login. */
+  @Test
+  public void shouldAllowAnonymousAccessToTheForYouFeed() throws Exception {
+    this.mockMvc.perform(get("/for-you")).andExpect(status().isOk());
+  }
+
   @Test
   public void shouldAllowPublicAccessToReloadEndpoint() throws Exception {
     this.mockMvc.perform(get("/reload/version")).andExpect(status().isOk());

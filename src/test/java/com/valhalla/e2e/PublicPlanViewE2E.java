@@ -97,7 +97,7 @@ public class PublicPlanViewE2E extends E2eBase {
     login.typeEmail("juan@unlam.edu.ar");
     login.typePassword(password);
     login.clickSignIn();
-    // Contra la constante de landing, no un literal: tolera el cambio a /plans/public (PR #15)
+    // Contra la constante de landing, no un literal: tolera el cambio de landing (p. ej. /for-you)
     login.waitForPath(LoginRedirects.USER_LANDING);
 
     page.navigate(planUrl);

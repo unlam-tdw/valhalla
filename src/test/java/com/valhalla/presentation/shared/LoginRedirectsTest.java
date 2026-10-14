@@ -32,7 +32,7 @@ public class LoginRedirectsTest {
 
   @Test
   public void shouldLandACommonUserOnTheUserLanding() {
-    // Contra la constante, no contra un literal: sobrevive el cambio de landing a /plans/public
+    // Contra la constante, no contra un literal: sobrevive el cambio de landing (p. ej. a /for-you)
     assertThat(
       LoginRedirects.landingFor(authenticationWithRoles("ROLE_USER")),
       is(LoginRedirects.USER_LANDING)

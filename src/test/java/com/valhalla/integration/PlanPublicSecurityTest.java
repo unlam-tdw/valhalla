@@ -31,9 +31,9 @@ import org.springframework.web.context.WebApplicationContext;
  * Dos contratos de seguridad sobre la misma FQN, distinguidos por prefijo de nombre:
  *
  * <ul>
- *   <li>[PPV] sin prefijo: el feed {@code GET /plans/public} contra la cadena real de
- *       {@code SecurityConfig} — exige sesion (S-01/S-02) y, ya adentro, no filtra informacion
- *       privada de los planes (S-03).
+ *   <li>[PPV] sin prefijo: el feed {@code GET /for-you} contra la cadena real de
+ *       {@code SecurityConfig} — es visible con y sin sesion (S-01/S-02) y, ya adentro, no filtra
+ *       informacion privada de los planes (S-03).
  *   <li>[PVP] con prefijo {@code PVP_}: la vista {@code GET /plans/{id}/public}, escenarios
  *       S-01..S-04 de 13-PVP.md — {@code permitAll} solo para GET y sin volverse oraculo de ids
  *       ni filtro de datos privados.
@@ -110,29 +110,28 @@ public class PlanPublicSecurityTest {
   // [PPV] Feed: S-01..S-03 de 14-PPV.md
   // ============================================================
 
-  // S-01: el feed es para usuarios con sesion. El visitante aterriza en /auth/login.
+  // S-01: el feed es visible sin sesion. El visitante entra igual que el logueado.
   @Test
-  public void S01_getPlansPublicAnonimoRedirigeALogin() throws Exception {
+  public void S01_getForYouAnonimoResponde200() throws Exception {
     givenAPublicPlan();
 
-    this.mockMvc.perform(get("/plans/public"))
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrlPattern("**/auth/login"));
+    this.mockMvc.perform(get("/for-you")).andExpect(status().isOk());
   }
 
   // S-01b: con sesion el mismo GET responde 200 y rinde el listado.
   @Test
-  public void S01b_getPlansPublicConSesionResponde200() throws Exception {
+  public void S01b_getForYouConSesionResponde200() throws Exception {
     givenAPublicPlan();
 
-    this.mockMvc.perform(get("/plans/public").with(user(VISITOR_EMAIL))).andExpect(status().isOk());
+    this.mockMvc.perform(get("/for-you").with(user(VISITOR_EMAIL))).andExpect(status().isOk());
   }
 
-  // S-02: sin sesion no entra ni el resto de verbos de la ruta. Con token CSRF la request llega
-  // al filtro de autorizacion, asi que el redirect a login prueba la regla y no un 403 de CSRF.
+  // S-02: el permitAll es solo GET: cualquier otro verbo sobre la ruta cae en el login. Con token
+  // CSRF la request llega al filtro de autorizacion, asi que el redirect prueba la regla y no un
+  // 403 de CSRF.
   @Test
-  public void S02_postPlansPublicAnonimoRedirigeALogin() throws Exception {
-    this.mockMvc.perform(post("/plans/public").with(csrf()))
+  public void S02_postForYouAnonimoRedirigeALogin() throws Exception {
+    this.mockMvc.perform(post("/for-you").with(csrf()))
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrlPattern("**/auth/login"));
   }
@@ -144,7 +143,7 @@ public class PlanPublicSecurityTest {
     givenAPrivatePlan();
 
     String html =
-      this.mockMvc.perform(get("/plans/public").with(user(VISITOR_EMAIL)))
+      this.mockMvc.perform(get("/for-you").with(user(VISITOR_EMAIL)))
         .andExpect(status().isOk())
         .andReturn()
         .getResponse()

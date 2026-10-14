@@ -142,26 +142,50 @@ public class PlanControllerIntegrationTest {
       .andExpect(redirectedUrlPattern("**/auth/login"));
   }
 
-  // --- GET /plans/public [PPV, feed solo con sesion] ---
+  // --- GET /for-you [PPV, feed visible con y sin sesion] ---
 
   @Test
-  public void I01_getPlansPublic_anonimoRedirigeALogin() throws Exception {
-    // given: sin @WithMockUser, la request es anonima — el feed no es para visitantes
+  public void I01_getForYou_anonimoResponde200ConElListado() throws Exception {
+    // given: sin @WithMockUser, la request es anonima — el visitante tambien ve el feed
+    givenPublicPlanFor(this.ownerId, PLAN_NAME);
 
     // when/then
-    this.mockMvc.perform(get("/plans/public"))
-      .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrlPattern("**/auth/login"));
+    MvcResult result =
+      this.mockMvc.perform(get("/for-you"))
+        .andExpect(status().isOk())
+        .andExpect(view().name("pages/plans/public-list"))
+        .andExpect(model().attributeExists("publicPlans"))
+        .andReturn();
+
+    // then: el CTA de la card sin sesion es un link al login con la vuelta, no un form POST
+    String html = result.getResponse().getContentAsString();
+    assertThat(html, containsString("href=\"/auth/login?redirect=/for-you\""));
   }
 
   @Test
-  public void I01b_getPlansPublic_logueadoResponde200ConElListado() throws Exception {
+  public void I01c_getPlansPublic_laRutaViejaYaNoExiste() throws Exception {
+    // given: /plans/public se reemplazo por /for-you. Sin sesion la cadena de seguridad manda a
+    // login antes de llegar al mapping (GET /plans/** sigue autenticado); con sesion el literal
+    // cae en /{id}, no parsea Long y GlobalExceptionHandler responde 404.
+
+    // when/then (anonimo: rebota en el login, la ruta vieja no es publica)
+    this.mockMvc.perform(get("/plans/public"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+
+    // when/then (con sesion: no hay mapping, la ruta ya no existe)
+    this.mockMvc.perform(get("/plans/public").with(user(OTHER_EMAIL)))
+      .andExpect(status().isNotFound());
+  }
+
+  @Test
+  public void I01b_getForYou_logueadoResponde200ConElListado() throws Exception {
     // given
     Long planId = givenPublicPlanFor(this.ownerId, PLAN_NAME);
 
     // when
     MvcResult result =
-      this.mockMvc.perform(get("/plans/public").with(user(OTHER_EMAIL)))
+      this.mockMvc.perform(get("/for-you").with(user(OTHER_EMAIL)))
         .andExpect(status().isOk())
         .andExpect(view().name("pages/plans/public-list"))
         .andExpect(model().attributeExists("publicPlans"))
@@ -176,14 +200,14 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void I02_getPlansPublic_noIncluyeNingunPlanPrivado() throws Exception {
+  public void I02_getForYou_noIncluyeNingunPlanPrivado() throws Exception {
     // given: un plan publico y otro privado, ambos con nombre propio
     givenPublicPlanFor(this.ownerId, PLAN_NAME);
     givenPlanFor(this.otherId, OTHER_PLAN_NAME);
 
     // when
     MvcResult result =
-      this.mockMvc.perform(get("/plans/public").with(user(OTHER_EMAIL)))
+      this.mockMvc.perform(get("/for-you").with(user(OTHER_EMAIL)))
         .andExpect(status().isOk())
         .andReturn();
 
@@ -194,18 +218,18 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void I03_getPlansPublic_sinPlanesPublicosMuestraElEstadoVacio() throws Exception {
+  public void I03_getForYou_sinPlanesPublicosMuestraElEstadoVacio() throws Exception {
     // given: solo planes privados, que para este listado es lo mismo que ninguno
     givenPlanFor(this.ownerId, PLAN_NAME);
 
     // when
     MvcResult result =
-      this.mockMvc.perform(get("/plans/public").with(user(OWNER_EMAIL)))
+      this.mockMvc.perform(get("/for-you").with(user(OWNER_EMAIL)))
         .andExpect(status().isOk())
         .andExpect(view().name("pages/plans/public-list"))
         .andReturn();
 
-    // then: estado vacio amigable con salida a la creacion (AC-06; quien llega aca ya tiene sesion)
+    // then: estado vacio amigable con salida a la creacion (AC-06)
     String html = result.getResponse().getContentAsString();
     assertThat(html, containsString("Todavía no hay planes públicos"));
     assertThat(html, containsString("href=\"/explore\""));
@@ -220,7 +244,7 @@ public class PlanControllerIntegrationTest {
 
     // when
     String html =
-      this.mockMvc.perform(get("/plans/public").with(user(OTHER_EMAIL)))
+      this.mockMvc.perform(get("/for-you").with(user(OTHER_EMAIL)))
         .andExpect(status().isOk())
         .andReturn()
         .getResponse()
@@ -232,21 +256,21 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void I05_getPlansPublic_ocultaLosPlanesPropiosYSinEnlaceDeEditar() throws Exception {
+  public void I05_getForYou_ocultaLosPlanesPropiosYSinEnlaceDeEditar() throws Exception {
     // given: un plan propio publico y uno ajeno publico
     givenPublicPlanFor(this.ownerId, PLAN_NAME);
     givenPublicPlanFor(this.otherId, OTHER_PLAN_NAME);
 
     // when: como dueno del primero
     String mio =
-      this.mockMvc.perform(get("/plans/public").with(user(OWNER_EMAIL)))
+      this.mockMvc.perform(get("/for-you").with(user(OWNER_EMAIL)))
         .andExpect(status().isOk())
         .andReturn()
         .getResponse()
         .getContentAsString();
     // when: como ajeno a ambos
     String ajeno =
-      this.mockMvc.perform(get("/plans/public").with(user("visita@test.com")))
+      this.mockMvc.perform(get("/for-you").with(user("visita@test.com")))
         .andExpect(status().isOk())
         .andReturn()
         .getResponse()
@@ -268,7 +292,7 @@ public class PlanControllerIntegrationTest {
 
     // when
     String html =
-      this.mockMvc.perform(get("/plans/public").with(user("visita@test.com")))
+      this.mockMvc.perform(get("/for-you").with(user("visita@test.com")))
         .andExpect(status().isOk())
         .andReturn()
         .getResponse()
