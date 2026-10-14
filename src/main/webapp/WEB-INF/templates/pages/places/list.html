@@ -173,13 +173,15 @@
             </li>
           </ul>
           </div>
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Public plans nearby</h3>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Upcoming public plans</h3>
           <ul class="flex flex-col gap-3">
-            <li v-for="plan in filteredPlans" :key="plan.id"
-              class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <h4 class="text-base font-medium text-gray-900">{{ plan.name }}</h4>
-              <p class="text-xs text-gray-500">{{ plan.eventDate }} &middot; {{ plan.placesCount }} places</p>
-              <p class="mt-1 text-sm text-gray-600 line-clamp-2">{{ plan.description }}</p>
+            <li v-for="plan in filteredPlans" :key="plan.id">
+              <a :href="'/plans/' + plan.id + '/public'"
+                class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:bg-gray-50">
+                <h4 class="text-base font-medium text-gray-900">{{ plan.name }}</h4>
+                <p class="text-xs text-gray-500">{{ plan.eventDate || 'No date' }} &middot; {{ plan.placeCount }} places</p>
+                <p class="mt-1 text-sm text-gray-600 line-clamp-2">{{ plan.description }}</p>
+              </a>
             </li>
           </ul>
           <p v-if="filteredPlans.length === 0" class="text-sm text-gray-500">No plans found.</p>
@@ -416,13 +418,8 @@
           const placeToAdd = ref(null);
           const availablePlans = ref([]);
           const selectedPlanId = ref('');
+          const publicPlans = ref([]);
           let nextDraftKey = 0;
-          // TODO: replace with public/nearby plans from the API once it exists.
-          const mockPlans = ref([
-            { id: 1, name: 'Weekend in San Telmo', description: 'Antique market, tango and a long dinner.', eventDate: '2026-10-18', placesCount: 5 },
-            { id: 2, name: 'Museum day', description: 'Three museums in one afternoon.', eventDate: '2026-10-25', placesCount: 3 },
-            { id: 3, name: 'Sunset at Costanera', description: 'Walk by the river and street food.', eventDate: '2026-11-02', placesCount: 4 }
-          ]);
           let map = null;
           let mapResizeObserver = null;
           let markers = [];
@@ -535,7 +532,7 @@
 
           const filteredPlans = computed(() => {
             const query = plansQuery.value.trim().toLowerCase();
-            return mockPlans.value.filter(plan => !query || plan.name.toLowerCase().includes(query));
+            return publicPlans.value.filter(plan => !query || plan.name.toLowerCase().includes(query));
           });
 
           const openCreatePlan = async () => {
@@ -757,6 +754,20 @@
 
           onMounted(async () => {
             await nextTick();
+
+            // [PPV] Feed real de /explore: planes públicos próximos desde la API. Un fallo deja la
+            // lista vacía (igual que el resto de la página), nunca rompe el mapa ni el panel.
+            try {
+              const publicResponse = await fetch('/api/plans/public');
+              if (publicResponse.ok) {
+                publicPlans.value = await publicResponse.json();
+              } else {
+                const bodyText = await publicResponse.text().catch(() => '(sin cuerpo)');
+                console.error('GET /api/plans/public ->', publicResponse.status, publicResponse.statusText, bodyText);
+              }
+            } catch (error) {
+              console.error('Error fetching public plans:', error);
+            }
 
             // The vendored Tailwind compiler runs deferred, so this can execute before any
             // stylesheet exists: L.map() inside that 1280x0 box bakes an offset center which

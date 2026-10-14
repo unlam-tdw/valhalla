@@ -2,8 +2,6 @@ package com.valhalla.presentation.plan;
 
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
-import com.valhalla.domain.user.User;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -26,9 +24,6 @@ public class ForYouController {
   private static final String VIEW_PUBLIC_LIST = "pages/plans/public-list";
   private static final String ATTR_PUBLIC_PLANS = "publicPlans";
 
-  /** Cantidad de covers genericos en /images/plans: el id del plan elige uno, deterministico. */
-  private static final int COVER_COUNT = 6;
-
   private final PlanService planService;
 
   @Autowired
@@ -49,44 +44,9 @@ public class ForYouController {
         .getPublicPlans()
         .stream()
         .filter(plan -> currentEmail == null || !plan.isAdministrator(currentEmail))
-        .map(ForYouController::planCard)
+        .map(PlanFeedCards::planCard)
         .toList()
     );
     return new ModelAndView(VIEW_PUBLIC_LIST, model);
-  }
-
-  /**
-   * [PPV, AC-03/AC-09] Solo campos publicos de la tarjeta: nombre, descripcion, fecha, cantidad de
-   * lugares del itinerario y nombre del administrador. Ni shortCode, ni emails, ni participantes.
-   * {@code cover} es la imagen generica del plan (hashCode del id % COVER_COUNT); a futuro, una
-   * columna {@code imageUrl} en Plan la reemplaza.
-   */
-  private static Map<String, Object> planCard(Plan plan) {
-    Map<String, Object> card = new LinkedHashMap<>();
-    card.put("id", plan.getId());
-    card.put("name", plan.getName());
-    card.put("description", plan.getDescription());
-    card.put("eventDate", plan.getEventDate() == null ? null : plan.getEventDate().toString());
-    card.put("placeCount", plan.getPlanPlaces().size());
-    card.put("administratorName", feedDisplayName(plan.getAdministrator()));
-    card.put(
-      "cover",
-      "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), COVER_COUNT) + 1) + ".svg"
-    );
-    return card;
-  }
-
-  /**
-   * [PPV] Nombre visible del administrador en el feed. Sin nombre registrado queda vacio y la vista
-   * oculta la linea: AC-09 prohibe exponer emails en el listado, a diferencia del helper de la
-   * vista publica del plan, que usa el email como ultimo recurso.
-   */
-  private static String feedDisplayName(User user) {
-    if (user == null) {
-      return "";
-    }
-    String first = user.getFirstName() == null ? "" : user.getFirstName().trim();
-    String last = user.getLastName() == null ? "" : user.getLastName().trim();
-    return (first + " " + last).trim();
   }
 }

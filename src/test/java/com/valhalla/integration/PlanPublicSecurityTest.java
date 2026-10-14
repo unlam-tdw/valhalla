@@ -9,6 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,6 +23,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -32,9 +34,10 @@ import org.springframework.web.context.WebApplicationContext;
  * Dos contratos de seguridad sobre la misma FQN, distinguidos por prefijo de nombre:
  *
  * <ul>
- *   <li>[PPV] sin prefijo: el feed {@code GET /for-you} contra la cadena real de
- *       {@code SecurityConfig} — es visible con y sin sesion (S-01/S-02) y, ya adentro, no filtra
- *       informacion privada de los planes (S-03).
+ *   <li>[PPV] sin prefijo: el feed {@code GET /for-you} y la API que lo alimenta en /explore,
+ *       {@code GET /api/plans/public}, contra la cadena real de {@code SecurityConfig} — son
+ *       visibles con y sin sesion (S-01/S-02) y, ya adentro, no filtran informacion privada de
+ *       los planes (S-03).
  *   <li>[PVP] con prefijo {@code PVP_}: la vista {@code GET /plans/{id}/public}, escenarios
  *       S-01..S-04 de 13-PVP.md — {@code permitAll} solo para GET y sin volverse oraculo de ids
  *       ni filtro de datos privados.
@@ -130,6 +133,27 @@ public class PlanPublicSecurityTest {
     givenAPublicPlan();
 
     this.mockMvc.perform(get("/for-you").with(user(VISITOR_EMAIL))).andExpect(status().isOk());
+  }
+
+  // S-01c: /explore consume el feed por API. El GET /api/plans/public es permitAll: responde 200
+  // en JSON para un anónimo, y solo con planes públicos (el privado nunca aparece, ni su shortCode).
+  @Test
+  public void S01c_getApiPlansPublicAnonimoResponde200SoloConPlanesPublicos() throws Exception {
+    givenAPublicPlan();
+    givenAPrivatePlan();
+
+    String json =
+      this.mockMvc.perform(get("/api/plans/public"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(json, containsString(FEED_PUBLIC_PLAN_NAME));
+    assertThat(json, not(containsString(FEED_PRIVATE_PLAN_NAME)));
+    assertThat(json, not(containsString("PPVSECRE")));
+    assertThat(json, not(containsString(FEED_OWNER_EMAIL)));
   }
 
   // S-02: el permitAll es solo GET: cualquier otro verbo sobre la ruta cae en el login. Con token
