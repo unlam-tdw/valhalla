@@ -121,13 +121,13 @@ public class PublicPlansListE2E extends E2eBase {
 
     // AC-04: la tarjeta linkea a la vista publica del plan, nunca al detalle protegido.
     String href = card.locator("a").first().getAttribute("href");
-    assertThat(href, matchesPattern(".*/plans/\\d+/public"));
-    String sourceId = href.replaceAll(".*/plans/(\\d+)/public", "$1");
+    assertThat(href, matchesPattern(".*/plans/[0-9a-f-]{36}/public"));
+    String sourceId = href.replaceAll(".*/plans/([0-9a-f-]{36})/public", "$1");
 
     // "Clonar Plan" clona el plan: caigo en MI copia, con id distinto al original.
     card.locator("button:text-is('Clonar Plan')").click();
     new PlansPage(page).waitForDetailPath();
-    String copyId = page.url().replaceAll(".*/plans/(\\d+)(?:[?#].*)?$", "$1");
+    String copyId = page.url().replaceAll(".*/plans/([0-9a-f-]{36})(?:[?#].*)?$", "$1");
     assertThat("la copia tiene un id propio", copyId, not(is(sourceId)));
     assertThat(new PlansPage(page).getDetailHeading(), containsString(PLAN_NAME));
   }

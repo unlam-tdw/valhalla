@@ -18,6 +18,7 @@ import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +60,11 @@ public class PlanPublicSecurityTest {
   private static final String PRIVATE_PLAN_NAME = "Plan privado PVP";
   private static final String PUBLIC_SHORT_CODE = "PVPBLIC01";
 
+  /** Bien formado y no creado: un id numérico ya no llega al servicio, no parsea como UUID. */
+  private static final UUID MISSING_PLAN_ID = UUID.fromString(
+    "00000000-0000-0000-0000-000000000000"
+  );
+
   @Autowired
   private WebApplicationContext wac;
 
@@ -73,8 +79,8 @@ public class PlanPublicSecurityTest {
 
   private MockMvc mockMvc;
 
-  private Long publicPlanId;
-  private Long privatePlanId;
+  private UUID publicPlanId;
+  private UUID privatePlanId;
 
   @BeforeEach
   public void setUp() {
@@ -174,7 +180,7 @@ public class PlanPublicSecurityTest {
         .andExpect(status().is3xxRedirection())
         .andReturn();
     MvcResult missingResult =
-      this.mockMvc.perform(get("/plans/999999/public"))
+      this.mockMvc.perform(get("/plans/" + MISSING_PLAN_ID + "/public"))
         .andExpect(status().is3xxRedirection())
         .andReturn();
 
@@ -215,7 +221,7 @@ public class PlanPublicSecurityTest {
 
   // --- fixtures [PVP] ---
 
-  private Long givenPlan(String name, boolean isPublic) {
+  private UUID givenPlan(String name, boolean isPublic) {
     Plan plan = new Plan();
     plan.setName(name);
     plan.setIsPublic(isPublic);

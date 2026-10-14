@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -61,7 +62,7 @@ public class PlanController {
    */
 
   @GetMapping("/{id}")
-  public ModelAndView showPlan(@PathVariable Long id, Authentication authentication) {
+  public ModelAndView showPlan(@PathVariable UUID id, Authentication authentication) {
     Map<String, Object> model = new ModelMap();
     Plan plan = planService.getParticipatingPlan(id, authentication.getName());
     model.put(ATTR_PLAN, plan);
@@ -89,7 +90,7 @@ public class PlanController {
    * con anonimo ese objeto existe como AnonymousAuthenticationToken y seria siempre true.
    */
   @GetMapping("/{id}/public")
-  public ModelAndView showPublicPlan(@PathVariable Long id, Authentication authentication) {
+  public ModelAndView showPublicPlan(@PathVariable UUID id, Authentication authentication) {
     Plan plan = planService.getPublicPlan(id);
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLAN, plan);
@@ -151,7 +152,7 @@ public class PlanController {
 
   @RequestMapping(value = "/{id}", method = { RequestMethod.POST, RequestMethod.PUT })
   public ModelAndView updatePlan(
-    @PathVariable Long id,
+    @PathVariable UUID id,
     @Valid @ModelAttribute(ATTR_PLAN) PlanRequest planForm,
     BindingResult bindingResult,
     Authentication authentication
@@ -171,7 +172,7 @@ public class PlanController {
    * behaving identically whether or not {@code _method} is honoured.
    */
   @RequestMapping(value = "/{id}/delete", method = { RequestMethod.POST, RequestMethod.DELETE })
-  public ModelAndView deletePlan(@PathVariable Long id, Authentication authentication) {
+  public ModelAndView deletePlan(@PathVariable UUID id, Authentication authentication) {
     planService.deleteOwnedPlan(id, authentication.getName());
     return new ModelAndView(REDIRECT_PLANS);
   }
@@ -181,13 +182,13 @@ public class PlanController {
    * sesion, nunca del form.
    */
   @PostMapping("/{id}/clone")
-  public ModelAndView clonePlan(@PathVariable Long id, Authentication authentication) {
+  public ModelAndView clonePlan(@PathVariable UUID id, Authentication authentication) {
     Plan copy = planService.clonePlan(id, authentication.getName());
     return new ModelAndView(REDIRECT_PLAN_DETAIL + copy.getId());
   }
 
   @PostMapping("/{id}/leave")
-  public ModelAndView leavePlan(@PathVariable Long id, Authentication authentication) {
+  public ModelAndView leavePlan(@PathVariable UUID id, Authentication authentication) {
     planService.leavePlan(id, authentication.getName());
     return new ModelAndView(REDIRECT_PLANS);
   }

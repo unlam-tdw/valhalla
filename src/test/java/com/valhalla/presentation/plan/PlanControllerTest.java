@@ -30,6 +30,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,7 +55,14 @@ public class PlanControllerTest {
   private static final String OWNER_EMAIL = "dueno@test.com";
   private static final String LIST_VIEW = "pages/plans/list";
   private static final String DETAIL_VIEW = "pages/plans/detail";
-  private static final Long PLAN_ID = 7L;
+  private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000007");
+  private static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000008");
+  private static final UUID MISSING_PLAN_ID = UUID.fromString(
+    "00000000-0000-0000-0000-000000000999"
+  );
+  private static final UUID UNKNOWN_PLAN_ID = UUID.fromString(
+    "00000000-0000-0000-0000-000000000404"
+  );
 
   private static final Validator VALIDATOR = localValidator();
 
@@ -125,13 +133,13 @@ public class PlanControllerTest {
   @Test
   public void T_PLN_063_showPlan_propagaPlanNotFoundException() {
     // given
-    when(this.planServiceMock.getParticipatingPlan(999L, OWNER_EMAIL))
+    when(this.planServiceMock.getParticipatingPlan(MISSING_PLAN_ID, OWNER_EMAIL))
       .thenThrow(new PlanNotFoundException());
 
     // when and then
     assertThrows(
       PlanNotFoundException.class,
-      () -> this.controller.showPlan(999L, this.authentication)
+      () -> this.controller.showPlan(MISSING_PLAN_ID, this.authentication)
     );
   }
 
@@ -149,11 +157,12 @@ public class PlanControllerTest {
 
   @Test
   public void T_PVP_002_showPublicPlan_propagaPlanNotFoundException() {
-    when(this.planServiceMock.getPublicPlan(999L)).thenThrow(new PlanNotFoundException());
+    when(this.planServiceMock.getPublicPlan(MISSING_PLAN_ID))
+      .thenThrow(new PlanNotFoundException());
 
     assertThrows(
       PlanNotFoundException.class,
-      () -> this.controller.showPublicPlan(999L, this.authentication)
+      () -> this.controller.showPublicPlan(MISSING_PLAN_ID, this.authentication)
     );
   }
 
@@ -161,13 +170,14 @@ public class PlanControllerTest {
   public void T_PVP_008_showPublicPlan_conIdInexistentePropagaPlanNotFoundException() {
     // U-03: el id que nadie conoce sigue el mismo camino que un plan privado (U-02). La
     // distinción real vive en el servicio; acá se prueba que el controller no la filtra.
-    when(this.planServiceMock.getPublicPlan(404L)).thenThrow(new PlanNotFoundException());
+    when(this.planServiceMock.getPublicPlan(UNKNOWN_PLAN_ID))
+      .thenThrow(new PlanNotFoundException());
 
     assertThrows(
       PlanNotFoundException.class,
-      () -> this.controller.showPublicPlan(404L, this.authentication)
+      () -> this.controller.showPublicPlan(UNKNOWN_PLAN_ID, this.authentication)
     );
-    verify(this.planServiceMock, times(1)).getPublicPlan(404L);
+    verify(this.planServiceMock, times(1)).getPublicPlan(UNKNOWN_PLAN_ID);
   }
 
   @Test
@@ -453,7 +463,7 @@ public class PlanControllerTest {
   @Test
   public void T_PLN_069_clonePlan_redirigeAlDetalleDeLaCopia() {
     // given (U-12)
-    Plan copy = plan(PLAN_ID + 1, "Viaje a Bariloche");
+    Plan copy = plan(OTHER_PLAN_ID, "Viaje a Bariloche");
     when(this.planServiceMock.clonePlan(PLAN_ID, OWNER_EMAIL)).thenReturn(copy);
 
     // when
@@ -468,7 +478,7 @@ public class PlanControllerTest {
   public void T_PLN_069b_clonePlan_tomaElEmailDeLaSesionYNoUnDuenoDelForm() {
     // given (U-13): the cloner travels in the session; the endpoint takes no form body at all
     Authentication clonerSession = new UsernamePasswordAuthenticationToken("cloner@test.com", null);
-    Plan copy = plan(PLAN_ID + 1, "Copia");
+    Plan copy = plan(OTHER_PLAN_ID, "Copia");
     when(this.planServiceMock.clonePlan(PLAN_ID, "cloner@test.com")).thenReturn(copy);
 
     // when
@@ -505,7 +515,7 @@ public class PlanControllerTest {
       .collect(Collectors.toSet());
   }
 
-  private Plan plan(Long id, String name) {
+  private Plan plan(UUID id, String name) {
     Plan plan = new Plan();
     plan.setId(id);
     plan.setName(name);

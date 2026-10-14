@@ -3,10 +3,11 @@ package com.valhalla.infrastructure.plan;
 import com.valhalla.domain.plan.Plan;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface JpaPlanRepository extends JpaRepository<Plan, Long> {
+public interface JpaPlanRepository extends JpaRepository<Plan, UUID> {
   List<Plan> findByAdministratorId(Long administratorId);
   List<Plan> findByParticipantsEmail(String email);
   Optional<Plan> findByShortCode(String shortCode);

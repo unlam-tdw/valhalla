@@ -19,6 +19,7 @@ import com.valhalla.presentation.plan.PlanRestController.PlanSummary;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -31,7 +32,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 public class PlanRestControllerTest {
 
   private static final String OWNER_EMAIL = "dueno@test.com";
-  private static final Long PLAN_ID = 7L;
+  private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000007");
 
   private PlanRestController controller;
   private PlanService planServiceMock;

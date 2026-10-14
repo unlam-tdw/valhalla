@@ -76,7 +76,7 @@ public class PlanServiceImpl implements PlanService {
 
   @Override
   @Transactional(readOnly = true)
-  public Plan getOwnedPlan(Long id, String ownerEmail) {
+  public Plan getOwnedPlan(UUID id, String ownerEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
     if (plan.getAdministrator() == null || !ownerEmail.equals(plan.getAdministrator().getEmail())) {
       // A plan owned by somebody else answers as missing: "forbidden" would confirm the id exists.
@@ -86,7 +86,7 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
-  public Plan updatePlan(Long id, Plan changes, String ownerEmail) {
+  public Plan updatePlan(UUID id, Plan changes, String ownerEmail) {
     Plan existing = getOwnedPlan(id, ownerEmail);
     existing.updateFrom(changes);
     return planRepository.save(existing);
@@ -94,7 +94,7 @@ public class PlanServiceImpl implements PlanService {
 
   @Override
   @Transactional(readOnly = true)
-  public Plan getParticipatingPlan(Long id, String userEmail) {
+  public Plan getParticipatingPlan(UUID id, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
     if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       throw new PlanNotFoundException();
@@ -113,7 +113,7 @@ public class PlanServiceImpl implements PlanService {
 
   @Override
   @Transactional(readOnly = true)
-  public Plan getPublicPlan(Long id) {
+  public Plan getPublicPlan(UUID id) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
     if (!plan.getIsPublic()) {
       // Privado e inexistente responden igual: la vista publica no confirma que el plan exista.
@@ -130,7 +130,7 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
-  public void leavePlan(Long id, String userEmail) {
+  public void leavePlan(UUID id, String userEmail) {
     Plan plan = getParticipatingPlan(id, userEmail);
     if (plan.isAdministrator(userEmail)) {
       throw new PlanNotFoundException();
@@ -156,14 +156,14 @@ public class PlanServiceImpl implements PlanService {
   }
 
   @Override
-  public void deleteOwnedPlan(Long id, String ownerEmail) {
+  public void deleteOwnedPlan(UUID id, String ownerEmail) {
     getOwnedPlan(id, ownerEmail);
     planRepository.deleteById(id);
   }
 
   @Override
   @Transactional
-  public Plan clonePlan(Long id, String clonerEmail) {
+  public Plan clonePlan(UUID id, String clonerEmail) {
     User cloner = userRepository.findByEmail(clonerEmail).orElseThrow(UserNotFoundException::new);
     Plan source = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
     boolean accessible =

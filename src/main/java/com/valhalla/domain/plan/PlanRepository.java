@@ -2,15 +2,16 @@ package com.valhalla.domain.plan;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface PlanRepository {
   List<Plan> findAll();
-  Optional<Plan> findById(Long id);
+  Optional<Plan> findById(UUID id);
   List<Plan> findByIsPublicTrue();
   List<Plan> findByAdministratorId(Long administratorId);
   List<Plan> findByParticipantsEmail(String email);
   Optional<Plan> findByShortCode(String shortCode);
   boolean existsByShortCode(String shortCode);
   Plan save(Plan plan);
-  void deleteById(Long id);
+  void deleteById(UUID id);
 }

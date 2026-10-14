@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -50,7 +51,8 @@ public class PlanServiceImplTest {
   private static final String OTHER_EMAIL = "otro@test.com";
   private static final String UNKNOWN_EMAIL = "nadie@test.com";
   private static final Long OWNER_ID = 7L;
-  private static final Long PLAN_ID = 42L;
+  private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000002a");
+  private static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000002b");
 
   /** The backend generates an 8 character uppercase alphanumeric code out of a UUID. */
   private static final String SHORT_CODE_PATTERN = "[A-Z0-9]{8}";
@@ -221,7 +223,7 @@ public class PlanServiceImplTest {
   public void T_PLN_025_getPlansByUserEmail_buscaPorElIdDelDuenoResuelto() {
     // given
     User owner = owner(OWNER_ID, OWNER_EMAIL);
-    List<Plan> planes = List.of(ownedPlan(PLAN_ID, owner), ownedPlan(PLAN_ID + 1, owner));
+    List<Plan> planes = List.of(ownedPlan(PLAN_ID, owner), ownedPlan(OTHER_PLAN_ID, owner));
     when(this.userRepositoryMock.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner));
     when(this.planRepositoryMock.findByAdministratorId(OWNER_ID)).thenReturn(planes);
 
@@ -748,7 +750,7 @@ public class PlanServiceImplTest {
     return user;
   }
 
-  private Plan ownedPlan(Long id, User administrator) {
+  private Plan ownedPlan(UUID id, User administrator) {
     Plan plan = new Plan();
     plan.setId(id);
     plan.setName("Viaje a Bariloche");

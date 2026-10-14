@@ -58,8 +58,8 @@ public class ForYouController {
   /**
    * [PPV, AC-03/AC-09] Solo campos publicos de la tarjeta: nombre, descripcion, fecha, cantidad de
    * lugares del itinerario y nombre del administrador. Ni shortCode, ni emails, ni participantes.
-   * {@code cover} es la imagen generica del plan (id % COVER_COUNT); a futuro, una columna
-   * {@code imageUrl} en Plan la reemplaza.
+   * {@code cover} es la imagen generica del plan (hashCode del id % COVER_COUNT); a futuro, una
+   * columna {@code imageUrl} en Plan la reemplaza.
    */
   private static Map<String, Object> planCard(Plan plan) {
     Map<String, Object> card = new LinkedHashMap<>();
@@ -71,7 +71,7 @@ public class ForYouController {
     card.put("administratorName", feedDisplayName(plan.getAdministrator()));
     card.put(
       "cover",
-      "/images/plans/cover-" + (Math.floorMod(plan.getId(), (long) COVER_COUNT) + 1) + ".svg"
+      "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), COVER_COUNT) + 1) + ".svg"
     );
     return card;
   }

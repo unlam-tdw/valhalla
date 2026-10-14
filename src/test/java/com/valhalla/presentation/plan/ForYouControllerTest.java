@@ -20,6 +20,7 @@ import com.valhalla.domain.user.User;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,8 @@ public class ForYouControllerTest {
 
   private static final String OWNER_EMAIL = "dueno@test.com";
   private static final String PUBLIC_LIST_VIEW = "pages/plans/public-list";
-  private static final Long PLAN_ID = 7L;
+  private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000007");
+  private static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000008");
 
   private ForYouController controller;
   private PlanService planServiceMock;
@@ -58,7 +60,7 @@ public class ForYouControllerTest {
     // given
     List<Plan> planes = List.of(
       plan(PLAN_ID, "Buenos Aires para todos"),
-      plan(PLAN_ID + 1, "Noche")
+      plan(OTHER_PLAN_ID, "Noche")
     );
     when(this.planServiceMock.getPublicPlans()).thenReturn(planes);
 
@@ -98,8 +100,8 @@ public class ForYouControllerTest {
     assertThat(card.get("eventDate"), is(equalTo("2026-12-31")));
     assertThat(card.get("placeCount"), is(equalTo(1)));
     assertThat(card.get("administratorName"), is(equalTo("Ana Perez")));
-    // cover generico deterministico: id 7 -> 7 % 6 + 1 -> cover-2.svg
-    assertThat(card.get("cover"), is(equalTo("/images/plans/cover-2.svg")));
+    // cover generico deterministico: hash del id fijo 4 -> 4 % 6 + 1 -> cover-5.svg
+    assertThat(card.get("cover"), is(equalTo("/images/plans/cover-5.svg")));
   }
 
   @Test
@@ -225,7 +227,7 @@ public class ForYouControllerTest {
     assertThat(card.get("administratorName"), is(equalTo("")));
   }
 
-  private Plan plan(Long id, String name) {
+  private Plan plan(UUID id, String name) {
     Plan plan = new Plan();
     plan.setId(id);
     plan.setName(name);
