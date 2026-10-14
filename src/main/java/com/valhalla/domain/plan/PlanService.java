@@ -8,6 +8,22 @@ public interface PlanService {
   List<Plan> getPlansByUserEmail(String ownerEmail);
   List<Plan> getPublicPlans();
   Plan getOwnedPlan(UUID id, String ownerEmail);
+  Plan getEditablePlan(UUID id, String userEmail);
+  void changeParticipantRole(UUID id, String participantEmail, String role, String userEmail);
+  void removeParticipant(UUID id, String participantEmail, String userEmail);
+  void inviteParticipant(UUID id, String participantEmail, String role, String userEmail);
+  List<PendingInvitation> getPendingInvitations(String userEmail);
+  void respondToInvitation(UUID planId, Long invitationId, boolean accept, String userEmail);
+
+  record PendingInvitation(
+    Long id,
+    UUID planId,
+    String planName,
+    String inviterName,
+    String inviterEmail,
+    String role
+  ) {}
+
   Plan getParticipatingPlan(UUID id, String userEmail);
   Plan getPublicPlan(UUID id);
   List<Plan> getParticipantPlans(String userEmail);

@@ -43,7 +43,7 @@ class PlanPlaceServiceImplTest {
     entry.setPlan(plan);
     entry.setPlace(place);
     entry.setSortOrder(7);
-    when(ownership.getOwnedPlan(PLAN_ID, "owner")).thenReturn(plan);
+    when(ownership.getEditablePlan(PLAN_ID, "owner")).thenReturn(plan);
     when(plans.findById(PLAN_ID)).thenReturn(Optional.of(plan));
     when(places.findById(2L)).thenReturn(Optional.of(place));
     when(repository.findByPlanId(PLAN_ID)).thenReturn(List.of(entry));
