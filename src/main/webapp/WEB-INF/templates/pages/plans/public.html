@@ -148,9 +148,18 @@
           if (!stop.latitude || !stop.longitude) {
             return;
           }
+          // Mismo marcador que pages/plans/detail.html: circulo por categoria (cat-*), numerado
+          // por parada y con el borde amarillo de "en el itinerario" (todas las paradas lo son
+          // aca). El numero va en un nodo con textContent, no en un string con el nombre.
+          const badge = document.createElement('div');
+          badge.className =
+            'custom-map-icon cat-' + (stop.category || 'DEFAULT') + ' in-itinerary';
+          const number = document.createElement('span');
+          number.textContent = String(index + 1);
+          badge.appendChild(number);
           const icon = L.divIcon({
-            html: String(index + 1),
-            className: 'plan-stop-icon',
+            html: badge,
+            className: 'custom-div-icon',
             iconSize: [30, 30],
             iconAnchor: [15, 15]
           });
@@ -175,6 +184,23 @@
           bounds.push([stop.latitude, stop.longitude]);
         });
 
+        // Linea que une las paradas en orden, con las mismas opciones que el detalle. Como alla,
+        // solo con 2+ paradas: una sola parada no tiene trayecto que dibujar.
+        if (stops.length > 1) {
+          const routeLatLngs = [];
+          stops.forEach(function (stop) {
+            if (stop.latitude && stop.longitude) {
+              routeLatLngs.push([stop.latitude, stop.longitude]);
+            }
+          });
+          L.polyline(routeLatLngs, {
+            color: '#0d6efd',
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '6, 6'
+          }).addTo(map);
+        }
+
         if (bounds.length === 1) {
           map.setView(bounds[0], 14);
         } else if (bounds.length > 1) {
@@ -188,18 +214,45 @@
     </script>
 
     <style>
-      .plan-stop-icon {
-        display: grid;
-        place-items: center;
+      /* Mismo estilo de marcadores que pages/plans/detail.html (13-PVP: esa vista es la
+         referencia visual): circulo de 30px con borde blanco, color por categoria (cat-*) y
+         borde amarillo/scale para las paradas del itinerario. */
+      .custom-div-icon {
+        background: transparent !important;
+        border: none !important;
+      }
+
+      .custom-map-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 30px;
         height: 30px;
-        border-radius: 9999px;
-        background-color: #111827;
-        color: #fff;
-        font-weight: 700;
-        font-size: 13px;
-        border: 2px solid #fff;
+        border-radius: 50%;
+        color: white;
+        font-weight: bold;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        border: 2px solid white;
+        font-size: 13px;
+        margin-top: -15px;
+        margin-left: -15px;
+        transition: transform 0.2s ease-in-out;
+      }
+
+      .cat-RESTAURANT { background-color: #dc3545; }
+      .cat-NIGHTLIFE  { background-color: #6f42c1; }
+      .cat-MUSEUM     { background-color: #0d6efd; }
+      .cat-SHOPPING   { background-color: #fd7e14; }
+      .cat-CAFE       { background-color: #d63384; }
+      .cat-PARK       { background-color: #198754; }
+      .cat-CULTURE    { background-color: #0dcaf0; }
+      .cat-BAR        { background-color: #ffc107; color: #000; }
+      .cat-DEFAULT    { background-color: #6c757d; }
+
+      .in-itinerary {
+        border: 3px solid #ffc107 !important;
+        transform: scale(1.15);
+        z-index: 1000 !important;
       }
     </style>
   </main>

@@ -40,7 +40,7 @@ sesion a `/auth/login`.
 | AC-09 | `GET /plans/{id}/public` es `permitAll`: responde 200 sin sesion y sin redirigir a login |
 | AC-10 | El resto de `/plans/**` sigue protegido: `GET /plans/{id}` y `POST /plans/{id}/clone` sin sesion siguen redirigiendo a `/auth/login` |
 | AC-11 | El link es copiable y compartible: no lleva tokens, ni shortCode en la URL, ni parametros de sesion |
-| AC-12 | Muestra un mapa (Leaflet) sobre el itinerario con un marcador numerado por parada, usando las coordenadas de cada lugar del plan |
+| AC-12 | Muestra un mapa (Leaflet) sobre el itinerario con un marcador numerado por parada (mismo estilo de circulo por categoria que el detalle del plan), usando las coordenadas de cada lugar del plan, y una linea que une las paradas en orden cuando hay 2 o mas |
 | AC-13 | Sin sesion el mapa y el itinerario se ven igual: la lectura no depende de la sesion |
 
 ## Escenarios de Test
@@ -120,7 +120,9 @@ sesion a `/auth/login`.
   todos los lugares y los del plan resaltados), aca solo se marcan las paradas del plan,
   numeradas en orden de visita: la vista es para mirar, no para editar. El JSON de paradas sale
   del mismo `itineraryPlaces` del model; los popups se arman con DOM, nunca con string
-  concatenado, para que un nombre de lugar con HTML se renderice como texto.
+  concatenado, para que un nombre de lugar con HTML se renderice como texto. El estilo de los
+  marcadores y la linea que une las paradas replica al detalle (referencia visual): circulo con
+  color por categoria y borde amarillo `in-itinerary`, y polyline punteada solo con 2+ paradas.
 - **Participantes: solo el contador.** El model expone `participantCount`, nunca la lista ni
   los emails (consistente con [PPV] AC-09 y con `PlanPublicSecurityTest` S-04).
 
