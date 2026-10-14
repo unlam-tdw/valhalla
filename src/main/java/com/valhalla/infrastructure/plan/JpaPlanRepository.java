@@ -22,4 +22,12 @@ public interface JpaPlanRepository extends JpaRepository<Plan, Long> {
 
   Optional<Plan> findByShortCode(String shortCode);
   boolean existsByShortCode(String shortCode);
+
+  /**
+   * [PPV] El listado publico. Sin ORDER BY a proposito: todavia no hay criterio de relevancia
+   * (ver 14-PPV.md). La query es explicita en vez de derived porque el atributo se llama
+   * {@code isPublic} y la resolucion derived-query de ese prefijo es ambigua.
+   */
+  @Query("select p from Plan p where p.isPublic = true")
+  List<Plan> findByIsPublicTrue();
 }

@@ -3,6 +3,7 @@ package com.valhalla.infrastructure.plan;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
@@ -28,6 +29,7 @@ import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -351,6 +353,48 @@ public class PlanServiceImplTest {
     verify(this.planRepositoryMock, never()).findByAdministratorId(any());
   }
 
+  // --- getPublicPlans [PPV] ---
+
+  @Test
+  public void U05_getPublicPlans_devuelveLosPlanesQueExponeElRepositorio() {
+    // given: el filtro isPublic = true vive en la query del repositorio, no en el servicio
+    List<Plan> publicos = List.of(ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL)));
+    when(this.planRepositoryMock.findByIsPublicTrue()).thenReturn(publicos);
+
+    // when
+    List<Plan> result = this.planService.getPublicPlans();
+
+    // then
+    assertThat(result, is(equalTo(publicos)));
+    verify(this.planRepositoryMock, times(1)).findByIsPublicTrue();
+  }
+
+  @Test
+  public void U06_getPublicPlans_sinNingunPlanPublicoDevuelveListaVacia() {
+    // given
+    when(this.planRepositoryMock.findByIsPublicTrue()).thenReturn(List.of());
+
+    // when
+    List<Plan> result = this.planService.getPublicPlans();
+
+    // then: la base vacia es un caso normal, no una excepcion (AC-06)
+    assertThat(result, is(empty()));
+    verify(this.planRepositoryMock, times(1)).findByIsPublicTrue();
+  }
+
+  @Test
+  public void U07_getPublicPlans_noLlamaASaveNiModificaPlanes() {
+    // given
+    when(this.planRepositoryMock.findByIsPublicTrue())
+      .thenReturn(List.of(ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL))));
+
+    // when
+    this.planService.getPublicPlans();
+
+    // then: es una lectura, el listado no escribe ni ordena nada (AC-05)
+    assertNothingWasMutated();
+  }
+
   // --- getOwnedPlan ---
 
   @Test
@@ -411,6 +455,65 @@ public class PlanServiceImplTest {
       () -> this.planService.getOwnedPlan(PLAN_ID, OWNER_EMAIL)
     );
     assertNothingWasMutated();
+  }
+
+  // --- getPublicPlan ---
+
+  @Test
+  public void T_PVP_016_getPublicPlan_devuelveElPlanPublico() {
+    // given
+    Plan plan = ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL));
+    plan.setIsPublic(true);
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
+
+    // when
+    Plan result = this.planService.getPublicPlan(PLAN_ID);
+
+    // then
+    assertThat(result, is(sameInstance(plan)));
+    verify(this.planRepositoryMock, times(1)).findById(PLAN_ID);
+  }
+
+  @Test
+  public void T_PVP_017_getPublicPlan_fallaSiElPlanEsPrivado() {
+    // given: un plan privado existe, pero la vista publica no debe confirmarlo
+    Plan privado = ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL));
+    privado.setIsPublic(false);
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(privado));
+
+    // when and then
+    assertThrows(PlanNotFoundException.class, () -> this.planService.getPublicPlan(PLAN_ID));
+    // effect check: el plan sigue intacto y no hubo escritura de ningun tipo
+    assertThat(privado.getName(), is(equalTo("Viaje a Bariloche")));
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void T_PVP_018_getPublicPlan_fallaSiElPlanNoExiste() {
+    // given
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.empty());
+
+    // when and then: mismo tipo de excepcion que el plan privado (privado == inexistente)
+    assertThrows(PlanNotFoundException.class, () -> this.planService.getPublicPlan(PLAN_ID));
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void T_PVP_019_getPublicPlan_esReadOnlyYNoTocaLosParticipantes() {
+    // given
+    Plan plan = ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL));
+    plan.setIsPublic(true);
+    plan.getParticipants().add(owner(OWNER_ID + 2, "participante@test.com"));
+    List<User> participantsBefore = List.copyOf(plan.getParticipants());
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
+
+    // when
+    this.planService.getPublicPlan(PLAN_ID);
+
+    // then: solo lectura — ni save ni bajas ni altas de participantes
+    assertThat(plan.getParticipants(), is(participantsBefore));
+    verify(this.planRepositoryMock, never()).save(any(Plan.class));
+    verify(this.planRepositoryMock, never()).deleteById(any());
   }
 
   // --- updatePlan ---
@@ -498,12 +601,250 @@ public class PlanServiceImplTest {
     verify(this.planRepositoryMock, never()).save(any(Plan.class));
   }
 
+  // --- clonePlan ---
+
+  @Test
+  public void T_PLN_035_clonePlan_conPlanPublicoLaCopiaTieneAlClonerComoDueno() {
+    // given (U-01)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then
+    assertThat(copy, is(not(sameInstance(source))));
+    assertThat(copy.getAdministrator(), is(sameInstance(cloner)));
+    verify(this.planRepositoryMock, times(1)).save(any(Plan.class));
+  }
+
+  @Test
+  public void T_PLN_036_clonePlan_generaUnShortCodeDistintoDelOriginal() {
+    // given (U-02): the source keeps its join key, the copy gets a fresh one
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    when(this.planRepositoryMock.existsByShortCode(anyString())).thenReturn(false);
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then
+    assertThat(copy.getShortCode(), matchesPattern(SHORT_CODE_PATTERN));
+    assertThat(copy.getShortCode(), is(not(equalTo("ORIG1234"))));
+    verify(this.planRepositoryMock, times(1)).existsByShortCode(anyString());
+  }
+
+  @Test
+  public void T_PLN_037_clonePlan_dejaLaCopiaPrivadaAunqueElOriginalSeaPublico() {
+    // given (U-03)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then
+    assertThat(copy.getIsPublic(), is(false));
+    assertThat(source.getIsPublic(), is(true));
+  }
+
+  @Test
+  public void T_PLN_038_clonePlan_copiaNombreDescripcionFechaYHoraDelEvento() {
+    // given (U-04)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(publicPlan()));
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then
+    assertThat(copy.getName(), is(equalTo("Viaje a Bariloche")));
+    assertThat(copy.getDescription(), is(equalTo("Descripcion original")));
+    assertThat(copy.getEventDate(), is(equalTo(LocalDate.of(2026, 12, 31))));
+    assertThat(copy.getEventTime(), is(equalTo(LocalTime.of(18, 30))));
+  }
+
+  @Test
+  public void T_PLN_039_clonePlan_copiaElItinerarioConLosMismosLugaresYOrdenSecuencial() {
+    // given (U-05)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    Place beach = new Place();
+    beach.setId(5L);
+    Place museum = new Place();
+    museum.setId(6L);
+    source.addPlanPlace(itineraryEntry(beach, "desayuno", 3));
+    source.addPlanPlace(itineraryEntry(museum, null, 2));
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then: same persisted Place instances, renumbered 1..n in itinerary order
+    assertThat(copy.getPlanPlaces().size(), is(2));
+    assertThat(copy.getPlanPlaces().get(0).getPlace(), is(sameInstance(beach)));
+    assertThat(copy.getPlanPlaces().get(0).getDescription(), is(equalTo("desayuno")));
+    assertThat(copy.getPlanPlaces().get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
+    assertThat(copy.getPlanPlaces().get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
+    assertThat(copy.getPlanPlaces().get(0).getSortOrder(), is(1));
+    assertThat(copy.getPlanPlaces().get(1).getPlace(), is(sameInstance(museum)));
+    assertThat(copy.getPlanPlaces().get(1).getSortOrder(), is(2));
+    assertThat(source.getPlanPlaces().size(), is(2));
+  }
+
+  @Test
+  public void T_PLN_040_clonePlan_laCopiaNaceSinParticipantes() {
+    // given (U-06)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    source.getParticipants().add(owner(OWNER_ID + 3, "participant@test.com"));
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then
+    assertThat(copy.getParticipants(), is(empty()));
+    assertThat(source.getParticipants().size(), is(1));
+  }
+
+  @Test
+  public void T_PLN_041_clonePlan_planPrivadoAjenoLanzaPlanNotFoundExceptionYNoGuarda() {
+    // given (U-07): private plan, cloner is neither administrator nor participant
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    source.setIsPublic(false);
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+
+    // when and then
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> this.planService.clonePlan(PLAN_ID, OTHER_EMAIL)
+    );
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void T_PLN_042_clonePlan_planPrivadoLoPuedeClonarUnParticipant() {
+    // given (U-08)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    source.setIsPublic(false);
+    source.getParticipants().add(cloner);
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then
+    assertThat(copy.getAdministrator(), is(sameInstance(cloner)));
+    assertThat(copy.getParticipants(), is(empty()));
+  }
+
+  @Test
+  public void T_PLN_043_clonePlan_idInexistenteLanzaPlanNotFoundExceptionYNoGuarda() {
+    // given (U-09)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.empty());
+
+    // when and then
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> this.planService.clonePlan(PLAN_ID, OTHER_EMAIL)
+    );
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void T_PLN_044_clonePlan_noModificaElPlanOriginal() {
+    // given (U-10)
+    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    Plan source = publicPlan();
+    source.addPlanPlace(itineraryEntry(new Place(), "desayuno", 1));
+    source.getParticipants().add(owner(OWNER_ID + 3, "participant@test.com"));
+    when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
+    when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
+    givenSaveEchoes();
+
+    // when
+    Plan copy = this.planService.clonePlan(PLAN_ID, OTHER_EMAIL);
+
+    // then: same instance mutated nowhere; participants, code and itinerary untouched
+    assertThat(copy, is(not(sameInstance(source))));
+    assertThat(source.getShortCode(), is(equalTo("ORIG1234")));
+    assertThat(source.getIsPublic(), is(true));
+    assertThat(source.getAdministrator().getEmail(), is(equalTo(OWNER_EMAIL)));
+    assertThat(source.getParticipants().size(), is(1));
+    assertThat(source.getPlanPlaces().size(), is(1));
+  }
+
+  @Test
+  public void T_PLN_045_clonePlan_emailInexistenteLanzaUserNotFoundException() {
+    // given (U-11)
+    when(this.userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.empty());
+
+    // when and then: the cloner resolves first, so the plan is never even loaded
+    assertThrows(
+      UserNotFoundException.class,
+      () -> this.planService.clonePlan(PLAN_ID, UNKNOWN_EMAIL)
+    );
+    verifyNoInteractions(this.planRepositoryMock);
+  }
+
   // --- fixtures ---
 
   /** Effect check shared by every read-path rejection: nothing was written or deleted. */
   private void assertNothingWasMutated() {
     verify(this.planRepositoryMock, never()).save(any(Plan.class));
     verify(this.planRepositoryMock, never()).deleteById(any());
+  }
+
+  /** The repository echoes the plan it receives, so tests assert on the built copy. */
+  private void givenSaveEchoes() {
+    when(this.planRepositoryMock.save(any(Plan.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+  }
+
+  private Plan publicPlan() {
+    Plan plan = new Plan();
+    plan.setId(PLAN_ID);
+    plan.setName("Viaje a Bariloche");
+    plan.setDescription("Descripcion original");
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    plan.setEventTime(LocalTime.of(18, 30));
+    plan.setIsPublic(true);
+    plan.setShortCode("ORIG1234");
+    plan.setAdministrator(owner(OWNER_ID, OWNER_EMAIL));
+    return plan;
+  }
+
+  private PlanPlace itineraryEntry(Place place, String description, int sortOrder) {
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    entry.setDescription(description);
+    entry.setVisitDate(LocalDate.of(2026, 12, 1));
+    entry.setVisitTime(LocalTime.of(9, 30));
+    entry.setSortOrder(sortOrder);
+    return entry;
   }
 
   private User owner(Long id, String email) {

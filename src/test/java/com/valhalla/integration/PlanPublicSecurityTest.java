@@ -1,0 +1,262 @@
+package com.valhalla.integration;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.valhalla.domain.place.PlaceRepository;
+import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.planplace.PlanPlace;
+import com.valhalla.domain.user.User;
+import com.valhalla.domain.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
+
+/**
+ * Dos contratos de seguridad sobre la misma FQN, distinguidos por prefijo de nombre:
+ *
+ * <ul>
+ *   <li>[PPV] sin prefijo: el feed {@code GET /plans/public} contra la cadena real de
+ *       {@code SecurityConfig} — exige sesion (S-01/S-02) y, ya adentro, no filtra informacion
+ *       privada de los planes (S-03).
+ *   <li>[PVP] con prefijo {@code PVP_}: la vista {@code GET /plans/{id}/public}, escenarios
+ *       S-01..S-04 de 13-PVP.md — {@code permitAll} solo para GET y sin volverse oraculo de ids
+ *       ni filtro de datos privados.
+ * </ul>
+ */
+@WebIntegrationTest
+@Transactional
+public class PlanPublicSecurityTest {
+
+  // --- [PPV] fixtures del feed ---
+
+  private static final String FEED_OWNER_EMAIL = "dueno.ppv@test.com";
+  private static final String FEED_PARTICIPANT_EMAIL = "participante.ppv@test.com";
+  private static final String VISITOR_EMAIL = "visitante.ppv@test.com";
+  private static final String FEED_PUBLIC_PLAN_NAME = "Plan publico visible";
+  private static final String FEED_PRIVATE_PLAN_NAME = "Plan privado oculto";
+
+  // --- [PVP] fixtures de la vista publica ---
+
+  private static final String OWNER_EMAIL = "dueno-pvp@test.com";
+  private static final String PARTICIPANT_EMAIL = "participante-pvp@test.com";
+  private static final String PUBLIC_PLAN_NAME = "Plan publico PVP";
+  private static final String PRIVATE_PLAN_NAME = "Plan privado PVP";
+  private static final String PUBLIC_SHORT_CODE = "PVPBLIC01";
+
+  @Autowired
+  private WebApplicationContext wac;
+
+  @Autowired
+  private UserRepository userRepository;
+
+  @Autowired
+  private PlanRepository planRepository;
+
+  @Autowired
+  private PlaceRepository placeRepository;
+
+  private MockMvc mockMvc;
+
+  private Long publicPlanId;
+  private Long privatePlanId;
+
+  @BeforeEach
+  public void setUp() {
+    this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).apply(springSecurity()).build();
+
+    // [PVP] la vista publica siempre tiene plan publico y privado para comparar.
+    User owner = new User();
+    owner.setEmail(OWNER_EMAIL);
+    owner.setPassword("password123");
+    owner.setRole("USER");
+    owner.setFirstName("Dueno");
+    owner.setLastName("PVP");
+    this.userRepository.save(owner);
+
+    User participant = new User();
+    participant.setEmail(PARTICIPANT_EMAIL);
+    participant.setPassword("password123");
+    participant.setRole("USER");
+    participant.setFirstName("Participante");
+    participant.setLastName("PVP");
+    this.userRepository.save(participant);
+
+    this.publicPlanId = givenPlan(PUBLIC_PLAN_NAME, true);
+    Plan publicPlan = this.planRepository.findById(this.publicPlanId).orElseThrow();
+    publicPlan.setShortCode(PUBLIC_SHORT_CODE);
+    publicPlan.getParticipants().add(participant);
+    this.planRepository.save(publicPlan);
+
+    this.privatePlanId = givenPlan(PRIVATE_PLAN_NAME, false);
+  }
+
+  // ============================================================
+  // [PPV] Feed: S-01..S-03 de 14-PPV.md
+  // ============================================================
+
+  // S-01: el feed es para usuarios con sesion. El visitante aterriza en /auth/login.
+  @Test
+  public void S01_getPlansPublicAnonimoRedirigeALogin() throws Exception {
+    givenAPublicPlan();
+
+    this.mockMvc.perform(get("/plans/public"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  // S-01b: con sesion el mismo GET responde 200 y rinde el listado.
+  @Test
+  public void S01b_getPlansPublicConSesionResponde200() throws Exception {
+    givenAPublicPlan();
+
+    this.mockMvc.perform(get("/plans/public").with(user(VISITOR_EMAIL))).andExpect(status().isOk());
+  }
+
+  // S-02: sin sesion no entra ni el resto de verbos de la ruta. Con token CSRF la request llega
+  // al filtro de autorizacion, asi que el redirect a login prueba la regla y no un 403 de CSRF.
+  @Test
+  public void S02_postPlansPublicAnonimoRedirigeALogin() throws Exception {
+    this.mockMvc.perform(post("/plans/public").with(csrf()))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  // S-03: ni shortCode, ni emails de participantes ni datos de planes privados.
+  @Test
+  public void S03_elListadoNoExponeInformacionPrivada() throws Exception {
+    Plan publicPlan = givenAPublicPlan();
+    givenAPrivatePlan();
+
+    String html =
+      this.mockMvc.perform(get("/plans/public").with(user(VISITOR_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(html, containsString(FEED_PUBLIC_PLAN_NAME));
+    assertThat(html, not(containsString(publicPlan.getShortCode())));
+    assertThat(html, not(containsString(FEED_PARTICIPANT_EMAIL)));
+    assertThat(html, not(containsString(FEED_OWNER_EMAIL)));
+    assertThat(html, not(containsString(FEED_PRIVATE_PLAN_NAME)));
+  }
+
+  // ============================================================
+  // [PVP] Vista publica: S-01..S-04 de 13-PVP.md
+  // ============================================================
+
+  /** S-01 (AC-09): the GET is permitAll — 200 without a session and without a login redirect. */
+  @Test
+  public void PVP_S01_getPlanPublicoAnonimoResponde200SinRedirigir() throws Exception {
+    this.mockMvc.perform(get("/plans/" + this.publicPlanId + "/public")).andExpect(status().isOk());
+  }
+
+  /** S-02 (AC-04): a private plan answers exactly like a missing id, never 200 with content. */
+  @Test
+  public void PVP_S02_getPlanPrivadoAnonimoNoResponde200ConContenido() throws Exception {
+    MvcResult privateResult =
+      this.mockMvc.perform(get("/plans/" + this.privatePlanId + "/public"))
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+    MvcResult missingResult =
+      this.mockMvc.perform(get("/plans/999999/public"))
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+
+    assertThat(
+      privateResult.getResponse().getRedirectedUrl(),
+      is(missingResult.getResponse().getRedirectedUrl())
+    );
+    assertThat(
+      privateResult.getResponse().getContentAsString(),
+      not(containsString(PRIVATE_PLAN_NAME))
+    );
+  }
+
+  /** S-03 (AC-10): permitAll covers GET only — a POST still goes through the login gate. */
+  @Test
+  public void PVP_S03_postPlanPublicoAnonimoRedirigeALogin() throws Exception {
+    this.mockMvc.perform(post("/plans/" + this.publicPlanId + "/public").with(csrf()))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  /** S-04 (AC-04): no participant emails, no shortCode and no private-plan data in the HTML. */
+  @Test
+  public void PVP_S04_getPlanPublicoNoFiltraEmailsNiDatosDePlanesPrivados() throws Exception {
+    String html =
+      this.mockMvc.perform(get("/plans/" + this.publicPlanId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(html, not(containsString(PARTICIPANT_EMAIL)));
+    assertThat(html, not(containsString(OWNER_EMAIL)));
+    assertThat(html, not(containsString(PUBLIC_SHORT_CODE)));
+    assertThat(html, not(containsString(PRIVATE_PLAN_NAME)));
+    assertThat(html, containsString(PUBLIC_PLAN_NAME));
+  }
+
+  // --- fixtures [PVP] ---
+
+  private Long givenPlan(String name, boolean isPublic) {
+    Plan plan = new Plan();
+    plan.setName(name);
+    plan.setIsPublic(isPublic);
+    plan.setAdministrator(this.userRepository.findByEmail(OWNER_EMAIL).orElseThrow());
+    return this.planRepository.save(plan).getId();
+  }
+
+  // --- fixtures [PPV] ---
+
+  private Plan givenAPublicPlan() {
+    User owner = givenUser(FEED_OWNER_EMAIL);
+    Plan plan = new Plan();
+    plan.setName(FEED_PUBLIC_PLAN_NAME);
+    plan.setAdministrator(owner);
+    plan.setShortCode("PPVSECRE");
+    plan.setIsPublic(true);
+    User participant = givenUser(FEED_PARTICIPANT_EMAIL);
+    plan.getParticipants().add(participant);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(this.placeRepository.findAll().get(0));
+    plan.addPlanPlace(entry);
+    return this.planRepository.save(plan);
+  }
+
+  private void givenAPrivatePlan() {
+    Plan plan = new Plan();
+    plan.setName(FEED_PRIVATE_PLAN_NAME);
+    plan.setAdministrator(this.userRepository.findByEmail(FEED_OWNER_EMAIL).orElseThrow());
+    this.planRepository.save(plan);
+  }
+
+  private User givenUser(String email) {
+    User user = new User();
+    user.setEmail(email);
+    user.setPassword("password123");
+    user.setRole("USER");
+    user.setFirstName("Nombre");
+    user.setLastName("Apellido");
+    user.activate();
+    this.userRepository.save(user);
+    return this.userRepository.findByEmail(email).orElseThrow();
+  }
+}

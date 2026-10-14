@@ -13,7 +13,6 @@ Issues and specs for this repo live on Trello. Use the Trello MCP tools for all 
 ## Board structure
 
 - Board: PlanIt (TDW)
-- Lists follow the sprint structure defined in `docs/sprint-planner.md`
 - Cards map 1:1 to the specs in `docs/specs/`
 
 ## When a skill says "publish to the issue tracker"

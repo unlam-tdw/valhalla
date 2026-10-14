@@ -14,12 +14,14 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
@@ -56,6 +58,7 @@ public class PlanControllerIntegrationTest {
   private static final String OTHER_EMAIL = "ajeno@test.com";
   private static final String PLAN_NAME = "Plan de integración";
   private static final String OTHER_PLAN_NAME = "Plan del otro usuario";
+  private static final String PUBLIC_PLAN_NAME = "Plan publico compartido";
 
   /**
    * Where {@code GlobalExceptionHandler} sends a {@code PlanNotFoundException}: the plans listing,
@@ -222,6 +225,152 @@ public class PlanControllerIntegrationTest {
     this.mockMvc.perform(get("/plans"))
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  // --- GET /plans/public [PPV, feed solo con sesion] ---
+
+  @Test
+  public void I01_getPlansPublic_anonimoRedirigeALogin() throws Exception {
+    // given: sin @WithMockUser, la request es anonima — el feed no es para visitantes
+
+    // when/then
+    this.mockMvc.perform(get("/plans/public"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  @Test
+  public void I01b_getPlansPublic_logueadoResponde200ConElListado() throws Exception {
+    // given
+    Long planId = givenPublicPlanFor(this.ownerId, PLAN_NAME);
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/public").with(user(OTHER_EMAIL)))
+        .andExpect(status().isOk())
+        .andExpect(view().name("pages/plans/public-list"))
+        .andExpect(model().attributeExists("publicPlans"))
+        .andReturn();
+
+    // then
+    String html = result.getResponse().getContentAsString();
+    assertThat(html, containsString(PLAN_NAME));
+    assertThat(html, containsString("href=\"/plans/" + planId + "/public\""));
+    // El boton "Usar plan" es parte de la tarjeta, uno por plan listado.
+    assertThat(occurrences(html, "Usar plan"), is(1));
+  }
+
+  @Test
+  public void I02_getPlansPublic_noIncluyeNingunPlanPrivado() throws Exception {
+    // given: un plan publico y otro privado, ambos con nombre propio
+    givenPublicPlanFor(this.ownerId, PLAN_NAME);
+    givenPlanFor(this.otherId, OTHER_PLAN_NAME);
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/public").with(user(OTHER_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn();
+
+    // then: ni nombre, ni datos, ni cantidad del privado (AC-02)
+    String html = result.getResponse().getContentAsString();
+    assertThat(html, containsString(PLAN_NAME));
+    assertThat(html, not(containsString(OTHER_PLAN_NAME)));
+  }
+
+  @Test
+  public void I03_getPlansPublic_sinPlanesPublicosMuestraElEstadoVacio() throws Exception {
+    // given: solo planes privados, que para este listado es lo mismo que ninguno
+    givenPlanFor(this.ownerId, PLAN_NAME);
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/public").with(user(OWNER_EMAIL)))
+        .andExpect(status().isOk())
+        .andExpect(view().name("pages/plans/public-list"))
+        .andReturn();
+
+    // then: estado vacio amigable con salida a la creacion (AC-06; quien llega aca ya tiene sesion)
+    String html = result.getResponse().getContentAsString();
+    assertThat(html, containsString("Todavía no hay planes públicos"));
+    assertThat(html, containsString("href=\"/explore\""));
+    assertThat(html, not(containsString(PLAN_NAME)));
+  }
+
+  @Test
+  public void I04_cadaTarjetaLinkeaALaVistaPublicaDelPlan() throws Exception {
+    // given
+    Long publicId = givenPublicPlanFor(this.ownerId, PLAN_NAME);
+    Long anotherId = givenPublicPlanFor(this.ownerId, OTHER_PLAN_NAME);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/public").with(user(OTHER_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then (AC-04)
+    assertThat(html, containsString("href=\"/plans/" + publicId + "/public\""));
+    assertThat(html, containsString("href=\"/plans/" + anotherId + "/public\""));
+  }
+
+  @Test
+  public void I05_getPlansPublic_muestraEditarSoloEnLosPlanesPropios() throws Exception {
+    // given: un plan propio publico y uno ajeno publico
+    givenPublicPlanFor(this.ownerId, PLAN_NAME);
+    givenPublicPlanFor(this.otherId, OTHER_PLAN_NAME);
+
+    // when: como dueno del primero
+    String mio =
+      this.mockMvc.perform(get("/plans/public").with(user(OWNER_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    // when: como ajeno a ambos
+    String ajeno =
+      this.mockMvc.perform(get("/plans/public").with(user("visita@test.com")))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: "Editar" solo aparece al lado del plan que es tuyo (boton Usar plan esta en todos)
+    assertThat(occurrences(oneLine(mio), " Editar "), is(1));
+    assertThat(occurrences(oneLine(ajeno), " Editar "), is(0));
+    assertThat(occurrences(ajeno, "Usar plan"), is(2));
+  }
+
+  @Test
+  public void I06_cadaTarjetaMuestraUnCoverVisualConAltDelPlan() throws Exception {
+    // given: dos planes publicos (covers distintos porque el id elige uno)
+    Long publicId = givenPublicPlanFor(this.ownerId, PLAN_NAME);
+    Long anotherId = givenPublicPlanFor(this.otherId, OTHER_PLAN_NAME);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/public").with(user("visita@test.com")))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: un cover por tarjeta, con alt accesible igual al nombre del plan
+    assertThat(occurrences(html, "src=\"/images/plans/cover-"), is(2));
+    assertThat(occurrences(html, "alt=\"" + PLAN_NAME + "\""), is(1));
+    assertThat(occurrences(html, "alt=\"" + OTHER_PLAN_NAME + "\""), is(1));
+    // el id determina el cover (floorMod) y la imagen existe y se sirve
+    assertThat(
+      html,
+      containsString("src=\"/images/plans/cover-" + (Math.floorMod(publicId, 6L) + 1) + ".svg\"")
+    );
+    assertThat(
+      html,
+      containsString("src=\"/images/plans/cover-" + (Math.floorMod(anotherId, 6L) + 1) + ".svg\"")
+    );
+    this.mockMvc.perform(get("/images/plans/cover-1.svg")).andExpect(status().isOk());
   }
 
   // --- POST /plans ---
@@ -511,6 +660,164 @@ public class PlanControllerIntegrationTest {
     assertThat(this.planRepository.findById(planId).isPresent(), is(true));
   }
 
+  // --- POST /plans/{id}/clone ---
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void T_PLN_084_postPlansIdCloneDePlanPublicoRedirigeALaCopiaQueApareceEnElListado()
+    throws Exception {
+    // given (I-01): a public plan of another user
+    Long planId = givenPublicPlanWithPlace();
+
+    // when
+    String location = cloneLocationOf(planId);
+
+    // then: the redirect lands on a different plan, listed as owned by the cloner
+    assertThat(location, matchesPattern("^/plans/\\d+$"));
+    assertThat(planIdOf(location), is(not(equalTo(planId))));
+    MvcResult listing = this.mockMvc.perform(get("/plans")).andExpect(status().isOk()).andReturn();
+    assertThat(((Plan) plansOf(listing).get(0)).getId(), is(equalTo(planIdOf(location))));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void T_PLN_085_postPlansIdClone_laCopiaNacePrivadaConShortCodeNuevo() throws Exception {
+    // given (I-02)
+    Long planId = givenPublicPlanWithPlace();
+
+    // when
+    String location = cloneLocationOf(planId);
+    this.entityManager.flush();
+    this.entityManager.clear();
+
+    // then
+    Plan copy = this.planRepository.findById(planIdOf(location)).orElseThrow();
+    assertThat(copy.getShortCode(), matchesPattern("[A-Z0-9]{8}"));
+    assertThat(copy.getShortCode(), is(not(equalTo("ORIG1234"))));
+    assertThat(copy.getIsPublic(), is(false));
+    assertThat(copy.getAdministrator().getId(), is(equalTo(this.otherId)));
+    assertThat(copy.getAdministrator().getEmail(), is(equalTo(OTHER_EMAIL)));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void T_PLN_086_getPlansIdDeLaCopiaRenderizaElMismoItinerario() throws Exception {
+    // given (I-03)
+    Long planId = givenPublicPlanWithPlace();
+    Long placeId = this.placeRepository.findAll().get(0).getId();
+    String location = cloneLocationOf(planId);
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan copy = this.planRepository.findById(planIdOf(location)).orElseThrow();
+    assertThat(copy.getPlanPlaces(), hasSize(1));
+    assertThat(copy.getPlanPlaces().get(0).getPlace().getId(), is(equalTo(placeId)));
+    assertThat(copy.getPlanPlaces().get(0).getDescription(), is(equalTo("desayuno")));
+
+    // when
+    String html =
+      this.mockMvc.perform(get(location))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: the clone's detail renders the same place and visit data as the original
+    assertThat(html, containsString("desayuno"));
+    assertThat(html, containsString("\"id\":" + placeId));
+    assertThat(html, containsString("\"visitDate\":\"2026-12-01\""));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void T_PLN_087_postPlansIdCloneDePlanPrivadoAjenoRespondeComoIdInexistente()
+    throws Exception {
+    // given (I-04): private plan of the owner, the cloner is neither administrator nor participant
+    Long planId = givenPlanFor(this.ownerId, OTHER_PLAN_NAME);
+
+    // when: cloning it answers exactly like cloning a missing id
+    this.mockMvc.perform(post("/plans/" + planId + "/clone").with(csrf()))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.mockMvc.perform(post("/plans/999999/clone").with(csrf()))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    // then: no copy was created
+    assertThat(this.planRepository.findAll(), hasSize(1));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void T_PLN_088_postPlansIdClone_dejaElOriginalIntacto() throws Exception {
+    // given (I-05): public plan with a participant and an itinerary
+    Long planId = givenPublicPlanWithPlace();
+    Long participantId = givenUser("participant@test.com");
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.getParticipants().add(this.userRepository.findById(participantId).orElseThrow());
+    this.planRepository.save(plan);
+
+    // when
+    cloneLocationOf(planId);
+    this.entityManager.flush();
+    this.entityManager.clear();
+
+    // then: code, visibility, owner, participants and itinerary all as before
+    Plan original = this.planRepository.findById(planId).orElseThrow();
+    assertThat(original.getShortCode(), is(equalTo("ORIG1234")));
+    assertThat(original.getIsPublic(), is(true));
+    assertThat(original.getAdministrator().getId(), is(equalTo(this.ownerId)));
+    assertThat(original.getParticipants(), hasSize(1));
+    assertThat(original.getPlanPlaces(), hasSize(1));
+  }
+
+  // --- AC-12: el CTA "Clonar plan" de la vista publica ---
+
+  @Test
+  public void T_CLN_001_getPlansIdPublic_conSesionElCtaDeClonarApuntaAlEndpointDeClonar()
+    throws Exception {
+    // given: un plan publico ajeno con itinerario
+    Long planId = givenPublicPlanWithPlace();
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public").with(user(OTHER_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then (AC-12): el form de clonar existe y postea al endpoint de CLO, no a otro lado
+    assertThat(html, containsString("Clonar plan"));
+    assertThat(html, containsString("action=\"/plans/" + planId + "/clone\""));
+    assertThat(html, containsString("name=\"_csrf\""));
+  }
+
+  @Test
+  public void T_CLN_002_getPlansIdPublic_sinSesionElCtaDeClonarLlevaAlLoginConservandoLaVuelta()
+    throws Exception {
+    // given
+    Long planId = givenPublicPlanWithPlace();
+
+    // when: anonimo abre la vista publica
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then (AC-12): el CTA no ejecuta clone, lleva al login con redirect de vuelta al plan.
+    // El parametro viaja url-encoded segun Thymeleaf, por eso el ternario / %2F.
+    assertThat(html, containsString("Inicia sesion para unirte o clonar"));
+    assertThat(html, not(containsString("action=\"/plans/" + planId + "/clone\"")));
+    assertThat(
+      html,
+      matchesPattern(
+        "(?s).*href=\"/auth/login\\?redirect=[^\"]*" + planId + "(/|%2F)public[^\"]*\".*"
+      )
+    );
+  }
+
   @Test
   @WithMockUser(username = OTHER_EMAIL)
   public void participantCanJoinReadAndLeaveWithoutDeletingPlan() throws Exception {
@@ -629,6 +936,147 @@ public class PlanControllerIntegrationTest {
     this.mockMvc.perform(post("/plans/" + planId + "/leave").with(csrf()).with(user(OWNER_EMAIL)))
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     assertThat(this.planRepository.findById(planId).orElseThrow().getParticipants(), is(empty()));
+  }
+
+  @Test
+  public void T_PVP_003_getPlansIdPublic_conPlanPublicoDevuelve200ConLosDatos() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    plan.setDescription("Descripcion publica");
+    this.planRepository.save(plan);
+
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(html, containsString(PUBLIC_PLAN_NAME));
+    assertThat(html, containsString("Descripcion publica"));
+    // AC-03: quien lo creó, visible en la vista pública (el fixture nombra al owner "Test User")
+    assertThat(html, containsString("Creado por"));
+    assertThat(html, containsString("Test User"));
+    // AC-07: el anónimo no ejecuta join/clone: el CTA va al login conservando la vuelta al plan
+    assertThat(
+      html,
+      matchesPattern("(?s).*href=\"/auth/login\\?redirect=[^\"]*" + planId + "[^\"]*\".*")
+    );
+  }
+
+  @Test
+  public void T_PVP_004_getPlansIdPublic_conPlanPrivadoRespondeIgualQueUnoInexistente()
+    throws Exception {
+    Long planId = givenPlanFor(this.ownerId, OTHER_PLAN_NAME);
+
+    this.mockMvc.perform(get("/plans/" + planId + "/public"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    this.mockMvc.perform(get("/plans/999999/public"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+  }
+
+  @Test
+  public void T_PVP_005_getPlansIdPublic_sinSesionNoRedirigeALogin() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    this.planRepository.save(plan);
+
+    this.mockMvc.perform(get("/plans/" + planId + "/public")).andExpect(status().isOk());
+  }
+
+  @Test
+  public void T_PVP_006_getPlansIdPublic_conSesionDeNoParticipanteMuestraUnirseYClonar()
+    throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    this.planRepository.save(plan);
+
+    this.mockMvc.perform(get("/plans/" + planId + "/public").with(user(OTHER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("Unirme al plan")))
+      .andExpect(content().string(containsString("Clonar plan")));
+  }
+
+  @Test
+  public void T_PVP_006_getPlansIdPublic_conSesionDeParticipanteNoMuestraUnirse() throws Exception {
+    Long planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
+    this.planRepository.save(plan);
+
+    this.mockMvc.perform(get("/plans/" + planId + "/public").with(user(OTHER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("Ver mi plan")))
+      .andExpect(content().string(not(containsString("Unirme al plan"))));
+  }
+
+  @Test
+  public void T_PVP_014_getPlansIdPublic_muestraElItinerarioConLosLugaresDelPlan()
+    throws Exception {
+    // given
+    Long planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    List<Place> catalog = this.placeRepository.findAll();
+    PlanPlace first = new PlanPlace();
+    first.setPlace(catalog.get(0));
+    first.setSortOrder(1);
+    first.setDescription("Parada uno");
+    PlanPlace second = new PlanPlace();
+    second.setPlace(catalog.get(1));
+    second.setSortOrder(2);
+    second.setDescription("Parada dos");
+    plan.addPlanPlace(first);
+    plan.addPlanPlace(second);
+    this.planRepository.save(plan);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: cada lugar del plan, y en el orden de su sortOrder
+    assertThat(html, containsString(catalog.get(0).getName()));
+    assertThat(html, containsString(catalog.get(1).getName()));
+    assertThat(html, containsString("Parada uno"));
+    assertThat(html, containsString("Parada dos"));
+    assertThat(html.indexOf("Parada uno") < html.indexOf("Parada dos"), is(true));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PVP_015_getPlansIdPublic_noRenderizaFormularioDeEdicionNiEliminarPlan()
+    throws Exception {
+    // given: hasta el administrador con sesión ve una vista read-only
+    Long planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    this.planRepository.save(plan);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then
+    assertThat(html, containsString("Ver mi plan"));
+    assertThat(html, not(containsString("Eliminar plan")));
+    assertThat(html, not(containsString("Salir del plan")));
+    assertThat(html, not(containsString("Editar plan")));
+    assertThat(html, not(containsString("Agregar lugar al plan")));
   }
 
   // --- fixtures ---
@@ -980,6 +1428,58 @@ public class PlanControllerIntegrationTest {
     plan.setName(name);
     plan.setAdministrator(this.userRepository.findById(administratorId).orElseThrow());
     return this.planRepository.save(plan).getId();
+  }
+
+  /** [PPV] Un plan visible para el listado publico. */
+  private Long givenPublicPlanFor(Long administratorId, String name) {
+    Long id = givenPlanFor(administratorId, name);
+    Plan plan = this.planRepository.findById(id).orElseThrow();
+    plan.setIsPublic(true);
+    return this.planRepository.save(plan).getId();
+  }
+
+  private static int occurrences(String haystack, String needle) {
+    int count = 0;
+    for (
+      int at = haystack.indexOf(needle);
+      at >= 0;
+      at = haystack.indexOf(needle, at + needle.length())
+    ) {
+      count++;
+    }
+    return count;
+  }
+
+  /** Colapsa el whitespace del HTML renderizado para poder contar texto con saltos de línea. */
+  private static String oneLine(String html) {
+    return html.replaceAll("\\s+", " ");
+  }
+
+  /** A public plan of the owner: itinerary entry included, the fixture the clone tests need. */
+  private Long givenPublicPlanWithPlace() {
+    Long planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setDescription("Plan original");
+    plan.setShortCode("ORIG1234");
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    plan.setEventTime(LocalTime.of(18, 30));
+    plan.setIsPublic(true);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(this.placeRepository.findAll().get(0));
+    entry.setDescription("desayuno");
+    entry.setVisitDate(LocalDate.of(2026, 12, 1));
+    entry.setVisitTime(LocalTime.of(9, 30));
+    entry.setSortOrder(1);
+    plan.addPlanPlace(entry);
+    return this.planRepository.save(plan).getId();
+  }
+
+  private String cloneLocationOf(Long planId) throws Exception {
+    return this.mockMvc.perform(post("/plans/" + planId + "/clone").with(csrf()))
+      .andExpect(status().is3xxRedirection())
+      .andReturn()
+      .getResponse()
+      .getRedirectedUrl();
   }
 
   private static List<?> plansOf(MvcResult result) {
