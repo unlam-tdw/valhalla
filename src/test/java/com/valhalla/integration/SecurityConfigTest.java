@@ -32,9 +32,7 @@ public class SecurityConfigTest {
 
   @Test
   public void shouldAllowPlacesWithoutSession() throws Exception {
-    this.mockMvc.perform(get("/explore"))
-      .andExpect(status().isOk())
-      .andExpect(model().attributeDoesNotExist("userPlans"));
+    this.mockMvc.perform(get("/explore")).andExpect(status().isOk());
   }
 
   @Test

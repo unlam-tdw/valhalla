@@ -136,43 +136,6 @@
             class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
             Create plan
           </button>
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">My plans</h3>
-            <button th:if="${userPlans != null and #lists.size(userPlans) > 3}" type="button" @click="showAllPlans = !showAllPlans"
-              :aria-expanded="showAllPlans" aria-controls="my-plans-list"
-              class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">
-              Ver todos
-              <svg aria-hidden="true" class="h-4 w-4 transition-transform" :class="showAllPlans ? 'rotate-90' : ''"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="m9 6 6 6-6 6" />
-              </svg>
-            </button>
-          </div>
-          <!-- v-pre: plan names are user input and must never reach Vue's template compiler. -->
-          <div id="my-plans-list" :class="showAllPlans ? '' : '[&_li:nth-child(n+4)]:hidden'">
-          <ul v-pre class="flex flex-col gap-2">
-            <li th:each="plan : ${userPlans}">
-              <a th:href="@{/plans/{id}(id=${plan.id})}" data-open-plan th:data-plan-id="${plan.id}"
-                th:data-plan-name="${plan.name}"
-                class="flex flex-col gap-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition hover:bg-gray-50">
-                <span class="flex items-center justify-between gap-2">
-                  <span class="min-w-0 truncate font-medium" th:text="${plan.name}">Plan</span>
-                  <span th:if="${plan.isPublic}"
-                    class="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Public</span>
-                  <span th:unless="${plan.isPublic}"
-                    class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Private</span>
-                </span>
-                <span class="text-xs text-gray-500" th:text="${plan.eventDate != null} ? ${plan.eventDate} : 'No date'"></span>
-                <span th:if="${plan.description != null and !#strings.isEmpty(plan.description)}"
-                  class="line-clamp-2 text-xs text-gray-600" th:text="${plan.description}"></span>
-              </a>
-            </li>
-            <li th:if="${#lists.isEmpty(userPlans)}" class="text-sm text-gray-500">
-              You haven't created any plans yet.
-            </li>
-          </ul>
-          </div>
           <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Upcoming public plans</h3>
           <ul class="flex flex-col gap-3">
             <li v-for="plan in filteredPlans" :key="plan.id">
@@ -409,7 +372,6 @@
           const searchQuery = ref('');
           const categories = ref([]);
           const plansQuery = ref('');
-          const showAllPlans = ref(false);
           const showCreatePlan = ref(false);
           const planNameInput = ref(null);
           const planStep = ref(1);
@@ -830,7 +792,6 @@
             selectPlace,
             closeDetails,
             plansQuery,
-            showAllPlans,
             filteredPlans,
             showCreatePlan,
             planNameInput,
