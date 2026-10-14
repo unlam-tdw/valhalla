@@ -72,7 +72,7 @@ public class PlanController {
     model.put("canEditPlan", plan.canEdit(userEmail));
     model.put("isPlanAdministrator", plan.isAdministrator(userEmail));
     model.put("isPlanParticipant", plan.isParticipant(userEmail));
-    model.put("canInvite", userEmail != null && (plan.canEdit(userEmail) || plan.getIsPublic()));
+    model.put("canInvite", userEmail != null && plan.canEdit(userEmail));
     model.put(
       "participants",
       Stream

@@ -19,6 +19,7 @@ public interface PlanService {
     Long id,
     UUID planId,
     String planName,
+    boolean isPublic,
     String inviterName,
     String inviterEmail,
     String role

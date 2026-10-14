@@ -146,7 +146,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Override
   public void inviteParticipant(UUID id, String participantEmail, String role, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
-    validateInvitationPermissions(plan, role, userEmail);
+    validateInvitationPermissions(plan, userEmail);
     validateInvitationRole(role);
     User participant = findInvitationRecipient(participantEmail);
     validateInvitationRecipient(plan, participant.getEmail());
@@ -155,12 +155,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     planRepository.save(plan);
   }
 
-  private void validateInvitationPermissions(Plan plan, String role, String userEmail) {
-    if (
-      userEmail == null ||
-      userEmail.isBlank() ||
-      (!plan.canEdit(userEmail) && (!plan.getIsPublic() || !PARTICIPANT_ROLE.equals(role)))
-    ) {
+  private void validateInvitationPermissions(Plan plan, String userEmail) {
+    if (userEmail == null || userEmail.isBlank() || !plan.canEdit(userEmail)) {
+      // Un plan sin permiso responde como inexistente: no se confirma que el id exista.
       throw new PlanNotFoundException();
     }
   }
@@ -214,6 +211,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
           invitation.getId(),
           invitation.getPlan().getId(),
           invitation.getPlan().getName(),
+          Boolean.TRUE.equals(invitation.getPlan().getIsPublic()),
           name,
           inviter.getEmail(),
           invitation.getRole()

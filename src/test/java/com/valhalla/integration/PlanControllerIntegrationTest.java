@@ -1238,7 +1238,32 @@ public class PlanControllerIntegrationTest {
 
   @Test
   @WithMockUser(username = OTHER_EMAIL)
-  public void authenticatedVisitorCanInviteToPublicPlan() throws Exception {
+  public void visitorCannotInviteToPublicPlan() throws Exception {
+    UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    this.planRepository.save(plan);
+    this.mockMvc.perform(get("/plans/" + planId))
+      .andExpect(status().isOk())
+      .andExpect(model().attribute("canInvite", false));
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/invite")
+          .with(csrf())
+          .param("participantEmail", "guest@test.com")
+          .param("role", "guest")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan saved = this.planRepository.findById(planId).orElseThrow();
+    assertThat(saved.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(saved.getInvitations(), is(empty()));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void ownerCanInviteToOwnPublicPlan() throws Exception {
     UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.setIsPublic(true);

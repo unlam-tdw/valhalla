@@ -24,7 +24,9 @@ import com.valhalla.domain.exception.UserNotFoundException;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanInvitation;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
@@ -107,16 +109,26 @@ public class PlanServiceImplTest {
   }
 
   @Test
-  public void authenticatedVisitorCanInviteParticipantToPublicPlan() {
+  public void visitorCannotInviteParticipantToPublicPlan() {
     Plan plan = invitationPlan(true);
-    when(userRepositoryMock.findByEmail(OTHER_EMAIL))
-      .thenReturn(Optional.of(owner(9L, OTHER_EMAIL)));
-    when(userRepositoryMock.findByEmail(UNKNOWN_EMAIL))
-      .thenReturn(Optional.of(owner(10L, UNKNOWN_EMAIL)));
-    planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", UNKNOWN_EMAIL);
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", UNKNOWN_EMAIL)
+    );
+    assertThat(plan.getParticipants(), is(empty()));
+    assertThat(plan.getInvitations(), is(empty()));
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void ownerCanInviteParticipantToPublicPlan() {
+    Plan plan = invitationPlan(true);
+    User invited = owner(9L, OTHER_EMAIL);
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(invited));
+    planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", OWNER_EMAIL);
     assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
-    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
     assertThat(plan.getInvitations().size(), is(1));
+    assertThat(plan.getInvitations().getFirst().getRole(), is("guest"));
     verify(planRepositoryMock).save(plan);
   }
 
@@ -181,6 +193,55 @@ public class PlanServiceImplTest {
     when(userRepositoryMock.findByEmail(OWNER_EMAIL))
       .thenReturn(Optional.of(plan.getAdministrator()));
     return plan;
+  }
+
+  // --- getPendingInvitations ---
+
+  @Test
+  public void getPendingInvitations_dePlanPublicoMarcaIsPublicEnVerdadero() {
+    // given
+    Plan plan = invitationPlan(true);
+    plan.setId(PLAN_ID);
+    User recipient = owner(9L, UNKNOWN_EMAIL);
+    plan
+      .getInvitations()
+      .add(new PlanInvitation(plan, recipient, plan.getAdministrator(), "guest"));
+    when(this.planRepositoryMock.findByInvitationsRecipientEmail(UNKNOWN_EMAIL))
+      .thenReturn(List.of(plan));
+
+    // when
+    List<PlanService.PendingInvitation> pending =
+      this.planService.getPendingInvitations(UNKNOWN_EMAIL);
+
+    // then: isPublic sale del plan real para que la vista sepa si puede mostrar el enlace al detalle
+    assertThat(pending, hasSize(1));
+    assertThat(pending.getFirst().planId(), is(PLAN_ID));
+    assertThat(pending.getFirst().isPublic(), is(true));
+    verify(this.planRepositoryMock, times(1)).findByInvitationsRecipientEmail(UNKNOWN_EMAIL);
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void getPendingInvitations_dePlanPrivadoMarcaIsPublicEnFalso() {
+    // given
+    Plan plan = invitationPlan(false);
+    plan.setId(PLAN_ID);
+    User recipient = owner(9L, UNKNOWN_EMAIL);
+    plan
+      .getInvitations()
+      .add(new PlanInvitation(plan, recipient, plan.getAdministrator(), "editor"));
+    when(this.planRepositoryMock.findByInvitationsRecipientEmail(UNKNOWN_EMAIL))
+      .thenReturn(List.of(plan));
+
+    // when
+    List<PlanService.PendingInvitation> pending =
+      this.planService.getPendingInvitations(UNKNOWN_EMAIL);
+
+    // then
+    assertThat(pending, hasSize(1));
+    assertThat(pending.getFirst().isPublic(), is(false));
+    assertThat(pending.getFirst().role(), is("editor"));
+    assertNothingWasMutated();
   }
 
   @Test
