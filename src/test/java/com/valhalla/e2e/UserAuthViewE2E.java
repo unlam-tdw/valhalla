@@ -66,6 +66,22 @@ public class UserAuthViewE2E extends E2eBase {
   }
 
   @Test
+  void shouldLandOnTheUserLandingWhenTheRedirectIsTheSiteRoot() throws MalformedURLException {
+    givenUserRegisters(EMAIL, PASSWORD);
+    signOut();
+
+    // El navbar de la landing arma /auth/login?redirect=/: el form de login reenvía ese valor
+    // en el POST y el success handler lo tiene que tratar como "sin destino" (aterrizar en /
+    // dejaría al USER en la home del sitio en vez del feed "Para vos", LoginRedirects.afterLogin).
+    LoginPage loginPage = new LoginPage(page, "/auth/login?redirect=/");
+    loginPage.typeEmail(EMAIL);
+    loginPage.typePassword(PASSWORD);
+    loginPage.clickSignIn();
+
+    thenShouldBeOnPath(LoginRedirects.USER_LANDING);
+  }
+
+  @Test
   void shouldRecoverPasswordAndSignIn() throws MalformedURLException {
     givenUserRegisters(EMAIL, PASSWORD);
     // Registration already opened a session; the rotation that follows must not ride on it, so

@@ -99,6 +99,58 @@ public class LoginRedirectsTest {
     assertThat(LoginRedirects.isSafeInternalPath("/plans/5/public"), is(true));
   }
 
+  // --- afterLogin ---
+
+  @Test
+  public void shouldLandInTheLandingWhenTheRedirectIsTheSiteRoot() {
+    // redirect=/ es lo que arma el navbar en la landing: significa "empece en el home", no
+    // "vuelvo al home". Seguirlo dejaba al USER en / en vez del feed "Para vos".
+    assertThat(
+      LoginRedirects.afterLogin("/", authenticationWithRoles("ROLE_USER")),
+      is(LoginRedirects.USER_LANDING)
+    );
+  }
+
+  @Test
+  public void shouldLandInTheLandingWhenTheRedirectIsMissingOrEmpty() {
+    assertThat(
+      LoginRedirects.afterLogin(null, authenticationWithRoles("ROLE_USER")),
+      is(LoginRedirects.USER_LANDING)
+    );
+    assertThat(
+      LoginRedirects.afterLogin("", authenticationWithRoles("ROLE_USER")),
+      is(LoginRedirects.USER_LANDING)
+    );
+  }
+
+  @Test
+  public void shouldKeepADeepRedirectAfterLogin() {
+    assertThat(
+      LoginRedirects.afterLogin("/plans/5/public", authenticationWithRoles("ROLE_USER")),
+      is("/plans/5/public")
+    );
+    assertThat(
+      LoginRedirects.afterLogin("/for-you", authenticationWithRoles("ROLE_USER")),
+      is("/for-you")
+    );
+  }
+
+  @Test
+  public void shouldFallBackToTheLandingOnAnUnsafeRedirect() {
+    assertThat(
+      LoginRedirects.afterLogin("https://otro-sitio.com", authenticationWithRoles("ROLE_USER")),
+      is(LoginRedirects.USER_LANDING)
+    );
+  }
+
+  @Test
+  public void shouldLandAnAdminOnTheAdminHomeWhenTheRedirectIsTheSiteRoot() {
+    assertThat(
+      LoginRedirects.afterLogin("/", authenticationWithRoles("ROLE_ADMIN")),
+      is(ADMIN_LANDING)
+    );
+  }
+
   private static Authentication authenticationWithRoles(String... roles) {
     List<GrantedAuthority> authorities = Arrays
       .stream(roles)
