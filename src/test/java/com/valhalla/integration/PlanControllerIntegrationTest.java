@@ -1180,6 +1180,105 @@ public class PlanControllerIntegrationTest {
     assertThat(html, containsString(String.valueOf(catalog.get(1).getLongitude())));
   }
 
+  // --- POST /plans/{id}/ratings [CAL] ---
+
+  @Test
+  public void T_CAL_012_postRatings_calificaConSesionYLaVistaMuestraElAgregado() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    givenUser("votante2@test.com");
+
+    // Dos usuarios logueados califican: 4 y 5 → promedio 4.5 con 2 calificaciones
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/plans/" + planId + "/public"));
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user("votante2@test.com"))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection());
+
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // AC-07: el agregado publico sale al HTML; AC-02: la autoria nunca (ni emails de votantes)
+    assertThat(html, containsString("4.5"));
+    assertThat(html, not(containsString(OTHER_EMAIL)));
+    assertThat(html, not(containsString("votante2@test.com")));
+  }
+
+  @Test
+  public void T_CAL_013_postRatings_recalificarReemplazaNuncaSumaOtraFila() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      );
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection());
+
+    // AC-04: misma cantidad de votos, promedio reemplazado por el nuevo puntaje
+    this.mockMvc.perform(get("/plans/" + planId + "/public").with(user(OTHER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(model().attribute("ratingCount", is(1L)))
+      .andExpect(model().attribute("ratingAverage", is(5.0)))
+      .andExpect(model().attribute("myRating", is(5)));
+  }
+
+  @Test
+  public void T_CAL_014_postRatings_anonimoNoCalifica() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    // Sin sesion el POST no califica: el filtro CSRF lo rebota y la cadena manda a login (AC-13)
+    this.mockMvc.perform(post("/plans/" + planId + "/ratings").param("score", "4"))
+      .andExpect(status().isForbidden());
+    this.mockMvc.perform(post("/plans/" + planId + "/ratings").with(csrf()).param("score", "4"))
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  @Test
+  public void T_CAL_015_postRatings_planPrivadoOnexistenteRespondeComoInexistente()
+    throws Exception {
+    UUID planId = givenPlanFor(this.ownerId, OTHER_PLAN_NAME);
+
+    // AC-06: calificar un plan privado es igual que calificar un id que no existe
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    this.mockMvc.perform(
+        post("/plans/" + MISSING_PLAN_ID + "/ratings")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+  }
+
   // --- fixtures ---
 
   @Test
