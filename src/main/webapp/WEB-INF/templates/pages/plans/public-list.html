@@ -61,9 +61,9 @@
                   <p th:if="${plan.ratingAverage != null}" class="rating-line flex items-center gap-1.5">
                     <span class="relative inline-block select-none leading-none" role="img"
                       th:attr="aria-label='Puntuación ' + ${plan.ratingAverage} + ' de 5, con ' + ${plan.ratingCount} + ' calificaciones'">
-                      <span class="text-base text-gray-300" aria-hidden="true">★★★★★</span>
+                      <span class="text-base text-gray-300" aria-hidden="true"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
                       <span class="feed-stars-fill text-base" aria-hidden="true"
-                        th:style="'width:' + ${#numbers.formatDecimal(plan.ratingAverage * 20.0, 1, 2, 'POINT')} + '%'">★★★★★</span>
+                        th:style="'width:' + ${#numbers.formatDecimal(plan.ratingAverage * 20.0, 1, 2, 'POINT')} + '%'"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
                     </span>
                     <span>
                       <strong class="text-gray-700" th:text="${plan.ratingAverage}">4.5</strong>
@@ -122,6 +122,14 @@
           color: #f59e0b;
           overflow: hidden;
           white-space: nowrap;
+        }
+
+        /* Estrella SVG: tamano em, mismo encuadre que el texto que rodea a la fila. */
+        .star-glyph {
+          display: inline-block;
+          width: 1em;
+          height: 1em;
+          vertical-align: -0.125em;
         }
       </style>
     </main>

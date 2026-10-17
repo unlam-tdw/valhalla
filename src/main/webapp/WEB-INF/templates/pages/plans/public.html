@@ -136,9 +136,9 @@
              Dos capas superpuestas: la gris de base y la amarilla clipada con overflow hidden. -->
         <span class="relative inline-block select-none text-2xl leading-none" role="img"
           th:attr="aria-label=${ratingAverage != null} ? 'Puntuación ' + ${ratingAverage} + ' de 5, con ' + ${ratingCount} + ' calificaciones' : 'Todavía sin calificaciones'">
-          <span class="rating-stars-base" aria-hidden="true">★★★★★</span>
+          <span class="rating-stars-base" aria-hidden="true"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
           <span class="rating-stars-fill" aria-hidden="true" th:if="${ratingAverage != null}"
-            th:style="'width:' + ${#numbers.formatDecimal(ratingAverage * 20.0, 1, 2, 'POINT')} + '%'">★★★★★</span>
+            th:style="'width:' + ${#numbers.formatDecimal(ratingAverage * 20.0, 1, 2, 'POINT')} + '%'"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
         </span>
         <span class="text-sm text-gray-700" th:if="${ratingAverage != null}">
           <strong th:text="${ratingAverage}">4.5</strong>
@@ -162,7 +162,7 @@
               th:title="${star == 1} ? '1 estrella' : |${star} estrellas|">
               <input type="radio" name="score" th:value="${star}" class="sr-only"
                 th:checked="${myRating != null and myRating == star}">
-              <span class="rating-star pointer-events-none" aria-hidden="true">★</span>
+              <span class="rating-star pointer-events-none" aria-hidden="true" th:insert="~{components/stars :: star}"></span>
             </label>
           </div>
           <button type="submit"
@@ -326,6 +326,15 @@
         color: #f59e0b;
         overflow: hidden;
         white-space: nowrap;
+      }
+
+      /* Estrella SVG: se mide en em para seguir la font-size del contenedor
+         (text-2xl en el indicador, text-base en el widget), igual que el glifo que reemplaza. */
+      .star-glyph {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        vertical-align: -0.125em;
       }
 
       .rating-star {
