@@ -40,6 +40,14 @@
       </span>
     </p>
 
+    <!-- [CAL] La fila de calificaciones vive en el bloque de info del plan: una linea de
+         metadatos mas, al mismo ritmo (mt-2) de Creado por / fecha, justo arriba de la
+         descripcion. Con sesion es el widget de voto; sin sesion, el soft gate del login
+         (16-CAL.md). El th:if externo: th:replace corre antes que condicionar el elemento. -->
+    <div class="mt-2">
+      <th:block th:replace="~{components/rating :: widget(${plan.id}, ${myRating}, ${ratingAverage}, ${ratingCount}, ${isLogged}, ${currentPath})}"></th:block>
+    </div>
+
     <p class="mt-2 text-gray-600" th:if="${!#strings.isEmpty(plan.description)}"
       th:text="${plan.description}"></p>
 
@@ -121,20 +129,6 @@
       <p class="text-gray-500" th:if="${#lists.isEmpty(itineraryPlaces)}">
         Este plan todavía no tiene lugares.
       </p>
-    </section>
-
-    <!-- [CAL] Calificaciones: fila unica de estrellas (16-CAL.md), indicador y voto en la
-         misma fila: components/rating :: widget. Con sesion son radios con auto-submit (el
-         relleno pinta el promedio hasta que el usuario califica); sin sesion la misma fila
-         es el soft gate: link al login con la vuelta a la vista (?redirect=), el mismo
-         patron que los CTAs de arriba. El POST anonimo no existe (AC-13); el promedio y la
-         capa de relleno siguen siendo publicos. -->
-    <section id="ratings" class="mt-6 rounded-lg bg-white p-6 shadow">
-      <h2 class="mb-3 text-xl font-bold text-black">Calificaciones</h2>
-
-      <!-- El th:if/th:replace comparten elemento: th:replace (precedencia 100) corre antes
-           que th:if (300), la condicion tiene que ir en un bloque externo. -->
-      <th:block th:replace="~{components/rating :: widget(${plan.id}, ${myRating}, ${ratingAverage}, ${ratingCount}, ${isLogged}, ${currentPath})}"></th:block>
     </section>
 
     <!-- Leaflet va adentro de <main> como en detail.html: el layout(base :: layout) solo
