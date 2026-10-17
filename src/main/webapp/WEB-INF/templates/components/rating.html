@@ -19,7 +19,11 @@
 
      Regla de uso: los resumenes de plan (cards del feed, sidebar de /explore) solo consumen
      el fragment :: indicator. El widget interactivo nunca se inserta dentro de un link o de
-     otro form (HTML no permite form/a anidados). -->
+     otro form (HTML no permite form/a anidados).
+
+     El sidebar de /explore renderiza sus cards con Vue (pages/places/list.html), ahi el
+     fragment no aplica: existe una copia del mismo markup como template de Vue, espejo de
+     :: indicator con los mismos estilos de base.html. Si cambia aca, cambia alla. -->
 <span class="inline-flex items-center gap-2" th:if="${average != null}"
   th:fragment="indicator(average, count, starSize, textSize, showText)">
 
