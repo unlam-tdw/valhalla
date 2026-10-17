@@ -131,7 +131,17 @@
     <section id="ratings" class="mt-6 rounded-lg bg-white p-6 shadow">
       <h2 class="mb-3 text-xl font-bold text-black">Calificaciones</h2>
 
-      <div class="flex flex-wrap items-center gap-3">
+      <!-- Con sesion: components/rating :: widget, la UNICA fila de estrellas: indicador del
+           promedio mientras no hay voto propio, radios estilizados para votar despues (una
+           sola fila, nunca indicador + widget juntos). Sin sesion: indicador read-only.
+           El POST es upsert (AC-04) y vuelve a esta vista.
+           El th:if va en un bloque EXTERNO: th:replace (precedencia 100) corre antes que
+           th:if (300), condicionar el mismo elemento no haria nada. -->
+      <th:block th:if="${isLogged}">
+        <th:block th:replace="~{components/rating :: widget(${plan.id}, ${myRating}, ${ratingAverage}, ${ratingCount}, true, ${currentPath})}"></th:block>
+      </th:block>
+
+      <div th:unless="${isLogged}" class="flex flex-wrap items-center gap-3">
         <!-- Indicador de solo lectura (components/rating :: indicator): el relleno amarillo
              cubre avg/5 del ancho de la fila. Los estilos de las capas viven en base.html. -->
         <th:block th:replace="~{components/rating :: indicator(${ratingAverage}, ${ratingCount}, 'text-2xl', 'text-sm', ratingAverage != null)}"></th:block>
@@ -139,28 +149,6 @@
           Todavía sin calificaciones
         </span>
       </div>
-
-      <!-- Widget de voto: solo con sesion (AC-05). 5 radios estilizados, el propio
-           preseleccionado (AC-03); el POST es upsert (AC-04) y vuelve a esta vista. -->
-      <form th:if="${isLogged}" th:action="@{/plans/{id}/ratings(id=${plan.id})}" method="post"
-        class="rating-form mt-4">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-1" role="radiogroup" aria-label="Tu calificación">
-            <label th:each="star : ${#numbers.sequence(1, 5)}" class="rating-star-option cursor-pointer"
-              th:title="${star == 1} ? '1 estrella' : |${star} estrellas|">
-              <input type="radio" name="score" th:value="${star}" class="sr-only"
-                th:checked="${myRating != null and myRating == star}">
-              <span class="rating-star pointer-events-none" aria-hidden="true" th:insert="~{components/stars :: star}"></span>
-            </label>
-          </div>
-          <button type="submit"
-            class="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary/90">Calificar</button>
-          <span class="text-sm text-gray-600" th:if="${myRating != null}">
-            Tu calificación: <strong th:text="${myRating}">4</strong>
-          </span>
-        </div>
-      </form>
 
       <a th:unless="${isLogged}"
         th:href="${#strings.isEmpty(currentPath)} ? @{/auth/login} : @{/auth/login(redirect=${currentPath})}"
@@ -301,32 +289,9 @@
         z-index: 1000 !important;
       }
 
-      /* [CAL] Calificaciones (16-CAL.md). Los estilos del indicador y del glifo de estrella
-         viven en layouts/base.html (compartidos con el feed y el sidebar de /explore). Aca
-         queda solo lo del widget de voto: radios escondidos con estrellas clickeables; el
-         hover avisa la interactividad con cambio de color y opacidad, sin convertir el
-         indicador en un control en reposo. */
-      .rating-star {
-        color: #d1d5db;
-        transition:
-          color 0.15s ease,
-          opacity 0.15s ease;
-      }
-
-      .rating-star-option input:checked ~ .rating-star {
-        color: #f59e0b;
-      }
-
-      .rating-star-option:hover .rating-star {
-        color: #f59e0b;
-        opacity: 0.7;
-      }
-
-      .rating-star-option:focus-within .rating-star {
-        outline: 2px solid #f59e0b;
-        outline-offset: 2px;
-        border-radius: 9999px;
-      }
+      /* [CAL] Calificaciones (16-CAL.md). Los estilos del indicador, del glifo de estrella y
+         del widget de voto viven en layouts/base.html (compartidos con el feed y el sidebar
+         de /explore). Aca solo queda el estilo de marcadores del mapa. */
     </style>
   </main>
 

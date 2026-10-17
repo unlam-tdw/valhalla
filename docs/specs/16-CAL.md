@@ -28,8 +28,8 @@ entren comentarios, extienden el modelo; no reutilizan un stub.
   interna (`user_id` FK + unique constraint `(plan_id, user_id)`), pero nadie ve *quien mas*
   califico ni con que puntaje individual: lo unico que sale al HTML es el agregado (promedio +
   cantidad). La autoria interna es la que permite que el usuario reconozca su propia calificacion:
-  el widget le muestra su puntaje preseleccionado ("Tu calificacion: N"), siempre, en cualquier
-  visita. Ese es el mecanismo de "ya califique este plan".
+  la fila unica del widget rellena las estrellas hasta su puntaje, preseleccionado, siempre, en
+  cualquier visita. Ese es el mecanismo de "ya califique este plan".
 - **Quien califica**: cualquier usuario logueado, incluido el administrador del plan calificando su
   propia creacion.
 - **Upsert**: recalificar reemplaza el puntaje anterior. Nunca hay dos filas por usuario y plan: la
@@ -44,13 +44,13 @@ entren comentarios, extienden el modelo; no reutilizan un stub.
 |---|----------|
 | AC-01 | Un usuario logueado puede calificar un plan publico con un puntaje de 1 a 5 estrellas desde la vista publica del plan |
 | AC-02 | La calificacion guarda la autoria del usuario, pero el HTML nunca expone quien califico ni su puntaje individual: solo el promedio y la cantidad |
-| AC-03 | El usuario logueado ve su propia calificacion preseleccionada en el widget ("Tu calificacion: N"), aunque ya haya votado antes |
+| AC-03 | La fila unica de estrellas rellena hasta la calificacion propia (preseleccionada en el radio), aunque ya haya votado antes |
 | AC-04 | Recalificar reemplaza la calificacion anterior del usuario: nunca hay dos calificaciones del mismo usuario sobre el mismo plan |
 | AC-05 | Sin sesion no hay widget de voto: las estrellas se ven como indicador de solo lectura y al hacer click llevan a `/auth/login?redirect=` conservando la vuelta a la vista del plan |
 | AC-06 | Solo planes publicos aceptan calificaciones: calificar un plan privado o un id inexistente responde exactamente igual que un id inexistente en la vista publica |
 | AC-07 | La vista publica muestra el promedio con 1 decimal y la cantidad de calificaciones; sin calificaciones muestra "Todavia sin calificaciones" |
-| AC-08 | El indicador de estrellas se llena de amarillo en proporcion al promedio (no solo estrellas enteras) |
-| AC-09 | El widget de voto es claramente interactivo al hover: las estrellas cambian de color/opacidad al pasar el mouse |
+| AC-08 | La fila de estrellas se llena de amarillo en proporcion al promedio (no solo estrellas enteras) mientras el usuario no haya calificado; ya calificado, rellena hasta su puntaje propio |
+| AC-09 | El widget de voto es claramente interactivo al hover: las estrellas se rellenan hasta la hovered (preview del voto) y cambian de color/opacidad al pasar el mouse |
 | AC-10 | Cada tarjeta de `/for-you` muestra el mismo indicador de estrellas junto al promedio y la cantidad |
 | AC-11 | El feed de `/for-you` no se reordena por calificacion |
 | AC-12 | Al borrar un plan se borran sus calificaciones; no quedan filas huerfanas |
@@ -103,7 +103,7 @@ entren comentarios, extienden el modelo; no reutilizan un stub.
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `RatingE2E` | Anonimo ve el promedio de un plan publico → login → vota 4 estrellas → el widget marca "Tu calificacion: 4" y el promedio se refleja en el relleno → recalifica 5 → queda 1 calificacion con promedio 5 | AC-01, AC-03, AC-04, AC-07, AC-08 |
+| E-01 | `RatingE2E` | Anonimo ve el promedio de un plan publico (fila unica al 80%, sin widget de voto) → login → vota 4 estrellas con un click → el radio queda preseleccionado y el agregado se actualiza al lado → recalifica 4: mismo valor marcado, la cantidad no crece | AC-01, AC-03, AC-04, AC-07, AC-08 |
 
 ## Notas / decisiones de diseño
 
@@ -116,10 +116,13 @@ entren comentarios, extienden el modelo; no reutilizan un stub.
   `overflow: hidden` y `width: (promedio / 5 * 100)%`. Sin glifos de media estrella, sin JS, y
   funciona para cualquier promedio (3.5 → 70% de la capa amarilla visible). Accesible con
   `aria-label="X de 5, N calificaciones"`.
-- **El widget con sesion son radios estilizados.** Cinco `<input type="radio" name="score">` con
-  `@{/plans/{id}/ratings}` + `_csrf` oculto y boton "Calificar": un form postear comun, igual que
-  join/clone. El hover (`hover:opacity-70` + cursor pointer) avisa que se puede hacer click sin
-  transformar el indicador en un control griton (AC-09).
+- **El widget con sesion es UNA fila de radios estilizados.** Cinco `<input type="radio"
+  name="score">` con `@{/plans/{id}/ratings}` + `_csrf` oculto: un form postear comun, igual que
+  join/clone. La fila es la misma para indicador y voto: mientras no hay voto propio, la capa
+  amarilla del fragment pinta el promedio; ya votado, el radio `:checked` (via `:has`) rellena la
+  fila hasta el puntaje propio. El DOM va en orden inverso (5..1) con `flex-row-reverse` para que
+  el combinator `~` rellene hasta la estrella hover/selected (AC-09, sin JS). Con JS el click
+  envia el form solo (auto-submit); `<noscript>` conserva un boton "Calificar" como fallback.
 - **Anonimo: indicador envuelto en link al login.** Mismo patron que los CTAs de [PVP]: mismas
   estrellas, mismo relleno, pero el click lleva a `/auth/login?redirect=` con la vuelta a la vista.
   Un POST anonimo se perderia en el redirect al login (por eso el widget de voto solo existe con

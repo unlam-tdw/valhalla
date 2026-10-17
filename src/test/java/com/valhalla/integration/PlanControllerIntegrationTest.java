@@ -441,7 +441,8 @@ public class PlanControllerIntegrationTest {
 
     // then (AC-10/AC-11): el agregado sale en la tarjeta del plan calificado; el feed no ordena
     assertThat(html, containsString("4.5"));
-    assertThat(occurrences(html, "rating-stars-fill"), is(2)); // la regla CSS de base.html + el span del plan calificado
+    assertThat(html, containsString(".rating-stars-fill {")); // la regla CSS vive en base.html, una sola fuente
+    assertThat(occurrences(html, "class=\"rating-stars-fill"), is(1)); // el span del plan calificado
   }
 
   // --- POST /plans ---

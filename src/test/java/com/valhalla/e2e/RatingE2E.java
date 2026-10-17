@@ -4,8 +4,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
-import com.microsoft.playwright.Locator;
-import com.microsoft.playwright.options.WaitForSelectorState;
 import com.valhalla.e2e.views.PlansPage;
 import com.valhalla.e2e.views.UserFormPage;
 import java.net.URI;
@@ -15,10 +13,12 @@ import org.junit.jupiter.api.Test;
  * [CAL] Happy path completo de las calificaciones (16-CAL.md, E-01) contra el Jetty real:
  *
  * <ol>
- *   <li>Un plan publico calificado muestra el agregado a un anonimo, y su widget nunca existe
- *       (AC-05): el CTA de calificar es el link al login con la vuelta a la vista.
- *   <li>Tras loguearse, el visitante vota 5 estrellas: el widget marca "Tu calificacion" (AC-03) y
- *       el promedio se refleja en la capa de relleno (AC-08).
+ *   <li>Un plan publico calificado muestra el agregado a un anonimo: una sola fila con la capa
+ *       amarilla del promedio, y su widget de voto nunca existe (AC-05): el CTA es el link al
+ *       login con la vuelta a la vista.
+ *   <li>Tras loguearse, el visitante vota 5 estrellas con un solo click (auto-submit): el radio
+ *       queda preseleccionado y rellena la fila hasta su puntaje (AC-03), el agregado se
+ *       actualiza al lado.
  *   <li>Recalificar reemplaza (AC-04): la cantidad de votos no crece.
  * </ol>
  *
@@ -42,16 +42,16 @@ public class RatingE2E extends E2eBase {
 
     // --- fase 1: la sesion admin califica 4 en la vista publica (el admin es usuario igual)
     rateFromThisPage(4);
-    assertThat(page.locator("body").innerText(), containsString("Tu calificación: 4"));
+    assertThat(checkedScore(), is("4"));
     assertThat(page.locator("body").innerText(), containsString("1 calificación"));
-    // el indicador pinta el promedio en proporcion: 4/5 = 80% de la capa amarilla (AC-08)
-    assertThat(fillPercent(), is(80.0));
 
     // --- fase 2: un anonimo ve el agregado pero nunca el widget de voto (AC-05)
     newContext();
     page.navigate(fixture.planPublicUrl());
     assertThat(page.locator("body").innerText(), containsString("1 calificación"));
     assertThat(page.locator("button:has-text('Calificar')").count(), is(0));
+    // el indicador del anonimo pinta el promedio en proporcion: 4/5 = 80% de la capa amarilla (AC-08)
+    assertThat(fillPercent(), is(80.0));
 
     // el CTA de calificar del anonimo lleva al login conservando la vuelta al plan
     page.locator("a:has-text('Iniciá sesión para calificar')").click();
@@ -62,27 +62,32 @@ public class RatingE2E extends E2eBase {
     page.fill("#email", VOTER_EMAIL);
     page.fill("#password", fixture.voterPassword());
     page.click("#btn-login");
-    // el redirect devolvio el flujo a la vista publica del plan (mismo patron que [PVP])
-    page.waitForSelector("button:has-text('Calificar')");
+    // el redirect devolvio el flujo a la vista publica del plan (mismo patron que [PVP]):
+    // aca el widget son radios, no el boton de submit fijo
+    page.waitForSelector(".rating-widget");
     rateFromThisPage(5);
-    assertThat(page.locator("body").innerText(), containsString("Tu calificación: 5"));
+    assertThat(checkedScore(), is("5"));
     assertThat(page.locator("body").innerText(), containsString("2 calificaciones"));
 
-    // --- fase 4: recalificar reemplaza la propia (AC-04): misma cantidad, otro promedio
+    // --- fase 4: recalificar reemplaza la propia (AC-04): misma cantidad, otro valor marcado
     rateFromThisPage(4);
-    assertThat(page.locator("body").innerText(), containsString("Tu calificación: 4"));
+    assertThat(checkedScore(), is("4"));
     assertThat(page.locator("body").innerText(), containsString("2 calificaciones"));
-    // 4 (admin) + 4 (votante) = 4.0 → el relleno vuelve al 80%
-    assertThat(fillPercent(), is(80.0));
   }
 
-  /** Selecciona la estrella n y envia el form de calificar. */
+  /**
+   * Vota con un solo click: el DOM del radio-group esta invertido (5..1, el combinator ~ rellena
+   * hasta la elegida), y el change del radio ya envia el form por el auto-submit del widget.
+   * La espera es el radio re-renderizado marcado en la respuesta del POST (AC-03).
+   */
   private void rateFromThisPage(int stars) {
-    page.locator(".rating-star-option").nth(stars - 1).click();
-    page.locator("button:has-text('Calificar')").click();
-    // El POST redirige a la misma vista: el widget re-renderizado confirma el voto (AC-03).
-    Locator ownRating = page.locator("text=Tu calificación:");
-    ownRating.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
+    page.locator(".rating-star-option").nth(5 - stars).click();
+    page.waitForSelector("input[name='score'][value='" + stars + "']:checked");
+  }
+
+  /** El puntaje del radio marcado en la fila del widget. */
+  private String checkedScore() {
+    return page.locator("input[name='score']:checked").getAttribute("value");
   }
 
   /** El porcentaje de la capa amarilla parseado del inline style (AC-08). */

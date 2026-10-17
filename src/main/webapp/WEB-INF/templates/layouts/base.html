@@ -132,6 +132,40 @@
       height: 1em;
       vertical-align: -0.125em;
     }
+
+    /* [CAL] Widget de voto (components/rating :: widget). Los radios van escondidos y el DOM
+       en orden inverso (5..1) con flex-row-reverse: la fila se ve 1..5, pero el combinator ~
+       pinta cada estrella junto con las DOM-previas a ella, que son las de valor menor: asi
+       hover y checked rellenan hasta esa estrella incluida. El hover avisa la interactividad
+       (AC-09) y, cuando la capa amarilla esta mostrando el promedio, hover sobre el widget
+       la esconde para que el preview de radios tome el control. */
+    .rating-star {
+      color: #d1d5db;
+      transition:
+        color 0.15s ease,
+        opacity 0.15s ease;
+    }
+
+    .rating-star-option:has(input:checked) .rating-star,
+    .rating-star-option:has(input:checked) ~ .rating-star-option .rating-star {
+      color: #f59e0b;
+    }
+
+    .rating-star-option:hover .rating-star,
+    .rating-star-option:hover ~ .rating-star-option .rating-star {
+      color: #f59e0b;
+      opacity: 0.7;
+    }
+
+    .rating-star-option:focus-within .rating-star {
+      outline: 2px solid #f59e0b;
+      outline-offset: 2px;
+      border-radius: 9999px;
+    }
+
+    .rating-widget:hover .rating-stars-fill {
+      visibility: hidden;
+    }
   </style>
 
   <!-- Tailwind compiled in the browser: the vendored @tailwindcss/browser script
