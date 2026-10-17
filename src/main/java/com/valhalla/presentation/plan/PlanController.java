@@ -141,20 +141,17 @@ public class PlanController {
     // [CAL] Calificaciones: promedio (1 decimal), cantidad y el puntaje propio del visitante
     // (preselección del widget). La autoria es interna: del HTML solo sale el agregado.
     RatingSummary summary = this.planRatingService.getSummary(id);
-    model.put("ratingAverage", summary.average() == null ? null : oneDecimal(summary.average()));
+    model.put(
+      "ratingAverage",
+      summary.average() == null ? null : PlanFeedCards.roundOneDecimal(summary.average())
+    );
     model.put("ratingCount", summary.count());
     // Sin sesion no hay puntaje propio que buscar (AC-05): el anonimo nunca tiene widget de voto.
     model.put("myRating", email == null ? null : this.planRatingService.getMyRating(id, email));
     return new ModelAndView(VIEW_PUBLIC_PLAN, model);
   }
 
-  /** Promedio con un solo decimal: el agregado publico se muestra, no se calcula, en la vista. */
-  private static Double oneDecimal(double average) {
-    return Math.round(average * 10.0) / 10.0;
-  }
-
-  /**
-   * [CAL] "Calificar": upsert del puntaje del usuario logueado sobre el plan publico. Sin matcher
+  /** [CAL] "Calificar": upsert del puntaje del usuario logueado sobre el plan publico. Sin matcher
    * nuevo en SecurityConfig: POST /plans/** ya exige sesion, un POST anonimo rebota a login.
    * El email sale de la sesion, nunca del form.
    */

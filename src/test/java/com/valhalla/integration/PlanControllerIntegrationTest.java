@@ -412,6 +412,38 @@ public class PlanControllerIntegrationTest {
     this.mockMvc.perform(get("/images/plans/cover-1.svg")).andExpect(status().isOk());
   }
 
+  @Test
+  public void T_CAL_020_feedElIndicadorDeCalificacionesReflejaElAgregado() throws Exception {
+    // given: un plan calificado con 4 y 5 (promedio 4.5) y otro sin calificaciones
+    givenPublicPlanFor(this.ownerId, PLAN_NAME);
+    UUID ratedId = givenPublicPlanFor(this.otherId, OTHER_PLAN_NAME);
+    givenUser("votante@test.com");
+    this.mockMvc.perform(
+        post("/plans/" + ratedId + "/ratings")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      );
+    this.mockMvc.perform(
+        post("/plans/" + ratedId + "/ratings")
+          .with(user("votante@test.com"))
+          .with(csrf())
+          .param("score", "5")
+      );
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/for-you").with(user("visita@test.com")))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then (AC-10/AC-11): el agregado sale en la tarjeta del plan calificado; el feed no ordena
+    assertThat(html, containsString("4.5"));
+    assertThat(occurrences(html, "feed-stars-fill"), is(2)); // capa CSS + span del plan calificado
+  }
+
   // --- POST /plans ---
 
   @Test
