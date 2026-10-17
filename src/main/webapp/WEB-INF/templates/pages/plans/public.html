@@ -123,6 +123,63 @@
       </p>
     </section>
 
+    <!-- [CAL] Calificaciones: agregado publico + widget de voto (16-CAL.md).
+         El indicador pinta el promedio en proporcion con dos capas (fila gris + fila amarilla
+         clipada al ancho del promedio, sin JS ni glifos de media estrella). Con sesion la misma
+         fila son radios estilizados con hover; sin sesion el widget no existe (AC-05) y el CTA es
+         un link al login con la vuelta a la vista, el mismo patron que los CTAs de arriba. -->
+    <section id="ratings" class="mt-6 rounded-lg bg-white p-6 shadow">
+      <h2 class="mb-3 text-xl font-bold text-black">Calificaciones</h2>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Indicador de solo lectura: el relleno amarillo cubre avg/5 del ancho de la fila.
+             Dos capas superpuestas: la gris de base y la amarilla clipada con overflow hidden. -->
+        <span class="relative inline-block select-none text-2xl leading-none" role="img"
+          th:attr="aria-label=${ratingAverage != null} ? 'Puntuación ' + ${ratingAverage} + ' de 5, con ' + ${ratingCount} + ' calificaciones' : 'Todavía sin calificaciones'">
+          <span class="rating-stars-base" aria-hidden="true">★★★★★</span>
+          <span class="rating-stars-fill" aria-hidden="true" th:if="${ratingAverage != null}"
+            th:style="'width:' + ${#numbers.formatDecimal(ratingAverage * 20.0, 1, 2, 'POINT')} + '%'">★★★★★</span>
+        </span>
+        <span class="text-sm text-gray-700" th:if="${ratingAverage != null}">
+          <strong th:text="${ratingAverage}">4.5</strong>
+          <span aria-hidden="true">·</span>
+          <span th:text="${ratingCount}">12</span>
+          <span th:text="${ratingCount == 1} ? 'calificación' : 'calificaciones'">calificaciones</span>
+        </span>
+        <span class="text-sm text-gray-500" th:if="${ratingAverage == null}">
+          Todavía sin calificaciones
+        </span>
+      </div>
+
+      <!-- Widget de voto: solo con sesion (AC-05). 5 radios estilizados, el propio
+           preseleccionado (AC-03); el POST es upsert (AC-04) y vuelve a esta vista. -->
+      <form th:if="${isLogged}" th:action="@{/plans/{id}/ratings(id=${plan.id})}" method="post"
+        class="rating-form mt-4">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-1" role="radiogroup" aria-label="Tu calificación">
+            <label th:each="star : ${#numbers.sequence(1, 5)}" class="rating-star-option cursor-pointer"
+              th:title="${star == 1} ? '1 estrella' : |${star} estrellas|">
+              <input type="radio" name="score" th:value="${star}" class="sr-only"
+                th:checked="${myRating != null and myRating == star}">
+              <span class="rating-star pointer-events-none" aria-hidden="true">★</span>
+            </label>
+          </div>
+          <button type="submit"
+            class="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary/90">Calificar</button>
+          <span class="text-sm text-gray-600" th:if="${myRating != null}">
+            Tu calificación: <strong th:text="${myRating}">4</strong>
+          </span>
+        </div>
+      </form>
+
+      <a th:unless="${isLogged}"
+        th:href="${#strings.isEmpty(currentPath)} ? @{/auth/login} : @{/auth/login(redirect=${currentPath})}"
+        class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800">
+        Iniciá sesión para calificar
+      </a>
+    </section>
+
     <!-- Leaflet va adentro de <main> como en detail.html: el layout(base :: layout) solo
          copia <main>, cualquier tag hermano se descarta. -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -253,6 +310,44 @@
         border: 3px solid #ffc107 !important;
         transform: scale(1.15);
         z-index: 1000 !important;
+      }
+
+      /* [CAL] Calificaciones (16-CAL.md). Indicador: la capa amarilla se clipa con overflow
+         hidden y width = promedio/5, asi 4.5 cubre el 90% de la fila. Widget: radios escondidos
+         con estrellas clickeables; el hover avisa la interactividad con cambio de color y
+         opacidad, sin convertir el indicador en un control en reposo. */
+      .rating-stars-base {
+        color: #d1d5db;
+      }
+
+      .rating-stars-fill {
+        position: absolute;
+        inset: 0;
+        color: #f59e0b;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .rating-star {
+        color: #d1d5db;
+        transition:
+          color 0.15s ease,
+          opacity 0.15s ease;
+      }
+
+      .rating-star-option input:checked ~ .rating-star {
+        color: #f59e0b;
+      }
+
+      .rating-star-option:hover .rating-star {
+        color: #f59e0b;
+        opacity: 0.7;
+      }
+
+      .rating-star-option:focus-within .rating-star {
+        outline: 2px solid #f59e0b;
+        outline-offset: 2px;
+        border-radius: 9999px;
       }
     </style>
   </main>
