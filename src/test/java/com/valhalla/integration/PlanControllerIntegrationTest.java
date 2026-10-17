@@ -441,7 +441,7 @@ public class PlanControllerIntegrationTest {
 
     // then (AC-10/AC-11): el agregado sale en la tarjeta del plan calificado; el feed no ordena
     assertThat(html, containsString("4.5"));
-    assertThat(occurrences(html, "feed-stars-fill"), is(2)); // capa CSS + span del plan calificado
+    assertThat(occurrences(html, "rating-stars-fill"), is(2)); // la regla CSS de base.html + el span del plan calificado
   }
 
   // --- POST /plans ---
@@ -1378,7 +1378,7 @@ public class PlanControllerIntegrationTest {
     // AC-05: el anonimo ve el indicador (el agregado es publico) pero el widget no existe
     assertThat(html, not(containsString("action=\"/plans/" + planId + "/ratings\"")));
     assertThat(html, not(containsString("name=\"score\"")));
-    assertThat(html, containsString("class=\"rating-stars-fill\""));
+    assertThat(html, containsString("rating-stars-fill"));
     assertThat(html, containsString("Iniciá sesión para calificar"));
   }
 

@@ -1,0 +1,37 @@
+<!-- [CAL] Componente de calificaciones (16-CAL.md). Los estilos compartidos
+     (.rating-stars-base, .rating-stars-fill, .star-glyph y los del widget) viven una sola vez
+     en el bloque de Tailwind de layouts/base.html: este archivo solo trae markup.
+
+     :: indicator(average, count, starSize, textSize, showText)
+     Indicador de solo lectura del promedio: dos capas superpuestas de estrellas (la gris de
+     base y la amarilla clipada al ancho promedio/5 con overflow hidden), sin JS ni glifo de
+     media estrella. El promedio llega ya redondeado a 1 decimal (PlanFeedCards.roundOneDecimal).
+     Si average es null no renderiza nada: el caller decide si muestra su propio fallback
+     ("Todavia sin calificaciones"). showText agrega al lado el texto "avg · N calificaciones".
+
+     Regla de uso: los resumenes de plan (cards del feed, sidebar de /explore) solo consumen
+     este fragment. El voto interactivo es el fragment :: widget del mismo archivo, y nunca
+     se inserta dentro de un link o de otro form (HTML no permite form/a anidados). -->
+<span class="inline-flex items-center gap-2" th:if="${average != null}"
+  th:fragment="indicator(average, count, starSize, textSize, showText)">
+
+  <span class="relative inline-block select-none leading-none" role="img"
+    th:attr="aria-label='Puntuación ' + ${average} + ' de 5, con ' + ${count} + (${count == 1} ? ' calificación' : ' calificaciones')">
+    <span class="rating-stars-base" th:classappend="${starSize}" aria-hidden="true"><th:block
+      th:each="s : ${#numbers.sequence(1, 5)}"
+      th:insert="~{components/stars :: star}"></th:block></span>
+    <span class="rating-stars-fill" th:classappend="${starSize}" aria-hidden="true"
+      th:style="'width:' + ${#numbers.formatDecimal(average * 20.0, 1, 2, 'POINT')} + '%'"><th:block
+      th:each="s : ${#numbers.sequence(1, 5)}"
+      th:insert="~{components/stars :: star}"></th:block></span>
+  </span>
+
+  <th:block th:if="${showText}">
+    <span class="whitespace-nowrap" th:classappend="${textSize}">
+      <strong class="text-gray-700" th:text="${average}">4.5</strong>
+      <span aria-hidden="true">·</span>
+      <span th:text="${count}">12</span>
+      <span th:text="${count == 1} ? 'calificación' : 'calificaciones'">calificaciones</span>
+    </span>
+  </th:block>
+</span>

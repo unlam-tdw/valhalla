@@ -132,20 +132,9 @@
       <h2 class="mb-3 text-xl font-bold text-black">Calificaciones</h2>
 
       <div class="flex flex-wrap items-center gap-3">
-        <!-- Indicador de solo lectura: el relleno amarillo cubre avg/5 del ancho de la fila.
-             Dos capas superpuestas: la gris de base y la amarilla clipada con overflow hidden. -->
-        <span class="relative inline-block select-none text-2xl leading-none" role="img"
-          th:attr="aria-label=${ratingAverage != null} ? 'Puntuación ' + ${ratingAverage} + ' de 5, con ' + ${ratingCount} + ' calificaciones' : 'Todavía sin calificaciones'">
-          <span class="rating-stars-base" aria-hidden="true"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
-          <span class="rating-stars-fill" aria-hidden="true" th:if="${ratingAverage != null}"
-            th:style="'width:' + ${#numbers.formatDecimal(ratingAverage * 20.0, 1, 2, 'POINT')} + '%'"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
-        </span>
-        <span class="text-sm text-gray-700" th:if="${ratingAverage != null}">
-          <strong th:text="${ratingAverage}">4.5</strong>
-          <span aria-hidden="true">·</span>
-          <span th:text="${ratingCount}">12</span>
-          <span th:text="${ratingCount == 1} ? 'calificación' : 'calificaciones'">calificaciones</span>
-        </span>
+        <!-- Indicador de solo lectura (components/rating :: indicator): el relleno amarillo
+             cubre avg/5 del ancho de la fila. Los estilos de las capas viven en base.html. -->
+        <th:block th:replace="~{components/rating :: indicator(${ratingAverage}, ${ratingCount}, 'text-2xl', 'text-sm', ratingAverage != null)}"></th:block>
         <span class="text-sm text-gray-500" th:if="${ratingAverage == null}">
           Todavía sin calificaciones
         </span>
@@ -312,31 +301,11 @@
         z-index: 1000 !important;
       }
 
-      /* [CAL] Calificaciones (16-CAL.md). Indicador: la capa amarilla se clipa con overflow
-         hidden y width = promedio/5, asi 4.5 cubre el 90% de la fila. Widget: radios escondidos
-         con estrellas clickeables; el hover avisa la interactividad con cambio de color y
-         opacidad, sin convertir el indicador en un control en reposo. */
-      .rating-stars-base {
-        color: #d1d5db;
-      }
-
-      .rating-stars-fill {
-        position: absolute;
-        inset: 0;
-        color: #f59e0b;
-        overflow: hidden;
-        white-space: nowrap;
-      }
-
-      /* Estrella SVG: se mide en em para seguir la font-size del contenedor
-         (text-2xl en el indicador, text-base en el widget), igual que el glifo que reemplaza. */
-      .star-glyph {
-        display: inline-block;
-        width: 1em;
-        height: 1em;
-        vertical-align: -0.125em;
-      }
-
+      /* [CAL] Calificaciones (16-CAL.md). Los estilos del indicador y del glifo de estrella
+         viven en layouts/base.html (compartidos con el feed y el sidebar de /explore). Aca
+         queda solo lo del widget de voto: radios escondidos con estrellas clickeables; el
+         hover avisa la interactividad con cambio de color y opacidad, sin convertir el
+         indicador en un control en reposo. */
       .rating-star {
         color: #d1d5db;
         transition:

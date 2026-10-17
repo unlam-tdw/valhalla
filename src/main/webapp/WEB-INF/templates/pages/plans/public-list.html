@@ -57,20 +57,9 @@
                   </p>
                   <!-- [CAL] Indicador de calificaciones de la tarjeta (16-CAL.md, AC-10): el mismo
                        agregado de la vista publica, en version mini. Solo lectura: el vote vive en
-                       la vista del plan. Sin calificaciones no se muestra la fila. -->
+                       la vista del plan. Sin calificaciones el fragment no renderiza nada. -->
                   <p th:if="${plan.ratingAverage != null}" class="rating-line flex items-center gap-1.5">
-                    <span class="relative inline-block select-none leading-none" role="img"
-                      th:attr="aria-label='Puntuación ' + ${plan.ratingAverage} + ' de 5, con ' + ${plan.ratingCount} + ' calificaciones'">
-                      <span class="text-base text-gray-300" aria-hidden="true"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
-                      <span class="feed-stars-fill text-base" aria-hidden="true"
-                        th:style="'width:' + ${#numbers.formatDecimal(plan.ratingAverage * 20.0, 1, 2, 'POINT')} + '%'"><th:block th:each="s : ${#numbers.sequence(1, 5)}" th:insert="~{components/stars :: star}"></th:block></span>
-                    </span>
-                    <span>
-                      <strong class="text-gray-700" th:text="${plan.ratingAverage}">4.5</strong>
-                      <span aria-hidden="true">·</span>
-                      <span th:text="${plan.ratingCount}">12</span>
-                      <span th:text="${plan.ratingCount == 1} ? 'calificación' : 'calificaciones'">calificaciones</span>
-                    </span>
+                    <th:block th:replace="~{components/rating :: indicator(${plan.ratingAverage}, ${plan.ratingCount}, 'text-base', 'text-xs', true)}"></th:block>
                   </p>
                 </div>
               </div>
@@ -111,27 +100,6 @@
           </a>
         </div>
       </div>
-
-      <!-- [CAL] Capa amarilla del indicador: misma tecnica de dos capas que la vista publica
-           (fila de base gris + fila amarilla clipada al ancho del promedio, overflow hidden).
-           Va dentro de <main> porque el layout(base :: layout) solo copia ese elemento. -->
-      <style>
-        .feed-stars-fill {
-          position: absolute;
-          inset: 0;
-          color: #f59e0b;
-          overflow: hidden;
-          white-space: nowrap;
-        }
-
-        /* Estrella SVG: tamano em, mismo encuadre que el texto que rodea a la fila. */
-        .star-glyph {
-          display: inline-block;
-          width: 1em;
-          height: 1em;
-          vertical-align: -0.125em;
-        }
-      </style>
     </main>
   </body>
 </html>

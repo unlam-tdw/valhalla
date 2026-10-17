@@ -107,6 +107,31 @@
       --font-sans: var(--typeface-sans);
       --font-serif: var(--typeface-serif);
     }
+
+    /* [CAL] Calificaciones (16-CAL.md): estilos de los fragments de components/rating.html,
+       aca para que cualquier pagina que use el indicador o el widget no los repita.
+       Indicador: la capa amarilla se clipa con overflow hidden y width = promedio/5,
+       asi 4.5 cubre el 90% de la fila, sin JS ni glifos de media estrella.
+       Estrella SVG: se mide en em para seguir la font-size del contenedor
+       (text-2xl en la vista del plan, text-base en las cards). */
+    .rating-stars-base {
+      color: #d1d5db;
+    }
+
+    .rating-stars-fill {
+      position: absolute;
+      inset: 0;
+      color: #f59e0b;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .star-glyph {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+    }
   </style>
 
   <!-- Tailwind compiled in the browser: the vendored @tailwindcss/browser script
