@@ -1376,11 +1376,13 @@ public class PlanControllerIntegrationTest {
         .getResponse()
         .getContentAsString();
 
-    // AC-05: el anonimo ve el indicador (el agregado es publico) pero el widget no existe
+    // AC-05: el anonimo ve la misma fila (la capa del promedio) como soft gate: el widget
+    // es un link al login con la vuelta, y el form de voto no existe
     assertThat(html, not(containsString("action=\"/plans/" + planId + "/ratings\"")));
     assertThat(html, not(containsString("name=\"score\"")));
     assertThat(html, containsString("rating-stars-fill"));
-    assertThat(html, containsString("Iniciá sesión para calificar"));
+    assertThat(html, containsString("rating-widget-anon"));
+    assertThat(html, containsString("/auth/login?redirect=/plans/" + planId + "/public"));
   }
 
   @Test

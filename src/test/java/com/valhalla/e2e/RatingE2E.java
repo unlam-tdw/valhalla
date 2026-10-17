@@ -53,8 +53,8 @@ public class RatingE2E extends E2eBase {
     // el indicador del anonimo pinta el promedio en proporcion: 4/5 = 80% de la capa amarilla (AC-08)
     assertThat(fillPercent(), is(80.0));
 
-    // el CTA de calificar del anonimo lleva al login conservando la vuelta al plan
-    page.locator("a:has-text('Iniciá sesión para calificar')").click();
+    // el soft gate del anonimo: la misma fila envuelta en el link al login, conservando la vuelta
+    page.locator("a.rating-widget-anon").click();
     page.waitForSelector("input[type='email']");
     assertThat(page.url(), containsString("/auth/login?redirect="));
 

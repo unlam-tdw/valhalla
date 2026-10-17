@@ -47,6 +47,7 @@
 <div class="rating-row flex flex-wrap items-center gap-3"
   th:fragment="widget(planId, myRating, average, count, isLogged, currentPath)">
 
+  <!-- Con sesion: form de radios con auto-submit (ver base.html para la tecnica del ~). -->
   <form th:if="${isLogged}" class="rating-widget flex flex-wrap items-center gap-3"
     th:action="@{/plans/{id}/ratings(id=${planId})}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -80,6 +81,24 @@
         class="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary/90">Calificar</button>
     </noscript>
   </form>
+
+  <!-- Sin sesion (AC-05): la MISMA fila, con el relleno del promedio, envuelta en el link
+       al login conservando la vuelta (?redirect=). Ese es el soft gate: el anonimo ve el
+       widget identico, el click lo primero manda a sesion y al volver ya puede votar. El
+       POST anonimo no existe (AC-13) y no se renderiza ningun form. -->
+  <a th:unless="${isLogged}" class="rating-widget-anon cursor-pointer"
+    th:href="${#strings.isEmpty(currentPath)} ? @{/auth/login} : @{/auth/login(redirect=${currentPath})}">
+    <span class="relative inline-block select-none text-2xl leading-none" role="img"
+      th:attr="aria-label=${average != null} ? 'Puntuación ' + ${average} + ' de 5, con ' + ${count} + (${count == 1} ? ' calificación' : ' calificaciones') + '. Iniciá sesión para calificar' : 'Todavía sin calificaciones. Iniciá sesión para calificar'">
+      <span class="rating-stars-base" aria-hidden="true"><th:block
+        th:each="s : ${#numbers.sequence(1, 5)}"
+        th:insert="~{components/stars :: star}"></th:block></span>
+      <span class="rating-stars-fill" aria-hidden="true" th:if="${average != null}"
+        th:style="'width:' + ${#numbers.formatDecimal(average * 20.0, 1, 2, 'POINT')} + '%'"><th:block
+        th:each="s : ${#numbers.sequence(1, 5)}"
+        th:insert="~{components/stars :: star}"></th:block></span>
+    </span>
+  </a>
 
   <script>
     document.querySelectorAll(".rating-widget").forEach(function (form) {

@@ -46,7 +46,7 @@ entren comentarios, extienden el modelo; no reutilizan un stub.
 | AC-02 | La calificacion guarda la autoria del usuario, pero el HTML nunca expone quien califico ni su puntaje individual: solo el promedio y la cantidad |
 | AC-03 | La fila unica de estrellas rellena hasta la calificacion propia (preseleccionada en el radio), aunque ya haya votado antes |
 | AC-04 | Recalificar reemplaza la calificacion anterior del usuario: nunca hay dos calificaciones del mismo usuario sobre el mismo plan |
-| AC-05 | Sin sesion no hay widget de voto: las estrellas se ven como indicador de solo lectura y al hacer click llevan a `/auth/login?redirect=` conservando la vuelta a la vista del plan |
+| AC-05 | Sin sesion la fila unica de estrellas es el mismo widget con el relleno del promedio, envuelto en un link a `/auth/login?redirect=` que conserva la vuelta a la vista del plan (soft gate); no hay form de voto |
 | AC-06 | Solo planes publicos aceptan calificaciones: calificar un plan privado o un id inexistente responde exactamente igual que un id inexistente en la vista publica |
 | AC-07 | La vista publica muestra el promedio con 1 decimal y la cantidad de calificaciones; sin calificaciones muestra "Todavia sin calificaciones" |
 | AC-08 | La fila de estrellas se llena de amarillo en proporcion al promedio (no solo estrellas enteras) mientras el usuario no haya calificado; ya calificado, rellena hasta su puntaje propio |

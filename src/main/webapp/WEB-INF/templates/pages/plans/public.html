@@ -123,38 +123,18 @@
       </p>
     </section>
 
-    <!-- [CAL] Calificaciones: agregado publico + widget de voto (16-CAL.md).
-         El indicador pinta el promedio en proporcion con dos capas (fila gris + fila amarilla
-         clipada al ancho del promedio, sin JS ni glifos de media estrella). Con sesion la misma
-         fila son radios estilizados con hover; sin sesion el widget no existe (AC-05) y el CTA es
-         un link al login con la vuelta a la vista, el mismo patron que los CTAs de arriba. -->
+    <!-- [CAL] Calificaciones: fila unica de estrellas (16-CAL.md), indicador y voto en la
+         misma fila: components/rating :: widget. Con sesion son radios con auto-submit (el
+         relleno pinta el promedio hasta que el usuario califica); sin sesion la misma fila
+         es el soft gate: link al login con la vuelta a la vista (?redirect=), el mismo
+         patron que los CTAs de arriba. El POST anonimo no existe (AC-13); el promedio y la
+         capa de relleno siguen siendo publicos. -->
     <section id="ratings" class="mt-6 rounded-lg bg-white p-6 shadow">
       <h2 class="mb-3 text-xl font-bold text-black">Calificaciones</h2>
 
-      <!-- Con sesion: components/rating :: widget, la UNICA fila de estrellas: indicador del
-           promedio mientras no hay voto propio, radios estilizados para votar despues (una
-           sola fila, nunca indicador + widget juntos). Sin sesion: indicador read-only.
-           El POST es upsert (AC-04) y vuelve a esta vista.
-           El th:if va en un bloque EXTERNO: th:replace (precedencia 100) corre antes que
-           th:if (300), condicionar el mismo elemento no haria nada. -->
-      <th:block th:if="${isLogged}">
-        <th:block th:replace="~{components/rating :: widget(${plan.id}, ${myRating}, ${ratingAverage}, ${ratingCount}, true, ${currentPath})}"></th:block>
-      </th:block>
-
-      <div th:unless="${isLogged}" class="flex flex-wrap items-center gap-3">
-        <!-- Indicador de solo lectura (components/rating :: indicator): el relleno amarillo
-             cubre avg/5 del ancho de la fila. Los estilos de las capas viven en base.html. -->
-        <th:block th:replace="~{components/rating :: indicator(${ratingAverage}, ${ratingCount}, 'text-2xl', 'text-sm', ratingAverage != null)}"></th:block>
-        <span class="text-sm text-gray-500" th:if="${ratingAverage == null}">
-          Todavía sin calificaciones
-        </span>
-      </div>
-
-      <a th:unless="${isLogged}"
-        th:href="${#strings.isEmpty(currentPath)} ? @{/auth/login} : @{/auth/login(redirect=${currentPath})}"
-        class="inline-flex items-center text-sm text-gray-500 hover:text-gray-800">
-        Iniciá sesión para calificar
-      </a>
+      <!-- El th:if/th:replace comparten elemento: th:replace (precedencia 100) corre antes
+           que th:if (300), la condicion tiene que ir en un bloque externo. -->
+      <th:block th:replace="~{components/rating :: widget(${plan.id}, ${myRating}, ${ratingAverage}, ${ratingCount}, ${isLogged}, ${currentPath})}"></th:block>
     </section>
 
     <!-- Leaflet va adentro de <main> como en detail.html: el layout(base :: layout) solo

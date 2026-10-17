@@ -166,6 +166,16 @@
     .rating-widget:hover .rating-stars-fill {
       visibility: hidden;
     }
+
+    /* La variante anonima del widget es el link al login: el hover de la fila completa
+       avisa que las estrellas se pueden clikear, igual que el hover de los radios. */
+    .rating-widget-anon {
+      transition: opacity 0.15s ease;
+    }
+
+    .rating-widget-anon:hover {
+      opacity: 0.7;
+    }
   </style>
 
   <!-- Tailwind compiled in the browser: the vendored @tailwindcss/browser script
