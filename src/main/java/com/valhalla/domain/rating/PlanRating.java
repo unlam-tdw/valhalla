@@ -60,4 +60,12 @@ public class PlanRating {
   public void setScore(int score) {
     this.score = score;
   }
+
+  public Plan getPlan() {
+    return plan;
+  }
+
+  public User getUser() {
+    return user;
+  }
 }
