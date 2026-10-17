@@ -50,14 +50,9 @@ public final class PlanFeedCards {
       plan.getPlanPlaces().size(),
       feedDisplayName(plan.getAdministrator()),
       "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), COVER_COUNT) + 1) + ".svg",
-      summary.average() == null ? null : roundOneDecimal(summary.average()),
+      roundOneDecimal(summary.average()),
       summary.count()
     );
-  }
-
-  /** Tarjeta de un plan sin calificaciones: promedio null y count 0. */
-  public static Card card(Plan plan) {
-    return card(plan, new RatingSummary(plan.getId(), null, 0L));
   }
 
   /**

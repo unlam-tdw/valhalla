@@ -53,26 +53,6 @@ public class PlanRating {
     this.score = score;
   }
 
-  public Long getId() {
-    return id;
-  }
-
-  public Plan getPlan() {
-    return plan;
-  }
-
-  public void setPlan(Plan plan) {
-    this.plan = plan;
-  }
-
-  public User getUser() {
-    return user;
-  }
-
-  public void setUser(User user) {
-    this.user = user;
-  }
-
   public int getScore() {
     return score;
   }
