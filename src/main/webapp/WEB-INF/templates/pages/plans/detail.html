@@ -165,6 +165,78 @@
                 <div id="map"></div>
             </div>
 
+            <div th:if="${weatherFocus != null}" class="card border-0 shadow-sm p-4 mb-4"
+                 th:with="focus=${weatherFocus}, severity=${weatherFocus.condition.severity.name()}">
+                <div class="row g-3 align-items-center">
+                    <div class="col-sm-7 d-flex align-items-center gap-3">
+                        <i class="fs-2 text-primary" th:classappend="${' fa-solid ' + focus.condition.icon}" aria-hidden="true"></i>
+                        <div>
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;" th:text="${weatherFocusLabel}">Clima a la hora del plan</small>
+                            <span class="fs-4 fw-bold" th:text="${#numbers.formatDecimal(focus.temperatureC, 1, 0) + ' °C'}">21 °C</span>
+                            <span class="text-muted ms-2" th:text="${focus.condition.description}">Despejado</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-5">
+                        <ul class="list-unstyled mb-0 small text-muted bg-light rounded p-3">
+                            <li class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <span><i class="fa-solid fa-temperature-half me-1" aria-hidden="true"></i>Sensaci&oacute;n</span>
+                                <span class="fw-semibold text-body" th:text="${#numbers.formatDecimal(focus.apparentTemperatureC, 1, 0) + ' °C'}">20 °C</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <span><i class="fa-solid fa-droplet me-1" aria-hidden="true"></i>Lluvia</span>
+                                <span class="fw-semibold text-body" th:text="${focus.precipitationProbability + '%'}">10%</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center py-2">
+                                <span><i class="fa-solid fa-wind me-1" aria-hidden="true"></i>Viento</span>
+                                <span class="fw-semibold text-body" th:text="${#numbers.formatDecimal(focus.windSpeedKmh, 1, 0) + ' km/h'}">12 km/h</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-4 mt-3" aria-label="Pronóstico por hora">
+                    <div class="text-center" style="min-width: 4.5rem;" th:each="hourly : ${weatherHourly}"
+                         th:classappend="${hourly.time == focus.time ? '' : 'opacity-75'}">
+                        <div class="text-muted" style="font-size: 0.7rem;" th:text="${#temporals.format(hourly.time, 'HH:mm')}">17:00</div>
+                        <i class="d-block my-1 fs-5" aria-hidden="true"
+                           th:classappend="${' fa-solid ' + hourly.condition.icon + ' ' + (hourly.condition.severity.name() == 'SEVERE' ? 'text-danger' : (hourly.condition.severity.name() == 'WARNING' ? 'text-warning' : 'text-primary'))}"></i>
+                        <div class="fw-bold" th:text="${#numbers.formatDecimal(hourly.temperatureC, 1, 0) + '°'}">21°</div>
+                        <div class="text-muted" style="font-size: 0.7rem;"><i class="fa-solid fa-droplet me-1" aria-hidden="true"></i><span th:text="${hourly.precipitationProbability + '%'}">10%</span></div>
+                    </div>
+                </div>
+                <div th:if="${focus.condition.alert}"
+                     class="alert mt-3 mb-0 d-flex align-items-start gap-2"
+                     th:classappend="${severity == 'SEVERE' ? 'alert-danger' : (severity == 'WARNING' ? 'alert-warning' : 'alert-info')}"
+                     role="alert">
+                    <i class="fa-solid fa-triangle-exclamation mt-1" aria-hidden="true"></i>
+                    <span th:text="${focus.condition.alertMessage}">Alerta clim&aacute;tica</span>
+                </div>
+            </div>
+
+            <div th:if="${weatherPending != null}" class="card border-0 shadow-sm p-4 mb-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-sm-7 d-flex align-items-center gap-3">
+                        <i class="fa-regular fa-clock fs-2 text-secondary" aria-hidden="true"></i>
+                        <div>
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;" th:text="${weatherFocusLabel}">Clima a la hora del plan</small>
+                            <p class="mb-0 fw-semibold">El pronóstico va a estar disponible más cerca de la fecha.</p>
+                            <small class="text-muted">Ya guardamos el lugar y el horario: lo vas a ver en cuanto haya datos.</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-5">
+                        <ul class="list-unstyled mb-0 small text-muted bg-light rounded p-3">
+                            <li class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <span><i class="fa-regular fa-calendar me-1" aria-hidden="true"></i>Fecha</span>
+                                <span class="fw-semibold text-body" th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'yyyy-MM-dd') : 'Sin fecha'}">2026-12-31</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center py-2">
+                                <span><i class="fa-regular fa-clock me-1" aria-hidden="true"></i>Hora</span>
+                                <span class="fw-semibold text-body" th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <div th:if="${canEditPlan}" class="card border-0 shadow-sm p-4 mb-4">
                 <h5 class="fw-bold mb-3">Agregar lugar al plan</h5>
                 <div class="row g-2">
@@ -328,7 +400,7 @@
 
                     <div class="mb-3">
                         <label class="form-label text-muted small">Fecha</label>
-                        <input type="date" th:field="*{eventDate}" class="form-control" />
+                        <input type="date" th:field="*{eventDate}" th:attr="min=${today}" class="form-control" />
                     </div>
 
                     <div class="mb-3">
@@ -370,19 +442,12 @@
                 <dt>Categoría</dt><dd>{{ selectedEntry.category || 'Sin categoría' }}</dd>
                 <dt>Descripción del lugar</dt><dd>{{ selectedEntry.placeDescription || 'Sin descripción' }}</dd>
                 <dt>Descripción de la visita</dt><dd>{{ selectedEntry.description || 'Sin descripción' }}</dd>
-                <dt>Fecha de visita</dt><dd>{{ selectedEntry.visitDate || 'Sin fecha' }}</dd>
                 <dt>Hora de visita</dt><dd>{{ selectedEntry.visitTime || 'Sin hora' }}</dd>
                 <dt>Posición en el itinerario</dt><dd>{{ selectedEntry.sortOrder }}</dd>
             </dl>
             <div th:if="${isPlanAdministrator}" class="visit-editor">
                 <p class="visit-editor-heading">Editar horario de la visita</p>
                 <div class="row g-2">
-                    <div class="col-6">
-                        <label class="form-label small text-muted mb-1" :for="'visit-date-' + selectedEntry.id">Fecha</label>
-                        <input type="date" class="form-control form-control-sm" :id="'visit-date-' + selectedEntry.id"
-                            :value="selectedEntry.visitDate || ''"
-                            @change="updateDateTime(selectedEntry, 'visitDate', $event.target.value)">
-                    </div>
                     <div class="col-6">
                         <label class="form-label small text-muted mb-1" :for="'visit-time-' + selectedEntry.id">Hora</label>
                         <input type="time" class="form-control form-control-sm" :id="'visit-time-' + selectedEntry.id"
@@ -594,18 +659,31 @@
                                 iconAnchor: [15, 15]
                             });
 
-                            let popupText = '<b>' + place.name + '</b><br><small>' + place.category + '</small>';
-                            if (isInPlan) {
-                                if (isSinglePlace) {
-                                    popupText = '<b>📍 Único lugar seleccionado:</b><br><strong>' + place.name + '</strong>';
-                                } else {
-                                    popupText = '<b>Paso ' + (itineraryIndex + 1) + ': ' + place.name + '</b><br><small class="text-success">✔ En el itinerario</small>';
-                                }
+                            // El popup no repite el numero de parada: ese 1 ya va en el marcador y en
+                            // la lista, asi que decir "Paso 1 ... En el itinerario" no agregaba nada
+                            // y encima cerraba con un ✔ que se veia como signo de pregunta. Se queda
+                            // con lo que aporta: el nombre y, si hay visita, la hora. Como en
+                            // pages/plans/public.html se arma con DOM, no con string concatenado:
+                            // un nombre de lugar con "<script>" tiene que renderizarse como texto.
+                            const popupBox = document.createElement('div');
+                            const popupTitle = document.createElement('b');
+                            popupTitle.textContent = place.name;
+                            popupBox.appendChild(popupTitle);
+                            const stop = isInPlan ? this.planPlaces[itineraryIndex] : null;
+                            const popupDetail = stop && stop.visitTime
+                                ? 'Visita a las ' + stop.visitTime.slice(0, 5)
+                                : (place.category || '');
+                            if (popupDetail) {
+                                const popupBreak = document.createElement('br');
+                                const popupLine = document.createElement('small');
+                                popupLine.textContent = popupDetail;
+                                popupBreak.appendChild(popupLine);
+                                popupBox.appendChild(popupBreak);
                             }
 
                             const marker = L.marker([place.latitude, place.longitude], { icon: customIcon })
                                 .addTo(this.map)
-                                .bindPopup(popupText);
+                                .bindPopup(popupBox);
 
                             this.markers.push(marker);
                             bounds.push([place.latitude, place.longitude]);

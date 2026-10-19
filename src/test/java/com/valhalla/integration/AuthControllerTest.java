@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -187,6 +188,17 @@ public class AuthControllerTest {
       userRepository.findByEmail(email).isPresent(),
       is(false)
     );
+  }
+
+  @Test
+  public void shouldRenderTheLoginFormWithACsrfToken() throws Exception {
+    // El POST a /auth/validate-login exige CSRF (I-07): el form tiene que entregarlo renderizado,
+    // no inyectado a mano. Si esto falla, el login devuelve 403 Forbidden desde el navegador.
+    MvcResult result =
+      this.mockMvc.perform(get("/auth/login")).andExpect(status().isOk()).andReturn();
+    String html = result.getResponse().getContentAsString();
+    assertThat(html, containsString("name=\"_csrf\""));
+    assertThat(html, containsString("name=\"_csrf\" value=\""));
   }
 
   // --- I-04 ---

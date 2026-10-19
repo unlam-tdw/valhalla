@@ -25,6 +25,10 @@ import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceService;
 import com.valhalla.domain.user.User;
+import com.valhalla.domain.weather.WeatherCondition;
+import com.valhalla.domain.weather.WeatherForecast;
+import com.valhalla.domain.weather.WeatherOutcome;
+import com.valhalla.domain.weather.WeatherService;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -69,13 +73,16 @@ public class PlanControllerTest {
   private PlanController controller;
   private PlanService planServiceMock;
   private PlanPlaceService planPlaceServiceMock;
+  private WeatherService weatherServiceMock;
   private Authentication authentication;
 
   @BeforeEach
   public void init() {
     this.planServiceMock = mock(PlanService.class);
     this.planPlaceServiceMock = mock(PlanPlaceService.class);
-    this.controller = new PlanController(this.planServiceMock, this.planPlaceServiceMock);
+    this.weatherServiceMock = mock(WeatherService.class);
+    this.controller =
+      new PlanController(this.planServiceMock, this.planPlaceServiceMock, this.weatherServiceMock);
     this.authentication = new UsernamePasswordAuthenticationToken(OWNER_EMAIL, null);
   }
 
@@ -155,6 +162,171 @@ public class PlanControllerTest {
     assertThrows(
       PlanNotFoundException.class,
       () -> this.controller.showPlan(MISSING_PLAN_ID, this.authentication)
+    );
+  }
+
+  // --- [WEA] Clima en el detalle del plan ---
+
+  @Test
+  public void showPlan_conFechaHoraYLugarAgregaElClimaYLaTiraDelRecorrido() {
+    Plan plan = plan(PLAN_ID, "Con clima");
+    plan.setEventDate(LocalDate.of(2026, 10, 29));
+    plan.setEventTime(LocalTime.of(18, 30));
+    PlanPlace entry = stop(1L, "Obelisco", 1);
+    entry.getPlace().setLatitude(-34.6037);
+    entry.getPlace().setLongitude(-58.3816);
+    plan.addPlanPlace(entry);
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+    when(this.weatherServiceMock.hourlyFor(-34.6037, -58.3816, LocalDate.of(2026, 10, 29)))
+      .thenReturn(
+        WeatherOutcome.available(List.of(forecastAt(17), forecastAt(18), forecastAt(19)))
+      );
+
+    ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    // La hora del plan (18:30) es la que enfoca y la tira cubre su horario.
+    assertThat(view.getModel().get("weatherFocus"), is(equalTo(forecastAt(18))));
+    assertThat(
+      view.getModel().get("weatherHourly"),
+      is(equalTo(List.of(forecastAt(17), forecastAt(18), forecastAt(19))))
+    );
+    assertThat(view.getModel().get("weatherFocusLabel"), is(equalTo("Clima a la hora del plan")));
+    assertThat(view.getModel().get("weatherPending"), is(nullValue()));
+  }
+
+  @Test
+  public void showPlan_sinHoraDePlanUsaLasParadasYConCeroHorariosMuestraElDiaEntero() {
+    // Un plan creado desde explore no pide hora: enfocan las paradas.
+    Plan conParadas = plan(PLAN_ID, "Paradas con hora");
+    conParadas.setEventDate(LocalDate.of(2026, 10, 29));
+    conParadas.setEventTime(null);
+    PlanPlace entry = stop(1L, "Obelisco", 1);
+    entry.getPlace().setLatitude(-34.6037);
+    entry.getPlace().setLongitude(-58.3816);
+    entry.setVisitTime(LocalTime.of(19, 0));
+    PlanPlace other = stop(2L, "Puerto Madero", 2);
+    other.getPlace().setLatitude(-34.6037);
+    other.getPlace().setLongitude(-58.3816);
+    other.setVisitTime(LocalTime.of(21, 0));
+    conParadas.addPlanPlace(entry);
+    conParadas.addPlanPlace(other);
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(conParadas);
+    when(this.weatherServiceMock.hourlyFor(-34.6037, -58.3816, LocalDate.of(2026, 10, 29)))
+      .thenReturn(
+        WeatherOutcome.available(List.of(forecastAt(19), forecastAt(20), forecastAt(21)))
+      );
+
+    ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    assertThat(view.getModel().get("weatherFocus"), is(equalTo(forecastAt(19))));
+    assertThat(
+      view.getModel().get("weatherFocusLabel"),
+      is(equalTo("Clima a la hora de tus paradas"))
+    );
+    assertThat(
+      view.getModel().get("weatherHourly"),
+      is(equalTo(List.of(forecastAt(19), forecastAt(20), forecastAt(21))))
+    );
+
+    // Y sin ningún horario en el plan: foco al mediodía y tira de 6 a 23.
+    Plan sinHorarios = plan(PLAN_ID, "Sin horarios");
+    sinHorarios.setEventDate(LocalDate.of(2026, 10, 29));
+    sinHorarios.setEventTime(null);
+    PlanPlace solo = stop(3L, "Plaza", 1);
+    solo.getPlace().setLatitude(-34.6037);
+    solo.getPlace().setLongitude(-58.3816);
+    sinHorarios.addPlanPlace(solo);
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(sinHorarios);
+    when(this.weatherServiceMock.hourlyFor(-34.6037, -58.3816, LocalDate.of(2026, 10, 29)))
+      .thenReturn(
+        WeatherOutcome.available(
+          List.of(forecastAt(5), forecastAt(6), forecastAt(12), forecastAt(23))
+        )
+      );
+
+    view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    // La franja es de 6 a 23: la de las 5 queda afuera.
+    assertThat(
+      view.getModel().get("weatherHourly"),
+      is(equalTo(List.of(forecastAt(6), forecastAt(12), forecastAt(23))))
+    );
+    assertThat(view.getModel().get("weatherFocus"), is(equalTo(forecastAt(12))));
+    assertThat(view.getModel().get("weatherFocusLabel"), is(equalTo("Clima del día del plan")));
+  }
+
+  @Test
+  public void showPlan_conFechaFueraDelHorizonteMuestraElAvisoEnLugarDelClima() {
+    Plan plan = plan(PLAN_ID, "Fecha lejana");
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    plan.setEventTime(LocalTime.of(18, 30));
+    PlanPlace entry = stop(1L, "Obelisco", 1);
+    entry.getPlace().setLatitude(-34.6037);
+    entry.getPlace().setLongitude(-58.3816);
+    plan.addPlanPlace(entry);
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+    when(this.weatherServiceMock.hourlyFor(-34.6037, -58.3816, LocalDate.of(2026, 12, 31)))
+      .thenReturn(WeatherOutcome.pending());
+
+    ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    assertThat(view.getModel().get("weatherPending"), is(true));
+    assertThat(view.getModel().get("weatherFocus"), is(nullValue()));
+    assertThat(view.getModel().get("weatherHourly"), is(nullValue()));
+  }
+
+  @Test
+  public void showPlan_sinFechaSinPronosticoOSinLugaresNoAgregaElBloqueDeClima() {
+    // Sin fecha no se le pide el clima al proveedor.
+    Plan sinFecha = plan(PLAN_ID, "Sin fecha");
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(sinFecha);
+
+    ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    assertThat(view.getModel().get("weatherFocus"), is(nullValue()));
+    verify(this.weatherServiceMock, never()).hourlyFor(any(), any(), any());
+
+    // Con fecha pero sin lugares con coordenadas, tampoco.
+    Plan sinCoordenadas = plan(PLAN_ID, "Sin coordenadas");
+    sinCoordenadas.setEventDate(LocalDate.of(2026, 10, 29));
+    sinCoordenadas.setEventTime(LocalTime.of(18, 30));
+    sinCoordenadas.addPlanPlace(stop(1L, "Lugar sin mapa", 1));
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL))
+      .thenReturn(sinCoordenadas);
+
+    view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    assertThat(view.getModel().get("weatherFocus"), is(nullValue()));
+    verify(this.weatherServiceMock, never()).hourlyFor(any(), any(), any());
+
+    // Con coordenadas pero proveedor sin datos: tampoco se muestra nada.
+    Plan sinPronostico = plan(PLAN_ID, "Sin datos");
+    sinPronostico.setEventDate(LocalDate.of(2026, 10, 29));
+    sinPronostico.setEventTime(LocalTime.of(18, 30));
+    PlanPlace entry = stop(2L, "Obelisco", 1);
+    entry.getPlace().setLatitude(-34.6037);
+    entry.getPlace().setLongitude(-58.3816);
+    sinPronostico.addPlanPlace(entry);
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(sinPronostico);
+    when(this.weatherServiceMock.hourlyFor(-34.6037, -58.3816, LocalDate.of(2026, 10, 29)))
+      .thenReturn(WeatherOutcome.unavailable());
+
+    view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    assertThat(view.getModel().get("weatherFocus"), is(nullValue()));
+    assertThat(view.getModel().get("weatherPending"), is(nullValue()));
+    verify(this.weatherServiceMock, times(1)).hourlyFor(any(), any(), any());
+  }
+
+  private static WeatherForecast forecastAt(int hour) {
+    return new WeatherForecast(
+      LocalDate.of(2026, 10, 29),
+      LocalTime.of(hour, 0),
+      20.0,
+      19.0,
+      0,
+      5.0,
+      WeatherCondition.CLEAR
     );
   }
 

@@ -6,10 +6,19 @@ import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceService;
 import com.valhalla.domain.user.User;
+import com.valhalla.domain.weather.WeatherForecast;
+import com.valhalla.domain.weather.WeatherOutcome;
+import com.valhalla.domain.weather.WeatherService;
+import com.valhalla.domain.weather.WeatherStatus;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,11 +51,17 @@ public class PlanController {
 
   private final PlanService planService;
   private final PlanPlaceService planPlaceService;
+  private final WeatherService weatherService;
 
   @Autowired
-  public PlanController(PlanService planService, PlanPlaceService planPlaceService) {
+  public PlanController(
+    PlanService planService,
+    PlanPlaceService planPlaceService,
+    WeatherService weatherService
+  ) {
     this.planService = planService;
     this.planPlaceService = planPlaceService;
+    this.weatherService = weatherService;
   }
 
   @GetMapping
@@ -100,7 +115,152 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    // [WEA] El selector de fecha del form de edición no acepta días ya pasados.
+    model.put("today", LocalDate.now().toString());
+    // [WEA] Clima para la fecha del plan, en el primer lugar del recorrido. Es opcional: si no hay
+    // fecha, lugares con coordenadas o pronóstico disponible, la vista no muestra el bloque.
+    // Cuando la fecha cae más allá del horizonte del proveedor se muestra el aviso "más cerca de
+    // la fecha", no el pronóstico.
+    resolveWeather(plan, model);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
+  }
+
+  private static final LocalTime DEFAULT_FOCUS_TIME = LocalTime.NOON;
+
+  /** Cuántas horas como mínimo muestra la tira: con menos queda flaca y se suman vecinas. */
+  private static final int MIN_HOURLY_SHOWN = 3;
+
+  /** Sin ningún horario en el plan la tira muestra el día entero, de la mañana a la noche. */
+  private static final int DAY_START_HOUR = 6;
+
+  private static final int DAY_END_HOUR = 23;
+
+  /**
+   * [WEA] Clima para la fecha del plan en el primer lugar del recorrido que tenga coordenadas.
+   * Sin fecha o sin lugares geolocalizados no hay clima que mostrar. La serie horaria del día deja
+   * enfocar la hora del plan y la de cada parada del recorrido: el foco y la tira siguen el
+   * horario real de lo que va a pasar, y el mediodía queda solo como referencia general.
+   */
+  private void resolveWeather(Plan plan, Map<String, Object> model) {
+    LocalDate date = plan.getEventDate();
+    if (date == null) {
+      return;
+    }
+    plan
+      .getPlanPlaces()
+      .stream()
+      .map(PlanPlace::getPlace)
+      .filter(place -> place != null && place.getLatitude() != null && place.getLongitude() != null)
+      .findFirst()
+      .ifPresent(place -> {
+        List<Integer> relevantHours = relevantHours(plan);
+        model.put("weatherFocusLabel", focusLabel(plan, relevantHours));
+        WeatherOutcome outcome = weatherService.hourlyFor(
+          place.getLatitude(),
+          place.getLongitude(),
+          date
+        );
+        if (outcome.status() == WeatherStatus.AVAILABLE) {
+          model.put("weatherFocus", focusForecast(outcome.hourly(), plan, relevantHours));
+          model.put("weatherHourly", hourlyForecasts(outcome.hourly(), relevantHours));
+        } else if (outcome.status() == WeatherStatus.PENDING) {
+          model.put("weatherPending", true);
+        }
+      });
+  }
+
+  /**
+   * Las horas del recorrido: la del plan y la de cada parada. La fecha de la parada se ignora a
+   * propósito: los lugares se visitan el mismo día del plan, con lo que la hora basta. Quedan
+   * ordenadas de menor a mayor y sin repetir.
+   */
+  private static List<Integer> relevantHours(Plan plan) {
+    Set<Integer> hours = new TreeSet<>();
+    if (plan.getEventTime() != null) {
+      hours.add(plan.getEventTime().getHour());
+    }
+    for (PlanPlace entry : plan.getPlanPlaces()) {
+      if (entry.getVisitTime() != null) {
+        hours.add(entry.getVisitTime().getHour());
+      }
+    }
+    return List.copyOf(hours);
+  }
+
+  /**
+   * La hora del plan es la que manda; sin hora de plan se usa la primera parada y, si no hay horas
+   * en el recorrido, el mediodía como referencia general.
+   */
+  private static WeatherForecast focusForecast(
+    List<WeatherForecast> hourly,
+    Plan plan,
+    List<Integer> relevantHours
+  ) {
+    int focusHour;
+    if (plan.getEventTime() != null) {
+      focusHour = plan.getEventTime().getHour();
+    } else {
+      focusHour = relevantHours.isEmpty() ? DEFAULT_FOCUS_TIME.getHour() : relevantHours.get(0);
+    }
+    return hourly
+      .stream()
+      .filter(forecast -> forecast.time().getHour() == focusHour)
+      .findFirst()
+      .orElse(hourly.get(hourly.size() / 2));
+  }
+
+  /**
+   * La tira cubre toda la franja del plan: de la hora del primer lugar a la del último, para que
+   * siempre aparezcan la del plan y la de cada parada. Cuando el plan no tiene ningún horario se
+   * muestra el día entero en vez de una sola hora de referencia.
+   */
+  private static List<WeatherForecast> hourlyForecasts(
+    List<WeatherForecast> hourly,
+    List<Integer> relevantHours
+  ) {
+    int[] window = hourWindow(relevantHours);
+    final int minHour = window[0];
+    final int maxHour = window[1];
+    List<WeatherForecast> picked = hourly
+      .stream()
+      .filter(forecast -> {
+        int hour = forecast.time().getHour();
+        return hour >= minHour && hour <= maxHour;
+      })
+      .toList();
+    return picked.isEmpty() ? hourly : picked;
+  }
+
+  /**
+   * Rango [desde, hasta] que cubre las horas del recorrido. Sin ninguna hora en el plan se toma el
+   * día entero. Y si el recorrido dura menos que {@link #MIN_HOURLY_SHOWN} horas la tira queda
+   * flaca, así que se le agregan vecinas.
+   */
+  private static int[] hourWindow(List<Integer> relevantHours) {
+    if (relevantHours.isEmpty()) {
+      return new int[] { DAY_START_HOUR, DAY_END_HOUR };
+    }
+    int from = relevantHours.get(0);
+    int to = relevantHours.get(relevantHours.size() - 1);
+    for (int padding = 0; padding < 2; padding++) {
+      if (to - from + 1 >= MIN_HOURLY_SHOWN) {
+        break;
+      }
+      from = Math.max(0, from - 1);
+      to = Math.min(23, to + 1);
+    }
+    return new int[] { from, to };
+  }
+
+  /** Título del bloque de clima, según de dónde salga la hora con la que enfocamos. */
+  private static String focusLabel(Plan plan, List<Integer> relevantHours) {
+    if (plan.getEventTime() != null) {
+      return "Clima a la hora del plan";
+    }
+    if (!relevantHours.isEmpty()) {
+      return "Clima a la hora de tus paradas";
+    }
+    return "Clima del día del plan";
   }
 
   /**

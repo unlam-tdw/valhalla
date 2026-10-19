@@ -28,11 +28,15 @@ import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
+import com.valhalla.domain.weather.WeatherCondition;
+import com.valhalla.domain.weather.WeatherForecast;
+import com.valhalla.integration.config.WeatherTestConfig;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,6 +111,11 @@ public class PlanControllerIntegrationTest {
         .build();
     this.ownerId = givenUser(OWNER_EMAIL);
     this.otherId = givenUser(OTHER_EMAIL);
+  }
+
+  @AfterEach
+  public void tearDown() {
+    WeatherTestConfig.reset();
   }
 
   @Test
@@ -566,6 +575,121 @@ public class PlanControllerIntegrationTest {
     assertThat(html, containsString("\"id\":" + entry.getPlace().getId()));
     assertThat(html, not(containsString("password123")));
     assertThat(html, not(containsString("\"administrator\":")));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_WEA_001_getPlansId_muestraElClimaCuandoHayPronostico() throws Exception {
+    // given: plan con fecha, hora y un lugar geolocalizado + un pronóstico disponible
+    UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setEventDate(LocalDate.of(2026, 10, 29));
+    plan.setEventTime(LocalTime.of(18, 30));
+    Place place = this.placeRepository.findAll().get(0);
+    place.setLatitude(-34.6037);
+    place.setLongitude(-58.3816);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    entry.setSortOrder(1);
+    entry.setVisitDate(LocalDate.of(2026, 10, 29));
+    entry.setVisitTime(LocalTime.of(17, 0));
+    plan.addPlanPlace(entry);
+    PlanPlace other = new PlanPlace();
+    other.setPlace(this.placeRepository.findAll().get(1));
+    other.setSortOrder(2);
+    other.setVisitDate(LocalDate.of(2026, 10, 29));
+    other.setVisitTime(LocalTime.of(20, 0));
+    plan.addPlanPlace(other);
+    this.planRepository.save(plan);
+    WeatherTestConfig.stubHourly(
+      List.of(
+        new WeatherForecast(
+          LocalDate.of(2026, 10, 29),
+          LocalTime.of(17, 0),
+          20.0,
+          19.0,
+          5,
+          8.0,
+          WeatherCondition.PARTLY_CLOUDY
+        ),
+        new WeatherForecast(
+          LocalDate.of(2026, 10, 29),
+          LocalTime.of(18, 0),
+          21.4,
+          20.1,
+          10,
+          12.0,
+          WeatherCondition.RAIN
+        ),
+        new WeatherForecast(
+          LocalDate.of(2026, 10, 29),
+          LocalTime.of(20, 0),
+          19.0,
+          18.0,
+          60,
+          15.0,
+          WeatherCondition.RAIN
+        )
+      )
+    );
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk()).andReturn();
+
+    // then: el foco es la hora del plan (18:00, lluvia) y la tira muestra las horas del dia
+    String html = oneLine(result.getResponse().getContentAsString());
+    assertThat(html, containsString("Clima a la hora del plan"));
+    assertThat(html, containsString("Lluvia"));
+    assertThat(html, containsString("Se espera lluvia a la hora del plan. Llevá paraguas."));
+    assertThat(html, containsString("17:00"));
+    assertThat(html, containsString("20:00"));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_WEA_002_getPlansId_sinPronosticoNoMuestraClimaYFechaLejanaMuestraElAviso()
+    throws Exception {
+    // given: plan con fecha, hora y lugar geolocalizado, pero el proveedor no devuelve pronóstico
+    UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setEventDate(LocalDate.of(2026, 10, 29));
+    plan.setEventTime(LocalTime.of(18, 30));
+    Place place = this.placeRepository.findAll().get(0);
+    place.setLatitude(-34.6037);
+    place.setLongitude(-58.3816);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    entry.setSortOrder(1);
+    plan.addPlanPlace(entry);
+    this.planRepository.save(plan);
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk()).andReturn();
+
+    // then: sin datos no se muestra el bloque de clima
+    assertThat(
+      result.getResponse().getContentAsString(),
+      not(containsString("Clima a la hora del plan"))
+    );
+
+    // given: una fecha más allá del horizonte del proveedor y sin hora (un plan de explore)
+    Plan lejano = this.planRepository.findById(planId).orElseThrow();
+    lejano.setEventDate(LocalDate.of(2026, 12, 31));
+    lejano.setEventTime(null);
+    this.planRepository.save(lejano);
+    WeatherTestConfig.stubPending();
+
+    // when
+    result = this.mockMvc.perform(get("/plans/" + planId)).andExpect(status().isOk()).andReturn();
+
+    // then: el aviso "más cerca de la fecha" en vez de la tira, y sin temperatura
+    String html = oneLine(result.getResponse().getContentAsString());
+    assertThat(html, containsString("Clima del día del plan"));
+    assertThat(html, containsString("El pronóstico va a estar disponible más cerca de la fecha"));
+    assertThat(html, containsString("2026-12-31"));
+    assertThat(html, not(containsString("°C")));
   }
 
   @Test

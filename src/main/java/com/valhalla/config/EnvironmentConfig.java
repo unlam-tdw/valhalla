@@ -10,12 +10,14 @@ public final class EnvironmentConfig {
   private static final String ENV_DB_NAME = "DB_NAME";
   private static final String ENV_DB_USER = "DB_USER";
   private static final String ENV_DB_PASSWORD = "DB_PASSWORD";
+  private static final String ENV_WEATHER_API_BASE_URL = "WEATHER_API_BASE_URL";
 
   private static final String DEFAULT_DB_HOST = "localhost";
   private static final String DEFAULT_DB_PORT = "5432";
   private static final String DEFAULT_DB_NAME = "valhalla";
   private static final String DEFAULT_DB_USER = "user";
   private static final String DEFAULT_DB_PASSWORD = "user";
+  private static final String DEFAULT_WEATHER_API_BASE_URL = "https://api.open-meteo.com";
 
   private EnvironmentConfig() {}
 
@@ -41,6 +43,11 @@ public final class EnvironmentConfig {
 
   public static String databaseUrl() {
     return String.format("jdbc:postgresql://%s:%s/%s", dbHost(), dbPort(), dbName());
+  }
+
+  /** Base URL de Open-Meteo; override por entorno para tests o proxies. */
+  public static String weatherApiBaseUrl() {
+    return envValue(ENV_WEATHER_API_BASE_URL, DEFAULT_WEATHER_API_BASE_URL);
   }
 
   /**
