@@ -11,8 +11,8 @@ quita, y la imagen se muestra en el banner de la cabecera de la edit page (`/pla
 slot que [DIS-014] deja preparado con imagen por defecto) y en la vista publica del plan
 (`GET /plans/{id}/public`, ver [PVP]).
 
-Sin imagen cargada nada cambia: el banner muestra la imagen por defecto del slot de DIS-014,
-ahi y en la vista publica.
+Sin imagen cargada nada cambia de aspecto: el banner muestra una imagen por defecto elegida al
+azar de un batch chico de banners de marca (ver Decisiones), ahi y en la vista publica.
 
 **Fuera de alcance:** imagenes de portada en las cards del feed (`/for-you`, landing). Si el
 equipo quiere caratulas en el feed, es extension de esta card o card aparte; nada de esta spec
@@ -36,6 +36,13 @@ lo anticipa.
   por env, default `~/.valhalla/uploads`) y la columna guarda la ruta publica (`/uploads/...`),
   no los bytes. Servir 5 MB desde la DB en cada render del itinerario es el tipo de magic que
   este TP evita a proposito.
+- **El default es un batch, no una imagen fija.** `image` es opcional y sin valor el resolver
+  elige al azar (por render) una imagen de un batch chico declarado en
+  `resources/images/plan-banners/` (`plan-banner-1..5.jpg` marca): dos planes sin imagen se ven
+  distintos entre si y el mismo plan puede alternar de banner entre visitas. La eleccion **no
+  persiste** (la columna sigue `NULL`); es de presentacion, como ordenar el feed. El batch son
+  los assets de marca del sitio, no contenido de usuario, y DIS-014 mantiene el fallback del
+  slot por si el directorio queda vacio.
 - **El campo es aditivo y no pide reset.** `hibernate.hbm2ddl.auto=update` agrega la columna
   `varchar` a `plans` sin tocar data existente; los planes vivos y los del seeder arrancan con
   `image = NULL` y su aspecto no cambia (AC-08). La advertencia habitual de `reset-db` aplica a
@@ -66,15 +73,16 @@ lo anticipa.
 
 | # | Criterio |
 |---|----------|
-| AC-01 | La cabecera de la edit page (`/plans/{id}`) muestra el banner con la imagen del plan cuando existe; sin imagen muestra la imagen por defecto del slot de DIS-014 |
+| AC-01 | La cabecera de la edit page (`/plans/{id}`) muestra el banner con la imagen del plan cuando existe; sin imagen muestra una imagen por defecto elegida al azar entre un batch chico de banners de marca declarado en `resources/images` |
 | AC-02 | Quien puede editar el plan (administrador o editor) ve los botones "Cambiar imagen" y "Quitar imagen" superpuestos al banner; los demas usuarios lo ven sin botones |
 | AC-03 | `POST /plans/{id}/image` (multipart, CSRF, sesion) guarda la imagen del plan y redirige de vuelta a `/plans/{id}`, donde el banner ya la muestra |
-| AC-04 | `POST /plans/{id}/image/remove` (CSRF, sesion) limpia el campo y borra el archivo del disco; el banner vuelve a la imagen por defecto |
+| AC-04 | `POST /plans/{id}/image/remove` (CSRF, sesion) limpia el campo y borra el archivo del disco; el banner vuelve a un default aleatorio del batch |
 | AC-05 | Whitelist de tipo/extension y tope de tamano: un archivo fuera de la whitelist o mayor al maximo no se guarda, no reemplaza la imagen anterior y muestra el mensaje de error en la pagina |
-| AC-06 | La vista publica (`GET /plans/{id}/public`) muestra el mismo banner con la imagen del plan cuando existe; sin imagen, la de defecto |
+| AC-06 | La vista publica (`GET /plans/{id}/public`) muestra el mismo banner con la imagen del plan cuando existe; sin imagen, un default aleatorio del batch |
 | AC-07 | El clon de un plan con imagen apunta a una copia propia del archivo: quitar la imagen del original no altera al clon, y viceversa |
-| AC-08 | La columna `image` de `plans` es aditiva y nullable: planes existentes y seeded arrancan sin imagen y su render no cambia |
+| AC-08 | La columna `image` de `plans` es aditiva y nullable: planes existentes y seeded arrancan sin imagen y su render no cambia (solo el banner por default aleatorio del batch) |
 | AC-09 | Cambiar/quitar imagen exige sesion y `canEditPlan`: POST anonimo redirige a login, un usuario ajeno al plan recibe la misma respuesta que un id inexistente, y un participante sin permiso de edicion recibe rechazo explicito |
+| AC-10 | La eleccion del default es per-render y de solo lectura: persiste en ninguna tabla, no determina cuota ni exclusion entre renders consecutivos |
 
 ## Escenarios de Test
 
@@ -87,15 +95,16 @@ lo anticipa.
 | U-03 | `setImage()` con bytes mayores al tope lanza error de tamano | AC-05 |
 | U-04 | `removeImage()` limpia el campo del plan y (pide) borrar el archivo | AC-04 |
 | U-05 | reemplazo de imagen borra el archivo anterior: no quedan dos archivos por plan | Decisiones |
+| U-06 | `resolveBanner()` con plan sin imagen devuelve siempre una ruta del batch declarado (una de `plan-banner-1..5.jpg`), nunca una ruta hacia afuera del batch | AC-01, AC-10 |
 
 ### Tests Unitarios (`infrastructure/plan/...` y `presentation/plan/PlanControllerTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-06 | `showPlan()` expone la ruta de imagen resuelta (ruta propia o default) al template | AC-01 |
-| U-07 | `showPublicPlan()` expone la misma resolucion para `public.html` | AC-06 |
-| U-08 | `clonePlan()` copia el archivo de imagen a un nombre nuevo y el clon apunta a la copia | AC-07 |
-| U-09 | `showPlan()` no expone botones de imagen si `canEditPlan` es falso | AC-02 |
+| U-07 | `showPlan()` expone la ruta de imagen resuelta (ruta propia o default aleatorio) al template | AC-01 |
+| U-08 | `showPublicPlan()` expone la misma resolucion para `public.html` | AC-06 |
+| U-09 | `clonePlan()` copia el archivo de imagen a un nombre nuevo y el clon apunta a la copia | AC-07 |
+| U-10 | `showPlan()` no expone botones de imagen si `canEditPlan` es falso | AC-02 |
 
 ### Tests de Integracion (`presentation/plan/PlanImageControllerIntegrationTest.java`)
 
@@ -119,7 +128,7 @@ lo anticipa.
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| E-01 | flujo admin completo: entrar a `/plans/{id}`, subir imagen (banner visible), reemplazarla, quitarla (banner en default) | AC-01..AC-04 |
+| E-01 | flujo admin completo: entrar a `/plans/{id}`, subir imagen (banner visible), reemplazarla, quitarla (banner vuelve a un default del batch) | AC-01..AC-04 |
 
 ### Puerta
 
@@ -148,7 +157,8 @@ fechas/visibilidad/places y no toca la imagen).
   el nombre lo pone el servicio).
 - `PlanImageService` guarda (whitelist + tope + `Files.copy` a nombre `{uuid}.{ext}` con
   `REPLACE_EXISTING` y borrado del anterior), quita (limpia campo + unlink) y resuelve la ruta
-  para los templates (`image or defaultBanner`).
+  para los templates: con `image` seteada devuelve su ruta, sin `image` elige uno del batch de
+  `resources/images/plan-banners/` al azar (por render, sin persistir la eleccion).
 - Controller: `POST /plans/{id}/image` y `POST /plans/{id}/image/remove`, guardados por la guard
   de `canEditPlan` del plan (la misma que ya usa "Editar plan"), `@RequestParam MultipartFile`,
   mensaje de error via flash/redirect para que el form sea GET-friendly.
@@ -170,12 +180,13 @@ fechas/visibilidad/places y no toca la imagen).
 | Archivo | Accion |
 |---------|--------|
 | `domain/plan/Plan.java` | Actualizar (columna `image` nullable) |
-| `domain/plan/PlanImageService(+Impl).java` | Crear (guardar/quitar/resolver, whitelist y tope) |
+| `domain/plan/PlanImageService(+Impl).java` | Crear (guardar/quitar/resolver, whitelist y tope, default aleatorio del batch) |
 | `infrastructure/plan/...` | Actualizar (`clonePlan` copia el archivo, no comparte path) |
 | `presentation/plan/...ImageController(...)`, `PlanController` | Crear/actualizar (endpoints POST image/remove, exposicion al template) |
 | `config/SpringWebConfig.java` + `MyServletInitializer` (+ `BaseWebConfig` para `/uploads/**`) | Actualizar (multipart config + resource handler con datos de env) |
 | `templates/pages/plans/detail.html` | Actualizar (banner con imagen real, botones de imagen en el slot de DIS-014) |
 | `templates/pages/plans/public.html` | Actualizar (banner de la vista publica) |
+| `src/main/webapp/resources/images/plan-banners/` | Crear (`plan-banner-1..5.jpg`, batch de defaults de marca) |
 | `src/test/java/com/valhalla/...` | Crear/actualizar (suites U/I/S/E de arriba) |
 
 No se tocan: SecurityConfig (la cadena default cubre los POSTs con sesion), datos de semilla (el
