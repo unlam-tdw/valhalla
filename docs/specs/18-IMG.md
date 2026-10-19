@@ -7,22 +7,23 @@
 ## Objetivo
 
 El plan gana una imagen propia: quien puede editar el plan sube una imagen, la cambia o la
-quita, y la imagen se muestra en el banner de la cabecera de la edit page (`/plans/{id}`,
-slot que [DIS-014] deja preparado con imagen por defecto) y en la vista publica del plan
-(`GET /plans/{id}/public`, ver [PVP]).
+quita, y **esa misma imagen** sale en tres superficies: (1) el banner de la cabecera de la edit
+page (`/plans/{id}`, slot que [DIS-014] deja preparado con imagen por defecto), (2) la vista
+publica (`GET /plans/{id}/public`, ver [PVP]) y (3) la card del plan en el feed —
+`GET /for-you` (ver [PPV]) y su gemelo JSON `GET /api/plans/public` (el sidebar de `/explore`) —
+de modo que cada plan tiene su propia caratula.
 
-Sin imagen cargada nada cambia de aspecto: el banner muestra una imagen por defecto elegida al
-azar de un batch chico de banners de marca (ver Decisiones), ahi y en la vista publica.
-
-**Fuera de alcance:** imagenes de portada en las cards del feed (`/for-you`, landing). Si el
-equipo quiere caratulas en el feed, es extension de esta card o card aparte; nada de esta spec
-lo anticipa.
+Sin imagen cargada nada cambia de aspecto: el banner muestra un default del batch de covers de
+marca elegido al azar por render (AC-10), y la card del feed mantiene el cover deterministico
+por id que [PPV] ya opera (ver Decisiones).
 
 ## Pre-requisitos
 
 - [PLN] completed (`Plan` con `isPublic`, `administrator`; admins/editores ya resueltos por
   `PlanManager` — `canEditPlan` es la misma condicion del formulario "Editar plan").
 - [PVP] completed (`GET /plans/{id}/public` existe y es `permitAll`; ahi vive el segundo banner).
+- [PPV] completed (`GET /for-you` y `GET /api/plans/public` comparten `PlanFeedCards`: ahi vive el
+  cover que esta card le da imagen propia a; el cover generico deterministico ya esta en produccion).
 - [DIS-014] landed (branch `task-17-DIS`): la cabecera de `detail.html` ya tiene el slot de
   banner con imagen por defecto; esta card lo llena, no lo inventa.
 - Esquema: `JpaConfig` corre con `hibernate.hbm2ddl.auto=update` y no hay Flyway/Liquibase — la
@@ -36,13 +37,22 @@ lo anticipa.
   por env, default `~/.valhalla/uploads`) y la columna guarda la ruta publica (`/uploads/...`),
   no los bytes. Servir 5 MB desde la DB en cada render del itinerario es el tipo de magic que
   este TP evita a proposito.
-- **El default es un batch, no una imagen fija.** `image` es opcional y sin valor el resolver
-  elige al azar (por render) una imagen de un batch chico declarado en
-  `resources/images/plan-banners/` (`plan-banner-1..5.jpg` marca): dos planes sin imagen se ven
-  distintos entre si y el mismo plan puede alternar de banner entre visitas. La eleccion **no
-  persiste** (la columna sigue `NULL`); es de presentacion, como ordenar el feed. El batch son
-  los assets de marca del sitio, no contenido de usuario, y DIS-014 mantiene el fallback del
-  slot por si el directorio queda vacio.
+- **Un solo batch de defaults, el que ya existe.** No se abre un catalogo nuevo de banners: el
+  batch small de defaults es el batch de covers genericos del feed,
+  `resources/images/plans/cover-1..6.svg` (`COVER_COUNT`, [PPV]). El resolver del banner elige
+  uno al azar por render; sin imagen, sin estado. Las caratulas nuevas se suman reemplazando
+  assets, cero codigo.
+- **El default del banner es azar por render; el del feed, identidad.** Banner: cualquiera del
+  batch (AC-10) — la eleccion **no persiste** (la columna sigue `NULL`) y es de presentacion.
+  Feed: el cover generico por hash del id (cover-{id % 6}) queda tal cual, porque en el feed el
+  default es identidad de la card ("cada plan su imagen"): el mismo plan se ve siempre igual
+  mientras no suba una. Los dos defaults coexisten a proposito; unificarlos es una decision
+  de producto que no entra aqui.
+- **El cover del feed ya esperaba esta columna.** `PlanFeedCards.card()` construye `cover` y su
+  javadoc dice "a futuro, una columna imageUrl en Plan la reemplaza": aca se cumple. Con
+  `plan.image` seteada la card la usa tal cual; sin ella, el fallback por hash. `/explore`
+  hereda gratis (mismo payload JSON), el template `/for-you` ya consume `${plan.cover}` sin
+  cambios de markup.
 - **El campo es aditivo y no pide reset.** `hibernate.hbm2ddl.auto=update` agrega la columna
   `varchar` a `plans` sin tocar data existente; los planes vivos y los del seeder arrancan con
   `image = NULL` y su aspecto no cambia (AC-08). La advertencia habitual de `reset-db` aplica a
@@ -82,7 +92,8 @@ lo anticipa.
 | AC-07 | El clon de un plan con imagen apunta a una copia propia del archivo: quitar la imagen del original no altera al clon, y viceversa |
 | AC-08 | La columna `image` de `plans` es aditiva y nullable: planes existentes y seeded arrancan sin imagen y su render no cambia (solo el banner por default aleatorio del batch) |
 | AC-09 | Cambiar/quitar imagen exige sesion y `canEditPlan`: POST anonimo redirige a login, un usuario ajeno al plan recibe la misma respuesta que un id inexistente, y un participante sin permiso de edicion recibe rechazo explicito |
-| AC-10 | La eleccion del default es per-render y de solo lectura: persiste en ninguna tabla, no determina cuota ni exclusion entre renders consecutivos |
+| AC-10 | La eleccion del default del banner es per-render y de solo lectura: persiste en ninguna tabla, no determina cuota ni exclusion entre renders consecutivos |
+| AC-11 | Las cards del feed —`GET /for-you` (`pages/plans/public-list.html`) y `GET /api/plans/public` (mismo payload de `PlanFeedCards`)— usan la imagen del plan como cover cuando existe; sin imagen mantienen el cover generico deterministico por hash del id (cover-1..6.svg), y el mismo plan renderiza siempre el mismo cover generico |
 
 ## Escenarios de Test
 
@@ -95,9 +106,9 @@ lo anticipa.
 | U-03 | `setImage()` con bytes mayores al tope lanza error de tamano | AC-05 |
 | U-04 | `removeImage()` limpia el campo del plan y (pide) borrar el archivo | AC-04 |
 | U-05 | reemplazo de imagen borra el archivo anterior: no quedan dos archivos por plan | Decisiones |
-| U-06 | `resolveBanner()` con plan sin imagen devuelve siempre una ruta del batch declarado (una de `plan-banner-1..5.jpg`), nunca una ruta hacia afuera del batch | AC-01, AC-10 |
+| U-06 | `resolveBanner()` con plan sin imagen devuelve siempre una ruta del batch declarado (una de `cover-1..6.svg`), nunca una ruta hacia afuera del batch | AC-01, AC-10 |
 
-### Tests Unitarios (`infrastructure/plan/...` y `presentation/plan/PlanControllerTest.java`)
+### Tests Unitarios (`presentation/plan/PlanFeedCardsTest.java` y `PlanControllerTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
@@ -105,6 +116,7 @@ lo anticipa.
 | U-08 | `showPublicPlan()` expone la misma resolucion para `public.html` | AC-06 |
 | U-09 | `clonePlan()` copia el archivo de imagen a un nombre nuevo y el clon apunta a la copia | AC-07 |
 | U-10 | `showPlan()` no expone botones de imagen si `canEditPlan` es falso | AC-02 |
+| U-11 | `PlanFeedCards.card()` con imagen seteada pone `plan.image` en `cover`; con `image` `null` mantiene el cover por hash del id (cover-{id % 6 + 1}), y es estable para el mismo id | AC-11 |
 
 ### Tests de Integracion (`presentation/plan/PlanImageControllerIntegrationTest.java`)
 
@@ -157,8 +169,9 @@ fechas/visibilidad/places y no toca la imagen).
   el nombre lo pone el servicio).
 - `PlanImageService` guarda (whitelist + tope + `Files.copy` a nombre `{uuid}.{ext}` con
   `REPLACE_EXISTING` y borrado del anterior), quita (limpia campo + unlink) y resuelve la ruta
-  para los templates: con `image` seteada devuelve su ruta, sin `image` elige uno del batch de
-  `resources/images/plan-banners/` al azar (por render, sin persistir la eleccion).
+  para los templates: con `image` seteada devuelve su ruta, sin `image` elige al azar una cover
+  del batch existente (`cover-1..6.svg`) — por render, sin persistir la eleccion. El mismo
+  batch/feed: `PlanFeedCards` gana la preferencia `plan.image` sobre su cover por hash.
 - Controller: `POST /plans/{id}/image` y `POST /plans/{id}/image/remove`, guardados por la guard
   de `canEditPlan` del plan (la misma que ya usa "Editar plan"), `@RequestParam MultipartFile`,
   mensaje de error via flash/redirect para que el form sea GET-friendly.
@@ -183,10 +196,11 @@ fechas/visibilidad/places y no toca la imagen).
 | `domain/plan/PlanImageService(+Impl).java` | Crear (guardar/quitar/resolver, whitelist y tope, default aleatorio del batch) |
 | `infrastructure/plan/...` | Actualizar (`clonePlan` copia el archivo, no comparte path) |
 | `presentation/plan/...ImageController(...)`, `PlanController` | Crear/actualizar (endpoints POST image/remove, exposicion al template) |
+| `presentation/plan/PlanFeedCards.java` | Actualizar (cover = `plan.image` si existe, fallback deterministico por hash del id) |
 | `config/SpringWebConfig.java` + `MyServletInitializer` (+ `BaseWebConfig` para `/uploads/**`) | Actualizar (multipart config + resource handler con datos de env) |
 | `templates/pages/plans/detail.html` | Actualizar (banner con imagen real, botones de imagen en el slot de DIS-014) |
 | `templates/pages/plans/public.html` | Actualizar (banner de la vista publica) |
-| `src/main/webapp/resources/images/plan-banners/` | Crear (`plan-banner-1..5.jpg`, batch de defaults de marca) |
+| `templates/pages/plans/public-list.html` | Verificar (ya consume `${plan.cover}` de [PPV]: no hay cambio de markup salvo alt/loading) |
 | `src/test/java/com/valhalla/...` | Crear/actualizar (suites U/I/S/E de arriba) |
 
 No se tocan: SecurityConfig (la cadena default cubre los POSTs con sesion), datos de semilla (el
