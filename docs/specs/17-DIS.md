@@ -41,11 +41,20 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-05 | El tag "Público" de la sección "Un sábado en Recoleta" del hero del landing renderiza su ícono |
 | AC-06 | El navbar superior queda fijo durante el scroll (sticky) en landing y app, sin tapar contenido ni perder accesibilidad (el skip-link sigue siendo alcanzable al navegar con teclado) |
 | AC-07 | La letra P del logo (`resources/images/logo.svg`) se traza con una tipografía cercana a la usada en el resto del sitio (la serif de `brand.css` o la sans de la app), de modo que el logo no se lea como tipografía ajena |
+| AC-08 | En la página de edición de un plan (`/plans/{id}`), el título del plan y los botones de acción (Eliminar plan / Salir del plan / Clonar plan) comparten la misma fila: título a la izquierda, botones a la derecha, con separación visible entre botones |
+| AC-09 | Los tiles del resumen del plan (DESCRIPCIÓN, FECHA, HORA, VISIBILIDAD, ADMINISTRADOR, CÓDIGO) muestran separación entre sí (vertical y horizontal); ningún tile toca al siguiente |
+| AC-10 | La visibilidad del plan en "Editar plan" se maneja con un switch estilo iOS con la paleta de la marca, que muestra el estado actual (Privado/Público) con un label claro al lado |
+| AC-11 | La página de edición muestra padding inferior suficiente: al scrollear hasta el final, la última sección no toca el borde inferior de la ventana |
+| AC-12 | Cada card de lugar del itinerario muestra un ícono de drag & drop (handle) en su borde izquierdo cuando el usuario puede editar el plan; sin permiso de edición el ícono no aparece |
+| AC-13 | El botón "Clonar plan" solo se muestra a participantes que no son administradores: un plan recién clonado (donde el clonador quedó como administrador) no vuelve a mostrar el botón |
+| AC-14 | La cabecera del plan lleva un banner con imagen por defecto detrás del título, sin taparlo ni solaparse con el contenido; subir/cambiar/quitar la imagen queda fuera de esta spec (card [IMG] aparte) |
 
 ## Escenarios de Test
 
 Es una spec de diseño: no hay lógica nueva, así que no hay clases de test U/I/S nuevas. La
-verificación es por inspección visual más la puerta completa:
+verificación es por inspección visual más la puerta completa (excepción: el AC-13 introduce una
+condición de template — quién ve "Clonar plan" — verificada por inspección con los tres estados
+de sesión; sigue sin tocar backend).
 
 ### Checks visuales (V-XX, manuales o asistidos por los E2E existentes)
 
@@ -58,6 +67,13 @@ verificación es por inspección visual más la puerta completa:
 | V-05 | Tag "Público" del hero: SVG dentro del tag | AC-05 |
 | V-06 | Navbar: `getComputedStyle(nav).position == "sticky"`, scrolleando la landing y `/plans`; skip-link sigue operable con teclado | AC-06 |
 | V-07 | Logo en navbar y favicon: la P se lee más vecina a la tipografía del sitio que al vector actual | AC-07 |
+| V-08 | Header de `/plans/{id}`: título y botones en la misma fila; hay gap calculado entre "Eliminar plan" y "Clonar plan" (no se tocan) | AC-08 |
+| V-09 | Tiles del resumen del plan: distancia visible entre todos, sin superposición de bordes redondeados | AC-09 |
+| V-10 | Switch de visibilidad renderiza en 375px y 1280px; al alternarlo cambia el knob y el label Privado/Público | AC-10 |
+| V-11 | Scrolleando al final de `/plans/{id}`, la última sección deja padding visible respecto al borde inferior de la ventana | AC-11 |
+| V-12 | Handle de drag visible en el borde izquierdo de cada card de lugar con `canEditPlan`; invisible para un usuario sin permiso de edición | AC-12 |
+| V-13 | Como ADMINISTRADOR del plan no se ve "Clonar plan"; como participante no-admin sí; tras clonar un plan público, la página del clon (redirect) tampoco lo muestra | AC-13 |
+| V-14 | Banner con imagen por defecto detrás del título del plan; el título mantiene contraste y no se solapa con el contenido | AC-14 |
 
 Los tres estados de sesión (anónimo, USER, ADMIN) en dos anchos (375px y 1280px).
 
@@ -108,6 +124,29 @@ El cierre de la card es el gate completo en verde con los counts escritos en el 
   con la misma lista de utilidades Tailwind pegada string por string. Se declara como una clase
   propia (`.btn-cta`, dueño: `brand.css`) y se reusa; el navbar usa la misma clase para sus botones
   primarios.
+- **La fila de botones de la edit page baja a la cabecera (AC-08).** Hoy "Eliminar plan" y
+  "Clonar plan" viven solos en una fila entera (y se tocan entre sí). La fila única del header
+  (título a la izquierda, botones a la derecha con `gap` declarado) devuelve una franja de alto
+  y despeja el layout. "Salir del plan" (participante no-admin) ocupa el mismo lugar, es la
+  misma ranura de "acciones destructivas".
+- **Los tiles del resumen no se tocan (AC-09).** Los `.col-*  bg-light p-3 rounded` del summary
+  quedan apilados sin margen vertical visible: con las esquinas redondeadas y el fondo distinto
+  del padre, la costura se nota. La corrección es de gutter/spacing del grid del summary, no un
+  restyle de cada tile.
+- **Switch de visibilidad, no checkbox suelta (AC-10).** Para reemplazar el
+  `.form-check` de "Hacer público este plan" se usa un `<input type="checkbox" class="form-switch">`
+  (nativo, accesible, cero JS) con los colores de marca: el knob/tramo activo sale del
+  `--primary`, inactivo de los grises del sistema. El label de al lado siempre nombra el estado
+  resultante (Privado/Público) para que la lectura no dependa del color.
+- **El momento de clonar se agota en la primera vez (AC-13).** El único toque "funcional" de la
+  ronda nueva: el botón "Clonar plan" sale con una condición de template (visible solo a
+  participantes no-administradores). Tras clonar un plan público el clonador queda como
+  administrador del clon, así que la edit page del clon ya no lo ofrece: se rompe el loop
+  "clonar el clon" sin campos nuevos ni tracking. Sin backend ni migraciones.
+- **Banner de imagen: slot hoy, contenido después (AC-14).** La cabecerá del plan lleva una
+  banda con imagen por defecto detrás del título (overlay con los tokens de marca para que el
+  texto respire). Subir/cambiar/quitar la imagen exige un campo `image` en Plan, migración y
+  storage: eso es otra card ([IMG]) y no entra aquí; el AC deja el slot listo.
 
 ## Referencia de Implementacion
 
@@ -199,12 +238,14 @@ están: solo cambia el glyph de la letra.
 | Archivo | Accion |
 |---------|--------|
 | `templates/components/place-card.html` | Crear (fragmento de card de lugar compartido) |
-| `resources/css/brand.css` | Actualizar (`.place-card`, `.btn-cta`, indicador del FAQ) |
+| `resources/css/brand.css` | Actualizar (`.place-card`, `.btn-cta`, indicador del FAQ, estilos del switch de visibilidad y del banner del plan para AC-08..AC-14) |
 | `templates/pages/landing.html` | Actualizar (hero usa el fragmento, CTAs con `.btn-cta`, FAQ con indicador CSS, sin `<style>` de card propio en el hero) |
-| `templates/pages/plans/detail.html` | Actualizar (`.itinerary-stop` pasa a consumir `.place-card` de `brand.css`) |
+| `templates/pages/plans/detail.html` | Actualizar (AC-01: `.itinerary-stop` pasa a consumir `.place-card`; AC-08: header título+botones en una fila con `gap`; AC-09: gutter del summary; AC-10: switch de visibilidad; AC-11: padding inferior; AC-12: handle de drag en cada card; AC-13: condición de "Clonar plan"; AC-14: banner con imagen por defecto) |
 | `templates/components/navbar.html` | Actualizar (sticky; botones con `.btn-cta`) |
 | `resources/core/js/lucide.min.js` | Actualizar (regenerar con los iconos faltantes, si se elige el camino (a)) |
 | `resources/images/logo.svg` | Actualizar (P re-traceada) |
 
 No se tocan: controladores, servicios, repos, SecurityConfig, datos de semilla, tests de
-cualquier capa.
+cualquier capa. La única expresión no-puramente-visual de la ronda AC-08..AC-14 es la
+condición del AC-13 en el template; los íconos que sobran (handle de drag) salen del set
+de íconos ya cargado en la página.
