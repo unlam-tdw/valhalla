@@ -11,10 +11,10 @@
 ## Objetivo
 
 Que un usuario tenga una cuenta completa, visible y compartible. Hoy el recorrido entero es: se
-registra con email y password, entra, crea planes, y no puede hacer nada más con su cuenta. No
-tiene nombre — `/auth/register` solo pide email y password, pero `User` ya tiene
-`firstName`/`lastName` y `plans/detail.html:38` los renderiza, así que salen siempre en null. No
-tiene perfil: `UserController` es 100% `/admin/users/**`, no existe `/profile` en el área de
+registra con email, password y nombre (el `register.html` ya colecta `firstName`/`lastName`),
+entra, crea planes, y no puede hacer nada más con su cuenta. No tiene perfil: los nombres solo
+salen renderizados en el detalle de planes (`plans/detail.html` lista participantes) sin poder
+verlos ni editarlos, y sin null-check consistente. No existe `/profile` en el área de
 usuario. Y nunca cambia su contraseña: `UserService.rotatePassword(id)` solo se dispara desde el
 panel admin o desde la recuperación con password temporal.
 
@@ -78,6 +78,10 @@ link-sharing de metadata (card `[META]`) a futuro.
 | AC-19 | El perfil propio contiene secciones placeholder no interactivas dentro de la página: Guardados (`#bookmarks`), Seguidores (`#follow`) y Tema (`#theme`) — ancladas y listas para activar |
 | AC-20 | `GET /profile/{id}` con id inexistente → 404 |
 | AC-21 | La preferencia de tema persiste por usuario: anónimo en `localStorage["planit-theme"]` (mecanismo de [THEME]); autenticado sobre el usuario (`themePreference`) y se recupera al loguearse en cualquier dispositivo. El toggle provisional standalone del navbar desaparece cuando la entrada "Tema" del modal entra (PROF-010) |
+| AC-22 | Todo nombre de usuario en vistas de planes es un link a `/profile/{id}`: autor en la lista pública (`public-list.html`) y la ficha pública (`public.html`); en el detalle interno (`detail.html`) el administrador deja de mostrarse por email y pasa a nombre + link, y los participantes también son clickeables. Las vistas admin no cambian |
+| AC-23 | El registro acepta un avatar opcional: picker de los 3 defaults + URL propia; sin elección el usuario entra con el avatar de iniciales |
+| AC-24 | El perfil de edición permite elegir avatar: botón editar sobre el avatar actual abre el picker (3 avatars incluidos + URL propia); vacío = iniciales |
+| AC-25 | `avatarUrl` valida: solo acepta `https://…` o paths `/images/avatars/…`; rechaza otros esquemas (`javascript:`, `data:`, etc.) en registro y perfil |
 
 **Fuera de alcance (explícito),** de esta spec: cambio de email (no se permite como producto),
 borrado de cuenta (será card propia), upload de avatar como archivo (card propia cuando exista
@@ -133,6 +137,12 @@ infra de upload).
 | I-19 | El navbar renderiza el modal con sus entradas y sus estados (activas / pronto) | AC-17, AC-18 |
 | I-20 | `GET` anónimo del navbar: el modal muestra Iniciar sesión, Registrarse y Tema — y ninguna entrada del perfil | AC-17 |
 | I-21 | `POST /profile/theme` del usuario autenticado persiste `themePreference` | AC-21 |
+| I-22 | La lista pública muestra el autor como link a `/profile/{id}` con el id correcto | AC-22 |
+| I-23 | La ficha pública muestra el administrador como link a `/profile/{id}` | AC-22 |
+| I-24 | `GET /plans/{id}` interno muestra el administrador por nombre, no por email, y liga a su `/profile/{id}` | AC-22 |
+| I-25 | Los participantes en `detail.html` son links al perfil respectivo | AC-22 |
+| I-26 | El registro con avatar default o URL propia lo persiste en el alta | AC-23 |
+| I-27 | `POST /profile` y el registro rechazan `avatarUrl` con esquemas prohibidos y aceptan `https://…` / `/images/avatars/…` | AC-25 |
 
 ### Tests de Seguridad (`integration/ProfileSecurityTest.java`)
 
@@ -155,6 +165,7 @@ infra de upload).
 | E-03 | `ProfileViewE2E` | Login (USER) → click avatar → modal con sus entradas e iconos; "Guardados"/"Siguiendo" disabled y NO navegan; "Ver perfil" lleva a `/profile/{id}`; Log Out (rojo) cierra sesión | AC-17, AC-18 |
 | E-04 | `ProfileViewE2E` | Login → completar avatar URL → el avatar se renderiza; dejarlo vacío → vuelve el avatar de iniciales | AC-16 |
 | E-05 | `ProfileViewE2E` | Anónimo: cambiar tema desde el modal → persiste tras reload (localStorage). Login: cambiar tema → logout → login en otra página → la preferencia sobrevive (`themePreference`) | AC-21 |
+| E-06 | `ProfileViewE2E` | Login → editar avatar → elegir uno default → se renderiza en navbar y perfil; elegir "URL propia" → se renderiza; vacío → vuelve el avatar de iniciales | AC-24, AC-16 |
 
 > Nota E2E: los helpers del navbar cuentan `body > nav a, body > nav button`. El avatar pasa de
 > `<span>` a `<button>` (abre el modal) y el anónimo gana un `<button>` de menú como trigger,
@@ -183,10 +194,22 @@ infra de upload).
   invalida la sesión actual: si lo hiciera, el `POST` devolvería 302 a `/auth/login` y el usuario
   perdería lo que estaba escribiendo. E-02 verifica el flujo completo (cambio → logout → login con
   la nueva) justamente para que el cambio de contraseña sea observable desde el navegador.
-- **Avatar = URL, no archivo.** No hay `MultipartFile` en el proyecto: las imágenes hoy son
-  strings (`Place.imageUrl`, covers `/images/plans/cover-N.svg`). El avatar sigue el mismo patrón:
-  `avatarUrl` nullable en `User`, campo opcional en el form, fallback al componente de iniciales.
+- **Avatar = URL incluida o propia, con picker.** No hay `MultipartFile` en el proyecto: las
+  imágenes hoy son strings (`Place.imageUrl`, covers `/images/plans/cover-N.svg`). El avatar sigue
+  el mismo patrón: `avatarUrl` nullable en `User`, con la diferencia de que aquí viene de un
+  **picker**: 3 avatars incluidos con la app (`/images/avatars/avatar-1..3.svg`, SVGs de marca
+  estilo los covers de plan, commitados en el repo) más la opción de URL propia. El mismo partial
+  de picker se reusa en registro (donde el form ya colecta `firstName`/`lastName`) y en la edición
+  de perfil. Validación en todo punto de escritura: `https://…` o `/images/avatars/…`; esquemas
+  `javascript:`/`data:` rechazados (el perfil es público, el URL se inyecta en `<img>` — la
+  validez estricta es la defensa). Fallback al componente de iniciales cuando queda vacío.
   El upload real (storage, validación MIME, cleanup) será card propia.
+- **El email del administrador deja de ser identidad visible en `detail.html`.** Hoy
+  `plans/detail.html:254` muestra el email del admin; pasa a nombre + link al perfil
+  (AC-22), como ya hacen las vistas públicas. Los DTOs de esas vistas llevan hoy
+  `administratorName` sin id: se agrega `administratorId` (y cuando aplique
+  `participantIds`/`participant.id`) para evitar pasar el `User` entero a la vista. La
+  superficie `/admin/users` no se toca: no es pública.
 - **El modal es el menú global del sitio, no solo la caja del perfil.** Click en el avatar
   (autenticado) o en el botón de menú (anónimo) abre un panel con entradas según sesión. El
   autenticado ve: header (iniciales + nombre), Ver perfil, Cambiar contraseña, Guardados
@@ -332,9 +355,23 @@ public class ProfileController {
 | `templates/pages/profile/view.html` | Vista pública: header (avatar/iniciales + nombre + contador placeholder), grilla/lista de `PublicProfileView.plans` reutilizando los patrones de `plans/public-list.html` |
 | `templates/components/navbar.html` | El avatar pasa de `<span>` a `<button>` que abre el modal (autenticado); el anónimo gana un `<button>` de menú como trigger. Modal con dos variantes: autenticado — header (iniciales + nombre), Ver perfil → `/profile/{id}`, Cambiar contraseña, Guardados y Siguiendo **deshabilitados con badge "Pronto"**, Tema (PROF-010, tras merge de [THEME]), Cerrar sesión (roja) con ruta por rol + CSRF; anónimo — Iniciar sesión, Registrarse, Tema. El toggle standalone de [THEME] desaparece de ambos bloques cuando la entrada "Tema" entra (PROF-010). Cierre con Esc/click afuera, `aria-expanded` |
 | `templates/layouts/base.html` | PROF-011: `data-theme` server-side para autenticados (la `themePreference` del usuario gana sobre `localStorage["planit-theme"]`; null → localStorage/sistema como hoy). Sin flash de tema incorrecto |
+| `templates/components/avatar-picker.html` | Partial compartido del picker: el avatar actual (o iniciales), botón "editar" que abre la grilla de los 3 defaults + campo "URL propia". Reusado en `register.html` y `profile/edit.html` |
+| `templates/pages/auth/user/register.html` | Agrega el partial del picker (campo opcional) — el form ya colecta nombre/apellido, no re-diseña el alta |
+| `templates/pages/plans/public-list.html` | "Por {administratorName}" como link a `/profile/{administratorId}` |
+| `templates/pages/plans/public.html` | El nombre del administrador como link, igual criterio |
+| `templates/pages/plans/detail.html` | El administrador pasa de email a nombre + link (línea 254); participantes (`línea 290`) como links a sus perfiles |
 
-`plans/detail.html:38` ya renderiza `firstName`/`lastName`: no se toca, solo se verifica que
-dejen de salir en null (I-10).
+### 5. Avatars incluidos
+
+`src/main/webapp/resources/images/avatars/avatar-1.svg .. avatar-3.svg` — SVGs simples producidos
+con la paleta de marca (`brand.css`: primary/secondary), misma mecánica que los covers
+(`/images/plans/cover-N.svg` vía `PlanFeedCards`). Sirve el resource handler `/images/**` que ya
+existe; sin nuevo config. El picker los referencia como paths absolutos, así el valor persistido
+en `avatarUrl` es estable ante cambios de dominio.
+
+El detalle de planes ya renderiza `firstName`/`lastName` de los participantes (y ahora muestra al
+administrador por nombre con link al perfil): no se re-plantea, solo se verifica que dejen de
+salir en null (I-10).
 
 ## Archivos a crear/modificar
 
@@ -351,4 +388,9 @@ dejen de salir en null (I-10).
 | `templates/pages/profile/change-password.html` | Crear |
 | `templates/components/navbar.html` | Actualizar (avatar → button + menú modal de dos variantes) |
 | `templates/layouts/base.html` | Actualizar (PROF-011: resolución server-side de `data-theme` para autenticados) |
+| `templates/components/avatar-picker.html` | Crear (partial del picker, reusado en registro y perfil) |
+| `templates/pages/auth/user/register.html` + su form/controller | Actualizar (campo opcional `avatarUrl` con validación AC-25) |
+| `resources/images/avatars/avatar-1..3.svg` | Crear (avatars default de marca) |
+| `templates/pages/plans/{public-list,public,detail}.html` | Actualizar (links a `/profile/{id}`; detail: email → nombre) |
+| DTOs de plan (cards/view) con `administratorName` | Actualizar (exponer `administratorId` para armar los links) |
 | helpers E2E de navbar | Actualizar (conteo `nav a, nav button` con el avatar y el trigger anónimo ahora buttons) |
