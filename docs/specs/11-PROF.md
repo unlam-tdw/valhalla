@@ -3,6 +3,10 @@
 > Trello: https://trello.com/c/h1q9vG7N — card `[PROF] Perfil de usuario` (lista IN PROGRESS)
 > **Estimación:** 8 pts Fibonacci
 > **Branch:** `11-PROF` (desde `main`)
+> **v2.1:** el menú del navbar pasa a ser global (sesión anonima y autenticada) y aloja el toggle
+> de tema; la preferencia de tema persiste por usuario (localStorage anónimos, server-side
+> autenticados). Llega escalonada: PROF-009 (modal sin tema) y PROF-010/011 (tema, tras el merge
+> de [THEME]).
 
 ## Objetivo
 
@@ -22,6 +26,12 @@ Esta spec tiene dos superficies:
 2. **Vista pública del perfil de otro usuario** (`/profile/{id}` ajeno): read-only, sin datos
    privados (email/rol), con los planes públicos del dueño.
 
+Además, el menú del navbar pasa a ser la caja de entrada del sitio: **modal global** con variantes
+por sesión (autenticado: perfil, cambio de contraseña, Guardados/Siguiendo "pronto", Tema, Log
+Out rojo; anónimo: login/register, Tema) y la **preferencia de tema** persiste por usuario:
+localStorage para anónimos (mecanismo de [THEME]), `themePreference` en el usuario para
+autenticados.
+
 `GET /profile` redirige al propio `/profile/{id}`: la URL canónica siempre lleva el id, así que el
 perfil es compartible desde la barra de direcciones sin ningún botón extra, y deja listo el
 link-sharing de metadata (card `[META]`) a futuro.
@@ -36,7 +46,11 @@ link-sharing de metadata (card `[META]`) a futuro.
   default: sin sesión redirige a `/auth/login`.
 - No hay infraestructura de upload en el proyecto (cero `MultipartFile`): el avatar es **URL-based**
   (patrón `Place.imageUrl`), no archivo subido. El upload real será su propia card a futuro.
-- `[THEME]`, `[MARK]` y `[FOLLOW]` no son bloqueantes: sus secciones entran como placeholders no
+- `[THEME]` vive en rama propia (`origin/THEME+Correciones-de-Explore`): persiste la elección en
+  `localStorage["planit-theme"]` y deja un toggle standalone (`button[data-theme-toggle]`) en cada
+  bloque del navbar (autenticado y anónimo). No bloquea el modal (PROF-009), pero sí la entrada
+  "Tema" del modal y la persistencia server-side (PROF-010/011), que entran una vez mergeado.
+- `[MARK]` y `[FOLLOW]` no son bloqueantes: sus secciones entran como placeholders no
   interactivos y se activan en las cards de cada feature.
 
 ## Criterios de Aceptacion
@@ -59,10 +73,11 @@ link-sharing de metadata (card `[META]`) a futuro.
 | AC-14 | `GET /profile/{id}` sobre el PROPIO id muestra la superficie de edición del propio perfil (form de nombres/avatar, email read-only, rol, link a cambio de contraseña) |
 | AC-15 | La vista pública lista los planes **públicos** del dueño; los privados no aparecen |
 | AC-16 | `avatarUrl` es opcional: con valor se renderiza la imagen; vacío cae al avatar de iniciales (patrón actual) |
-| AC-17 | Click en el avatar del navbar abre un modal con iconos y cinco entradas: Ver perfil (activa), Cambiar contraseña (activa), Guardados (pronto), Siguiendo (pronto), Cerrar sesión (activa, roja) — con la ruta de logout correcta por rol (`/admin/logout` para ADMIN, `/auth/logout` para USER) |
+| AC-17 | El navbar abre un **menú modal** en ambas sesiones. Autenticado (trigger: avatar, `<button>`): Ver perfil, Cambiar contraseña, Guardados (pronto), Siguiendo (pronto), Tema (activa) y Cerrar sesión (activa, roja) con la ruta correcta por rol (`/admin/logout` para ADMIN, `/auth/logout` para USER). Anónimo (trigger: botón de menú que reemplaza al toggle standalone): Iniciar sesión, Registrarse, Tema (activa) |
 | AC-18 | Las entradas "pronto" (Guardados, Siguiendo) se renderizan deshabilitadas con etiqueta "Pronto", sin `<a>`/`<button>` navegables — no navegan hasta que su feature (MARK/FOLLOW) aterrice |
 | AC-19 | El perfil propio contiene secciones placeholder no interactivas dentro de la página: Guardados (`#bookmarks`), Seguidores (`#follow`) y Tema (`#theme`) — ancladas y listas para activar |
 | AC-20 | `GET /profile/{id}` con id inexistente → 404 |
+| AC-21 | La preferencia de tema persiste por usuario: anónimo en `localStorage["planit-theme"]` (mecanismo de [THEME]); autenticado sobre el usuario (`themePreference`) y se recupera al loguearse en cualquier dispositivo. El toggle provisional standalone del navbar desaparece cuando la entrada "Tema" del modal entra (PROF-010) |
 
 **Fuera de alcance (explícito),** de esta spec: cambio de email (no se permite como producto),
 borrado de cuenta (será card propia), upload de avatar como archivo (card propia cuando exista
@@ -80,6 +95,7 @@ infra de upload).
 | U-04 | `User.changePassword()` no guarda la contraseña en claro | AC-09 |
 | U-05 | `updateProfile()` guarda `avatarUrl` cuando viene con valor | AC-16 |
 | U-06 | `updateProfile()` con `avatarUrl` vacío la deja en null (fallback iniciales) | AC-16 |
+| U-12 | `User.setThemePreference()` acepta los valores válidos y es null-safe (null → el front cae a localStorage/sistema) | AC-21 |
 
 ### Tests Unitarios (`infrastructure/user/UserServiceTest.java`)
 
@@ -90,6 +106,7 @@ infra de upload).
 | U-09 | `changePassword(id, wrongCurrent, nueva)` rechaza y no escribe | AC-07 |
 | U-10 | `changePassword(id, current, nueva)` con `current` correcta persiste el hash nuevo | AC-08, AC-09 |
 | U-11 | `changePassword(id, current, nueva)` con confirmación distinta rechaza | AC-08 |
+| U-13 | `updateThemePreference(id, pref)` con id existente persiste la preferencia | AC-21 |
 
 ### Tests de Integracion (`integration/ProfileControllerIntegrationTest.java`)
 
@@ -113,7 +130,9 @@ infra de upload).
 | I-16 | `POST /profile` con `avatarUrl` válido → el usuario lo guarda | AC-16 |
 | I-17 | `POST /profile` con `avatarUrl` vacío → null; el perfil cae al fallback de iniciales | AC-16 |
 | I-18 | El perfil PROPIO renderiza las secciones placeholder con sus anclas (`#bookmarks`, `#follow`, `#theme`) | AC-19 |
-| I-19 | El navbar renderiza el modal con sus 5 entradas y sus estados (activas / pronto) | AC-17, AC-18 |
+| I-19 | El navbar renderiza el modal con sus entradas y sus estados (activas / pronto) | AC-17, AC-18 |
+| I-20 | `GET` anónimo del navbar: el modal muestra Iniciar sesión, Registrarse y Tema — y ninguna entrada del perfil | AC-17 |
+| I-21 | `POST /profile/theme` del usuario autenticado persiste `themePreference` | AC-21 |
 
 ### Tests de Seguridad (`integration/ProfileSecurityTest.java`)
 
@@ -125,6 +144,7 @@ infra de upload).
 | S-04 | `GET /profile/{idAjeno}` con sesión USER nunca contiene el email/rol de ese usuario (ni el texto del form de edición) | AC-13 |
 | S-05 | `GET /profile` y `GET /profile/{id}` sin sesión → redirect a `/auth/login` (default chain) | AC-05, AC-12 |
 | S-06 | No hay endpoint de escritura con id ajeno: `POST` sobre `/profile/{idAjeno}` no existe como superficie (405/404) | AC-04 |
+| S-07 | `POST /profile/theme` sin token CSRF → 403 | AC-21 |
 
 ### E2E (minimos)
 
@@ -132,12 +152,14 @@ infra de upload).
 |---|------|-------|-------------|
 | E-01 | `ProfileViewE2E` | Login → modal del navbar → "Ver perfil" → completar nombre → guardar → el nombre aparece en `/plans/{id}` | AC-01, AC-02, AC-10, AC-11 |
 | E-02 | `ProfileViewE2E` | Login → cambiar contraseña con la actual incorrecta → error; con la correcta → logout → login con la nueva | AC-07, AC-08, AC-09 |
-| E-03 | `ProfileViewE2E` | Login (USER) → click avatar → modal con 5 entradas e iconos; "Guardados"/"Siguiendo" disabled y NO navegan; "Ver perfil" lleva a `/profile/{id}`; Log Out (rojo) cierra sesión | AC-17, AC-18 |
+| E-03 | `ProfileViewE2E` | Login (USER) → click avatar → modal con sus entradas e iconos; "Guardados"/"Siguiendo" disabled y NO navegan; "Ver perfil" lleva a `/profile/{id}`; Log Out (rojo) cierra sesión | AC-17, AC-18 |
 | E-04 | `ProfileViewE2E` | Login → completar avatar URL → el avatar se renderiza; dejarlo vacío → vuelve el avatar de iniciales | AC-16 |
+| E-05 | `ProfileViewE2E` | Anónimo: cambiar tema desde el modal → persiste tras reload (localStorage). Login: cambiar tema → logout → login en otra página → la preferencia sobrevive (`themePreference`) | AC-21 |
 
 > Nota E2E: los helpers del navbar cuentan `body > nav a, body > nav button`. El avatar pasa de
-> `<span>` a `<button>` (abre el modal), así que esos helpers y/o los items del navbar
-> pueden cambiar: actualizar los helpers E2E está EN esta spec, no es un ajuste aparte. El modal
+> `<span>` a `<button>` (abre el modal) y el anónimo gana un `<button>` de menú como trigger,
+> así que esos helpers y/o los items del navbar pueden cambiar: actualizar los helpers E2E está
+> EN esta spec, no es un ajuste aparte. El modal
 > permanece oculto (sin marcado navegable) hasta abrirse, para no inflar el conteo por defecto.
 
 ## Notas / decisiones de diseño
@@ -165,17 +187,31 @@ infra de upload).
   strings (`Place.imageUrl`, covers `/images/plans/cover-N.svg`). El avatar sigue el mismo patrón:
   `avatarUrl` nullable en `User`, campo opcional en el form, fallback al componente de iniciales.
   El upload real (storage, validación MIME, cleanup) será card propia.
-- **El modal es la caja del perfil.** Click en el avatar abre un panel con: header (iniciales +
-  nombre), Ver perfil, Cambiar contraseña, Guardados (pronto), Siguiendo (pronto), Cerrar sesión
-  (roja). Las entradas pronto son deshabilitadas visibles — "no interactivo hasta que la feature
-  existe", no ocultas: anuncian el roadmap y mantienen el layout estable. Los anchors
+- **El modal es el menú global del sitio, no solo la caja del perfil.** Click en el avatar
+  (autenticado) o en el botón de menú (anónimo) abre un panel con entradas según sesión. El
+  autenticado ve: header (iniciales + nombre), Ver perfil, Cambiar contraseña, Guardados
+  (pronto), Siguiendo (pronto), Tema y Cerrar sesión (roja). El anónimo ve: Iniciar sesión,
+  Registrarse, Tema. Las entradas pronto son deshabilitadas visibles — "no interactivo hasta que
+  la feature existe", no ocultas: anuncian el roadmap y mantienen el layout estable. Los anchors
   `#bookmarks` / `#follow` ya existen en la vista propia desde v2, de modo que activar MARK/FOLLOW
   es un cambio de una línea en el href. Implementación mínima (JS vanilla embebido o `<details>`),
   accesible: `aria-expanded`, cierre con Esc y click-afuera.
 - **Secciones placeholder en el perfil propio:** Guardados (`#bookmarks`), Seguidores/Siguiendo
-  (`#follow`) y Tema (`#theme`) con copy "a futuro"; el toggle del tema NO va al modal — cuando
-  `[THEME]` se mergea, su setting de navbar se infla acá (ver card THEME). Los placeholders son
-  estáticos y no agregan lógica de dominio en esta iteración.
+  (`#follow`) y Tema (`#theme`) con copy "a futuro"; los placeholders son la casa de estos
+  settings, y el modal es el acceso rápido a cada uno. Los placeholders distribuyen quién es OWNER
+  final de cada archivo: PROF no compite con THEME/MARK/FOLLOW por los mismos archivos más
+  adelante.
+- **El toggle de tema entra al modal escalonado y persiste por sesión.** Etapa 1 (PROF-009): el
+  modal sin entrada de tema, el toggle provisorio de [THEME] sigue de pie. Etapa 2 (PROF-010, tras
+  el merge de [THEME]): la entrada "Tema" entra al modal para las dos sesiones, y el toggle
+  standalone del navbar desaparece. Persistencia: anónimos siguen en
+  `localStorage["planit-theme"]` (mecanismo de [THEME], sin backend); autenticados persisten en
+  su usuario (`themePreference` en `User`, columna nueva — sin capa de migración en el proyecto:
+  JPA auto-DDL + reset de schema si hace falta, avisando en la card como pide la convención) y
+  esa preferencia gana sobre el localStorage al renderizar (la página pintaría con la preferencia
+  del usuario antes de la primera animación de carga, resolviendo el `data-theme` server-side con
+  fallback al valor previo guardado). Con `themePreference` vacía, el autenticado cae al
+  localStorage/sistema, como hoy.
 - **El gate de JaCoCo no deja margen.** La regla de `pom.xml` pone
   `com.valhalla.domain.*` **y** `com.valhalla.presentation.*` al **100%** de LINE COVEREDRATIO a
   nivel `PACKAGE`. `User` está excluida por nombre PERO los métodos nuevos que se agreguen sí
@@ -195,7 +231,8 @@ infra de upload).
 
 File: `src/main/java/com/valhalla/domain/user/User.java`
 
-`User` ya tiene `firstName` y `lastName`; agrega `avatarUrl` (nullable) y los métodos de
+`User` ya tiene `firstName` y `lastName`; agrega `avatarUrl` (nullable), `themePreference`
+(nullable hasta PROF-011) y los métodos de
 actualización y cambio de contraseña. Importante: `User.java` está en los `<excludes>` de JaCoCo,
 pero **sí** los métodos que se agreguen — si el método nuevo tiene líneas, tiene test.
 
@@ -221,6 +258,8 @@ File: `src/main/java/com/valhalla/infrastructure/user/UserService.java` (interfa
 - `changePassword(Long id, String currentRaw, String newRaw)` — busca, compara con
   `passwordEncoder.matches(currentRaw, user.getPassword())`; si no coincide, devuelve error **sin
   escribir**; si coincide, `user.changePassword(newRaw, passwordEncoder)` y `save`.
+- `updateThemePreference(Long id, String pref)` (PROF-011) — busca, setea `themePreference` y
+  guarda; solo valores del enum del tema.
 
 El encoder es el mismo bean inyectado que usa `LoginService`. `UserService.rotatePassword(id)` se
 queda como está: lo usan el panel admin y la recuperación de [AUT].
@@ -267,6 +306,13 @@ public class ProfileController {
     public String changePassword(@AuthenticationPrincipal AppUserDetails me,
                                  @Valid @ModelAttribute("passwordForm") ChangePasswordForm form,
                                  BindingResult bindingResult) { ... } // igual a v1
+
+    @PostMapping("/theme")                   // PROF-011, POST desde el modal (CSRF + sesión)
+    public String setTheme(@AuthenticationPrincipal AppUserDetails me,
+                           @RequestParam("theme") String theme) {
+        userService.updateThemePreference(me.getId(), theme);
+        return "redirect:" + currentPath;    // volver a donde estaba el usuario
+    }
 }
 ```
 
@@ -275,7 +321,8 @@ public class ProfileController {
   sesión; el path solo alimenta la vista.
 - DTO de vista pública `PublicProfileView` (nombre, iniciales/avatar, contador placeholder,
   lista de planes públicos) en el mismo paquete.
-- El mapeo `/{id:\\d+}` evita colisiones con los sub-paths existentes (`/profile/change-password`).
+- El mapeo `/{id:\\d+}` evita colisiones con los sub-paths existentes (`/profile/change-password`,
+  `/profile/theme`).
 
 ### 4. Templates
 
@@ -283,7 +330,8 @@ public class ProfileController {
 |---------|-----------|
 | `templates/pages/profile/edit.html` | Superficie propia: form de `firstName`/`lastName`/`avatarUrl` con `th:action="@{/profile}"` + CSRF, email read-only, rol, link a `/profile/change-password`, aviso `?updated=true`, `th:errors`. Debajo, secciones placeholder con anclas y copy "a futuro": Guardados (`id="bookmarks"`), Seguidores (`id="follow"`), Tema (`id="theme"`) |
 | `templates/pages/profile/view.html` | Vista pública: header (avatar/iniciales + nombre + contador placeholder), grilla/lista de `PublicProfileView.plans` reutilizando los patrones de `plans/public-list.html` |
-| `templates/components/navbar.html` | El avatar pasa de `<span>` a `<button>` que abre el modal. Modal: header (iniciales + nombre), Ver perfil → `/profile/{id}`, Cambiar contraseña, Guardados y Siguiendo **deshabilitados con badge "Pronto"**, Cerrar sesión (roja) con ruta por rol (`/admin/logout` vs `/auth/logout`) + CSRF. Cierre con Esc/click afuera, `aria-expanded` |
+| `templates/components/navbar.html` | El avatar pasa de `<span>` a `<button>` que abre el modal (autenticado); el anónimo gana un `<button>` de menú como trigger. Modal con dos variantes: autenticado — header (iniciales + nombre), Ver perfil → `/profile/{id}`, Cambiar contraseña, Guardados y Siguiendo **deshabilitados con badge "Pronto"**, Tema (PROF-010, tras merge de [THEME]), Cerrar sesión (roja) con ruta por rol + CSRF; anónimo — Iniciar sesión, Registrarse, Tema. El toggle standalone de [THEME] desaparece de ambos bloques cuando la entrada "Tema" entra (PROF-010). Cierre con Esc/click afuera, `aria-expanded` |
+| `templates/layouts/base.html` | PROF-011: `data-theme` server-side para autenticados (la `themePreference` del usuario gana sobre `localStorage["planit-theme"]`; null → localStorage/sistema como hoy). Sin flash de tema incorrecto |
 
 `plans/detail.html:38` ya renderiza `firstName`/`lastName`: no se toca, solo se verifica que
 dejen de salir en null (I-10).
@@ -293,13 +341,14 @@ dejen de salir en null (I-10).
 | Archivo | Accion |
 |---------|--------|
 | `domain/user/User.java` | Actualizar (`avatarUrl`, `updateProfile`, `changePassword`) |
-| `domain/user/UserService.java` | Actualizar (interface: `updateProfile` con avatar) |
-| `infrastructure/user/UserServiceImpl.java` | Actualizar (persistencia del nuevo campo) |
+| `domain/user/UserService.java` | Actualizar (interface: `updateProfile` con avatar, `updateThemePreference`) |
+| `infrastructure/user/UserServiceImpl.java` | Actualizar (persistencia de `avatarUrl` y `themePreference`) |
 | `presentation/profile/ProfileController.java` | Crear (`/profile` redirect, `/{id}` dual, `POST /profile`, change-password) |
 | `presentation/profile/ProfileForm.java`, `ChangePasswordForm.java`, `PublicProfileView.java` | Crear (DTOs) |
 | `presentation/shared/` o `domain/plan/` | Consulta de planes públicos por owner (según dónde viva hoy la query de planes) |
 | `templates/pages/profile/edit.html` | Crear (superficie propia + placeholders) |
 | `templates/pages/profile/view.html` | Crear (vista pública + planes públicos) |
 | `templates/pages/profile/change-password.html` | Crear |
-| `templates/components/navbar.html` | Actualizar (avatar → button + modal con 5 entradas) |
-| helpers E2E de navbar | Actualizar (conteo `nav a, nav button` con el avatar ahora button) |
+| `templates/components/navbar.html` | Actualizar (avatar → button + menú modal de dos variantes) |
+| `templates/layouts/base.html` | Actualizar (PROF-011: resolución server-side de `data-theme` para autenticados) |
+| helpers E2E de navbar | Actualizar (conteo `nav a, nav button` con el avatar y el trigger anónimo ahora buttons) |
