@@ -57,10 +57,6 @@ public class RegisterRequest {
     return confirmPassword;
   }
 
-  public void setConfirmPassword(String confirmPassword) {
-    this.confirmPassword = confirmPassword;
-  }
-
   public String getAvatarUrl() {
     return avatarUrl;
   }

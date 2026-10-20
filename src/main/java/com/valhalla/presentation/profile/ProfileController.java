@@ -6,6 +6,7 @@ import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserService;
 import com.valhalla.presentation.plan.PlanFeedCards;
+import com.valhalla.presentation.shared.AvatarUrlPolicy;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -108,6 +109,11 @@ public class ProfileController {
     if (bindingResult.hasErrors()) {
       // Re-rende el editor con los errores de campo (AC-03): el form ya trae lo tipeado,
       // el owner viaja para que el header del edit.html siga completo.
+      return new ModelAndView(VIEW_EDIT, editModel(me, form));
+    }
+    if (!AvatarUrlPolicy.isValid(form.getAvatarUrl())) {
+      // AC-25: solo https:// o la galeria /images/avatars — corta javascript:/data:/http.
+      bindingResult.rejectValue("avatarUrl", null, AvatarUrlPolicy.REJECT_MESSAGE);
       return new ModelAndView(VIEW_EDIT, editModel(me, form));
     }
     userService.updateProfile(
