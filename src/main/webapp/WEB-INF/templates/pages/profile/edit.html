@@ -18,7 +18,7 @@
            input por el partial components/avatar-picker. -->
       <div class="rounded-lg bg-white p-8 shadow-md">
         <div class="flex items-center gap-4">
-          <img th:if="${owner.avatarUrl != null}" th:src="@{__${owner.avatarUrl}__}" alt="Avatar"
+          <img th:if="${owner.avatarUrl != null}" th:src="${owner.avatarUrl}" alt="Avatar"
             class="h-16 w-16 rounded-full object-cover" />
           <span th:unless="${owner.avatarUrl != null}"
             class="navbar-avatar inline-flex h-16 w-16 items-center justify-center rounded-full bg-secondary font-serif text-2xl font-bold text-black"

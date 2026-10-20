@@ -12,7 +12,7 @@
 
       <div class="rounded-lg bg-white p-8 shadow-md">
         <div class="flex items-center gap-4">
-          <img th:if="${profileAvatarUrl != null}" th:src="@{__${profileAvatarUrl}__}" alt="Avatar"
+          <img th:if="${profileAvatarUrl != null}" th:src="${profileAvatarUrl}" alt="Avatar"
             class="h-16 w-16 rounded-full object-cover" />
           <span th:unless="${profileAvatarUrl != null}"
             class="navbar-avatar inline-flex h-16 w-16 items-center justify-center rounded-full bg-secondary font-serif text-2xl font-bold text-black"

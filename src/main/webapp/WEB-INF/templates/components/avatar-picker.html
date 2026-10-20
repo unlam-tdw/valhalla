@@ -39,7 +39,7 @@
          renderizable (https o galeria): el server igualmente valida (AC-25). -->
     <img id="avatar-preview" alt="Preview del avatar"
       th:if="${currentValue != null and !#strings.trim(currentValue).isEmpty()}"
-      th:src="@{__${currentValue}__}"
+      th:src="${currentValue}"
       class="avatar-preview h-14 w-14 rounded-full object-cover ring-2 ring-gray-200" />
   </div>
 
