@@ -21,9 +21,16 @@ The same removal permissions apply to bans.
 A banned User cannot access the Plan detail, public view or itinerary, clone the
 Plan, or regain participation through its Short Code or an invitation. The ban
 overrides public visibility for that authenticated User. My Plans displays a
-persistent notice with only the Plan name and the access restriction; discovery
+persistent, collapsed sidebar notice below invitations with only the Plan name
+and the access restriction; discovery
 feeds exclude Plans that banned the current User. Anonymous visitors can still
 read public Plans.
+
+The owner and Editors can inspect the Plan's banned Users and lift any ban.
+Lifting a ban does not restore participation or the Editor role. The User can
+join again using the Short Code or a new invitation. The banned Users list is
+only exposed to the owner and Editors, in a dialog opened from More options
+beside the clone and delete actions in Plan detail.
 
 **PlanManager**: Embedded component of a Plan that groups its Participants, Editors
 and pending Invitations. It preserves the existing persistence tables and the Plan's

@@ -75,6 +75,9 @@ public class PlanController {
     model.put("isPlanAdministrator", plan.isAdministrator(userEmail));
     model.put("isPlanParticipant", plan.isParticipant(userEmail));
     model.put("canInvite", userEmail != null && plan.canEdit(userEmail));
+    if (plan.canEdit(userEmail)) {
+      model.put("bannedParticipants", planService.getBannedParticipants(id, userEmail));
+    }
     model.put(
       "participants",
       Stream
@@ -239,6 +242,21 @@ public class PlanController {
     redirectAttributes.addFlashAttribute(
       "participantSuccess",
       "La persona fue baneada del plan y no podrá volver a unirse."
+    );
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
+  @PostMapping("/{id}/participants/unban")
+  public ModelAndView unbanParticipant(
+    @PathVariable UUID id,
+    @RequestParam String participantEmail,
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
+  ) {
+    planService.unbanParticipant(id, participantEmail, authentication.getName());
+    redirectAttributes.addFlashAttribute(
+      "participantSuccess",
+      "Se quitó el baneo. La persona puede volver a unirse al plan."
     );
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }

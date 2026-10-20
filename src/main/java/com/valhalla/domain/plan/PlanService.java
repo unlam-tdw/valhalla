@@ -11,6 +11,10 @@ public interface PlanService {
   Plan getEditablePlan(UUID id, String userEmail);
   void changeParticipantRole(UUID id, String participantEmail, String role, String userEmail);
   void banParticipant(UUID id, String participantEmail, String userEmail);
+  void unbanParticipant(UUID id, String participantEmail, String userEmail);
+  List<BannedParticipant> getBannedParticipants(UUID id, String userEmail);
+
+  record BannedParticipant(String email, String firstName, String lastName) {}
 
   void removeParticipant(UUID id, String participantEmail, String userEmail);
   void inviteParticipant(UUID id, String participantEmail, String role, String userEmail);

@@ -4,14 +4,18 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanInvitation;
 import com.valhalla.domain.plan.PlanRepository;
@@ -146,7 +150,7 @@ public class PlanBanSecurityTest {
       .getResponse()
       .getContentAsString(StandardCharsets.UTF_8);
     assertThat(html, containsString(PLAN_NAME));
-    assertThat(html, containsString("Fuiste baneado"));
+    assertThat(html, containsString("baneo activo para tu cuenta"));
     assertThat(html, not(containsString("/plans/" + planId)));
     for (String path : List.of("/for-you", "/api/plans/public")) {
       mvc
@@ -178,6 +182,168 @@ public class PlanBanSecurityTest {
       .andExpect(status().isForbidden());
     assertThat(plan.isParticipant(MEMBER), is(false));
     assertThat(plan.isEditor(MEMBER), is(false));
+  }
+
+  @Test
+  public void bannedParticipantsDialogIsOnlyVisibleToOwnerAndEditors() throws Exception {
+    User member = users.findByEmail(MEMBER).orElseThrow();
+    member.setFirstName("Persona");
+    member.setLastName("Baneada");
+    service.banParticipant(planId, MEMBER, OWNER);
+    entityManager.flush();
+    entityManager.clear();
+    for (String manager : List.of(OWNER, EDITOR)) {
+      mvc
+        .perform(get("/plans/{id}", planId).with(user(manager)))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("id=\"banned-participants\"")))
+        .andExpect(content().string(containsString("Persona Baneada")))
+        .andExpect(content().string(containsString("Quitar baneo a " + MEMBER)));
+    }
+    createUser("viewer.ban@test.com");
+    service.joinPlan("BAN12345", "viewer.ban@test.com");
+    for (String viewer : List.of("viewer.ban@test.com", "outsider@test.com")) {
+      mvc
+        .perform(get("/plans/{id}", planId).with(user(viewer)))
+        .andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("id=\"banned-participants\""))))
+        .andExpect(content().string(not(containsString(MEMBER))));
+      assertThrows(
+        PlanNotFoundException.class,
+        () -> service.getBannedParticipants(planId, viewer)
+      );
+    }
+    mvc
+      .perform(get("/plans/{id}/public", planId).with(user(OWNER)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(not(containsString(MEMBER))));
+  }
+
+  @Test
+  public void ownerAndEditorCanUnbanWithoutRestoringMembershipOrEditorRole() throws Exception {
+    for (String manager : List.of(OWNER, EDITOR)) {
+      Plan plan = plans.findById(planId).orElseThrow();
+      plan.setIsPublic(false);
+      plan.getEditors().add(users.findByEmail(MEMBER).orElseThrow());
+      plans.save(plan);
+      service.banParticipant(planId, MEMBER, OWNER);
+      mvc
+        .perform(
+          post("/plans/{id}/participants/unban", planId)
+            .with(user(manager))
+            .with(csrf())
+            .param("participantEmail", MEMBER)
+        )
+        .andExpect(redirectedUrl("/plans/" + planId))
+        .andExpect(flash().attributeExists("participantSuccess"));
+      entityManager.flush();
+      entityManager.clear();
+      plan = plans.findById(planId).orElseThrow();
+      assertThat(plan.isBanned(MEMBER), is(false));
+      assertThat(plan.isParticipant(MEMBER), is(false));
+      assertThat(plan.isEditor(MEMBER), is(false));
+      assertThat(service.getBannedPlans(MEMBER).isEmpty(), is(true));
+      mvc
+        .perform(get("/plans/{id}", planId).with(user(MEMBER)))
+        .andExpect(status().is3xxRedirection());
+      mvc
+        .perform(
+          post("/plans/join").with(user(MEMBER)).with(csrf()).param("shortCode", " ban12345 ")
+        )
+        .andExpect(redirectedUrl("/plans/" + planId));
+      entityManager.flush();
+      entityManager.clear();
+      plan = plans.findById(planId).orElseThrow();
+      assertThat(plan.isParticipant(MEMBER), is(true));
+      assertThat(plan.isEditor(MEMBER), is(false));
+      mvc.perform(get("/plans/{id}", planId).with(user(MEMBER))).andExpect(status().isOk());
+    }
+  }
+
+  @Test
+  public void unauthorizedUsersCannotUnbanAndCsrfIsRequired() throws Exception {
+    User viewer = createUser("viewer.ban@test.com");
+    service.joinPlan("BAN12345", viewer.getEmail());
+    service.banParticipant(planId, MEMBER, OWNER);
+    for (String actor : List.of(viewer.getEmail(), "outsider@test.com", MEMBER)) {
+      mvc
+        .perform(
+          post("/plans/{id}/participants/unban", planId)
+            .with(user(actor))
+            .with(csrf())
+            .param("participantEmail", MEMBER)
+        )
+        .andExpect(actor.equals(MEMBER) ? status().isForbidden() : status().is3xxRedirection());
+      assertThat(plans.findById(planId).orElseThrow().isBanned(MEMBER), is(true));
+    }
+    mvc
+      .perform(
+        post("/plans/{id}/participants/unban", planId)
+          .with(user(OWNER))
+          .param("participantEmail", MEMBER)
+      )
+      .andExpect(status().isForbidden());
+    mvc
+      .perform(
+        post("/plans/{id}/participants/unban", planId)
+          .with(csrf())
+          .param("participantEmail", MEMBER)
+      )
+      .andExpect(status().is3xxRedirection());
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(plans.findById(planId).orElseThrow().isBanned(MEMBER), is(true));
+  }
+
+  @Test
+  public void unbanOnlyAppliesToTheSelectedPlanAndRejectsUnknownBan() throws Exception {
+    service.banParticipant(planId, MEMBER, OWNER);
+    Plan other = new Plan();
+    other.setName("Otro plan");
+    other.setShortCode("OTHERBAN");
+    other.setAdministrator(users.findByEmail(OWNER).orElseThrow());
+    UUID otherId = plans.save(other).getId();
+    mvc
+      .perform(
+        post("/plans/{id}/participants/unban", otherId)
+          .with(user(OWNER))
+          .with(csrf())
+          .param("participantEmail", MEMBER)
+      )
+      .andExpect(redirectedUrl("/plans?error=Plan+not+found"));
+    mvc
+      .perform(
+        post("/plans/{id}/participants/unban", planId)
+          .with(user(OWNER))
+          .with(csrf())
+          .param("participantEmail", "unknown@test.com")
+      )
+      .andExpect(redirectedUrl("/plans?error=Plan+not+found"));
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(plans.findById(planId).orElseThrow().isBanned(MEMBER), is(true));
+  }
+
+  @Test
+  public void unbannedUserCanReceiveAndAcceptANewInvitation() throws Exception {
+    service.banParticipant(planId, MEMBER, OWNER);
+    service.unbanParticipant(planId, MEMBER, EDITOR);
+    service.inviteParticipant(planId, MEMBER, "guest", OWNER);
+    entityManager.flush();
+    Long invitationId = plans.findById(planId).orElseThrow().getInvitations().getFirst().getId();
+    mvc
+      .perform(
+        post("/plans/{id}/invitations/{invitationId}/respond", planId, invitationId)
+          .with(user(MEMBER))
+          .with(csrf())
+          .param("accept", "true")
+      )
+      .andExpect(redirectedUrl("/plans"));
+    entityManager.flush();
+    entityManager.clear();
+    Plan plan = plans.findById(planId).orElseThrow();
+    assertThat(plan.isBanned(MEMBER), is(false));
+    assertThat(plan.isParticipant(MEMBER), is(true));
   }
 
   private User createUser(String email) {

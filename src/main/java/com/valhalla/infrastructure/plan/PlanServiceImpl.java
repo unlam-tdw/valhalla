@@ -141,6 +141,26 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     moderateParticipant(id, participantEmail, userEmail, true);
   }
 
+  @Override
+  public void unbanParticipant(UUID id, String participantEmail, String userEmail) {
+    Plan plan = getEditablePlan(id, userEmail);
+    if (!plan.getBannedUsers().removeIf(user -> user.getEmail().equals(participantEmail))) {
+      throw new PlanNotFoundException();
+    }
+    planRepository.save(plan);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<BannedParticipant> getBannedParticipants(UUID id, String userEmail) {
+    return getEditablePlan(id, userEmail)
+      .getBannedUsers()
+      .stream()
+      .sorted(java.util.Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
+      .map(user -> new BannedParticipant(user.getEmail(), user.getFirstName(), user.getLastName()))
+      .toList();
+  }
+
   private void moderateParticipant(
     UUID id,
     String participantEmail,
