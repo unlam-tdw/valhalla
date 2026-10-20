@@ -18,6 +18,13 @@ role for that Plan without deleting the User's account. Expulsion allows joining
 A ban persists for that Plan and prevents joining by Short Code or invitation.
 The same removal permissions apply to bans.
 
+A banned User cannot access the Plan detail, public view or itinerary, clone the
+Plan, or regain participation through its Short Code or an invitation. The ban
+overrides public visibility for that authenticated User. My Plans displays a
+persistent notice with only the Plan name and the access restriction; discovery
+feeds exclude Plans that banned the current User. Anonymous visitors can still
+read public Plans.
+
 **PlanManager**: Embedded component of a Plan that groups its Participants, Editors
 and pending Invitations. It preserves the existing persistence tables and the Plan's
 public methods for accessing these collections.

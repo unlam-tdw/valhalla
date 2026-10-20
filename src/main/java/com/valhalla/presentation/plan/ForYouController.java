@@ -1,6 +1,5 @@
 package com.valhalla.presentation.plan;
 
-import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +42,7 @@ public class ForYouController {
       planService
         .getPublicPlans()
         .stream()
+        .filter(plan -> !plan.isBanned(currentEmail))
         .filter(plan -> currentEmail == null || !plan.isAdministrator(currentEmail))
         .map(PlanFeedCards::planCard)
         .toList()

@@ -34,6 +34,11 @@ public class PlanRepositoryImpl implements PlanRepository {
   }
 
   @Override
+  public List<Plan> findByBannedUsersEmail(String email) {
+    return jpaPlanRepository.findByBannedUsersEmail(email);
+  }
+
+  @Override
   public Optional<Plan> findByShortCode(String shortCode) {
     return jpaPlanRepository.findByShortCode(shortCode);
   }

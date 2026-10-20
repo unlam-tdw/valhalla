@@ -30,6 +30,10 @@ public interface PlanService {
   Plan getParticipatingPlan(UUID id, String userEmail);
   Plan getPublicPlan(UUID id);
   List<Plan> getParticipantPlans(String userEmail);
+  List<BannedPlan> getBannedPlans(String userEmail);
+
+  record BannedPlan(String name) {}
+
   void leavePlan(UUID id, String userEmail);
   Plan joinPlan(String shortCode, String userEmail);
   Plan updatePlan(UUID id, Plan changes, String ownerEmail);

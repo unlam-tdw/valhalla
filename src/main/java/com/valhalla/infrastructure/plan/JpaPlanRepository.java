@@ -21,6 +21,11 @@ public interface JpaPlanRepository extends JpaRepository<Plan, UUID> {
   )
   List<Plan> findByInvitationsRecipientEmail(@Param("email") String email);
 
+  @Query(
+    "select distinct plan from Plan plan join plan.planManager.bannedUsers bannedUser where bannedUser.email = :email"
+  )
+  List<Plan> findByBannedUsersEmail(@Param("email") String email);
+
   Optional<Plan> findByShortCode(String shortCode);
   boolean existsByShortCode(String shortCode);
 

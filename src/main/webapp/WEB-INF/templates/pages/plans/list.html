@@ -23,6 +23,16 @@
         Error
       </p>
 
+      <section th:if="${bannedPlans != null and !#lists.isEmpty(bannedPlans)}" aria-labelledby="banned-plans-heading" class="mb-6 rounded-md bg-red-50 p-4 text-red-800">
+        <h3 id="banned-plans-heading" class="font-semibold">Planes con acceso bloqueado</h3>
+        <ul class="mt-2 space-y-2">
+          <li th:each="plan : ${bannedPlans}">
+            <strong th:text="${plan.name}">Nombre del plan</strong>
+            <span>Fuiste baneado de este plan. No podés acceder ni volver a unirte.</span>
+          </li>
+        </ul>
+      </section>
+
       <form th:action="@{/plans/join}" method="POST" class="mb-6 flex items-end gap-3">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
         <div>

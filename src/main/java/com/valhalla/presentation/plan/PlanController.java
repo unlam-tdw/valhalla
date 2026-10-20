@@ -1,5 +1,6 @@
 package com.valhalla.presentation.plan;
 
+import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
@@ -53,6 +54,7 @@ public class PlanController {
   public ModelAndView listPlans(Authentication authentication) {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLANS, planService.getPlansByUserEmail(authentication.getName()));
+    model.put("bannedPlans", planService.getBannedPlans(authentication.getName()));
     model.put("participantPlans", planService.getParticipantPlans(authentication.getName()));
     model.put("pendingInvitations", planService.getPendingInvitations(authentication.getName()));
     return new ModelAndView(VIEW_PLANS_LIST, model);
@@ -112,6 +114,9 @@ public class PlanController {
   @GetMapping("/{id}/public")
   public ModelAndView showPublicPlan(@PathVariable UUID id, Authentication authentication) {
     Plan plan = planService.getPublicPlan(id);
+    if (plan.isBanned(currentEmail(authentication))) {
+      throw new PlanBannedException();
+    }
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLAN, plan);
     model.put(

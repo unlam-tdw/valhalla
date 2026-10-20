@@ -48,6 +48,7 @@ public class PlanRestController {
       .getPublicPlans()
       .stream()
       .filter(plan -> Boolean.TRUE.equals(plan.getIsPublic()))
+      .filter(plan -> !plan.isBanned(currentEmail))
       .filter(plan -> currentEmail == null || !plan.isAdministrator(currentEmail))
       .sorted(
         Comparator.comparing(Plan::getEventDate, Comparator.nullsLast(Comparator.naturalOrder()))

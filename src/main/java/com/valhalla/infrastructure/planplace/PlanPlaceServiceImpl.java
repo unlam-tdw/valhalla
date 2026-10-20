@@ -1,5 +1,6 @@
 package com.valhalla.infrastructure.planplace;
 
+import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
@@ -54,6 +55,9 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
   @Override
   public List<PlanPlace> getItinerary(UUID planId, String ownerEmail) {
     Plan plan = plans.findById(planId).orElseThrow(PlanNotFoundException::new);
+    if (plan.isBanned(ownerEmail)) {
+      throw new PlanBannedException();
+    }
     if (!plan.getIsPublic()) {
       if (ownerEmail == null) {
         throw new PlanNotFoundException();
