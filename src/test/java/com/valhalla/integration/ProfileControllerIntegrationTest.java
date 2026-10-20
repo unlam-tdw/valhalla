@@ -339,6 +339,99 @@ public class ProfileControllerIntegrationTest {
     assertThat(untouched.getFirstName(), is(equalTo("Grace")));
   }
 
+  // --- S-01/S-02: los POST del perfil exigen CSRF ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void profileWritesWithoutCsrfAreRejected() throws Exception {
+    this.mockMvc.perform(post("/profile").param("firstName", "Ada").param("lastName", "Lovelace"))
+      .andExpect(status().isForbidden());
+
+    this.mockMvc.perform(
+        post("/profile/change-password")
+          .param("currentPassword", PASSWORD)
+          .param("newPassword", NEW_PASSWORD_8)
+          .param("confirmPassword", NEW_PASSWORD_8)
+      )
+      .andExpect(status().isForbidden());
+
+    // Nada se escribio (S-01/S-02: rechazo antes de llegar al servicio).
+    assertThat(
+      new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+        .matches(PASSWORD, userRepository.findById(selfId).orElseThrow().getPassword()),
+      is(true)
+    );
+  }
+
+  // --- S-03: el ADMIN tambien ve su propio editor por la misma superficie ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL, roles = { "ADMIN" })
+  public void adminSeesTheOwnEditorThroughTheUserSurface() throws Exception {
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/profile/edit"))
+      .andExpect(model().attributeExists("profileForm"));
+  }
+
+  // --- I-22 apuntado: las cards del feed linkean al perfil del autor ---
+
+  @Test
+  public void feedCardsLinkToTheAuthorsProfile() throws Exception {
+    Plan publicPlan = new Plan();
+    publicPlan.setName("Plan con link de autor");
+    publicPlan.setIsPublic(true);
+    publicPlan.setAdministrator(userRepository.findById(selfId).orElseThrow());
+    planService.createPlan(publicPlan, SELF_EMAIL);
+
+    String html =
+      this.mockMvc.perform(get("/for-you"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // AC-22: "Por {autor}" linkea a /profile/{id} del dueno de la card.
+    assertThat(html, containsString("href=\"/profile/" + selfId + "\""));
+    assertThat(html, containsString("Ada Lovelace"));
+  }
+
+  // --- I-26/I-27: el registro self-service acepta galeria y rechaza URL inseguras ---
+
+  @Test
+  public void registerAcceptsAGalleryAvatarAndRejectsInsecureUrls() throws Exception {
+    this.mockMvc.perform(
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", "Linas")
+          .param("lastName", "Torvalds")
+          .param("email", "gallery.avatar@test.com")
+          .param("password", "contrasena")
+          .param("confirmPassword", "contrasena")
+          .param("avatarUrl", "/images/avatars/avatar-3.svg")
+      )
+      .andExpect(status().is3xxRedirection());
+
+    User persisted = userRepository.findByEmail("gallery.avatar@test.com").orElseThrow();
+    assertThat(persisted.getAvatarUrl(), is(equalTo("/images/avatars/avatar-3.svg")));
+
+    this.mockMvc.perform(
+        post("/auth/register")
+          .with(csrf())
+          .param("firstName", "Trudy")
+          .param("lastName", "Insecure")
+          .param("email", "bad.avatar@test.com")
+          .param("password", "contrasena")
+          .param("confirmPassword", "contrasena")
+          .param("avatarUrl", "javascript:alert(1)")
+      )
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/auth/user/register"))
+      .andExpect(model().attributeHasFieldErrors("registerRequest", "avatarUrl"));
+
+    assertThat(userRepository.existsByEmail("bad.avatar@test.com"), is(false));
+  }
+
   // --- I-09: el cambio de contraseÑa exige la actual ---
 
   @Test
