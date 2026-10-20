@@ -88,7 +88,8 @@ public class AuthController {
         request.getEmail(),
         request.getPassword(),
         request.getFirstName(),
-        request.getLastName()
+        request.getLastName(),
+        request.getAvatarUrl()
       );
       // Crear la cuenta no es sólo crearla: quien se registra queda adentro en el mismo paso, y
       // el destino lo decide la misma regla que a un login normal (LoginRedirects), no uno nuevo.

@@ -51,15 +51,9 @@
             </div>
           </div>
 
-          <div>
-            <label for="avatarUrl" class="mb-1 block text-sm font-medium text-gray-700">
-              Avatar (URL propia, opcional)
-            </label>
-            <input type="text" id="avatarUrl" th:field="*{avatarUrl}"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
-            <span th:if="${#fields.hasErrors('avatarUrl')}" th:errors="*{avatarUrl}"
-              class="mt-1 block text-sm text-red-600"></span>
-          </div>
+          <div th:replace="~{components/avatar-picker :: picker(${profileForm.avatarUrl})}"></div>
+          <span th:if="${#fields.hasErrors('avatarUrl')}" th:errors="*{avatarUrl}"
+            class="block text-sm text-red-600"></span>
 
           <div>
             <a th:href="@{/profile/change-password}" class="text-sm text-blue-600 hover:underline">
