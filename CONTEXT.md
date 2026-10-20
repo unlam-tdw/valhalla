@@ -14,7 +14,9 @@
 
 The owner and Editors can remove Participants from a Plan. Only the owner can remove
 Editors. The owner cannot be removed. Removal revokes participation and the Editor
-role for that Plan without deleting the User's account.
+role for that Plan without deleting the User's account. Expulsion allows joining again.
+A ban persists for that Plan and prevents joining by Short Code or invitation.
+The same removal permissions apply to bans.
 
 **PlanManager**: Embedded component of a Plan that groups its Participants, Editors
 and pending Invitations. It preserves the existing persistence tables and the Plan's

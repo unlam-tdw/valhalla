@@ -218,7 +218,22 @@ public class PlanController {
     planService.removeParticipant(id, participantEmail, authentication.getName());
     redirectAttributes.addFlashAttribute(
       "participantSuccess",
-      "La persona fue eliminada del plan."
+      "La persona fue expulsada del plan. Puede volver a unirse."
+    );
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
+  @PostMapping("/{id}/participants/ban")
+  public ModelAndView banParticipant(
+    @PathVariable UUID id,
+    @RequestParam String participantEmail,
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
+  ) {
+    planService.banParticipant(id, participantEmail, authentication.getName());
+    redirectAttributes.addFlashAttribute(
+      "participantSuccess",
+      "La persona fue baneada del plan y no podrá volver a unirse."
     );
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }

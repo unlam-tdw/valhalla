@@ -36,6 +36,19 @@ public class PlanManager {
   )
   private List<User> editors = new ArrayList<>();
 
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+    name = "plan_banned_users",
+    joinColumns = @JoinColumn(name = PLAN_ID_COLUMN),
+    inverseJoinColumns = @JoinColumn(name = USER_ID_COLUMN),
+    uniqueConstraints = @UniqueConstraint(columnNames = { PLAN_ID_COLUMN, USER_ID_COLUMN })
+  )
+  private List<User> bannedUsers = new ArrayList<>();
+
+  public List<User> getBannedUsers() {
+    return bannedUsers;
+  }
+
   @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<PlanInvitation> invitations = new ArrayList<>();
 

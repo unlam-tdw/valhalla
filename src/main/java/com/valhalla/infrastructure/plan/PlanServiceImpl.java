@@ -127,6 +127,20 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
 
   @Override
   public void removeParticipant(UUID id, String participantEmail, String userEmail) {
+    moderateParticipant(id, participantEmail, userEmail, false);
+  }
+
+  @Override
+  public void banParticipant(UUID id, String participantEmail, String userEmail) {
+    moderateParticipant(id, participantEmail, userEmail, true);
+  }
+
+  private void moderateParticipant(
+    UUID id,
+    String participantEmail,
+    String userEmail,
+    boolean ban
+  ) {
     Plan plan = getEditablePlan(id, userEmail);
     if (
       plan.isAdministrator(participantEmail) ||
@@ -134,6 +148,15 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       (plan.isEditor(participantEmail) && !plan.isAdministrator(userEmail))
     ) {
       throw new PlanNotFoundException();
+    }
+    if (ban) {
+      User participant = plan
+        .getParticipants()
+        .stream()
+        .filter(user -> user.getEmail().equals(participantEmail))
+        .findFirst()
+        .orElseThrow(PlanNotFoundException::new);
+      plan.getBannedUsers().add(participant);
     }
     plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
     plan.getParticipants().removeIf(user -> user.getEmail().equals(participantEmail));
@@ -180,6 +203,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   }
 
   private void validateInvitationRecipient(Plan plan, String email) {
+    if (plan.isBanned(email)) {
+      throw new IllegalArgumentException("Esta persona está baneada del plan.");
+    }
     if (plan.isAdministrator(email) || plan.isParticipant(email)) {
       throw new IllegalArgumentException("Esta persona ya forma parte del plan.");
     }
@@ -237,6 +263,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       )
       .findFirst()
       .orElseThrow(PlanNotFoundException::new);
+    if (accept && plan.isBanned(userEmail)) {
+      throw new PlanNotFoundException();
+    }
     if (accept && !plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       plan.getParticipants().add(invitation.getRecipient());
       if (EDITOR_ROLE.equals(invitation.getRole())) {
@@ -311,6 +340,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     Plan plan = planRepository
       .findByShortCode(shortCode.trim().toUpperCase(Locale.ROOT))
       .orElseThrow(PlanNotFoundException::new);
+    if (plan.isBanned(userEmail)) {
+      throw new PlanNotFoundException();
+    }
     User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
     if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       plan.getParticipants().add(user);

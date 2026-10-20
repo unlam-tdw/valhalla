@@ -304,7 +304,12 @@
                         <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/remove(id=${plan.id})}" method="POST" class="mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Eliminar del plan a ' + email}">Eliminar del plan</button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Expulsar del plan a ' + email}" title="Puede volver a unirse al plan">Expulsar</button>
+                        </form>
+                        <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/ban(id=${plan.id})}" method="POST" class="mb-0">
+                            <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                            <input type="hidden" name="participantEmail" th:value="${email}" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Banear del plan a ' + email}" title="No podr&aacute; volver a unirse al plan">Banear</button>
                         </form>
                     </li>
                 </ol>
