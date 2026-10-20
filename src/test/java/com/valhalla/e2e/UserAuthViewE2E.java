@@ -61,7 +61,7 @@ public class UserAuthViewE2E extends E2eBase {
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("PlanIt", "Para vos", "Explore", "Plans", "Logout")
+      contains("PlanIt", "Para vos", "Explore", "Plans", "A")
     );
   }
 
@@ -219,7 +219,8 @@ public class UserAuthViewE2E extends E2eBase {
    * opens the session itself.
    */
   private void signOut() {
-    page.locator("button:text-is('Logout')").click();
+    page.locator("#navbar-avatar").click();
+    page.locator("#navbar-menu:not([hidden]) #btn-logout").click();
     new WebPage(page).waitForPath("/auth/login");
   }
 
