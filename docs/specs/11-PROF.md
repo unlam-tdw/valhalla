@@ -7,6 +7,8 @@
 > de tema; la preferencia de tema persiste por usuario (localStorage anónimos, server-side
 > autenticados). Llega escalonada: PROF-009 (modal sin tema) y PROF-010/011 (tema, tras el merge
 > de [THEME]).
+> **v2.3:** la vista pública de `/profile/{id}` abre sin sesión — el link compartido funciona para
+> cualquiera. `GET /profile` sin sesión sigue redirigiendo a login (es el atajo "mi perfil").
 
 ## Objetivo
 
@@ -33,8 +35,9 @@ localStorage para anónimos (mecanismo de [THEME]), `themePreference` en el usua
 autenticados.
 
 `GET /profile` redirige al propio `/profile/{id}`: la URL canónica siempre lleva el id, así que el
-perfil es compartible desde la barra de direcciones sin ningún botón extra, y deja listo el
-link-sharing de metadata (card `[META]`) a futuro.
+perfil es compartible desde la barra de direcciones sin ningún botón extra — el link abre la vista
+pública **sin necesidad de sesión** — y deja listo el link-sharing de metadata (card `[META]`) a
+futuro.
 
 ## Pre-requisitos
 
@@ -61,7 +64,7 @@ link-sharing de metadata (card `[META]`) a futuro.
 | AC-02 | `POST /profile` (sin id en el path) actualiza `firstName` / `lastName` / `avatarUrl` del usuario de la sesión y redirige a `/profile/{id}` con un mensaje de éxito |
 | AC-03 | `POST /profile` con nombre vacío devuelve errores de validación visibles, sin escribir nada |
 | AC-04 | La escritura no acepta id: el usuario es siempre el de la sesión. El path `/profile/{id}` solo sirve vistas read-only de otros — nadie puede escribir sobre un id ajeno |
-| AC-05 | `GET /profile` y `GET /profile/{id}` sin sesión redirigen a `/auth/login` |
+| AC-05 | `GET /profile` sin sesión redirige a `/auth/login` (atajo "mi perfil"). `GET /profile/{id}` de otro usuario es accesible **sin sesión**: muestra la vista pública |
 | AC-06 | `GET /profile/change-password` muestra el form: actual, nueva, confirmación |
 | AC-07 | `POST /profile/change-password` exige que la contraseña actual sea correcta. Una incorrecta vuelve al form con error y no cambia nada |
 | AC-08 | `POST /profile/change-password` valida la nueva contra el `BCryptPasswordEncoder` existente (`@Size(min = 8)` y confirmación coincidente) |
@@ -69,7 +72,7 @@ link-sharing de metadata (card `[META]`) a futuro.
 | AC-10 | El navbar, con sesión `USER`, tiene acceso al perfil vía el modal del avatar |
 | AC-11 | `plans/detail.html` deja de renderizar `firstName`/`lastName` en null para un usuario que completó su perfil |
 | AC-12 | `GET /profile` con sesión redirige (302) a `/profile/{id}` del usuario de la sesión — la URL canónica siempre lleva el id |
-| AC-13 | `GET /profile/{id}` sobre OTRO usuario muestra vista read-only: nombre, avatar/iniciales, placeholder de seguidores y los planes públicos del dueño. Nunca renderiza email ni rol de ese usuario |
+| AC-13 | `GET /profile/{id}` sobre OTRO usuario (con o sin sesión) muestra vista read-only: nombre, avatar/iniciales, placeholder de seguidores y los planes públicos del dueño. Nunca renderiza email, rol ni nada de edición (form, cambio de contraseña) — sin sesión el `isSelf` es imposible y la brecha queda garantizada |
 | AC-14 | `GET /profile/{id}` sobre el PROPIO id muestra la superficie de edición del propio perfil (form de nombres/avatar, email read-only, rol, link a cambio de contraseña) |
 | AC-15 | La vista pública lista los planes **públicos** del dueño; los privados no aparecen |
 | AC-16 | `avatarUrl` es opcional: con valor se renderiza la imagen; vacío cae al avatar de iniciales (patrón actual) |
@@ -143,6 +146,7 @@ infra de upload).
 | I-25 | Los participantes en `detail.html` son links al perfil respectivo | AC-22 |
 | I-26 | El registro con avatar default o URL propia lo persiste en el alta | AC-23 |
 | I-27 | `POST /profile` y el registro rechazan `avatarUrl` con esquemas prohibidos y aceptan `https://…` / `/images/avatars/…` | AC-25 |
+| I-28 | `GET /profile/{idAjeno}` ANÓNIMO → 200 con la vista pública (nombre, planes), sin marcado de edición | AC-05, AC-13 |
 
 ### Tests de Seguridad (`integration/ProfileSecurityTest.java`)
 
@@ -152,9 +156,10 @@ infra de upload).
 | S-02 | `POST /profile/change-password` sin token CSRF → 403 | AC-08 |
 | S-03 | `GET /profile/{idPropio}` con rol `ADMIN` responde 200 (el perfil propio es de todos los autenticados) | AC-01 |
 | S-04 | `GET /profile/{idAjeno}` con sesión USER nunca contiene el email/rol de ese usuario (ni el texto del form de edición) | AC-13 |
-| S-05 | `GET /profile` y `GET /profile/{id}` sin sesión → redirect a `/auth/login` (default chain) | AC-05, AC-12 |
+| S-05 | `GET /profile` sin sesión → redirect a `/auth/login` (default chain); `GET /profile/{idAjeno}` sin sesión → 200 con la vista pública | AC-05, AC-12, AC-13 |
 | S-06 | No hay endpoint de escritura con id ajeno: `POST` sobre `/profile/{idAjeno}` no existe como superficie (405/404) | AC-04 |
 | S-07 | `POST /profile/theme` sin token CSRF → 403 | AC-21 |
+| S-08 | La vista pública ANÓNIMA no renderiza marcado de edición: ni campos de form, ni link a `/profile/change-password`, ni datos privados | AC-13 |
 
 ### E2E (minimos)
 
@@ -183,7 +188,9 @@ infra de upload).
   privados), id ajeno → vista pública read-only.
 - **Qué expone la vista pública:** nombre, avatar/iniciales, contador de seguidores placeholder
   (0 — llega con [FOLLOW]) y los planes **públicos** del dueño. Email, rol y edición son de la
-  superficie propia; nunca aparecen para un visitante. La diferencia entre perfil y CRUD de
+  superficie propia; nunca aparecen para un visitante — y el visitante puede ser anónimo: el link
+  compartido abre la vista pública sin sesión (AC-05/AC-13; el `isSelf` solo puede ser cierto con
+  sesión autenticada). La diferencia entre perfil y CRUD de
   administración sigue en pie: `UserController` resuelve el caso admin con `/admin/users/{id}` y
   su `@PreAuthorize`; `/profile` no reusa esa superficie.
 - **Verificar la contraseña actual es obligatorio**, no cosmético: sin ese paso, un XSS o un
