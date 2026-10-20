@@ -225,6 +225,7 @@ public class ForYouControllerTest {
             "eventDate",
             "placeCount",
             "administratorName",
+            "administratorId",
             "cover",
             "ratingAverage",
             "ratingCount"
