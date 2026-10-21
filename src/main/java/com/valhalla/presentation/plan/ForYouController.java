@@ -80,7 +80,6 @@ public class ForYouController {
         .stream()
         .filter(plan -> !plan.isBanned(currentEmail))
         .filter(plan -> currentEmail == null || !plan.isAdministrator(currentEmail))
-        .map(PlanFeedCards::planCard)
         .map(plan -> PlanFeedCards.planCard(plan, summaries))
         .toList()
     );
