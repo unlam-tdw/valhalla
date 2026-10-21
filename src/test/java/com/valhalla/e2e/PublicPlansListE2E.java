@@ -55,6 +55,11 @@ public class PublicPlansListE2E extends E2eBase {
       page.locator("body > nav a:has-text('Para vos')").getAttribute("href"),
       containsString("/for-you")
     );
+    assertThat(
+      "el navbar sin sesion no ofrece el menu hamburguesa",
+      page.locator("#navbar-menu-btn").count(),
+      is(0)
+    );
 
     // --- El plan publico lo arma el admin, y EL NO LO VE en su propio feed ---
     givenAPublicPlanExists(); // deja la sesion admin sobre el detalle del plan creado
