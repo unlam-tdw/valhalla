@@ -9,6 +9,8 @@
 > de [THEME]).
 > **v2.3:** la vista pública de `/profile/{id}` abre sin sesión — el link compartido funciona para
 > cualquiera. `GET /profile` sin sesión sigue redirigiendo a login (es el atajo "mi perfil").
+> **v2.4:** la vista del perfil deja de alojar la sección placeholder Tema (`#theme`): la única
+> entrada de tema es el modal del navbar (PROF-010/011, que pasan a la card `[PROF+THEME]`).
 
 ## Objetivo
 
@@ -24,7 +26,7 @@ Esta spec tiene dos superficies:
 
 1. **Vista y edición del propio perfil** (`/profile/{id}` con id de la sesión): datos personales,
    avatar, cambio de contraseña y secciones placeholder para features futuras (Guardados `[MARK]`,
-   Seguidores `[FOLLOW]`, Tema `[THEME]`).
+   Seguidores `[FOLLOW]`).
 2. **Vista pública del perfil de otro usuario** (`/profile/{id}` ajeno): read-only, sin datos
    privados (email/rol), con los planes públicos del dueño.
 
@@ -78,7 +80,7 @@ futuro.
 | AC-16 | `avatarUrl` es opcional: con valor se renderiza la imagen; vacío cae al avatar de iniciales (patrón actual) |
 | AC-17 | El navbar abre un **menú modal** en ambas sesiones. Autenticado (trigger: avatar, `<button>`): Ver perfil, Cambiar contraseña, Guardados (pronto), Siguiendo (pronto), Tema (activa) y Cerrar sesión (activa, roja) con la ruta correcta por rol (`/admin/logout` para ADMIN, `/auth/logout` para USER). Anónimo (trigger: botón de menú que reemplaza al toggle standalone): Iniciar sesión, Registrarse, Tema (activa) |
 | AC-18 | Las entradas "pronto" (Guardados, Siguiendo) se renderizan deshabilitadas con etiqueta "Pronto", sin `<a>`/`<button>` navegables — no navegan hasta que su feature (MARK/FOLLOW) aterrice |
-| AC-19 | El perfil propio contiene secciones placeholder no interactivas dentro de la página: Guardados (`#bookmarks`), Seguidores (`#follow`) y Tema (`#theme`) — ancladas y listas para activar |
+| AC-19 | El perfil propio contiene secciones placeholder no interactivas dentro de la página: Guardados (`#bookmarks`) y Seguidores (`#follow`) — ancladas y listas para activar. La sección Tema (`#theme`) se retiró en v2.4: el tema vive solo en el modal del navbar |
 | AC-20 | `GET /profile/{id}` con id inexistente → 404 |
 | AC-21 | La preferencia de tema persiste por usuario: anónimo en `localStorage["planit-theme"]` (mecanismo de [THEME]); autenticado sobre el usuario (`themePreference`) y se recupera al loguearse en cualquier dispositivo. El toggle provisional standalone del navbar desaparece cuando la entrada "Tema" del modal entra (PROF-010) |
 | AC-22 | Todo nombre de usuario en vistas de planes es un link a `/profile/{id}`: autor en la lista pública (`public-list.html`) y la ficha pública (`public.html`); en el detalle interno (`detail.html`) el administrador deja de mostrarse por email y pasa a nombre + link, y los participantes también son clickeables. Las vistas admin no cambian |
@@ -136,7 +138,7 @@ infra de upload).
 | I-15 | La vista pública del perfil muestra los planes PUBLICOS del dueño y ningún privado | AC-15 |
 | I-16 | `POST /profile` con `avatarUrl` válido → el usuario lo guarda | AC-16 |
 | I-17 | `POST /profile` con `avatarUrl` vacío → null; el perfil cae al fallback de iniciales | AC-16 |
-| I-18 | El perfil PROPIO renderiza las secciones placeholder con sus anclas (`#bookmarks`, `#follow`, `#theme`) | AC-19 |
+| I-18 | El perfil PROPIO renderiza las secciones placeholder con sus anclas (`#bookmarks`, `#follow`) y sin la sección Tema (v2.4: `#theme` ya no existe en la vista) | AC-19 |
 | I-19 | El navbar renderiza el modal con sus entradas y sus estados (activas / pronto) | AC-17, AC-18 |
 | I-20 | `GET` anónimo del navbar: el modal muestra Iniciar sesión, Registrarse y Tema — y ninguna entrada del perfil | AC-17 |
 | I-21 | `POST /profile/theme` del usuario autenticado persiste `themePreference` | AC-21 |
@@ -226,11 +228,11 @@ infra de upload).
   `#bookmarks` / `#follow` ya existen en la vista propia desde v2, de modo que activar MARK/FOLLOW
   es un cambio de una línea en el href. Implementación mínima (JS vanilla embebido o `<details>`),
   accesible: `aria-expanded`, cierre con Esc y click-afuera.
-- **Secciones placeholder en el perfil propio:** Guardados (`#bookmarks`), Seguidores/Siguiendo
-  (`#follow`) y Tema (`#theme`) con copy "a futuro"; los placeholders son la casa de estos
-  settings, y el modal es el acceso rápido a cada uno. Los placeholders distribuyen quién es OWNER
-  final de cada archivo: PROF no compite con THEME/MARK/FOLLOW por los mismos archivos más
-  adelante.
+- **Secciones placeholder en el perfil propio:** Guardados (`#bookmarks`) y Seguidores/Siguiendo
+  (`#follow`) con copy "a futuro"; los placeholders son la casa de estos settings, y el modal es el
+  acceso rápido a cada uno. Los placeholders distribuyen quién es OWNER final de cada archivo: PROF
+  no compite con THEME/MARK/FOLLOW por los mismos archivos más adelante. La sección Tema (`#theme`)
+  se retiró de la vista en v2.4 (vive solo en el modal).
 - **El toggle de tema entra al modal escalonado y persiste por sesión.** Etapa 1 (PROF-009): el
   modal sin entrada de tema, el toggle provisorio de [THEME] sigue de pie. Etapa 2 (PROF-010, tras
   el merge de [THEME]): la entrada "Tema" entra al modal para las dos sesiones, y el toggle
@@ -358,7 +360,7 @@ public class ProfileController {
 
 | Archivo | Contenido |
 |---------|-----------|
-| `templates/pages/profile/edit.html` | Superficie propia: form de `firstName`/`lastName`/`avatarUrl` con `th:action="@{/profile}"` + CSRF, email read-only, rol, link a `/profile/change-password`, aviso `?updated=true`, `th:errors`. Debajo, secciones placeholder con anclas y copy "a futuro": Guardados (`id="bookmarks"`), Seguidores (`id="follow"`), Tema (`id="theme"`) |
+| `templates/pages/profile/edit.html` | Superficie propia: form de `firstName`/`lastName`/`avatarUrl` con `th:action="@{/profile}"` + CSRF, email read-only, rol, link a `/profile/change-password`, aviso `?updated=true`, `th:errors`. Debajo, secciones placeholder con anclas y copy "a futuro": Guardados (`id="bookmarks"`), Seguidores (`id="follow"`) — la sección Tema (`id="theme"`) se retiró en v2.4 |
 | `templates/pages/profile/view.html` | Vista pública: header (avatar/iniciales + nombre + contador placeholder), grilla/lista de `PublicProfileView.plans` reutilizando los patrones de `plans/public-list.html` |
 | `templates/components/navbar.html` | El avatar pasa de `<span>` a `<button>` que abre el modal (autenticado); el anónimo gana un `<button>` de menú como trigger. Modal con dos variantes: autenticado — header (iniciales + nombre), Ver perfil → `/profile/{id}`, Cambiar contraseña, Guardados y Siguiendo **deshabilitados con badge "Pronto"**, Tema (PROF-010, tras merge de [THEME]), Cerrar sesión (roja) con ruta por rol + CSRF; anónimo — Iniciar sesión, Registrarse, Tema. El toggle standalone de [THEME] desaparece de ambos bloques cuando la entrada "Tema" entra (PROF-010). Cierre con Esc/click afuera, `aria-expanded` |
 | `templates/layouts/base.html` | PROF-011: `data-theme` server-side para autenticados (la `themePreference` del usuario gana sobre `localStorage["planit-theme"]`; null → localStorage/sistema como hoy). Sin flash de tema incorrecto |
