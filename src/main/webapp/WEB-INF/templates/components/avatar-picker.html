@@ -8,9 +8,11 @@
        #avatarUrl (name="avatarUrl"), que carga siempre el valor persistido -sea el path interno
        de la galeria o una URL propia-. El input VISIBLE #avatarUrlText no lleva name: es solo
        para que el usuario escriba su propia URL https:// (AC-25 valida el formato server-side) y
-       nunca muestra los paths internos /images/avatars. Un solo puntito de JS, vanilla y
-       embebido, mantiene preview, seleccion y el espejo visible -> oculto. No hay upload: el
-       manejo de archivos es una card propria a futuro. -->
+       nunca muestra los paths internos /images/avatars. El picker NO renderiza su propio preview:
+       el target (#avatar-preview-img / #avatar-preview-initial) lo pone la pagina -en /profile el
+       avatar junto al nombre- y el puntito de JS, vanilla y embebido, solo lo refresca junto con
+       la seleccion y el espejo visible -> oculto. No hay upload: el manejo de archivos es una
+       card propria a futuro. -->
 
   <div class="flex flex-wrap items-center gap-3">
     <!-- th:attr checked-states: marcar la opcion activa segun el valor actual -->
@@ -42,13 +44,6 @@
       th:classappend="${currentValue == '/images/avatars/avatar-3.svg'} ? 'avatar-selected border-blue-500 ring-2 ring-blue-500' : ''">
       <img src="/images/avatars/avatar-3.svg" alt="Avatar 3" class="h-full w-full object-cover" />
     </button>
-
-    <!-- Preview del valor vigente (la URL custom tambien). Se vacia si el formato no es
-         renderizable (https o galeria): el server igualmente valida (AC-25). -->
-    <img id="avatar-preview" alt="Preview del avatar"
-      th:if="${currentValue != null and !#strings.trim(currentValue).isEmpty()}"
-      th:src="${currentValue}"
-      class="avatar-preview h-14 w-14 rounded-full object-cover ring-2 ring-gray-200" />
   </div>
 
   <!-- El campo que se envia: conserva name/id avatarUrl, asi el form y los tests que buscan
@@ -72,16 +67,23 @@
         if (!value) return false;
         return value.indexOf("https://") === 0 || value.indexOf("/images/avatars/") === 0;
       };
-      // El preview puede no existir (valor vacio al renderizar), asi que se busca en cada uso.
+      // El preview vive en la pagina: en /profile el avatar junto al nombre. El partial solo lo
+      // refresca si existe; en /auth/register no hay preview y esta funcion es no-op.
+      // Se alterna con el atributo `hidden` y no con la clase `.hidden`: el circulo de iniciales
+      // lleva `inline-flex` y esa utilidad le gana a `.hidden` en la cascada del Tailwind del
+      // browser (mismo layer, declarada despues). Preflight fuerza `[hidden]` con !important.
       var updatePreview = function (value) {
-        var preview = document.getElementById("avatar-preview");
-        if (!preview) return;
+        var image = document.getElementById("avatar-preview-img");
+        var initial = document.getElementById("avatar-preview-initial");
+        if (!image || !initial) return;
         if (!renderable(value)) {
-          preview.setAttribute("data-hidden", "true");
+          image.setAttribute("hidden", "");
+          initial.removeAttribute("hidden");
           return;
         }
-        preview.removeAttribute("data-hidden");
-        preview.src = value;
+        image.src = value;
+        image.removeAttribute("hidden");
+        initial.setAttribute("hidden", "");
       };
       var clearSelection = function () {
         for (var j = 0; j < choices.length; j++) {

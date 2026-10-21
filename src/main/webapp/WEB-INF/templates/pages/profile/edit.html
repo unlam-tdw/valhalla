@@ -13,17 +13,18 @@
       <p th:if="${param.passwordChanged}" class="rounded-md bg-green-100 px-4 py-3 text-sm text-green-800"
         role="status">Contrasena actualizada</p>
 
-      <!-- [PROF] AC-16: el avatar con URL se renderiza; sin avatar el circulo de iniciales
-           (ownerInitial viene del controller). El picker de galeria (PROF-015) reemplaza el
-           input por el partial components/avatar-picker. -->
+      <!-- [PROF] AC-16: el avatar junto al nombre es tambien el preview en vivo del picker de
+           abajo: el JS de components/avatar-picker le cambia el src y alterna con las iniciales
+           (ownerInitial viene del controller). Ambos elementos se renderizan siempre. -->
       <div class="rounded-lg bg-white p-8 shadow-md">
         <div class="flex items-center gap-4">
-          <img th:if="${owner.avatarUrl != null}" th:src="${owner.avatarUrl}" alt="Avatar"
+          <img id="avatar-preview-img" th:src="${owner.avatarUrl}" alt="Avatar"
+            th:attr="hidden=${owner.avatarUrl == null}"
             class="h-16 w-16 rounded-full object-cover" />
-          <span th:unless="${owner.avatarUrl != null}"
+          <span id="avatar-preview-initial"
+            th:attr="hidden=${owner.avatarUrl != null},aria-label=${owner.firstName + ' ' + (owner.lastName == null ? '' : owner.lastName)}"
             class="navbar-avatar inline-flex h-16 w-16 items-center justify-center rounded-full bg-secondary font-serif text-2xl font-bold text-black"
-            th:text="${ownerInitial}" role="img"
-            th:attr="aria-label=${owner.firstName + ' ' + (owner.lastName == null ? '' : owner.lastName)}">U</span>
+            th:text="${ownerInitial}" role="img">U</span>
           <div>
             <h1 class="text-2xl font-semibold text-gray-900">Mi perfil</h1>
             <p class="text-sm text-gray-500" th:text="${owner.email}">email</p>

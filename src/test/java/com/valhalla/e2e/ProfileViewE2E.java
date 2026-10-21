@@ -128,6 +128,15 @@ public class ProfileViewE2E extends E2eBase {
     page.locator("main button[data-avatar-value='/images/avatars/avatar-1.svg']").click();
     assertEquals("", page.inputValue("#avatarUrlText"));
     assertEquals("/images/avatars/avatar-1.svg", page.inputValue("#avatarUrl"));
+    // El preview no es una burbuja aparte junto a la galeria: el avatar del header es el que
+    // refleja la seleccion en vivo (el JS del picker le cambia el src y esconde las iniciales).
+    assertEquals(0, page.locator("#avatar-preview").count());
+    assertTrue(page.locator("#avatar-preview-img").isVisible());
+    assertEquals(
+      "/images/avatars/avatar-1.svg",
+      page.locator("#avatar-preview-img").getAttribute("src")
+    );
+    assertFalse(page.locator("#avatar-preview-initial").isVisible());
     page.locator("main button[type='submit']").first().click();
 
     page.waitForSelector("p[role='status']");
@@ -140,6 +149,14 @@ public class ProfileViewE2E extends E2eBase {
     var navbarAvatar = page.locator("#navbar-avatar img");
     assertEquals(1, navbarAvatar.count());
     assertEquals("/images/avatars/avatar-1.svg", navbarAvatar.getAttribute("src"));
+    // Server-rendered con avatar ya guardado: manda la imagen del header y las iniciales quedan
+    // ocultas (el mismo par que alterna el JS del picker, pero resuelto en Thymeleaf).
+    assertTrue(page.locator("#avatar-preview-img").isVisible());
+    assertEquals(
+      "/images/avatars/avatar-1.svg",
+      page.locator("#avatar-preview-img").getAttribute("src")
+    );
+    assertFalse(page.locator("#avatar-preview-initial").isVisible());
   }
 
   /** URL del perfil propio resolviendo el atajo /profile que redirige a /profile/{id}. */
