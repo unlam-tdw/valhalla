@@ -2,6 +2,7 @@ package com.valhalla.integration;
 
 import com.valhalla.config.JpaTestConfig;
 import com.valhalla.integration.config.SpringWebTestConfig;
+import com.valhalla.integration.config.WeatherTestConfig;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -19,6 +20,8 @@ import org.springframework.test.context.web.WebAppConfiguration;
 @Inherited
 @ExtendWith(SpringExtension.class)
 @WebAppConfiguration
-@ContextConfiguration(classes = { SpringWebTestConfig.class, JpaTestConfig.class })
+@ContextConfiguration(
+  classes = { SpringWebTestConfig.class, JpaTestConfig.class, WeatherTestConfig.class }
+)
 public @interface WebIntegrationTest {
 }

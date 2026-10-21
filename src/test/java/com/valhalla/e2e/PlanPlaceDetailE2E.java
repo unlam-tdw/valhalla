@@ -88,7 +88,6 @@ public class PlanPlaceDetailE2E extends E2eBase {
     addPlaceToPlan();
     assertThat(page.locator(".stop-details")).hasCount(2);
     dialog = openStopDetails(1);
-    assertThat(dialog).containsText("Sin fecha");
     assertThat(dialog).containsText("Sin hora");
     assertThat(dialog.locator("dd").last()).hasText("2");
     closeStopDetails();
@@ -184,9 +183,10 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
-   * The only way to change a visit after the plan exists: the detail page renders the visit date
-   * and time read-only, so the change goes to {@code PUT /api/plans/{id}/places}/{@code {entryId}}
-   * with the CSRF token the page carries, the same way the Vue app itself does.
+   * The only way to change a visit date after the plan exists: the detail page shows and edits the
+   * visit time, but every stop belongs to the plan's own date, so a date change goes to
+   * {@code PUT /api/plans/{id}/places}/{@code {entryId}} with the CSRF token the page carries, the
+   * same way the Vue app itself does.
    */
   private void updateVisitDetails(String isoDate, String time) {
     Object updated = page.evaluate(
