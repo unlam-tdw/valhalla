@@ -285,6 +285,28 @@ public class ProfileControllerIntegrationTest {
       .andExpect(status().is3xxRedirection());
   }
 
+  // --- I-29 (navbar): el avatar recien actualizado sale en la proxima render del navbar ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void theNavbarReflectsTheAvatarJustUpdated() throws Exception {
+    this.mockMvc.perform(
+        post("/profile")
+          .with(csrf())
+          .param("firstName", "Ada")
+          .param("lastName", "Lovelace")
+          .param("avatarUrl", "/images/avatars/avatar-2.svg")
+      )
+      .andExpect(status().is3xxRedirection());
+
+    // La pagina del editor se vuelve a pedir como cualquier otra: el navbar server-rendered
+    // (CurrentUserControllerAdvice.userAvatarUrl) ya lleva el <img> del avatar sin cache ni JS.
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("id=\"navbar-avatar\"")))
+      .andExpect(content().string(containsString("src=\"/images/avatars/avatar-2.svg\"")));
+  }
+
   // --- I-08 (avatar): javascript:, data: y http:// rechazan (AC-25) ---
 
   @Test

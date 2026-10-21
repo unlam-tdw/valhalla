@@ -53,15 +53,25 @@
     </a>
 
     <!-- [PROF] El avatar pasa de <span> a <button>: abre el menú modal del navbar
-         (components/navbar-menu.html, renderizado fuera del <nav> en base.html). El nombre
-         completo sigue viajando en aria-label/title para lectores de pantalla y tooltips.
-         El logout ya no vive en el navbar: está en el modal (navbar-menu), así que los
-         helpers E2E que pinnearon items no ven un "Logout" suelto que desapareció. -->
+         (components/navbar-menu.html, renderizado fuera del <nav> en base.html). Muestra el
+         avatarUrl vigente del usuario (userAvatarUrl, resuelto por CurrentUserControllerAdvice)
+         y cae a la inicial si no hay: actualizar el perfil se refleja aca en el render del
+         redirect, sin JS. La inicial va en un span interno, no en th:text directo del
+         <button>: eso reemplazaria todo el contenido del nodo (incluido el <img>). La
+         geometría del círculo la manda el botón (overflow-hidden, misma defensa contra el
+         max-width del preflight que los botones del avatar-picker). El nombre completo sigue
+         viajando en aria-label/title para lectores de pantalla y tooltips. El logout ya no
+         vive en el navbar: está en el modal (navbar-menu), así que los helpers E2E que
+         pinnearon items no ven un "Logout" suelto que desapareció. -->
     <button type="button" data-menu-toggle="navbar-menu" id="navbar-avatar"
-      class="navbar-avatar inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary font-serif font-bold text-black hover:ring-2 hover:ring-white/60"
-      th:if="${userInitial != null}" th:text="${userInitial}"
+      class="navbar-avatar inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-secondary font-serif font-bold text-black hover:ring-2 hover:ring-white/60"
+      th:if="${userInitial != null}"
       th:attr="aria-label=${userDisplayName}, title=${userDisplayName}"
-      aria-haspopup="true" aria-expanded="false" aria-controls="navbar-menu">U</button>
+      aria-haspopup="true" aria-expanded="false" aria-controls="navbar-menu">
+      <span th:unless="${userAvatarUrl != null}" th:text="${userInitial}">U</span>
+      <img th:if="${userAvatarUrl != null}" th:src="${userAvatarUrl}" alt=""
+        class="h-full w-full object-cover" />
+    </button>
   </div>
 
   <!-- Usuario NO AUTENTICADO -->

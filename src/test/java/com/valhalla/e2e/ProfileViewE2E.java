@@ -102,6 +102,10 @@ public class ProfileViewE2E extends E2eBase {
     assertEquals("Simón", page.inputValue("#firstName"));
     assertEquals("Beltrán", page.inputValue("#lastName"));
     assertEquals("/images/avatars/avatar-1.svg", page.inputValue("#avatarUrl"));
+    // El navbar server-rendered del redirect ya refleja el avatar nuevo (sin JS ni cache).
+    var navbarAvatar = page.locator("#navbar-avatar img");
+    assertEquals(1, navbarAvatar.count());
+    assertEquals("/images/avatars/avatar-1.svg", navbarAvatar.getAttribute("src"));
   }
 
   /** URL del perfil propio resolviendo el atajo /profile que redirige a /profile/{id}. */

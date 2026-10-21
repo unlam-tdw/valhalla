@@ -11,8 +11,13 @@
   <!-- Variante AUTENTICADA -->
   <div sec:authorize="isAuthenticated()">
     <div class="flex items-center gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
-      <span class="navbar-avatar inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary font-serif font-bold text-black"
+      <span th:unless="${userAvatarUrl != null}"
+        class="navbar-avatar inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary font-serif font-bold text-black"
         th:text="${userInitial}" aria-hidden="true">U</span>
+      <!-- El avatar del perfil no "vive" dentro del botón: el trigger muestra la imagen y el modal la repite en su header (mismo
+           userAvatarUrl, resuelto por CurrentUserControllerAdvice). src directo: URLs ajenas no pasan por @{...}. -->
+      <img th:if="${userAvatarUrl != null}" th:src="${userAvatarUrl}" alt=""
+        class="h-9 w-9 rounded-full object-cover" />
       <div class="min-w-0">
         <span class="block truncate font-medium text-gray-900" th:text="${userDisplayName}">Nombre</span>
       </div>
