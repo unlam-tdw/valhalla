@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
@@ -410,6 +411,163 @@ public class PlanControllerIntegrationTest {
       )
     );
     this.mockMvc.perform(get("/images/plans/cover-1.svg")).andExpect(status().isOk());
+  }
+
+  // --- GET /for-you con busqueda, filtros y orden [SEARCH] ---
+
+  @Test
+  public void I01_search_porTextoMuestraSoloLosPlanesQueMatchean() throws Exception {
+    // given: dos planes publicos, solo uno menciona el texto buscado
+    givenSearchablePublicPlan(this.ownerId, "Salida al museo", null, null);
+    givenSearchablePublicPlan(this.otherId, "Cena en el barrio", null, null);
+
+    // when
+    String html = forYouHtml("/for-you?q=museo");
+
+    // then (AC-01)
+    assertThat(html, containsString("Salida al museo"));
+    assertThat(html, not(containsString("Cena en el barrio")));
+  }
+
+  @Test
+  public void I02_search_porCategoriaMuestraSoloPlanesConUnLugarDeEsaCategoria() throws Exception {
+    // given: un plan con un lugar BAR y otro con un lugar MUSEUM
+    givenSearchablePublicPlan(this.ownerId, "Noche de bares", null, PlaceCategory.BAR);
+    givenSearchablePublicPlan(this.otherId, "Tarde de museo", null, PlaceCategory.MUSEUM);
+
+    // when
+    String html = forYouHtml("/for-you?category=BAR");
+
+    // then (AC-03)
+    assertThat(html, containsString("Noche de bares"));
+    assertThat(html, not(containsString("Tarde de museo")));
+  }
+
+  @Test
+  public void I03_search_porFechaPasadaMuestraSoloLosPlanesConFechaAnteriorAHoy() throws Exception {
+    // given: uno pasado, uno futuro y uno sin fecha (fuera de las dos ventanas)
+    LocalDate today = LocalDate.now();
+    givenSearchablePublicPlan(this.ownerId, "Plan pasado", today.minusDays(2), null);
+    givenSearchablePublicPlan(this.otherId, "Plan futuro", today.plusDays(2), null);
+    givenSearchablePublicPlan(this.ownerId, "Plan sin fecha", null, null);
+
+    // when
+    String html = forYouHtml("/for-you?when=past");
+
+    // then (AC-04)
+    assertThat(html, containsString("Plan pasado"));
+    assertThat(html, not(containsString("Plan futuro")));
+    assertThat(html, not(containsString("Plan sin fecha")));
+  }
+
+  @Test
+  public void I04_search_ordenarPorFechaRespetaElOrdenAscendente() throws Exception {
+    // given: el mas nuevo primero en la lista de entrada
+    givenSearchablePublicPlan(this.ownerId, "Plan de marzo", LocalDate.of(2026, 3, 1), null);
+    givenSearchablePublicPlan(this.otherId, "Plan de enero", LocalDate.of(2026, 1, 1), null);
+
+    // when
+    String html = forYouHtml("/for-you?sort=date");
+
+    // then (AC-05)
+    assertThat(html.indexOf("Plan de enero") < html.indexOf("Plan de marzo"), is(true));
+  }
+
+  @Test
+  public void I05_search_sinResultadosMuestraElEstadoVacioConLaSalidaParaLimpiar()
+    throws Exception {
+    // given
+    givenSearchablePublicPlan(this.ownerId, "Salida al museo", null, null);
+
+    // when
+    String html = forYouHtml("/for-you?q=zzz");
+
+    // then (AC-09): estado propio de los filtros, con el link que vuelve al feed completo
+    assertThat(html, containsString("No encontramos planes con esos filtros"));
+    assertThat(html, containsString("Limpiar filtros"));
+    assertThat(html, containsString("href=\"/for-you\""));
+    assertThat(html, not(containsString("Todavía no hay planes públicos")));
+  }
+
+  @Test
+  public void I06_search_parametrosInvalidosResponden200SinError() throws Exception {
+    // given
+    givenSearchablePublicPlan(this.ownerId, "Salida al museo", null, null);
+
+    // when/then (AC-12): categoria y orden desconocidos se ignoran, nunca un 400
+    this.mockMvc.perform(get("/for-you?category=NOPE&sort=nope"))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/plans/public-list"))
+      .andExpect(model().attribute("filtersApplied", false));
+  }
+
+  @Test
+  public void I07_search_elListadoFiltradoNoExponeShortCodeNiEmailsNiParticipantes()
+    throws Exception {
+    // given: un plan publico con shortCode y un participante que no debe salir al HTML
+    UUID planId = givenSearchablePublicPlan(this.ownerId, "Salida al museo", null, null);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setShortCode("SECRET01");
+    plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
+    this.planRepository.save(plan);
+
+    // when
+    String html = forYouHtml("/for-you?q=museo");
+
+    // then (AC-10)
+    assertThat(html, containsString("Salida al museo"));
+    assertThat(html, not(containsString("SECRET01")));
+    assertThat(html, not(containsString(OWNER_EMAIL)));
+    assertThat(html, not(containsString(OTHER_EMAIL)));
+  }
+
+  @Test
+  public void I08_search_elFormularioOfreceLimpiarSoloCuandoHayAlgoAplicado() throws Exception {
+    // given: un plan publico para que el feed no caiga en el estado vacio
+    givenSearchablePublicPlan(this.ownerId, "Salida al museo", null, null);
+
+    // when
+    String conTexto = forYouHtml("/for-you?q=museo");
+    String conOrden = forYouHtml("/for-you?sort=name");
+    String sinNada = forYouHtml("/for-you");
+
+    // then (AC-13): la salida aparece con cualquier parametro no default y desaparece limpia
+    assertThat(conTexto, containsString("data-testid=\"clear-filters\""));
+    assertThat(conOrden, containsString("data-testid=\"clear-filters\""));
+    assertThat(sinNada, not(containsString("data-testid=\"clear-filters\"")));
+  }
+
+  @Test
+  public void T_CAL_020_feedElIndicadorDeCalificacionesReflejaElAgregado() throws Exception {
+    // given: un plan calificado con 4 y 5 (promedio 4.5) y otro sin calificaciones
+    givenPublicPlanFor(this.ownerId, PLAN_NAME);
+    UUID ratedId = givenPublicPlanFor(this.otherId, OTHER_PLAN_NAME);
+    givenUser("votante@test.com");
+    this.mockMvc.perform(
+        post("/plans/" + ratedId + "/ratings")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      );
+    this.mockMvc.perform(
+        post("/plans/" + ratedId + "/ratings")
+          .with(user("votante@test.com"))
+          .with(csrf())
+          .param("score", "5")
+      );
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/for-you").with(user("visita@test.com")))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then (AC-10/AC-11): el agregado sale en la tarjeta del plan calificado; el feed no ordena
+    assertThat(html, containsString("4.5"));
+    assertThat(html, containsString(".rating-stars-fill {")); // la regla CSS vive en base.html, una sola fuente
+    assertThat(occurrences(html, "class=\"rating-stars-fill"), is(1)); // el span del plan calificado
   }
 
   // --- POST /plans ---
@@ -1180,6 +1338,202 @@ public class PlanControllerIntegrationTest {
     assertThat(html, containsString(String.valueOf(catalog.get(1).getLongitude())));
   }
 
+  // --- POST /plans/{id}/ratings [CAL] ---
+
+  @Test
+  public void T_CAL_012_postRatings_calificaConSesionYLaVistaMuestraElAgregado() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    givenUser("votante2@test.com");
+
+    // Dos usuarios logueados califican: 4 y 5 → promedio 4.5 con 2 calificaciones
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/plans/" + planId + "/public"));
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user("votante2@test.com"))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection());
+
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // AC-07: el agregado publico sale al HTML; AC-02: la autoria nunca (ni emails de votantes)
+    assertThat(html, containsString("4.5"));
+    assertThat(html, not(containsString(OTHER_EMAIL)));
+    assertThat(html, not(containsString("votante2@test.com")));
+  }
+
+  @Test
+  public void T_CAL_013_postRatings_recalificarReemplazaNuncaSumaOtraFila() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      );
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection());
+
+    // AC-04: misma cantidad de votos, promedio reemplazado por el nuevo puntaje
+    this.mockMvc.perform(get("/plans/" + planId + "/public").with(user(OTHER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(model().attribute("ratingCount", is(1L)))
+      .andExpect(model().attribute("ratingAverage", is(5.0)))
+      .andExpect(model().attribute("myRating", is(5)));
+  }
+
+  @Test
+  public void T_CAL_014_postRatings_anonimoNoCalifica() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    // Sin sesion el POST no califica: el filtro CSRF lo rebota y la cadena manda a login (AC-13)
+    this.mockMvc.perform(post("/plans/" + planId + "/ratings").param("score", "4"))
+      .andExpect(status().isForbidden());
+    this.mockMvc.perform(post("/plans/" + planId + "/ratings").with(csrf()).param("score", "4"))
+      .andExpect(redirectedUrlPattern("**/auth/login"));
+  }
+
+  @Test
+  public void T_CAL_015_postRatings_planPrivadoOnexistenteRespondeComoInexistente()
+    throws Exception {
+    UUID planId = givenPlanFor(this.ownerId, OTHER_PLAN_NAME);
+
+    // AC-06: calificar un plan privado es igual que calificar un id que no existe
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    this.mockMvc.perform(
+        post("/plans/" + MISSING_PLAN_ID + "/ratings")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("score", "5")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+  }
+
+  @Test
+  public void T_CAL_016_widget_publicoSinRatingsMuestraElEstadoVacio() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    String html = oneLine(
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString()
+    );
+
+    // AC-07: sin calificaciones hay estado vacio explicito y sin capa de relleno
+    assertThat(html, containsString("Todavía sin calificaciones"));
+    assertThat(html, not(containsString("class=\"rating-stars-fill\"")));
+  }
+
+  @Test
+  public void T_CAL_017_widget_elRellenoAmarilloReflejaElPromedioEnProporcion() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    givenUser("votante@test.com");
+    // 4 + 5 = promedio 4.5 → la capa amarilla cubre el 90% de la fila (AC-08)
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      );
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user("votante@test.com"))
+          .with(csrf())
+          .param("score", "5")
+      );
+
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(html, containsString("width:90.00%"));
+    assertThat(html, containsString("4.5"));
+  }
+
+  @Test
+  public void T_CAL_018_widget_anonimoVeElIndicadorPeroNuncaUnFormDeVoto() throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    givenUser("votante@test.com");
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user("votante@test.com"))
+          .with(csrf())
+          .param("score", "4")
+      );
+
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // AC-05: el anonimo ve la misma fila (la capa del promedio) como soft gate: el widget
+    // es un link al login con la vuelta, y el form de voto no existe
+    assertThat(html, not(containsString("action=\"/plans/" + planId + "/ratings\"")));
+    assertThat(html, not(containsString("name=\"score\"")));
+    assertThat(html, containsString("rating-stars-fill"));
+    assertThat(html, containsString("rating-widget-anon"));
+    assertThat(html, containsString("/auth/login?redirect=/plans/" + planId + "/public"));
+  }
+
+  @Test
+  public void T_CAL_019_widget_conSesionEsUnFormDeRadiosConElPuntajePropioPreseleccionado()
+    throws Exception {
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/ratings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("score", "4")
+      );
+
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public").with(user(OTHER_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // AC-01/AC-03/AC-09: 5 radios de score, el propio preseleccionado, el POST de verdad
+    assertThat(html, containsString("action=\"/plans/" + planId + "/ratings\""));
+    assertThat(occurrences(html, "name=\"score\""), is(5));
+    assertThat(html, containsString("checked=\"checked\""));
+  }
+
   // --- fixtures ---
 
   @Test
@@ -1562,6 +1916,42 @@ public class PlanControllerIntegrationTest {
     Plan plan = this.planRepository.findById(id).orElseThrow();
     plan.setIsPublic(true);
     return this.planRepository.save(plan).getId();
+  }
+
+  /**
+   * [SEARCH] Plan publico con la fecha y el lugar que necesitan los filtros del feed: el plan no
+   * tiene categoria propia, matchea por la categoria del lugar de su itinerario.
+   */
+  private UUID givenSearchablePublicPlan(
+    Long administratorId,
+    String name,
+    LocalDate eventDate,
+    PlaceCategory category
+  ) {
+    UUID id = givenPublicPlanFor(administratorId, name);
+    Plan plan = this.planRepository.findById(id).orElseThrow();
+    plan.setEventDate(eventDate);
+    if (category != null) {
+      Place place = new Place();
+      place.setName("Lugar " + category + " de " + name);
+      place.setCategory(category);
+      this.placeRepository.save(place);
+      PlanPlace entry = new PlanPlace();
+      entry.setPlace(place);
+      entry.setSortOrder(1);
+      plan.addPlanPlace(entry);
+    }
+    return this.planRepository.save(plan).getId();
+  }
+
+  /** [SEARCH] HTML del feed pedido como anonimo: el visitante ve todos los planes publicos. */
+  private String forYouHtml(String url) throws Exception {
+    return this.mockMvc.perform(get(url))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/plans/public-list"))
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
   }
 
   private static int occurrences(String haystack, String needle) {

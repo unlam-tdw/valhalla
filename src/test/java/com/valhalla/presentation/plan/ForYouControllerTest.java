@@ -1,21 +1,26 @@
 package com.valhalla.presentation.plan;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
+import com.valhalla.domain.rating.PlanRatingService;
+import com.valhalla.domain.rating.RatingSummary;
 import com.valhalla.domain.user.User;
 import java.time.LocalDate;
 import java.util.List;
@@ -41,16 +46,22 @@ public class ForYouControllerTest {
   private static final String PUBLIC_LIST_VIEW = "pages/plans/public-list";
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000007");
   private static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000008");
+  private static final UUID MUSEUM_PLAN_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000009"
+  );
 
   private ForYouController controller;
   private PlanService planServiceMock;
+  private PlanRatingService planRatingServiceMock;
   private Authentication authentication;
 
   @BeforeEach
   public void init() {
     this.planServiceMock = mock(PlanService.class);
-    this.controller = new ForYouController(this.planServiceMock);
+    this.planRatingServiceMock = mock(PlanRatingService.class);
+    this.controller = new ForYouController(this.planServiceMock, this.planRatingServiceMock);
     this.authentication = new UsernamePasswordAuthenticationToken(OWNER_EMAIL, null);
+    when(this.planRatingServiceMock.getSummariesByPlanId()).thenReturn(java.util.Map.of());
   }
 
   // --- GET /for-you ---
@@ -65,7 +76,7 @@ public class ForYouControllerTest {
     when(this.planServiceMock.getPublicPlans()).thenReturn(planes);
 
     // when
-    ModelAndView view = this.controller.forYou(this.authentication);
+    ModelAndView view = this.controller.forYou(this.authentication, null, null, null, null);
 
     // then
     assertThat(view.getViewName(), is(PUBLIC_LIST_VIEW));
@@ -90,7 +101,7 @@ public class ForYouControllerTest {
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
 
     // when
-    ModelAndView view = this.controller.forYou(this.authentication);
+    ModelAndView view = this.controller.forYou(this.authentication, null, null, null, null);
 
     // then: nombre, descripcion, fecha, cantidad de lugares y administrador (AC-03)
     Map<?, ?> card = cardAt(view, 0);
@@ -102,6 +113,25 @@ public class ForYouControllerTest {
     assertThat(card.get("administratorName"), is(equalTo("Ana Perez")));
     // cover generico deterministico: hash del id fijo 4 -> 4 % 6 + 1 -> cover-5.svg
     assertThat(card.get("cover"), is(equalTo("/images/plans/cover-5.svg")));
+    // [CAL] sin calificaciones el agregado es count 0 y promedio null (AC-07)
+    assertThat(card.get("ratingAverage"), is(nullValue()));
+    assertThat(card.get("ratingCount"), is(equalTo(0L)));
+  }
+
+  @Test
+  public void U02e_forYou_laTarjetaExponeElAgregadoDeCalificaciones() {
+    // given: dos calificaciones, promedio 4.25 → la tarjeta muestra 4.3 (un decimal)
+    Plan plan = plan(PLAN_ID, "Plan calificado");
+    when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
+    when(this.planRatingServiceMock.getSummariesByPlanId())
+      .thenReturn(Map.of(PLAN_ID, new RatingSummary(PLAN_ID, 4.25, 12L)));
+
+    // when
+    Map<?, ?> card = cardAt(this.controller.forYou(this.authentication, null, null, null, null), 0);
+
+    // then (AC-10): el agregado sale al feed, jamas la autoria de los votantes
+    assertThat(card.get("ratingAverage"), is(equalTo(4.3)));
+    assertThat(card.get("ratingCount"), is(equalTo(12L)));
   }
 
   @Test
@@ -114,7 +144,7 @@ public class ForYouControllerTest {
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
 
     // when
-    ModelAndView view = this.controller.forYou(this.authentication);
+    ModelAndView view = this.controller.forYou(this.authentication, null, null, null, null);
 
     // then: el feed es para descubrir planes de otros: el propio queda fuera
     assertThat(cardsOf(view), is(empty()));
@@ -135,7 +165,7 @@ public class ForYouControllerTest {
     );
 
     // when
-    ModelAndView view = this.controller.forYou(anon);
+    ModelAndView view = this.controller.forYou(anon, null, null, null, null);
 
     // then: el visitante no tiene planes propios, el filtro no le saca nada
     assertThat(cardsOf(view), hasSize(1));
@@ -148,7 +178,7 @@ public class ForYouControllerTest {
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
 
     // when
-    ModelAndView view = this.controller.forYou(null);
+    ModelAndView view = this.controller.forYou(null, null, null, null, null);
 
     // then
     assertThat(cardsOf(view), hasSize(1));
@@ -160,7 +190,7 @@ public class ForYouControllerTest {
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of());
 
     // when
-    ModelAndView view = this.controller.forYou(this.authentication);
+    ModelAndView view = this.controller.forYou(this.authentication, null, null, null, null);
 
     // then: el estado vacio lo decide la vista, el controller no lanza nada
     assertThat(view.getViewName(), is(PUBLIC_LIST_VIEW));
@@ -184,7 +214,7 @@ public class ForYouControllerTest {
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
 
     // when
-    ModelAndView view = this.controller.forYou(this.authentication);
+    ModelAndView view = this.controller.forYou(this.authentication, null, null, null, null);
     Map<?, ?> card = cardAt(view, 0);
 
     // then: ni la clave del codigo, ni rastro de los emails en los valores
@@ -200,7 +230,9 @@ public class ForYouControllerTest {
             "eventDate",
             "placeCount",
             "administratorName",
-            "cover"
+            "cover",
+            "ratingAverage",
+            "ratingCount"
           )
         )
       )
@@ -221,10 +253,88 @@ public class ForYouControllerTest {
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
 
     // when
-    Map<?, ?> card = cardAt(this.controller.forYou(this.authentication), 0);
+    Map<?, ?> card = cardAt(this.controller.forYou(this.authentication, null, null, null, null), 0);
 
     // then (AC-09): el nombre de administrador queda vacio, nunca el email
     assertThat(card.get("administratorName"), is(equalTo("")));
+  }
+
+  // --- GET /for-you con busqueda, filtros y orden [SEARCH] ---
+
+  @Test
+  public void U19_forYou_pasaLosParametrosAlDescubrimientoYDevuelveElListadoFiltrado() {
+    // given: solo el primero matchea texto, categoria y fecha a la vez
+    LocalDate today = LocalDate.now();
+    Plan match = plan(MUSEUM_PLAN_ID, "Noche de museo", "Museo y bar", today.plusDays(3));
+    addPlace(match, PlaceCategory.BAR);
+    Plan wrongCategory = plan(OTHER_PLAN_ID, "Museo sin bar", "Museo", today.plusDays(3));
+    addPlace(wrongCategory, PlaceCategory.MUSEUM);
+    Plan wrongDate = plan(PLAN_ID, "Museo viejo", "Museo y bar", today.minusDays(1));
+    addPlace(wrongDate, PlaceCategory.BAR);
+    when(this.planServiceMock.getPublicPlans())
+      .thenReturn(List.of(match, wrongCategory, wrongDate));
+
+    // when
+    ModelAndView view =
+      this.controller.forYou(this.authentication, "museo", "BAR", "upcoming", "date");
+
+    // then (AC-01, AC-03, AC-04, AC-05): un solo plan y el conteo de participantes solo de los
+    // planes publicos que llegan al descubrimiento
+    assertThat(cardsOf(view), hasSize(1));
+    assertThat(cardAt(view, 0).get("id"), is(equalTo(MUSEUM_PLAN_ID)));
+    verify(this.planServiceMock, times(1))
+      .getParticipantCounts(List.of(MUSEUM_PLAN_ID, OTHER_PLAN_ID, PLAN_ID));
+  }
+
+  @Test
+  public void U20_forYou_elModeloExponeLosValoresAplicadosYFiltersApplied() {
+    // when: texto con espacios, categoria en minusculas y order/fecha explicitos
+    ModelAndView view =
+      this.controller.forYou(this.authentication, "  museo  ", "bar", "past", "name");
+
+    // then (AC-08, AC-09): el formulario refleja lo aplicado, normalizado
+    assertThat(view.getModel().get("q"), is(equalTo("museo")));
+    assertThat(view.getModel().get("selectedCategory"), is(equalTo("BAR")));
+    assertThat(view.getModel().get("selectedWhen"), is(equalTo("past")));
+    assertThat(view.getModel().get("selectedSort"), is(equalTo("name")));
+    assertThat(view.getModel().get("filtersApplied"), is(equalTo(true)));
+    assertThat(
+      (PlaceCategory[]) view.getModel().get("categories"),
+      is(arrayContaining(PlaceCategory.values()))
+    );
+  }
+
+  @Test
+  public void U21_forYou_parametrosNulosOInvalidosNoLanzanYNoFiltran() {
+    // given
+    when(this.planServiceMock.getPublicPlans())
+      .thenReturn(List.of(plan(PLAN_ID, "Plan visible"), plan(OTHER_PLAN_ID, "Otro plan")));
+
+    // when: todos nulos, y despues basura en categoria, fecha y orden
+    ModelAndView nulls = this.controller.forYou(this.authentication, null, null, null, null);
+    ModelAndView invalid =
+      this.controller.forYou(this.authentication, "  ", "NOPE", "ever", "random");
+
+    // then (AC-12): la pagina no rompe y el listado queda sin filtros
+    assertThat(cardsOf(nulls), hasSize(2));
+    assertThat(cardsOf(invalid), hasSize(2));
+    assertThat(invalid.getModel().get("selectedCategory"), is(equalTo("")));
+    assertThat(invalid.getModel().get("selectedWhen"), is(equalTo("all")));
+    assertThat(invalid.getModel().get("selectedSort"), is(equalTo("popular")));
+    assertThat(invalid.getModel().get("filtersApplied"), is(equalTo(false)));
+  }
+
+  @Test
+  public void U22_forYou_conFiltrosYSinResultadosMarcaFiltersAppliedYListaVacia() {
+    // given
+    when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan(PLAN_ID, "Museo de Arte")));
+
+    // when
+    ModelAndView view = this.controller.forYou(this.authentication, "zzz", null, null, null);
+
+    // then (AC-09): la vista elige el estado vacio propio de los filtros
+    assertThat(cardsOf(view), is(empty()));
+    assertThat(view.getModel().get("filtersApplied"), is(equalTo(true)));
   }
 
   private Plan plan(UUID id, String name) {
@@ -232,6 +342,21 @@ public class ForYouControllerTest {
     plan.setId(id);
     plan.setName(name);
     return plan;
+  }
+
+  private Plan plan(UUID id, String name, String description, LocalDate eventDate) {
+    Plan plan = plan(id, name);
+    plan.setDescription(description);
+    plan.setEventDate(eventDate);
+    return plan;
+  }
+
+  private static void addPlace(Plan plan, PlaceCategory category) {
+    Place place = new Place();
+    place.setCategory(category);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    plan.addPlanPlace(entry);
   }
 
   private static List<?> cardsOf(ModelAndView view) {

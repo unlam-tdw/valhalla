@@ -9,6 +9,7 @@
 | **Plan** | A curated collection of places with schedule. Owned by a User. Is public or private. |
 | **PlanPlace** | A place within a plan, with visit date, time, and order in the itinerary. |
 | **Plan participant** | Registered User who joins a Plan using its Short Code. Can read its detail and leave it; cannot edit or delete it unless assigned the Editor role. The administrator owns the Plan and can delete it. |
+| **Rating** | A 1–5 star score a logged-in User gives to a public Plan. One per User per Plan (updatable). Authorship is stored but never shown: only the average and count are public. |
 
 **Editor**: A Plan participant who can modify the plan and itinerary and change participant roles. Only the administrator (owner) can delete the Plan. Leaving the Plan removes the Editor role.
 
@@ -72,5 +73,7 @@ rejection leaves participation unchanged. Both responses remove the pending invi
 |------|------------|
 | **Short Code** | Unique URL-friendly identifier for sharing plans, 8 characters (e.g., `a1b2c3d4`) |
 | **Itinerary** | Ordered list of places in a plan, with dates and times |
+| **Feed** | The `/for-you` list of public plans a visitor discovers; never includes the viewer's own plans |
+| **Popularity** | Feed ordering from ratings and participants (Bayesian score, participants/date/name/id as tiebreaks). Computed, never shown; the card still shows only average and count |
 | **Marker** | Visual pin on the map representing a place |
 | **Popup** | Info window that opens when clicking a marker |
