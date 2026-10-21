@@ -17,22 +17,25 @@
         stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
     </button>
 
+    <!-- overflow-hidden + img que llena el boton: el preflight de Tailwire pone max-width:100%
+         en los img, y con la clase h-14 del img el alto no la pisaba -> ovalo (52x56 dentro del
+         boton bordeado). La geometria la manda el boton (rounded-full + clip), la imagen llena. -->
     <button type="button" data-avatar-value="/images/avatars/avatar-1.svg"
-      class="avatar-choice h-14 w-14 rounded-full border-2 border-transparent hover:border-blue-500"
+      class="avatar-choice h-14 w-14 rounded-full overflow-hidden border-2 border-transparent hover:border-blue-500"
       th:classappend="${currentValue == '/images/avatars/avatar-1.svg'} ? 'avatar-selected border-blue-500 ring-2 ring-blue-500' : ''">
-      <img src="/images/avatars/avatar-1.svg" alt="Avatar 1" class="h-14 w-14 rounded-full object-cover" />
+      <img src="/images/avatars/avatar-1.svg" alt="Avatar 1" class="h-full w-full object-cover" />
     </button>
 
     <button type="button" data-avatar-value="/images/avatars/avatar-2.svg"
-      class="avatar-choice h-14 w-14 rounded-full border-2 border-transparent hover:border-blue-500"
+      class="avatar-choice h-14 w-14 rounded-full overflow-hidden border-2 border-transparent hover:border-blue-500"
       th:classappend="${currentValue == '/images/avatars/avatar-2.svg'} ? 'avatar-selected border-blue-500 ring-2 ring-blue-500' : ''">
-      <img src="/images/avatars/avatar-2.svg" alt="Avatar 2" class="h-14 w-14 rounded-full object-cover" />
+      <img src="/images/avatars/avatar-2.svg" alt="Avatar 2" class="h-full w-full object-cover" />
     </button>
 
     <button type="button" data-avatar-value="/images/avatars/avatar-3.svg"
-      class="avatar-choice h-14 w-14 rounded-full border-2 border-transparent hover:border-blue-500"
+      class="avatar-choice h-14 w-14 rounded-full overflow-hidden border-2 border-transparent hover:border-blue-500"
       th:classappend="${currentValue == '/images/avatars/avatar-3.svg'} ? 'avatar-selected border-blue-500 ring-2 ring-blue-500' : ''">
-      <img src="/images/avatars/avatar-3.svg" alt="Avatar 3" class="h-14 w-14 rounded-full object-cover" />
+      <img src="/images/avatars/avatar-3.svg" alt="Avatar 3" class="h-full w-full object-cover" />
     </button>
 
     <!-- Preview del valor vigente (la URL custom tambien). Se vacia si el formato no es
