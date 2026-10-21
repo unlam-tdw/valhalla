@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.options.WaitUntilState;
@@ -37,13 +38,14 @@ public class PlacesViewE2E extends E2eBase {
   /**
    * AC-13: el navbar se decide por área, no por rol. El arrange de esta clase es justo el caso
    * reportado —una sesión ADMIN parada en /explore— y tiene que ver el menú de usuario (sin
-   * "Users"); el conjunto se pinnea entero para que un item fantasma también falle.
+   * "Users"); el conjunto se pinnea entero para que un item fantasma también falle. El último
+   * item es el toggle de modo oscuro: un botón de solo ícono cuyo único texto es el sr-only.
    */
   @Test
   void shouldShowTheUserNavbarToAnAdminBrowsingTheExplore() {
     assertThat(
       new WebPage(page).getNavbarItems(),
-      contains("PlanIt", "Para vos", "Explore", "Plans", "A")
+      contains("PlanIt", "Para vos", "Explore", "Plans", "A", "Cambiar tema")
     );
   }
 
@@ -87,8 +89,16 @@ public class PlacesViewE2E extends E2eBase {
 
     assertThat(panel.locator("h2").textContent(), containsString("El Sanjuanino"));
     assertThat(page.locator(".leaflet-popup").textContent(), containsString("RESTAURANT"));
-    // Leaflet's own close button is an <a>; only the content must stay link-free.
-    assertThat(page.locator(".leaflet-popup-content a").count(), is(equalTo(0)));
+    // [MAPS] El popup ganó el link "Cómo llegar": es el único contenido linkeable, y el
+    // marcador clickeado siempre tiene dirección (la del lugar que se muestra en la ficha).
+    Locator directions = page.locator(".leaflet-popup-content a");
+    assertThat(directions.count(), is(equalTo(1)));
+    assertThat(directions.textContent(), is(equalTo("Cómo llegar")));
+    assertThat(
+      directions.getAttribute("href"),
+      // El destino es la dirección del lugar (url-encoded), no la coordenada.
+      matchesPattern(".*google\\.com/maps/dir/\\?api=1&destination=([^&\\s]|%[0-9A-F]{2})+.*")
+    );
     assertThat(page.url(), equalTo(placesUrl()));
   }
 

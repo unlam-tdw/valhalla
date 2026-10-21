@@ -9,6 +9,7 @@ import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.SelectOption;
 import com.valhalla.e2e.views.PlansPage;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,11 +44,16 @@ public class PlanPlaceDetailE2E extends E2eBase {
     createPlanWithAVisit();
 
     // Creation: the stop and the visit details typed into the create form are on screen right
-    // away, and the plan's own date reached the summary as well.
+    // away, and the plan's own date reached the summary as well. The stop rides on the plan's own
+    // date (the create form does not ask for one any more), so its schedule row carries the time
+    // only and there is no per-stop date left to show.
     assertEquals(planName, plans.getDetailHeading());
     assertThat(page.locator(".stop-details")).hasCount(1);
-    assertThat(page.locator(".stop-schedule").first()).containsText("01/12/2026");
-    assertThat(page.locator(".stop-schedule").first()).containsText(VISIT_TIME);
+    assertEquals(
+      VISIT_TIME,
+      page.locator(".stop-schedule").first().innerText(),
+      "a stop shows its time only; its date is the plan's own"
+    );
     assertThat(page.locator("#plan-summary")).containsText(EVENT_DATE);
     assertThat(page.locator("input[name='eventDate']")).hasValue(EVENT_DATE);
 
@@ -60,7 +66,6 @@ public class PlanPlaceDetailE2E extends E2eBase {
 
     // The details dialog fetches the itinerary instead of reading the rendered snapshot.
     Locator dialog = openStopDetails(0);
-    assertThat(dialog).containsText(EVENT_DATE);
     assertThat(dialog).containsText(VISIT_TIME);
     assertThat(dialog.locator("dd").last()).hasText("1");
     closeStopDetails();
@@ -121,6 +126,33 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertEquals(0, plans.getPlanCount(), "the plan this test created has to be gone");
   }
 
+  /**
+   * [MAPS] The stop details dialog links out to Google Maps directions: the link is only rendered
+   * when the stop has an address, and its href carries that address (URL-encoded), not raw
+   * coordinates — the dataset stores address and coordinates out of sync, so the link follows the
+   * address the dialog shows. The itinerary list offers the same link below the stop, so a stop can
+   * be routed without opening the dialog.
+   */
+  @Test
+  void showsTheMapsDirectionsLinkInTheStopDetails() {
+    createPlanWithAVisit();
+
+    Locator dialog = openStopDetails(0);
+    Locator mapsLink = dialog.locator("a[href*='maps/dir']");
+    assertThat(mapsLink).isVisible();
+    // El destino es la direccion del lugar, url-encoded: al menos un caracter no vacio.
+    assertThat(mapsLink)
+      .hasAttribute("href", Pattern.compile(".*destination=([^&\\s]|%[0-9A-F]{2})+.*"));
+    closeStopDetails();
+
+    // El itinerario de abajo tambien ofrece el "Como llegar" del lugar.
+    Locator itineraryLink = page.locator(".place-item").first().locator("a.stop-directions");
+    assertThat(itineraryLink).isVisible();
+    assertThat(itineraryLink).hasText("Cómo llegar");
+    assertThat(itineraryLink)
+      .hasAttribute("href", Pattern.compile(".*google\\.com/maps/dir/\\?api=1&destination=.+"));
+  }
+
   /** The create panel of {@code /explore}, with the visit details the form is able to carry. */
   private void createPlanWithAVisit() {
     plans.navigateToCreatePlanModal();
@@ -129,7 +161,6 @@ public class PlanPlaceDetailE2E extends E2eBase {
     plans.typeEventDate(EVENT_DATE);
     plans.clickNextStep();
     plans.addFirstDraftPlace();
-    page.locator("#plans-aside ol li input[aria-label='Fecha de visita']").fill(EVENT_DATE);
     page.locator("#plans-aside ol li input[aria-label='Hora de visita']").fill(VISIT_TIME);
     plans.clickCreate();
     plans.waitForDetailPath();
