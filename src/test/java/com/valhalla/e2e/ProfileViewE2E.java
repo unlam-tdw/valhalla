@@ -14,7 +14,8 @@ import org.junit.jupiter.api.Test;
 /**
  * [PROF] Browser coverage del perfil (docs/specs/11-PROF.md, E-01..E-04): el menú del navbar abre
  * el modal, "Ver perfil" llega a la URL con id, el editor persiste visible con el aviso, la vista
- * pública funciona con y sin sesión, y las entradas "Pronto" no navegan a ningún lado.
+ * pública funciona con y sin sesión, y las entradas "Pronto" no navegan a ningún lado. Extra de
+ * esta ronda: la guardia de z-order del modal en /explore, cuya barra sticky tapaba el panel.
  *
  * <p>El admin seed ("Admin Test", inicial A) es la única cuenta garantizada: ResetDatabase corre
  * en cada test y la seed se recarga.
@@ -62,6 +63,34 @@ public class ProfileViewE2E extends E2eBase {
     // El menú sigue abierto y la URL intacta: nada navegó.
     assertTrue(page.locator("#navbar-menu:not([hidden])").count() == 1);
     assertFalse(page.url().contains("/profile"));
+  }
+
+  // --- z del modal: /explore deja el <nav> sticky con z-index 1000 y el panel queda ENCIMA ---
+
+  @Test
+  void theMenuOpensAboveTheStickyNavbarOnExplore() {
+    WebPage explore = new WebPage(page);
+    page.navigate(explore.baseUrl() + "/explore");
+    page.waitForSelector("#navbar-avatar");
+    page.locator("#navbar-avatar").click();
+    page.waitForSelector("#navbar-menu:not([hidden])");
+
+    // Regresion: places/list.html pisa body > nav con position:sticky z-index 1000 (para
+    // ganarle a las capas del mapa Leaflet). El modal del menu debe quedarse encima: su
+    // z-index computado tiene que superar al del navbar EN ESTA pagina (en las demas el nav
+    // no esta posicionado; el bug solo lo reventaba en /explore).
+    int navZ = Integer.parseInt(
+      (String) page.evaluate("() => getComputedStyle(document.querySelector('nav')).zIndex")
+    );
+    int menuZ = Integer.parseInt(
+      (String) page.evaluate(
+        "() => getComputedStyle(document.getElementById('navbar-menu')).zIndex"
+      )
+    );
+    assertTrue(
+      menuZ > navZ,
+      "el menu (" + menuZ + ") queda tapado por el navbar sticky (" + navZ + ")"
+    );
   }
 
   // --- E-02: la vista pública funciona con sesión ajena y con anonimo (link compartible) ---
