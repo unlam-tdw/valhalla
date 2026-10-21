@@ -1,11 +1,16 @@
 <div th:fragment="picker(currentValue)" xmlns:th="http://www.thymeleaf.org"
+  th:with="isCustom=${currentValue != null and #strings.startsWith(currentValue, 'https://')}"
   class="space-y-2" id="avatar-picker">
 
   <!-- [PROF] AC-23: picker de avatar compartido por /auth/register y el edit del perfil. La
        galeria son los 3 SVG de marca bundleados en /images/avatars (PROF-012); "ninguno" borra
-       el valor, y el input de texto queda abierto para URLs https:// propias (AC-25 valida el
-       formato server-side). Un solo puntito de JS, vanilla y embebido, mantiene preview y
-       seleccion. No hay upload: el manejo de archivos es una card propria a futuro. -->
+       el valor. Contrato de submission: el campo que viaja en el form es el input OCULTO
+       #avatarUrl (name="avatarUrl"), que carga siempre el valor persistido -sea el path interno
+       de la galeria o una URL propia-. El input VISIBLE #avatarUrlText no lleva name: es solo
+       para que el usuario escriba su propia URL https:// (AC-25 valida el formato server-side) y
+       nunca muestra los paths internos /images/avatars. Un solo puntito de JS, vanilla y
+       embebido, mantiene preview, seleccion y el espejo visible -> oculto. No hay upload: el
+       manejo de archivos es una card propria a futuro. -->
 
   <div class="flex flex-wrap items-center gap-3">
     <!-- th:attr checked-states: marcar la opcion activa segun el valor actual -->
@@ -46,51 +51,61 @@
       class="avatar-preview h-14 w-14 rounded-full object-cover ring-2 ring-gray-200" />
   </div>
 
-  <input type="text" id="avatarUrl" name="avatarUrl" autocomplete="off"
-    th:attr="value=${currentValue != null ? currentValue : ''}"
-    placeholder="URL del avatar (https://... o elige de la galeria)"
+  <!-- El campo que se envia: conserva name/id avatarUrl, asi el form y los tests que buscan
+       #avatarUrl siguen leyendo el valor persistido. El visible es solo la URL propia. -->
+  <input type="hidden" id="avatarUrl" name="avatarUrl"
+    th:attr="value=${currentValue != null ? currentValue : ''}" />
+
+  <input type="text" id="avatarUrlText" aria-label="URL del avatar" autocomplete="off"
+    th:attr="value=${isCustom ? currentValue : ''}"
+    placeholder="URL del avatar (https://...) - opcional"
     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
 
   <script>
     (function () {
       var picker = document.getElementById("avatar-picker");
       if (!picker) return;
-      var input = document.getElementById("avatarUrl");
-      var preview = document.getElementById("avatar-preview");
+      var hidden = document.getElementById("avatarUrl");
+      var text = document.getElementById("avatarUrlText");
       var choices = picker.querySelectorAll(".avatar-choice");
       var renderable = function (value) {
         if (!value) return false;
         return value.indexOf("https://") === 0 || value.indexOf("/images/avatars/") === 0;
       };
+      // El preview puede no existir (valor vacio al renderizar), asi que se busca en cada uso.
+      var updatePreview = function (value) {
+        var preview = document.getElementById("avatar-preview");
+        if (!preview) return;
+        if (!renderable(value)) {
+          preview.setAttribute("data-hidden", "true");
+          return;
+        }
+        preview.removeAttribute("data-hidden");
+        preview.src = value;
+      };
+      var clearSelection = function () {
+        for (var j = 0; j < choices.length; j++) {
+          choices[j].classList.remove("avatar-selected", "ring-2", "ring-blue-500", "border-blue-500");
+        }
+      };
       for (var i = 0; i < choices.length; i++) {
         choices[i].addEventListener("click", function () {
-          input.value = this.getAttribute("data-avatar-value");
-          for (var j = 0; j < choices.length; j++) {
-            choices[j].classList.remove("avatar-selected", "ring-2", "ring-blue-500", "border-blue-500");
-          }
+          var value = this.getAttribute("data-avatar-value") || "";
+          // La galeria manda al campo oculto; el visible solo se llena con URLs https propias.
+          hidden.value = value;
+          text.value = value.indexOf("https://") === 0 ? value : "";
+          clearSelection();
           this.classList.add("avatar-selected", "ring-2", "ring-blue-500");
           this.classList.add(this.hasAttribute("data-avatar-none") ? "border-dashed" : "border-blue-500");
-          if (preview) {
-            var v = input.value;
-            if (renderable(v)) {
-              preview.src = v;
-              preview.removeAttribute("data-hidden");
-            } else {
-              preview.setAttribute("data-hidden", "true");
-            }
-          }
+          updatePreview(value);
         });
       }
-      if (preview) {
-        input.addEventListener("input", function () {
-          if (!renderable(input.value)) {
-            preview.setAttribute("data-hidden", "true");
-            return;
-          }
-          preview.removeAttribute("data-hidden");
-          preview.src = input.value;
-        });
-      }
+      // Escribir a mano es elegir una URL propia: pisa la seleccion de la galeria.
+      text.addEventListener("input", function () {
+        hidden.value = text.value;
+        clearSelection();
+        updatePreview(text.value);
+      });
     })();
   </script>
 </div>

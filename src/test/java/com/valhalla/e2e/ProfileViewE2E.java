@@ -123,14 +123,19 @@ public class ProfileViewE2E extends E2eBase {
     // sin tocar nada, porque el prefill ya traia acentos de la DB).
     page.fill("#firstName", "Simón");
     page.fill("#lastName", "Beltrán");
-    page.fill("#avatarUrl", "/images/avatars/avatar-1.svg");
+    // La galeria es la via del usuario: el input VISIBLE de URL propia queda vacio (no filtra
+    // el path interno) y el valor persistido viaja por el campo oculto #avatarUrl.
+    page.locator("main button[data-avatar-value='/images/avatars/avatar-1.svg']").click();
+    assertEquals("", page.inputValue("#avatarUrlText"));
+    assertEquals("/images/avatars/avatar-1.svg", page.inputValue("#avatarUrl"));
     page.locator("main button[type='submit']").first().click();
 
     page.waitForSelector("p[role='status']");
     assertEquals("Perfil actualizado", page.textContent("p[role='status']").trim());
     assertEquals("Simón", page.inputValue("#firstName"));
     assertEquals("Beltrán", page.inputValue("#lastName"));
-    assertEquals("/images/avatars/avatar-1.svg", page.inputValue("#avatarUrl"));
+    // Tras el redirect el avatar de galeria sigue sin mostrarse como path interno.
+    assertEquals("", page.inputValue("#avatarUrlText"));
     // El navbar server-rendered del redirect ya refleja el avatar nuevo (sin JS ni cache).
     var navbarAvatar = page.locator("#navbar-avatar img");
     assertEquals(1, navbarAvatar.count());
