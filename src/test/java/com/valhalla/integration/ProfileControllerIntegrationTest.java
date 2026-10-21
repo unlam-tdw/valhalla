@@ -131,6 +131,11 @@ public class ProfileControllerIntegrationTest {
       .andExpect(status().isOk())
       .andExpect(view().name("pages/profile/edit"))
       .andExpect(model().attributeExists("profileForm", "owner"))
+      // Regresion de charset: el view resolver de Thymeleaf responde con
+      // iso-8859-1 si nadie lo fija; con ese header el browser construye los
+      // bodies de los forms en Latin-1 y Jetty los rechaza con 400 "Invalid
+      // UTF-8" al primer acento (fix de BaseWebConfig).
+      .andExpect(content().contentType("text/html;charset=UTF-8"))
       .andExpect(content().string(containsString("Mi perfil")));
   }
 

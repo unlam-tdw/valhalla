@@ -87,13 +87,20 @@ public class ProfileViewE2E extends E2eBase {
     page.navigate(currentOwnProfileUrl());
     page.waitForSelector("#firstName");
 
-    page.fill("#firstName", "Admin");
-    page.fill("#lastName", "Seed");
+    // Nombres con acentos a proposito: esta es la guardia del fix de charset en
+    // BaseWebConfig. La pagina antes salia como iso-8859-1, el browser armaba
+    // el body del form en Latin-1 y Jetty respondia 400 "Unable to parse form
+    // content: Invalid UTF-8" con cualquier acento (tambien al enviar el form
+    // sin tocar nada, porque el prefill ya traia acentos de la DB).
+    page.fill("#firstName", "Simón");
+    page.fill("#lastName", "Beltrán");
     page.fill("#avatarUrl", "/images/avatars/avatar-1.svg");
     page.locator("main button[type='submit']").first().click();
 
     page.waitForSelector("p[role='status']");
     assertEquals("Perfil actualizado", page.textContent("p[role='status']").trim());
+    assertEquals("Simón", page.inputValue("#firstName"));
+    assertEquals("Beltrán", page.inputValue("#lastName"));
     assertEquals("/images/avatars/avatar-1.svg", page.inputValue("#avatarUrl"));
   }
 
