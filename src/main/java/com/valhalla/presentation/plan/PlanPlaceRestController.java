@@ -45,7 +45,7 @@ public class PlanPlaceRestController {
   @PostMapping
   public ItineraryEntry addPlace(
     @PathVariable UUID planId,
-    @RequestParam Long placeId,
+    @RequestParam UUID placeId,
     Principal principal
   ) {
     return ItineraryEntry.from(service.addPlaceToPlan(planId, placeId, principal.getName()));
@@ -103,7 +103,7 @@ public class PlanPlaceRestController {
   // Returning entities would serialize Plan.administrator (including password) and lazy Hibernate proxies.
   public record ItineraryEntry(
     Long id,
-    Long placeId,
+    UUID placeId,
     String name,
     Integer sortOrder,
     String visitDate,

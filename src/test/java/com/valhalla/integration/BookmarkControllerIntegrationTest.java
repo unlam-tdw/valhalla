@@ -263,7 +263,7 @@ public class BookmarkControllerIntegrationTest {
     this.planBookmarkService.save(planId, SELF_EMAIL);
 
     Plan live = this.planRepository.findById(planId).orElseThrow();
-    Long gonePlaceId = live.getPlanPlaces().get(1).getPlace().getId();
+    UUID gonePlaceId = live.getPlanPlaces().get(1).getPlace().getId();
     this.planService.deleteOwnedPlan(planId, OTHER_EMAIL);
     this.placeRepository.deleteById(gonePlaceId);
 

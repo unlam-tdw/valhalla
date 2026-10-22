@@ -17,6 +17,8 @@ class PlanPlaceServiceImplTest {
   static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000001");
   static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000009");
   static final UUID UNKNOWN_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000063");
+  static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000002");
+  static final UUID UNKNOWN_PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000064");
 
   PlanPlaceRepository repository;
   PlanRepository plans;
@@ -37,7 +39,7 @@ class PlanPlaceServiceImplTest {
     plan = new Plan();
     plan.setId(PLAN_ID);
     place = new Place();
-    place.setId(2L);
+    place.setId(PLACE_ID);
     entry = new PlanPlace();
     entry.setId(3L);
     entry.setPlan(plan);
@@ -45,7 +47,7 @@ class PlanPlaceServiceImplTest {
     entry.setSortOrder(7);
     when(ownership.getEditablePlan(PLAN_ID, "owner")).thenReturn(plan);
     when(plans.findById(PLAN_ID)).thenReturn(Optional.of(plan));
-    when(places.findById(2L)).thenReturn(Optional.of(place));
+    when(places.findById(PLACE_ID)).thenReturn(Optional.of(place));
     when(repository.findByPlanId(PLAN_ID)).thenReturn(List.of(entry));
     when(repository.findById(3L)).thenReturn(Optional.of(entry));
     when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -53,19 +55,19 @@ class PlanPlaceServiceImplTest {
 
   @Test
   void U01_addAssignsMaxPlusOne() {
-    assertEquals(8, service.addPlaceToPlan(PLAN_ID, 2L, "owner").getSortOrder());
+    assertEquals(8, service.addPlaceToPlan(PLAN_ID, PLACE_ID, "owner").getSortOrder());
   }
 
   @Test
   void addToEmptyPlanStartsAtOne() {
     when(repository.findByPlanId(PLAN_ID)).thenReturn(List.of());
-    assertEquals(1, service.addPlaceToPlan(PLAN_ID, 2L, "owner").getSortOrder());
+    assertEquals(1, service.addPlaceToPlan(PLAN_ID, PLACE_ID, "owner").getSortOrder());
   }
 
   @Test
   void U02_samePlaceCanBeAddedAgain() {
-    when(repository.existsByPlanIdAndPlaceId(PLAN_ID, 2L)).thenReturn(true);
-    assertEquals(8, service.addPlaceToPlan(PLAN_ID, 2L, "owner").getSortOrder());
+    when(repository.existsByPlanIdAndPlaceId(PLAN_ID, PLACE_ID)).thenReturn(true);
+    assertEquals(8, service.addPlaceToPlan(PLAN_ID, PLACE_ID, "owner").getSortOrder());
     verify(repository).save(any());
   }
 
@@ -99,13 +101,13 @@ class PlanPlaceServiceImplTest {
 
   @Test
   void U07_membershipTrue() {
-    when(repository.existsByPlanIdAndPlaceId(PLAN_ID, 2L)).thenReturn(true);
-    assertTrue(service.isPlaceInPlan(PLAN_ID, 2L));
+    when(repository.existsByPlanIdAndPlaceId(PLAN_ID, PLACE_ID)).thenReturn(true);
+    assertTrue(service.isPlaceInPlan(PLAN_ID, PLACE_ID));
   }
 
   @Test
   void U08_membershipFalse() {
-    assertFalse(service.isPlaceInPlan(PLAN_ID, 2L));
+    assertFalse(service.isPlaceInPlan(PLAN_ID, PLACE_ID));
   }
 
   @Test
@@ -127,7 +129,10 @@ class PlanPlaceServiceImplTest {
 
   @Test
   void unknownPlaceRejected() {
-    assertThrows(PlanNotFoundException.class, () -> service.addPlaceToPlan(PLAN_ID, 99L, "owner"));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> service.addPlaceToPlan(PLAN_ID, UNKNOWN_PLACE_ID, "owner")
+    );
   }
 
   @Test

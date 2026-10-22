@@ -534,7 +534,7 @@ public class PlanController {
   private static Map<String, Object> placeView(PlanPlace entry) {
     Place place = entry.getPlace();
     Map<String, Object> view = new LinkedHashMap<>();
-    view.put("id", place.getId());
+    view.put("id", String.valueOf(place.getId()));
     view.put("entryId", entry.getId());
     view.put("description", entry.getDescription());
     view.put("visitDate", entry.getVisitDate() == null ? null : entry.getVisitDate().toString());

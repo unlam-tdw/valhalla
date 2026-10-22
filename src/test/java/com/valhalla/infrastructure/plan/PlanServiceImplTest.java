@@ -58,6 +58,13 @@ public class PlanServiceImplTest {
   private static final Long OWNER_ID = 7L;
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000002a");
   private static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000002b");
+  private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
+  private static final UUID OTHER_PLACE_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000006"
+  );
+  private static final UUID UNKNOWN_PLACE_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000063"
+  );
 
   /** The backend generates an 8 character uppercase alphanumeric code out of a UUID. */
   private static final String SHORT_CODE_PATTERN = "[A-Z0-9]{8}";
@@ -467,13 +474,13 @@ public class PlanServiceImplTest {
     when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
       .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
     Place real = new Place();
-    real.setId(5L);
-    when(this.placeRepositoryMock.findById(5L)).thenReturn(Optional.of(real));
+    real.setId(PLACE_ID);
+    when(this.placeRepositoryMock.findById(PLACE_ID)).thenReturn(Optional.of(real));
     Plan plan = new Plan();
     plan.setName("Viaje");
     for (int order = 1; order <= 2; order++) {
       Place stub = new Place();
-      stub.setId(5L);
+      stub.setId(PLACE_ID);
       PlanPlace entry = new PlanPlace();
       entry.setPlace(stub);
       entry.setSortOrder(order);
@@ -495,10 +502,10 @@ public class PlanServiceImplTest {
     // given
     when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
       .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
-    when(this.placeRepositoryMock.findById(99L)).thenReturn(Optional.empty());
+    when(this.placeRepositoryMock.findById(UNKNOWN_PLACE_ID)).thenReturn(Optional.empty());
     Plan plan = new Plan();
     Place stub = new Place();
-    stub.setId(99L);
+    stub.setId(UNKNOWN_PLACE_ID);
     PlanPlace entry = new PlanPlace();
     entry.setPlace(stub);
     plan.addPlanPlace(entry);
@@ -993,9 +1000,9 @@ public class PlanServiceImplTest {
     User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
     Plan source = publicPlan();
     Place beach = new Place();
-    beach.setId(5L);
+    beach.setId(PLACE_ID);
     Place museum = new Place();
-    museum.setId(6L);
+    museum.setId(OTHER_PLACE_ID);
     source.addPlanPlace(itineraryEntry(beach, "desayuno", 3));
     source.addPlanPlace(itineraryEntry(museum, null, 2));
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));

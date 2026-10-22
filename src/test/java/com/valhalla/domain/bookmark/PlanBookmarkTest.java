@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 public class PlanBookmarkTest {
 
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000a");
+  private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
 
   @Test
   public void T_MARK_entity_snapshotOf_copiaEncabezadoEItinerario() {
@@ -49,7 +50,7 @@ public class PlanBookmarkTest {
     PlanBookmarkPlace row = bookmark.getPlaces().get(0);
     assertThat(row.getId(), is((Long) null));
     assertThat(row.getBookmark(), is(bookmark));
-    assertThat(row.getPlaceId(), is(5L));
+    assertThat(row.getPlaceId(), is(PLACE_ID));
     assertThat(row.getPlaceName(), is("Cafe"));
     assertThat(row.getPlaceCategory(), is(PlaceCategory.CAFE));
     assertThat(row.getPlaceAddress(), is("Calle 1"));
@@ -99,7 +100,7 @@ public class PlanBookmarkTest {
 
   private static PlanPlace entry(int sortOrder) {
     Place place = new Place();
-    place.setId(5L);
+    place.setId(PLACE_ID);
     place.setName("Cafe");
     place.setCategory(PlaceCategory.CAFE);
     place.setAddress("Calle 1");

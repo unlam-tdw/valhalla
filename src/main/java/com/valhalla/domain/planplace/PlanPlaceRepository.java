@@ -8,7 +8,7 @@ public interface PlanPlaceRepository {
   PlanPlace save(PlanPlace entry);
   List<PlanPlace> findByPlanId(UUID planId);
   Optional<PlanPlace> findById(Long id);
-  boolean existsByPlanIdAndPlaceId(UUID planId, Long placeId);
-  boolean existsByPlaceId(Long placeId);
+  boolean existsByPlanIdAndPlaceId(UUID planId, UUID placeId);
+  boolean existsByPlaceId(UUID placeId);
   void deleteById(Long id);
 }

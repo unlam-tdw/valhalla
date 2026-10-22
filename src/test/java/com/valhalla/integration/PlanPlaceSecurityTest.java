@@ -98,7 +98,7 @@ class PlanPlaceSecurityTest extends PlanPlaceWebFixture {
           .with(user("other@test.com"))
           .with(csrf())
           .contentType("application/json")
-          .content("[" + first + "]")
+          .content("[" + id + "]")
       )
       .andExpect(status().isNotFound());
     assertTrue(entries.findById(id).isPresent());

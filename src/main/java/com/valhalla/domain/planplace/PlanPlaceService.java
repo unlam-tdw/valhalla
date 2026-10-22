@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface PlanPlaceService {
-  PlanPlace addPlaceToPlan(UUID planId, Long placeId, String ownerEmail);
+  PlanPlace addPlaceToPlan(UUID planId, UUID placeId, String ownerEmail);
   List<PlanPlace> getItinerary(UUID planId, String ownerEmail);
   PlanPlace updatePlanPlace(
     UUID planId,
@@ -17,5 +17,5 @@ public interface PlanPlaceService {
   );
   void removePlaceFromPlan(UUID planId, Long id, String ownerEmail);
   void reorderPlaces(UUID planId, List<Long> entryIds, String ownerEmail);
-  boolean isPlaceInPlan(UUID planId, Long placeId);
+  boolean isPlaceInPlan(UUID planId, UUID placeId);
 }

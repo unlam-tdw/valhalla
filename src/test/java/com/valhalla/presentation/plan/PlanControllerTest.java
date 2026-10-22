@@ -68,6 +68,10 @@ public class PlanControllerTest {
   private static final UUID UNKNOWN_PLAN_ID = UUID.fromString(
     "00000000-0000-0000-0000-000000000404"
   );
+  private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000001");
+  private static final UUID OTHER_PLACE_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000004"
+  );
 
   private static final Validator VALIDATOR = localValidator();
 
@@ -418,9 +422,9 @@ public class PlanControllerTest {
   public void T_PVP_009_showPublicPlan_armaElItinerarioEnOrdenSortOrder() {
     // given: la colección viene ordenada por @OrderBy("sortOrder ASC") desde JPA
     Plan plan = plan(PLAN_ID, "Viaje publico");
-    plan.addPlanPlace(stop(1L, "Aeropuerto", 1));
-    plan.addPlanPlace(stop(2L, "Centro historico", 2));
-    plan.addPlanPlace(stop(3L, "Mirador", 3));
+    plan.addPlanPlace(stop(PLACE_ID, "Aeropuerto", 1));
+    plan.addPlanPlace(stop(PLACE_ID, "Centro historico", 2));
+    plan.addPlanPlace(stop(PLACE_ID, "Mirador", 3));
     plan.setIsPublic(true);
     when(this.planServiceMock.getSharedPlan(PLAN_ID)).thenReturn(plan);
 
@@ -551,7 +555,7 @@ public class PlanControllerTest {
     // given: el unico stop trae lat/lng, que es lo que el mapa del template necesita
     Plan plan = plan(PLAN_ID, "Viaje publico");
     Place place = new Place();
-    place.setId(1L);
+    place.setId(PLACE_ID);
     place.setName("Aeropuerto");
     place.setLatitude(-34.8222);
     place.setLongitude(-58.5358);
@@ -625,9 +629,14 @@ public class PlanControllerTest {
     PlanRequest form = new PlanRequest("Viaje", null, null, false);
     form.setPlaces(
       List.of(
-        new PlanPlaceRequest(4L, "primero", LocalDate.of(2026, 12, 1), LocalTime.of(9, 30)),
+        new PlanPlaceRequest(
+          OTHER_PLACE_ID,
+          "primero",
+          LocalDate.of(2026, 12, 1),
+          LocalTime.of(9, 30)
+        ),
         new PlanPlaceRequest(null, null, null, null),
-        new PlanPlaceRequest(4L, "otra vez", null, null)
+        new PlanPlaceRequest(OTHER_PLACE_ID, "otra vez", null, null)
       )
     );
     ArgumentCaptor<Plan> captor = ArgumentCaptor.forClass(Plan.class);
@@ -640,12 +649,12 @@ public class PlanControllerTest {
     // then
     List<PlanPlace> entries = captor.getValue().getPlanPlaces();
     assertThat(entries.size(), is(2));
-    assertThat(entries.get(0).getPlace().getId(), is(4L));
+    assertThat(entries.get(0).getPlace().getId(), is(OTHER_PLACE_ID));
     assertThat(entries.get(0).getSortOrder(), is(1));
     assertThat(entries.get(0).getDescription(), is(equalTo("primero")));
     assertThat(entries.get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
     assertThat(entries.get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
-    assertThat(entries.get(1).getPlace().getId(), is(4L));
+    assertThat(entries.get(1).getPlace().getId(), is(OTHER_PLACE_ID));
     assertThat(entries.get(1).getSortOrder(), is(2));
     assertThat(entries.get(1).getPlan(), is(sameInstance(captor.getValue())));
   }
@@ -857,7 +866,7 @@ public class PlanControllerTest {
     return plan;
   }
 
-  private static PlanPlace stop(Long placeId, String placeName, int sortOrder) {
+  private static PlanPlace stop(UUID placeId, String placeName, int sortOrder) {
     Place place = new Place();
     place.setId(placeId);
     place.setName(placeName);

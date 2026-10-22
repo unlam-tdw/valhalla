@@ -39,7 +39,7 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
   }
 
   @Override
-  public PlanPlace addPlaceToPlan(UUID planId, Long placeId, String ownerEmail) {
+  public PlanPlace addPlaceToPlan(UUID planId, UUID placeId, String ownerEmail) {
     Plan plan = planService.getEditablePlan(planId, ownerEmail);
     PlanPlace entry = new PlanPlace();
     plan.addPlanPlace(entry);
@@ -110,7 +110,7 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
 
   @Transactional(readOnly = true)
   @Override
-  public boolean isPlaceInPlan(UUID planId, Long placeId) {
+  public boolean isPlaceInPlan(UUID planId, UUID placeId) {
     return repository.existsByPlanIdAndPlaceId(planId, placeId);
   }
 

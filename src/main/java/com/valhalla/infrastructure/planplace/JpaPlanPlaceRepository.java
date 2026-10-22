@@ -10,7 +10,7 @@ public interface JpaPlanPlaceRepository extends JpaRepository<PlanPlace, Long> {
   @EntityGraph(attributePaths = { "place" })
   List<PlanPlace> findByPlanIdOrderBySortOrder(UUID planId);
 
-  boolean existsByPlanIdAndPlaceId(UUID planId, Long placeId);
+  boolean existsByPlanIdAndPlaceId(UUID planId, UUID placeId);
 
-  boolean existsByPlaceId(Long placeId);
+  boolean existsByPlaceId(UUID placeId);
 }

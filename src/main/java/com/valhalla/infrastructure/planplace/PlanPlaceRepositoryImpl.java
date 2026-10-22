@@ -32,12 +32,12 @@ public class PlanPlaceRepositoryImpl implements PlanPlaceRepository {
   }
 
   @Override
-  public boolean existsByPlanIdAndPlaceId(UUID planId, Long placeId) {
+  public boolean existsByPlanIdAndPlaceId(UUID planId, UUID placeId) {
     return jpa.existsByPlanIdAndPlaceId(planId, placeId);
   }
 
   @Override
-  public boolean existsByPlaceId(Long placeId) {
+  public boolean existsByPlaceId(UUID placeId) {
     return jpa.existsByPlaceId(placeId);
   }
 

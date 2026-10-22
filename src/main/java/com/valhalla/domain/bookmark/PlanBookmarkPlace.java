@@ -14,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.UUID;
 
 /**
  * [MARK] Una parada del itinerario copiada al guardar el plan.
@@ -36,7 +37,7 @@ public class PlanBookmarkPlace {
   private PlanBookmark bookmark;
 
   @Column(name = "place_id")
-  private Long placeId;
+  private UUID placeId;
 
   @Column(name = "place_name", nullable = false)
   private String placeName;
@@ -72,11 +73,11 @@ public class PlanBookmarkPlace {
     this.bookmark = bookmark;
   }
 
-  public Long getPlaceId() {
+  public UUID getPlaceId() {
     return placeId;
   }
 
-  public void setPlaceId(Long placeId) {
+  public void setPlaceId(UUID placeId) {
     this.placeId = placeId;
   }
 

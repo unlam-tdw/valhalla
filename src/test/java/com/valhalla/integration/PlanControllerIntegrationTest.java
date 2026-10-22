@@ -751,7 +751,7 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_074b_postPlans_guardaLosLugaresEnOrdenPermitiendoRepetirUnoYDejandoVaciosEnNull()
     throws Exception {
     // given
-    Long placeId = this.placeRepository.findAll().get(0).getId();
+    UUID placeId = this.placeRepository.findAll().get(0).getId();
 
     // when
     MvcResult result =
@@ -790,8 +790,8 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_074c_postPlans_ordenaLosLugaresPorHoraDeVisitaYNoPorElOrdenDeCarga()
     throws Exception {
     // given: el lugar cargado primero es el de las 15:00 y el segundo el de las 12:00
-    Long afternoon = this.placeRepository.findAll().get(0).getId();
-    Long morning = this.placeRepository.findAll().get(1).getId();
+    UUID afternoon = this.placeRepository.findAll().get(0).getId();
+    UUID morning = this.placeRepository.findAll().get(1).getId();
 
     // when
     MvcResult result =
@@ -823,8 +823,8 @@ public class PlanControllerIntegrationTest {
   @WithMockUser(username = OWNER_EMAIL)
   public void T_PLN_074d_postPlans_losLugaresSinHoraQuedanAlFinal() throws Exception {
     // given: el cargado primero no tiene hora, así que el recorrido arranca por el que sí tiene
-    Long untimed = this.placeRepository.findAll().get(0).getId();
-    Long timed = this.placeRepository.findAll().get(1).getId();
+    UUID untimed = this.placeRepository.findAll().get(0).getId();
+    UUID timed = this.placeRepository.findAll().get(1).getId();
 
     // when
     MvcResult result =
@@ -899,7 +899,7 @@ public class PlanControllerIntegrationTest {
     assertThat(html, containsString(OWNER_EMAIL));
     assertThat(html, containsString("test1234"));
     assertThat(html, containsString("2026-12-01"));
-    assertThat(html, containsString("\"id\":" + entry.getPlace().getId()));
+    assertThat(html, containsString("\"id\":\"" + entry.getPlace().getId() + "\""));
     assertThat(html, not(containsString("password123")));
     assertThat(html, not(containsString("\"administrator\":")));
   }
@@ -1079,7 +1079,7 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_086_getPlansIdDeLaCopiaRenderizaElMismoItinerario() throws Exception {
     // given (I-03)
     UUID planId = givenPublicPlanWithPlace();
-    Long placeId = this.placeRepository.findAll().get(0).getId();
+    UUID placeId = this.placeRepository.findAll().get(0).getId();
     String location = cloneLocationOf(planId);
     this.entityManager.flush();
     this.entityManager.clear();
@@ -1098,7 +1098,7 @@ public class PlanControllerIntegrationTest {
 
     // then: the clone's detail renders the same place and visit data as the original
     assertThat(html, containsString("desayuno"));
-    assertThat(html, containsString("\"id\":" + placeId));
+    assertThat(html, containsString("\"id\":\"" + placeId + "\""));
     assertThat(html, containsString("\"visitDate\":\"2026-12-01\""));
   }
 
