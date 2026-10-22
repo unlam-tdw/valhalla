@@ -818,6 +818,27 @@
             if (map) map.closePopup();
           };
 
+          /* Leaflet parses a String popup as HTML, and the place name comes from the admin ABM
+             and the OSM importer, neither of which sanitizes it: build the nodes instead. */
+          const popupContent = (place) => {
+            const content = document.createElement('div');
+            const name = document.createElement('strong');
+            name.textContent = place.name;
+            content.append(name, document.createElement('br'), place.category);
+            // [MAPS] Como llegar desde el popup del marcador, como en explore: usa la
+            // direccion de texto (no la coordenada) para no mandar a otra calle, con el
+            // nombre delante para desambiguar.
+            const link = document.createElement('a');
+            link.className = 'text-primary fw-medium d-inline-block mt-1';
+            link.href = 'https://www.google.com/maps/dir/?api=1&destination=' +
+              encodeURIComponent(((place.name || '') + ' ' + (place.address || '')).trim());
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = 'Cómo llegar';
+            content.append(document.createElement('br'), link);
+            return content;
+          };
+
           const updateMarkers = () => {
             if (!map) return;
             markers.forEach(m => map.removeLayer(m));
@@ -844,18 +865,7 @@
 
                 const marker = L.marker([place.latitude, place.longitude], { icon: divIcon }).addTo(map);
 
-                marker.bindPopup(
-                  '<strong>' + place.name + '</strong><br>' +
-                  place.category +
-                  // [MAPS] Como llegar desde el popup del marcador, como en explore: usa la
-                  // direccion de texto (no la coordenada) para no mandar a otra calle, con el
-                  // nombre delante para desambiguar.
-                  '<br><a class="text-primary fw-medium d-inline-block mt-1"' +
-                  ' href="https://www.google.com/maps/dir/?api=1&destination=' +
-                  encodeURIComponent(((place.name || '') + ' ' + (place.address || '')).trim()) + '"' +
-                  ' target="_blank" rel="noopener">Cómo llegar</a>',
-                  { autoPan: false }
-                );
+                marker.bindPopup(popupContent(place), { autoPan: false });
                 marker.on('click', () => {
                   selectedPlace.value = place;
                 });

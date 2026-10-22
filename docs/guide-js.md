@@ -261,6 +261,9 @@ Baseline when the contract landed -- this table **is** the migration backlog:
 **72 FAIL, 21 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
 to `-Strict`.
 
+Phase 1 (the JS01 and JS03 fixes) has since shipped: the tree is at **50 FAIL, 21 INFO**, with
+JS01 and JS03 at zero and the single-page routes above converted to the `data-*` bridge.
+
 ## Migration order
 
 Each phase is independently shippable and independently reviewable.

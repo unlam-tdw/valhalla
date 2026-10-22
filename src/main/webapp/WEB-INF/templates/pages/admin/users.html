@@ -6,7 +6,7 @@
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
   <main class="flex-1 p-4">
-    <div id="users-app" class="mx-auto max-w-4xl">
+    <div id="users-app" class="mx-auto max-w-4xl" th:attr="data-error=${error}">
       <div class="mb-6 flex items-center justify-between">
         <h2 class="text-2xl font-semibold text-gray-900">Users</h2>
         <a th:href="@{/admin/users/new}"
@@ -101,8 +101,9 @@
     <script>
       Vue.createApp({
         data() {
+          const data = document.getElementById('users-app').dataset;
           return {
-            error: '[[${error}]]'
+            error: data.error || ''
           }
         }
       }).mount('#users-app');

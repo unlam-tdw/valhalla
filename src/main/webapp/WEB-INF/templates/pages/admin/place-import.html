@@ -249,7 +249,11 @@
                   fillColor: color,
                   fillOpacity: 0.9
                 }).addTo(map);
-                marker.bindPopup('<strong>' + poi.name + '</strong>');
+                /* Leaflet parses a String popup as HTML and the OSM name is unsanitized:
+                   the label is a node, not markup. */
+                const label = document.createElement('strong');
+                label.textContent = poi.name;
+                marker.bindPopup(label);
                 marker.on('click', () => {
                   window.location.href = formUrl(poi);
                 });
