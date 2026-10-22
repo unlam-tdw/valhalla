@@ -19,6 +19,7 @@ public class PlanBookmarkTest {
 
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000a");
   private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
+  private static final UUID AUTHOR_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000063");
 
   @Test
   public void T_MARK_entity_snapshotOf_copiaEncabezadoEItinerario() {
@@ -44,7 +45,7 @@ public class PlanBookmarkTest {
     assertThat(bookmark.getHeader().getEventDate(), is(LocalDate.of(2026, 11, 7)));
     assertThat(bookmark.getHeader().getEventTime(), is(LocalTime.of(18, 30)));
     assertThat(bookmark.getHeader().getPlaceCount(), is(1));
-    assertThat(bookmark.getHeader().getAdministratorId(), is(99L));
+    assertThat(bookmark.getHeader().getAdministratorId(), is(AUTHOR_ID));
     assertThat(bookmark.getHeader().getAdministratorName(), is("Ada Lovelace"));
 
     PlanBookmarkPlace row = bookmark.getPlaces().get(0);
@@ -69,7 +70,7 @@ public class PlanBookmarkTest {
     PlanBookmark bookmark = PlanBookmark.snapshotOf(plan, user("duenio@test.com", null, null));
 
     assertThat(bookmark.getHeader().getPlaceCount(), is(0));
-    assertThat(bookmark.getHeader().getAdministratorId(), is((Long) null));
+    assertThat(bookmark.getHeader().getAdministratorId(), is((UUID) null));
     assertThat(bookmark.getHeader().getAdministratorName(), is((String) null));
     assertThat(bookmark.getPlaces().isEmpty(), is(true));
   }
@@ -115,7 +116,7 @@ public class PlanBookmarkTest {
 
   private static User user(String email, String firstName, String lastName) {
     User user = new User();
-    user.setId(99L);
+    user.setId(AUTHOR_ID);
     user.setEmail(email);
     user.setFirstName(firstName);
     user.setLastName(lastName);

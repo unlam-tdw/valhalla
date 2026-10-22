@@ -95,8 +95,8 @@ public class PlanControllerIntegrationTest {
 
   private MockMvc mockMvc;
 
-  private Long ownerId;
-  private Long otherId;
+  private UUID ownerId;
+  private UUID otherId;
 
   @BeforeEach
   public void setUp() {
@@ -1126,7 +1126,7 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_088_postPlansIdClone_dejaElOriginalIntacto() throws Exception {
     // given (I-05): public plan with a participant and an itinerary
     UUID planId = givenPublicPlanWithPlace();
-    Long participantId = givenUser("participant@test.com");
+    UUID participantId = givenUser("participant@test.com");
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.getParticipants().add(this.userRepository.findById(participantId).orElseThrow());
     this.planRepository.save(plan);
@@ -1267,7 +1267,7 @@ public class PlanControllerIntegrationTest {
     plan.setDescription("Recorrido con amigos");
     plan.setEventDate(LocalDate.of(2026, 12, 31));
     plan.setEventTime(LocalTime.of(18, 30));
-    Long remainingUserId = givenUser("remaining@test.com");
+    UUID remainingUserId = givenUser("remaining@test.com");
     plan.getParticipants().add(this.userRepository.findById(remainingUserId).orElseThrow());
     PlanPlace entry = new PlanPlace();
     entry.setPlace(this.placeRepository.findAll().get(0));
@@ -1540,7 +1540,7 @@ public class PlanControllerIntegrationTest {
     // given: el plan publico tiene dos participantes ademas de su administrador
     UUID planId = givenPublicPlanWithPlace();
     Plan plan = this.planRepository.findById(planId).orElseThrow();
-    Long otroId = givenUser("otro@test.com");
+    UUID otroId = givenUser("otro@test.com");
     plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
     plan.getParticipants().add(this.userRepository.findById(otroId).orElseThrow());
     this.planRepository.save(plan);
@@ -2146,7 +2146,7 @@ public class PlanControllerIntegrationTest {
     assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
   }
 
-  private Long givenUser(String email) {
+  private UUID givenUser(String email) {
     User user = new User();
     user.setEmail(email);
     user.setPassword("password123");
@@ -2158,7 +2158,7 @@ public class PlanControllerIntegrationTest {
     return this.userRepository.findByEmail(email).orElseThrow().getId();
   }
 
-  private UUID givenPlanFor(Long administratorId, String name) {
+  private UUID givenPlanFor(UUID administratorId, String name) {
     Plan plan = new Plan();
     plan.setName(name);
     plan.setAdministrator(this.userRepository.findById(administratorId).orElseThrow());
@@ -2166,7 +2166,7 @@ public class PlanControllerIntegrationTest {
   }
 
   /** [PPV] Un plan visible para el listado publico. */
-  private UUID givenPublicPlanFor(Long administratorId, String name) {
+  private UUID givenPublicPlanFor(UUID administratorId, String name) {
     UUID id = givenPlanFor(administratorId, name);
     Plan plan = this.planRepository.findById(id).orElseThrow();
     plan.setIsPublic(true);
@@ -2178,7 +2178,7 @@ public class PlanControllerIntegrationTest {
    * tiene categoria propia, matchea por la categoria del lugar de su itinerario.
    */
   private UUID givenSearchablePublicPlan(
-    Long administratorId,
+    UUID administratorId,
     String name,
     LocalDate eventDate,
     PlaceCategory category

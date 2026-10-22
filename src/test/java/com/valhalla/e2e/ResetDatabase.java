@@ -38,13 +38,13 @@ public class ResetDatabase {
       // no en el flujo).
       "DELETE FROM follows",
       "DELETE FROM users",
-      "ALTER SEQUENCE users_id_seq RESTART WITH 1",
       // [12-DATA] ResetDatabase habla SQL directo: los nombres mapean a firstname/lastname,
       // tal como Hibernate creó la tabla. [PROF] El perfil público muestra el nombre del
       // dueño: sin nombres, la vista cae al círculo de iniciales y los E2E de perfil no
-      // tienen "Admin Test" qué mirar.
-      "INSERT INTO users(email, password, role, active, firstname, lastname) " +
-      "VALUES('test@unlam.edu.ar', '" +
+      // tienen "Admin Test" qué mirar. El id es un UUIDv7 fijo: desde [UUID] la PK ya no la
+      // genera la secuencia y el seed necesita su propio valor.
+      "INSERT INTO users(id, email, password, role, active, firstname, lastname) " +
+      "VALUES('0192f0a1-0000-7000-8000-0000000000aa', 'test@unlam.edu.ar', '" +
       bcryptHash +
       "', 'ADMIN', TRUE, 'Admin', 'Test') ON CONFLICT (email) DO NOTHING",
     };

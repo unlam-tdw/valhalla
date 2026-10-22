@@ -202,7 +202,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
    */
   @Override
   @Transactional(readOnly = true)
-  public List<Plan> getPublicPlansByAdministrators(Collection<Long> administratorIds) {
+  public List<Plan> getPublicPlansByAdministrators(Collection<UUID> administratorIds) {
     // `in :administratorIds` con una coleccion vacia no es JPQL valido: el early return es correcto.
     if (administratorIds == null || administratorIds.isEmpty()) {
       return List.of();

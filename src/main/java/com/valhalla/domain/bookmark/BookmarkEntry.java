@@ -19,7 +19,7 @@ public record BookmarkEntry(
   LocalDate eventDate,
   LocalTime eventTime,
   int placeCount,
-  Long administratorId,
+  UUID administratorId,
   String administratorName,
   BookmarkStatus status,
   boolean publicPlan

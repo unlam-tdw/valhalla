@@ -19,7 +19,7 @@ public interface PlanService {
     String userEmail
   );
 
-  record PendingJoinRequest(Long id, Long requesterId, String requesterName) {}
+  record PendingJoinRequest(Long id, UUID requesterId, String requesterName) {}
 
   Plan createPlan(Plan plan, String ownerEmail);
   List<Plan> getPlansByUserEmail(String ownerEmail);
@@ -28,7 +28,7 @@ public interface PlanService {
    * [FOLLOW] Planes publicos de los autores indicados: la fuente del scope Siguiendo. Conjunto
    * vacio cuando no se sigue a nadie; el orden y los filtros siguen siendo de {@code PlanDiscovery}.
    */
-  List<Plan> getPublicPlansByAdministrators(Collection<Long> administratorIds);
+  List<Plan> getPublicPlansByAdministrators(Collection<UUID> administratorIds);
   Plan getOwnedPlan(UUID id, String ownerEmail);
   Plan getEditablePlan(UUID id, String userEmail);
   void changeParticipantRole(UUID id, String participantEmail, String role, String userEmail);

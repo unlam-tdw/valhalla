@@ -86,8 +86,8 @@ public class BookmarkControllerIntegrationTest {
 
   private MockMvc mockMvc;
 
-  private Long selfId;
-  private Long otherId;
+  private UUID selfId;
+  private UUID otherId;
 
   @BeforeEach
   public void setUp() {

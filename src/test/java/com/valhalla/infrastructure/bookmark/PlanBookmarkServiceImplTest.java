@@ -43,7 +43,8 @@ import org.mockito.ArgumentCaptor;
 public class PlanBookmarkServiceImplTest {
 
   private static final String EMAIL = "guardador@test.com";
-  private static final Long USER_ID = 21L;
+  private static final UUID USER_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000015");
+  private static final UUID AUTHOR_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000063");
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000a");
   private static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000b");
   private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
@@ -96,7 +97,7 @@ public class PlanBookmarkServiceImplTest {
     plan.setDescription("Un dia completo");
     plan.setEventDate(LocalDate.of(2026, 11, 7));
     plan.setEventTime(LocalTime.of(18, 30));
-    plan.setAdministrator(user(99L, "autor@test.com", "Ada", "Lovelace"));
+    plan.setAdministrator(user(AUTHOR_ID, "autor@test.com", "Ada", "Lovelace"));
     when(this.userRepositoryMock.findByEmail(EMAIL)).thenReturn(Optional.of(user(USER_ID, EMAIL)));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
     when(this.planBookmarkRepositoryMock.findByUserIdAndPlanId(USER_ID, PLAN_ID))
@@ -110,7 +111,7 @@ public class PlanBookmarkServiceImplTest {
     assertThat(header.getEventDate(), is(LocalDate.of(2026, 11, 7)));
     assertThat(header.getEventTime(), is(LocalTime.of(18, 30)));
     assertThat(header.getPlaceCount(), is(1));
-    assertThat(header.getAdministratorId(), is(99L));
+    assertThat(header.getAdministratorId(), is(AUTHOR_ID));
     assertThat(header.getAdministratorName(), is("Ada Lovelace"));
   }
 
@@ -458,7 +459,7 @@ public class PlanBookmarkServiceImplTest {
     plan.setId(id);
     plan.setName(name);
     plan.setIsPublic(true);
-    plan.setAdministrator(user(99L, "autor@test.com", "Ada", "Lovelace"));
+    plan.setAdministrator(user(AUTHOR_ID, "autor@test.com", "Ada", "Lovelace"));
     plan.addPlanPlace(entry(place(PLACE_ID, "Cafe"), "Primera parada", null, null, 1));
     return plan;
   }
@@ -488,11 +489,11 @@ public class PlanBookmarkServiceImplTest {
     return place;
   }
 
-  private static User user(Long id, String email) {
+  private static User user(UUID id, String email) {
     return user(id, email, "Grace", "Hopper");
   }
 
-  private static User user(Long id, String email, String firstName, String lastName) {
+  private static User user(UUID id, String email, String firstName, String lastName) {
     User user = new User();
     user.setId(id);
     user.setEmail(email);
