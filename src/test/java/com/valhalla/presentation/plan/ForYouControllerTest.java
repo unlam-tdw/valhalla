@@ -145,7 +145,7 @@ public class ForYouControllerTest {
 
   @Test
   public void U02e_forYou_laTarjetaExponeElAgregadoDeCalificaciones() {
-    // given: dos calificaciones, promedio 4.25 â†’ la tarjeta muestra 4.3 (un decimal)
+    // given: dos calificaciones, promedio 4.25 → la tarjeta muestra 4.3 (un decimal)
     Plan plan = plan(PLAN_ID, "Plan calificado");
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
     when(this.planRatingServiceMock.getSummariesByPlanId())

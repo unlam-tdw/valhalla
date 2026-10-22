@@ -839,7 +839,7 @@ public class PlanServiceImplTest {
     // when
     this.planService.getPublicPlan(PLAN_ID);
 
-    // then: solo lectura â€” ni save ni bajas ni altas de participantes
+    // then: solo lectura — ni save ni bajas ni altas de participantes
     assertThat(plan.getParticipants(), is(participantsBefore));
     verify(this.planRepositoryMock, never()).save(any(Plan.class));
     verify(this.planRepositoryMock, never()).deleteById(any());
