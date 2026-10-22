@@ -19,6 +19,8 @@ class PlanPlaceServiceImplTest {
   static final UUID UNKNOWN_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000063");
   static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000002");
   static final UUID UNKNOWN_PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000064");
+  static final UUID ENTRY_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
+  static final UUID UNKNOWN_ENTRY_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000065");
 
   PlanPlaceRepository repository;
   PlanRepository plans;
@@ -41,7 +43,7 @@ class PlanPlaceServiceImplTest {
     place = new Place();
     place.setId(PLACE_ID);
     entry = new PlanPlace();
-    entry.setId(3L);
+    entry.setId(ENTRY_ID);
     entry.setPlan(plan);
     entry.setPlace(place);
     entry.setSortOrder(7);
@@ -49,7 +51,7 @@ class PlanPlaceServiceImplTest {
     when(plans.findById(PLAN_ID)).thenReturn(Optional.of(plan));
     when(places.findById(PLACE_ID)).thenReturn(Optional.of(place));
     when(repository.findByPlanId(PLAN_ID)).thenReturn(List.of(entry));
-    when(repository.findById(3L)).thenReturn(Optional.of(entry));
+    when(repository.findById(ENTRY_ID)).thenReturn(Optional.of(entry));
     when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
   }
 
@@ -81,20 +83,20 @@ class PlanPlaceServiceImplTest {
   void U04_updatesSchedule() {
     LocalDate date = LocalDate.of(2026, 12, 1);
     LocalTime time = LocalTime.of(10, 30);
-    assertSame(entry, service.updatePlanPlace(PLAN_ID, 3L, date, time, "owner"));
+    assertSame(entry, service.updatePlanPlace(PLAN_ID, ENTRY_ID, date, time, "owner"));
     assertEquals(date, entry.getVisitDate());
     assertEquals(time, entry.getVisitTime());
   }
 
   @Test
   void U05_removesEntry() {
-    service.removePlaceFromPlan(PLAN_ID, 3L, "owner");
-    verify(repository).deleteById(3L);
+    service.removePlaceFromPlan(PLAN_ID, ENTRY_ID, "owner");
+    verify(repository).deleteById(ENTRY_ID);
   }
 
   @Test
   void U06_reordersByEntryIds() {
-    service.reorderPlaces(PLAN_ID, List.of(3L), "owner");
+    service.reorderPlaces(PLAN_ID, List.of(ENTRY_ID), "owner");
     assertEquals(1, entry.getSortOrder());
     verify(repository).save(entry);
   }
@@ -139,7 +141,7 @@ class PlanPlaceServiceImplTest {
   void unknownEntryRejected() {
     assertThrows(
       PlanNotFoundException.class,
-      () -> service.removePlaceFromPlan(PLAN_ID, 99L, "owner")
+      () -> service.removePlaceFromPlan(PLAN_ID, UNKNOWN_ENTRY_ID, "owner")
     );
   }
 
@@ -150,14 +152,19 @@ class PlanPlaceServiceImplTest {
     entry.setPlan(other);
     assertThrows(
       PlanNotFoundException.class,
-      () -> service.removePlaceFromPlan(PLAN_ID, 3L, "owner")
+      () -> service.removePlaceFromPlan(PLAN_ID, ENTRY_ID, "owner")
     );
     verify(repository, never()).deleteById(any());
   }
 
   @Test
   void invalidReorderRejectedBeforeSaving() {
-    for (List<Long> ids : Arrays.asList(null, List.<Long>of(), List.of(99L), List.of(3L, 3L))) {
+    for (List<UUID> ids : Arrays.asList(
+      null,
+      List.<UUID>of(),
+      List.of(UNKNOWN_ENTRY_ID),
+      List.of(ENTRY_ID, ENTRY_ID)
+    )) {
       assertThrows(
         IllegalArgumentException.class,
         () -> service.reorderPlaces(PLAN_ID, ids, "owner")
@@ -170,7 +177,7 @@ class PlanPlaceServiceImplTest {
   void entityAccessorsPreserveExistingDescription() {
     entry.setDescription("note");
     assertEquals("note", entry.getDescription());
-    assertEquals(3L, entry.getId());
+    assertEquals(ENTRY_ID, entry.getId());
     assertSame(plan, entry.getPlan());
     assertSame(place, entry.getPlace());
   }

@@ -1921,7 +1921,7 @@ public class PlanControllerIntegrationTest {
     Plan saved = this.planRepository.findById(planId).orElseThrow();
     assertThat(saved.isParticipant(OTHER_EMAIL), is(false));
     assertThat(saved.isEditor(OTHER_EMAIL), is(false));
-    Long invitationId = saved.getInvitations().getFirst().getId();
+    UUID invitationId = saved.getInvitations().getFirst().getId();
     this.mockMvc.perform(get("/plans").with(user(OTHER_EMAIL)))
       .andExpect(status().isOk())
       .andExpect(model().attribute("pendingInvitations", hasSize(1)))
@@ -1970,7 +1970,7 @@ public class PlanControllerIntegrationTest {
     this.entityManager.flush();
     this.entityManager.clear();
     Plan plan = this.planRepository.findById(planId).orElseThrow();
-    Long invitationId = plan.getInvitations().getFirst().getId();
+    UUID invitationId = plan.getInvitations().getFirst().getId();
     this.mockMvc.perform(post(invitePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
       .andExpect(
         org.springframework.test.web.servlet.result.MockMvcResultMatchers
@@ -2002,7 +2002,7 @@ public class PlanControllerIntegrationTest {
     this.entityManager.flush();
     this.entityManager.clear();
     plan = this.planRepository.findById(planId).orElseThrow();
-    Long nextInvitationId = plan.getInvitations().getFirst().getId();
+    UUID nextInvitationId = plan.getInvitations().getFirst().getId();
     this.mockMvc.perform(
         post("/plans/" + planId + "/invitations/" + nextInvitationId + "/respond")
           .with(user(OTHER_EMAIL))

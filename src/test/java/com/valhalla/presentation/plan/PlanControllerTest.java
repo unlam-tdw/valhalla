@@ -72,6 +72,10 @@ public class PlanControllerTest {
   private static final UUID OTHER_PLACE_ID = UUID.fromString(
     "0192f0a1-0000-7000-8000-000000000004"
   );
+  private static final UUID ENTRY_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
+  private static final UUID JOIN_REQUEST_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000010"
+  );
 
   private static final Validator VALIDATOR = localValidator();
 
@@ -123,8 +127,13 @@ public class PlanControllerTest {
     ModelAndView request = controller.requestToJoin(PLAN_ID, authentication);
     verify(planServiceMock).requestToJoin(PLAN_ID, OWNER_EMAIL);
     assertThat(request.getViewName(), is("redirect:/plans/" + PLAN_ID + "/public"));
-    ModelAndView response = controller.respondToJoinRequest(PLAN_ID, 42L, "reject", authentication);
-    verify(planServiceMock).respondToJoinRequest(PLAN_ID, 42L, "reject", OWNER_EMAIL);
+    ModelAndView response = controller.respondToJoinRequest(
+      PLAN_ID,
+      JOIN_REQUEST_ID,
+      "reject",
+      authentication
+    );
+    verify(planServiceMock).respondToJoinRequest(PLAN_ID, JOIN_REQUEST_ID, "reject", OWNER_EMAIL);
     assertThat(response.getViewName(), is("redirect:/plans/" + PLAN_ID));
   }
 
@@ -560,6 +569,7 @@ public class PlanControllerTest {
     place.setLatitude(-34.8222);
     place.setLongitude(-58.5358);
     PlanPlace entry = new PlanPlace();
+    entry.setId(ENTRY_ID);
     entry.setPlace(place);
     plan.addPlanPlace(entry);
     plan.setIsPublic(true);
@@ -570,6 +580,9 @@ public class PlanControllerTest {
 
     // then
     Map<?, ?> stop = (Map<?, ?>) ((List<?>) view.getModel().get("itineraryPlaces")).get(0);
+    // The itinerary is inlined into the page's JS: a raw UUID would arrive there as an object
+    // with least/mostSignificantBits, so the controller emits the id as a string.
+    assertThat(stop.get("entryId"), is(ENTRY_ID.toString()));
     assertThat(stop.get("latitude"), is(equalTo(Double.valueOf(-34.8222))));
     assertThat(stop.get("longitude"), is(equalTo(Double.valueOf(-58.5358))));
   }

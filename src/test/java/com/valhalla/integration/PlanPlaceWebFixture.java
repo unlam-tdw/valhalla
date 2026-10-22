@@ -77,7 +77,7 @@ abstract class PlanPlaceWebFixture {
     url = "/api/plans/" + plan.getId() + "/places";
   }
 
-  Long add(UUID placeId) throws Exception {
+  UUID add(UUID placeId) throws Exception {
     mvc
       .perform(
         post(url).param("placeId", placeId.toString()).with(user("apl@test.com")).with(csrf())

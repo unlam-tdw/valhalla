@@ -27,7 +27,7 @@ public class PlanPlaceRepositoryImpl implements PlanPlaceRepository {
   }
 
   @Override
-  public Optional<PlanPlace> findById(Long id) {
+  public Optional<PlanPlace> findById(UUID id) {
     return jpa.findById(id);
   }
 
@@ -42,7 +42,7 @@ public class PlanPlaceRepositoryImpl implements PlanPlaceRepository {
   }
 
   @Override
-  public void deleteById(Long id) {
+  public void deleteById(UUID id) {
     jpa.deleteById(id);
   }
 }

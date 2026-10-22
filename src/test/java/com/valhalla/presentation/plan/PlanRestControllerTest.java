@@ -45,6 +45,7 @@ public class PlanRestControllerTest {
   private static final String OWNER_EMAIL = "dueno@test.com";
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000007");
   private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000004");
+  private static final UUID ENTRY_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
 
   private PlanRestController controller;
   private PlanService planServiceMock;
@@ -83,7 +84,7 @@ public class PlanRestControllerTest {
     assertThat(summary.eventDate(), is("2026-12-31"));
     assertThat(summary.isPublic(), is(true));
     assertThat(summary.planPlaces(), hasSize(1));
-    assertThat(summary.planPlaces().get(0).id(), is(11L));
+    assertThat(summary.planPlaces().get(0).id(), is(ENTRY_ID));
     assertThat(summary.planPlaces().get(0).placeId(), is(PLACE_ID));
     assertThat(summary.planPlaces().get(0).name(), is("MALBA"));
     assertThat(summary.planPlaces().get(0).category(), is("MUSEUM"));
@@ -282,7 +283,7 @@ public class PlanRestControllerTest {
     place.setLongitude(-58.3711);
 
     PlanPlace planPlace = new PlanPlace();
-    planPlace.setId(11L);
+    planPlace.setId(ENTRY_ID);
     planPlace.setPlace(place);
 
     Plan plan = new Plan();

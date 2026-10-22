@@ -108,7 +108,7 @@ public class PlanRestController {
   }
 
   public record PlanPlaceSummary(
-    Long id,
+    UUID id,
     UUID placeId,
     String name,
     String category,

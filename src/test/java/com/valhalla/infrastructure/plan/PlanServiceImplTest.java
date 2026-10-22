@@ -75,6 +75,13 @@ public class PlanServiceImplTest {
   private static final UUID UNKNOWN_PLACE_ID = UUID.fromString(
     "0192f0a1-0000-7000-8000-000000000063"
   );
+  private static final UUID JOIN_REQUEST_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000010"
+  );
+  private static final UUID UNKNOWN_JOIN_REQUEST_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000011"
+  );
+  private static final UUID INVITATION_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000012");
 
   /** The backend generates an 8 character uppercase alphanumeric code out of a UUID. */
   private static final String SHORT_CODE_PATTERN = "[A-Z0-9]{8}";
@@ -253,7 +260,7 @@ public class PlanServiceImplTest {
     );
     planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "editor", "email", OWNER_EMAIL);
     PlanInvitation invitation = plan.getInvitations().getFirst();
-    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "id", 123L);
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "id", INVITATION_ID);
     String token = invitation.getToken();
     assertThat(token.length(), is(64));
     verify(notifier).sendInvitation(OTHER_EMAIL, PLAN_ID, token);
@@ -388,11 +395,12 @@ public class PlanServiceImplTest {
     pendingRequest(plan, owner(INVITED_ID, OTHER_EMAIL));
     assertThrows(
       IllegalArgumentException.class,
-      () -> planService.respondToJoinRequest(PLAN_ID, 123L, "invalid", OWNER_EMAIL)
+      () -> planService.respondToJoinRequest(PLAN_ID, JOIN_REQUEST_ID, "invalid", OWNER_EMAIL)
     );
     assertThrows(
       PlanNotFoundException.class,
-      () -> planService.respondToJoinRequest(PLAN_ID, 999L, "accept", OWNER_EMAIL)
+      () ->
+        planService.respondToJoinRequest(PLAN_ID, UNKNOWN_JOIN_REQUEST_ID, "accept", OWNER_EMAIL)
     );
     assertThat(plan.getJoinRequests(), hasSize(1));
     assertThat(plan.getParticipants(), is(empty()));
@@ -424,7 +432,7 @@ public class PlanServiceImplTest {
       plan,
       requester
     );
-    org.springframework.test.util.ReflectionTestUtils.setField(request, "id", 123L);
+    org.springframework.test.util.ReflectionTestUtils.setField(request, "id", JOIN_REQUEST_ID);
     plan.getJoinRequests().add(request);
     return request;
   }

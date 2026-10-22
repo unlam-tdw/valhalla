@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface JpaPlanPlaceRepository extends JpaRepository<PlanPlace, Long> {
+public interface JpaPlanPlaceRepository extends JpaRepository<PlanPlace, UUID> {
   @EntityGraph(attributePaths = { "place" })
   List<PlanPlace> findByPlanIdOrderBySortOrder(UUID planId);
 
