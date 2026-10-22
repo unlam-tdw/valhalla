@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
  * [FOLLOW] Consultas de la tabla {@code follows}. Los conteos son agregados de la base, no el
  * {@code size()} de una coleccion, y las listas ya salen ordenadas por nombre (AC-05, AC-15).
  */
-public interface JpaFollowRepository extends JpaRepository<Follow, Long> {
+public interface JpaFollowRepository extends JpaRepository<Follow, UUID> {
   boolean existsByFollowerIdAndFollowedId(UUID followerId, UUID followedId);
 
   long countByFollowedId(UUID followedId);

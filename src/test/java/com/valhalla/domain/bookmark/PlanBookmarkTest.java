@@ -20,6 +20,7 @@ public class PlanBookmarkTest {
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000a");
   private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
   private static final UUID AUTHOR_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000063");
+  private static final UUID BOOKMARK_ID = UUID.fromString("0192f0a1-0000-7000-8000-0000000000b1");
 
   @Test
   public void T_MARK_entity_snapshotOf_copiaEncabezadoEItinerario() {
@@ -96,7 +97,19 @@ public class PlanBookmarkTest {
   }
 
   private static BookmarkEntry entry(BookmarkStatus status) {
-    return new BookmarkEntry(1L, PLAN_ID, "Plan", null, null, null, 0, null, null, status, false);
+    return new BookmarkEntry(
+      BOOKMARK_ID,
+      PLAN_ID,
+      "Plan",
+      null,
+      null,
+      null,
+      0,
+      null,
+      null,
+      status,
+      false
+    );
   }
 
   private static PlanPlace entry(int sortOrder) {

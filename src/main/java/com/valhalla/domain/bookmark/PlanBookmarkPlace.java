@@ -1,13 +1,12 @@
 package com.valhalla.domain.bookmark;
 
 import com.valhalla.domain.place.PlaceCategory;
+import com.valhalla.domain.plan.UuidVersion7Generator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -15,6 +14,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
+import org.hibernate.annotations.UuidGenerator;
 
 /**
  * [MARK] Una parada del itinerario copiada al guardar el plan.
@@ -29,8 +29,8 @@ import java.util.UUID;
 public class PlanBookmarkPlace {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @UuidGenerator(algorithm = UuidVersion7Generator.class)
+  private UUID id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "bookmark_id", nullable = false)
@@ -61,7 +61,7 @@ public class PlanBookmarkPlace {
   @Column(name = "sort_order")
   private Integer sortOrder = 0;
 
-  public Long getId() {
+  public UUID getId() {
     return id;
   }
 

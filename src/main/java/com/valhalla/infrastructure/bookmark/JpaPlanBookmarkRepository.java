@@ -8,7 +8,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface JpaPlanBookmarkRepository extends JpaRepository<PlanBookmark, Long> {
+public interface JpaPlanBookmarkRepository extends JpaRepository<PlanBookmark, UUID> {
   Optional<PlanBookmark> findByUserIdAndPlanId(UUID userId, UUID planId);
 
   List<PlanBookmark> findByUserIdOrderByCreatedAtDescIdDesc(UUID userId);
