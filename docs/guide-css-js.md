@@ -2,6 +2,10 @@
 
 Step-by-step guide for creating a view without frameworks, using only HTML + CSS + JavaScript.
 
+> The JavaScript rules still apply here: this guide is the no-framework path, not a
+> different contract. See [guide-js.md](guide-js.md) for the API style, where server data
+> enters, and DOM vs markup.
+
 ## Base Structure
 
 ```html
@@ -230,7 +234,9 @@ document.getElementById('my-form').addEventListener('submit', async function(e) 
 
 ## Rules
 
-1. **Always `th:action` + `method="POST"`** , works without JS
+1. **Always `th:action` + `method="POST"`** , the form posts without JS (the layout's
+   visibility shield still needs `<noscript>` before that is true end to end; see
+   [guide-js.md](guide-js.md))
 2. **`id` on the form and container** , for JS and Thymeleaf
 3. **`th:field` for binding** , Thymeleaf handles values
 4. **`th:if` for errors** , only shown if they exist
