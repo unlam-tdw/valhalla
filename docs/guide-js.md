@@ -334,15 +334,15 @@ Each phase lowers it; this table is the live count.
 | Rule | Findings | Where |
 | :--- | ---: | :--- |
 | JS01 | 0 | shipped in phase 1 |
-| JS02 | 42 | `avatar-picker` 12, `layouts/base` 12, `landing` 10, `navbar-menu` 8 |
+| JS02 | 0 | shipped in phase 4: `avatar-picker`, `layouts/base`, `landing`, `navbar-menu` |
 | JS03 | 0 | shipped in phase 1 |
 | JS04 | 0 | shipped in phase 2 |
 | JS05 | 0 | preventive: no `innerHTML` in the tree today |
 | JS06 | 4 | `avatar-picker` 52 lines, `landing` 65 and 41, `navbar-menu` 40 |
 | JS07 | 10 | Leaflet js + css in four views; Bootstrap 5.3 and Font Awesome in `plans/detail` |
 
-**42 FAIL, 14 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
-to `-Strict`.
+**0 FAIL, 14 INFO.** No failing rule is left, so the gate is ready for `-Strict`; it stays
+report-only until phase 6 flips CI.
 
 Phase 3 paid back what phases 1 and 2 borrowed: the four big views carried 1164 lines of
 inline JavaScript between them (`places/list` 532, `plans/detail` 322, `place-import` 215,
@@ -353,6 +353,12 @@ Avatar picker, the navbar menu, two sections of the landing page. They are not "
 pages" waiting for a move; each is a self-contained component, and extracting it means giving
 it a module of its own. `login` and `home` left the budget by declaring their state in
 `setup()` instead of a `data()` object.
+
+The 42 `var` declarations in those four scripts closed in the same phase: the bindings are
+`const`, and `let` only where the value is assigned again -- the nine loop counters plus the
+`stored`/`inOpener` accumulators. Nothing about the behavior changed, which is why the sweep
+was worth doing before the components move: the extract is a move, and a move on top of a
+rewrite is two changes to review at once.
 
 ## Migration order
 
