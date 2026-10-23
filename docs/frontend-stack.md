@@ -149,5 +149,14 @@ Docker WAR (it detects it is not running from a source checkout).
 | :------------------------------------------ | :--------------------------------------- | :-------- |
 | `resources/core/js/tailwind-browser.js`     | `@tailwindcss/browser` 4.3.3 (jsdelivr)  | ~282 KB   |
 | `resources/core/js/vue.global.prod.js`      | Vue.js 3.5.13 (jsdelivr)                 | ~158 KB   |
+| `resources/core/js/leaflet.js`              | Leaflet 1.9.4 (unpkg)                    | ~147 KB   |
+| `resources/css/leaflet.css`                 | Leaflet 1.9.4 (unpkg)                    | ~15 KB, plus `resources/css/images/` for its relative `url()` targets |
+| `resources/css/bootstrap.min.css`           | Bootstrap 5.3.0 (jsdelivr)               | ~228 KB   |
+
+Font Awesome was dropped in favour of the vendored Lucide
+(`resources/core/js/lucide.min.js`): a whole webfont for 16 glyphs, when the icon
+set for the map and the category markers was Lucide already. Two icon languages in
+one `<head>` is what the "Bootstrap / Font Awesome conflict" in
+[guide-js.md](guide-js.md) referred to.
 
 Pin upgrades: change one at a time, re-run the E2E suite, and update this table.

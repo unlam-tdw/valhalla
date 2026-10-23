@@ -138,9 +138,11 @@ rd /s /q .code-quality\jacoco & mvn clean test
 opt-in for that.
 
 `js` is the one gate that covers the view layer: the JavaScript rules in
-[guide-js.md](guide-js.md), read out of the templates and `resources/core/js`. It reports
-only, because the current tree is the backlog; `.\scripts\gate.ps1 js -Strict` makes it fail
-and is what CI flips to once the FAIL count reaches zero.
+[guide-js.md](guide-js.md), read out of the templates and `resources/core/js`. CI runs it
+strict — `pwsh -File scripts/gate.ps1 js -Strict`, in the `backend` job's `Frontend JS
+contract` step, before the Maven build — and the tree is at 0 FAIL. On its own,
+`.\scripts\gate.ps1 js` reports and exits 0, and that stays the shape of a local run. INFO
+findings never fail, with or without `-Strict`.
 
 Maven builds (`mvn test`, `mvn package`, `mvn verify`) run `prettier:check` at
 `process-sources` and fail on badly formatted code, but they never rewrite your files. Run

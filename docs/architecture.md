@@ -234,9 +234,12 @@ src/main/webapp/resources/
 **Tailwind es local y vendorizado**: `layouts/base.html` lo carga con
 `<script th:src="@{/js/tailwind-browser.js}" defer>`. No hay paso de build de CSS.
 
-**Leaflet viene de CDN**, en las cuatro vistas con mapa —`places/list`, `plans/detail`,
-`admin/place-import` y `plans/public`—: `https://unpkg.com/leaflet@1.9.4/dist/leaflet.{css,js}`.
-No existe `lib/leaflet/` en el repo; vendorizarlo es la fase 5 de [guide-js.md](guide-js.md).
+**Leaflet es local y vendorizado**, igual que Tailwind, Vue y Lucide: las cuatro vistas con
+mapa —`places/list`, `plans/detail`, `admin/place-import` y `plans/public`— cargan
+`@{/js/leaflet.js}` y `@{/css/leaflet.css}`, con la 1.9.4 fija en el repo. La versión no queda
+en manos de un origen remoto porque `divIcon({ html: elemento })` depende del contrato de 1.9,
+y un CDN caído dejaba el mapa muerto. El CSS arrastra `resources/css/images/` por sus `url()`
+relativos.
 
 No existe `js/map.js`, `js/places.js`, `js/plan-builder.js` ni `js/share-view.js`: la lógica de
 Leaflet vive en los módulos de `resources/core/js/pages/` (`places-list.js`,
@@ -246,7 +249,7 @@ Leaflet vive en los módulos de `resources/core/js/pages/` (`places-list.js`,
 
 | Feature | Implementation |
 |---------|----------------|
-| Base map | OpenStreetMap tiles (free, no API key), Leaflet 1.9.4 desde unpkg |
+| Base map | OpenStreetMap tiles (free, no API key), Leaflet 1.9.4 vendorizado (unpkg) |
 | Markers | Custom markers by category (color/icon) |
 | Popups | Place name y categoría **sin link** — los detalles van al panel lateral de `/places`, sin navegar |
 | Responsive | Fullscreen on mobile, sidebar on desktop |
@@ -327,7 +330,7 @@ Leaflet vive en los módulos de `resources/core/js/pages/` (`places-list.js`,
 | Session auth | Spring Security | SecurityFilterChain: form login, CSRF, session management (1 per user) |
 | DB for places | PostgreSQL (prod) | Already configured, supports PostGIS if needed later |
 | Seed data | ApplicationListener | ContextRefreshedEvent seeder, migrate to Flyway later |
-| Frontend | Tailwind CSS (vendorizado, compila en el browser) + Vue.js | No build step, fast development. Leaflet sí viene de CDN |
+| Frontend | Tailwind CSS (vendorizado, compila en el browser) + Vue.js | No build step, fast development. Leaflet también vendorizado |
 
 ## 7. Implementation Order
 

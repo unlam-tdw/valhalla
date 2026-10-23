@@ -392,8 +392,8 @@ if ($command -eq 'help') {
 if ($fix -and $command -ne 'check') {
     Stop-With "-Fix only applies to 'check'."
 }
-# -Strict is the switch CI flips once the frontend debt is paid; without it `js` is a
-# report, and a report has nothing to fail.
+# CI runs `js` with -Strict (docs/guide-js.md); locally it stays a report by default, and a
+# report has nothing to fail.
 if ($strict -and $command -ne 'js') {
     Stop-With "-Strict only applies to 'js'."
 }

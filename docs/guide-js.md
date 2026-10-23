@@ -10,7 +10,8 @@ could save a place.
 That is not a style preference. R3 and R7 each prevent a defect that already happened here;
 the rest exist so the next one is not invisible.
 
-**Enforced by:** `.\scripts\gate.ps1 js` -- see [the gate](#the-gate).
+**Enforced by:** `.\scripts\gate.ps1 js -Strict` in CI, which is the same checker the local
+`.\scripts\gate.ps1 js` runs -- see [the gate](#the-gate).
 
 Related: [guide-vue.md](guide-vue.md) for the Thymeleaf + Vue view structure,
 [guide-css-js.md](guide-css-js.md) for the no-framework alternative. Those two describe
@@ -22,7 +23,7 @@ Related: [guide-vue.md](guide-vue.md) for the Thymeleaf + Vue view structure,
 | :--- | :--- |
 | `src/main/webapp/WEB-INF/templates/**/*.html` | covered, inline `<script>` included |
 | `src/main/webapp/resources/core/js/**/*.js` | covered, `pages/` and `lib/` included |
-| `vue.global.prod.js`, `tailwind-browser.js`, `lucide.min.js` | vendored, excluded |
+| `vue.global.prod.js`, `tailwind-browser.js`, `lucide.min.js`, `leaflet.js` | vendored, excluded |
 
 ## The rules
 
@@ -256,6 +257,10 @@ Libraries are vendored under `/js/` and `/css/`. A remote `<script src>` or styl
 else's release schedule. It also fails silently in the worst way: a missing stylesheet is a
 page that renders, just wrong.
 
+Every one of them is local now: Leaflet's script and stylesheet, Bootstrap 5.3 for
+`plans/detail`, Lucide, Vue and the Tailwind browser build. Font Awesome was not vendored --
+`plans/detail` draws its 16 glyphs with the Lucide library every other page already uses.
+
 The one accepted exception is Google Fonts, because `brand.css` declares a local fallback
 family: if `fonts.googleapis.com` is unreachable the typeface changes and nothing else.
 
@@ -271,19 +276,31 @@ src/main/webapp/resources/core/js/
   pages/plans-public.js    the read-only public plan map                 [shipped]
   lib/api.js               csrfToken(), apiFetch(), ApiError             [shipped]
   lib/dom.js               el()                                          [shipped]
-  lib/places-map.js        buildMarker(place, { color, icon })           [pending]
-  <vendored>.js            vue.global.prod.js, tailwind-browser.js, lucide.min.js
+  lib/places-map.js        buildMarker(), directionsLink(), categoryIcon*() [shipped]
+  <vendored>.js            vue.global.prod.js, tailwind-browser.js, lucide.min.js, leaflet.js
 ```
 
-`lib/api.js` and `lib/dom.js` are live, and the four extracted views import them. Nothing
-under `WEB-INF/templates` builds a node by hand any more: `document.createElement` appears
-once in the tree, inside `el()`. A classic script cannot `import`, so `lib/` is only usable
-from a module.
+`lib/api.js`, `lib/dom.js` and `lib/places-map.js` are live, and the four extracted views
+import from them. Nothing under `WEB-INF/templates` builds a node by hand any more:
+`document.createElement` appears once in the tree, inside `el()`. A classic script cannot
+`import`, so `lib/` is only usable from a module.
 
-`lib/places-map.js` does not exist yet: `buildMarker()` is the destination of phase 5,
-when Leaflet moves from a remote `<script src>` to a vendored file. Vendored stylesheets
-(Leaflet's, once it is local) belong in `resources/css/` next to `brand.css`, not at the
-document root.
+`lib/places-map.js` is the answer to "how is a place drawn on a map", and it replaced three
+hand-built copies of the same `L.divIcon` + `L.marker` pair and three copies of the
+directions URL: the category icon as a Lucide name, an SVG element or markup
+(`categoryIconName`, `categoryIconNode`, `categoryIconHtml`), the "Cómo llegar" link built
+from the place's address text (`directionsUrl`, `directionsLink`), and `buildMarker()`,
+which returns a marker that is **not** added to a map -- callers chain
+`.addTo(map).bindPopup(popup)`. Its `badge` option is a DOM Element, not markup: Leaflet 1.9
+appends an `Element` passed as `divIcon({ html })`, which is why no view hands Leaflet HTML
+any more. The two icon tables that used to live in `plans-detail.js` and `places-list.js`
+are the one table here.
+
+Vendored files follow their serving path: a script goes in `resources/core/js/` and a
+stylesheet in `resources/css/`, because `/js/*` and `/css/*` are what the templates request.
+A vendored stylesheet's relative `url()` targets go beside it -- `leaflet.css` asks for
+`url(images/marker-icon.png)`, so Leaflet's five PNGs sit in `resources/css/images/` next to
+it.
 
 Naming: files `kebab-case.js` matching their view, functions `camelCase`, event handlers
 prefixed `on`, module-level constants `UPPER_SNAKE`, `data-*` attributes `kebab-case`.
@@ -292,7 +309,7 @@ prefixed `on`, module-level constants `UPPER_SNAKE`, `data-*` attributes `kebab-
 
 ```powershell
 .\scripts\gate.ps1 js            # report only; exit 0
-.\scripts\gate.ps1 js -Strict    # exit 1 on any FAIL rule
+.\scripts\gate.ps1 js -Strict    # exit 1 on any FAIL rule; what CI runs
 .\scripts\js-check.ps1 -Strict   # the checker on its own
 ```
 
@@ -312,7 +329,8 @@ being cheap enough to trust. It walks `resources/core/js` recursively, so a modu
 | **JS07** | INFO | a `<script src>` or stylesheet `<link>` on an `http(s)://` origin, Google Fonts excepted |
 
 INFO rules never fail the gate, with or without `-Strict`: they mark structure to fix when
-the file is open anyway, not defects.
+the file is open anyway, not defects. A FAIL rule, on the other hand, is a red build --
+CI runs the gate with `-Strict`.
 
 ### What the gate cannot see
 
@@ -325,6 +343,10 @@ the file is open anyway, not defects.
 - Anything inside `v-html`, `insertAdjacentHTML` or a `data:` URL.
 - `Vue.createApp` with `data()`: R1 is review-only. The tree has none left, but the gate
   would not see one coming back.
+- A reintroduced CDN asset: JS07 is INFO, so it reports without failing, and CI runs
+  `-Strict`. The step enforces the five FAIL rules; the two INFO rules are a report even
+  there. Moving JS07 to FAIL is the change that would make the "no remote origin" rule
+  self-enforcing, and it is not made here.
 
 ### Current debt
 
@@ -338,11 +360,12 @@ Each phase lowers it; this table is the live count.
 | JS03 | 0 | shipped in phase 1 |
 | JS04 | 0 | shipped in phase 2 |
 | JS05 | 0 | preventive: no `innerHTML` in the tree today |
-| JS06 | 4 | `avatar-picker` 52 lines, `landing` 65 and 41, `navbar-menu` 40 |
-| JS07 | 10 | Leaflet js + css in four views; Bootstrap 5.3 and Font Awesome in `plans/detail` |
+| JS06 | 4 | `avatar-picker` 52 lines, `navbar-menu` 40, `landing` 41 and 65 |
+| JS07 | 0 | shipped in phase 5: Leaflet js + css, Bootstrap 5.3 and Lucide all local |
 
-**0 FAIL, 14 INFO.** No failing rule is left, so the gate is ready for `-Strict`; it stays
-report-only until phase 6 flips CI.
+**0 FAIL, 4 INFO.** The `backend` job in `.github/workflows/ci.yml` runs the gate with
+`-Strict` in its `Frontend JS contract` step, before the Maven build, so a FAIL rule is a
+red build; the four INFOs above are the whole remaining report.
 
 Phase 3 paid back what phases 1 and 2 borrowed: the four big views carried 1164 lines of
 inline JavaScript between them (`places/list` 532, `plans/detail` 322, `place-import` 215,
@@ -371,8 +394,8 @@ Each phase is independently shippable and independently reviewable.
 | 2 | Ship `lib/api.js`, migrate the API `fetch` calls, replace the 8 `alert()`s with an inline error surface | shipped: JS04 0, FAIL 50 -> 42 |
 | 3 | Extract `places/list`, `plans/detail`, `place-import`, `plans/public` to `pages/`; ship `lib/dom.js` and consolidate every popup on it | shipped: JS06 11 -> 7 |
 | 4 | Convert the 8 remaining Options API views to `setup()`: `place-form`, `places`, `user-form`, `users`, `login`, `new-user`, `home`, `plans-detail.js`. Rename each root to `#<view>-app`, E2E page objects included | shipped: R1 and R2 satisfied, JS06 7 -> 4 |
-| 5 | Vendor Leaflet (js + css); extract `buildMarker()` to `lib/places-map.js`; resolve the Bootstrap/Font Awesome conflict in `plans/detail` | JS07 -> 0 |
-| 6 | Flip CI to `.\scripts\gate.ps1 js -Strict` | 0 FAIL |
+| 5 | Vendor Leaflet (js + css); extract `buildMarker()` to `lib/places-map.js`; resolve the Bootstrap/Font Awesome conflict in `plans/detail` | shipped: JS07 10 -> 0, every asset served from `/js/` or `/css/` |
+| 6 | Flip CI to `.\scripts\gate.ps1 js -Strict` | shipped: `Frontend JS contract` step in the `backend` job, 0 FAIL |
 
 ## Two things that are not JavaScript, but block the claims above
 
