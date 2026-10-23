@@ -21,9 +21,10 @@
       }
     </style>
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet CSS, vendorizado con la version fija (1.9.4) en el repo. Ya no viene de CDN:
+         un CDN caido dejaba el mapa muerto, y divIcon({ html: elemento }) depende del contrato
+         de 1.9, asi que la version no puede quedar en manos de un origen remoto. -->
+    <link rel="stylesheet" th:href="@{/css/leaflet.css}" />
 
     <!-- [MOBILE] AC-06: igual que /explore, en mobile el panel de import sube arriba del mapa
          (columna, limitado a 45vh) y desde md vuelve al layout de escritorio. Solo CSS. -->
@@ -107,9 +108,8 @@
       </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet JS, vendorizado (1.9.4 fija): mismo motivo que la hoja de estilos. -->
+    <script th:src="@{/js/leaflet.js}"></script>
 
     <!-- La caja de CABA la manda el backend: una sola fuente de verdad para el recorte.
          El app vive en un modulo, asi que el valor viaja como semilla (docs/guide-js.md R3). -->

@@ -9,7 +9,10 @@
      Como en detail.html, Leaflet va antes del stack Tailwind, asi el head propio la carga
      primero y despues hereda las metas compartidas via headContent. -->
 <head>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet CSS, vendorizado con la version fija (1.9.4) en el repo. Ya no viene de CDN: un
+       CDN caido dejaba el mapa muerto, y divIcon({ html: elemento }) depende del contrato de
+       1.9, asi que la version no puede quedar en manos de un origen remoto. -->
+  <link rel="stylesheet" th:href="@{/css/leaflet.css}" />
   <style>
     #plan-map {
       height: 320px;
@@ -147,8 +150,9 @@
     </section>
 
     <!-- Leaflet va adentro de <main> como en detail.html: el layout(base :: layout) solo
-         copia <main>, cualquier tag hermano se descarta. -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+         copia <main>, cualquier tag hermano se descarta. Vendorizado (1.9.4 fija), mismo
+         motivo que la hoja de estilos. -->
+    <script th:src="@{/js/leaflet.js}"></script>
 
     <!-- Los stops los serializa Thymeleaf; el modulo solo los consume. `th:inline` es la forma
          literal aceptada (docs/guide-js.md R3): es un grafo de objetos, no un string. Los

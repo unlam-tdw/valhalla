@@ -9,9 +9,10 @@
     error channel. Each one has a rule id, and the rule ids are the vocabulary
     docs/guide-js.md uses.
 
-    Reports only by default, because the current tree violates the contract on
-    purpose: the report is the migration backlog. -Strict is the switch CI flips once
-    the debt is paid.
+    Reports only by default, which is the right shape for a local run: it names what to
+    fix and exits 0 either way. CI runs it with -Strict (the "Frontend JS contract" step
+    of the backend job in .github/workflows/ci.yml), so a FAIL rule is a red build; what
+    is left in the tree is INFO-only by design.
 
     INFO rules never fail, with or without -Strict. They mark structure to fix when
     the file is already open, not defects.
@@ -33,10 +34,11 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $templates = Join-Path $root 'src/main/webapp/WEB-INF/templates'
 $jsRoot = Join-Path $root 'src/main/webapp/resources/core/js'
 
-# Third-party bundles. Minified, vendored verbatim, never held to this contract.
-# Matched by name rather than by `*.min.js`, because vue.global.prod.js and
-# tailwind-browser.js are not minified by name but are still not ours.
-$vendored = @('vue.global.prod.js', 'tailwind-browser.js', 'lucide.min.js')
+# Third-party bundles. Vendored verbatim, never held to this contract.
+# Matched by name rather than by `*.min.js`, because vue.global.prod.js,
+# tailwind-browser.js and leaflet.js are not minified by name (Leaflet is not
+# minified at all) but are still not ours.
+$vendored = @('vue.global.prod.js', 'tailwind-browser.js', 'lucide.min.js', 'leaflet.js')
 
 # A script under this many lines stays inline; over it, it moves to /js/pages.
 # 20 is the point where a template stops being a template with some behaviour and
@@ -227,7 +229,7 @@ $infos = @($findings | Where-Object { $_.Sev -eq 'INFO' })
 Write-Host ''
 Write-Host ("  {0} FAIL, {1} INFO" -f $fails.Count, $infos.Count)
 if ($fails.Count -gt 0 -and -not $Strict) {
-    Write-Host '  report-only: the tree is the backlog. Add -Strict to fail on FAIL rules.'
+    Write-Host '  report-only: add -Strict to fail on FAIL rules.'
 }
 Write-Host ''
 

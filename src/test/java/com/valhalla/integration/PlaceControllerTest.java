@@ -73,8 +73,9 @@ public class PlaceControllerTest {
   }
 
   // [MAPS] El panel de detalle de explore trae el link de directions (lo arma el Vue con la
-  // direccion del lugar que llega de /api/places). Desde la fase 3 el helper vive en
-  // pages/places-list.js: el markup trae el binding y el modulo arma la URL.
+  // direccion del lugar que llega de /api/places). Desde la fase 5 el helper vive en
+  // lib/places-map.js, compartido con el detalle del plan y la vista publica: el markup trae
+  // el binding y el modulo arma la URL.
   @Test
   @WithMockUser
   public void shouldShowTheMapsDirectionsLinkOnPlaceDetails() throws Exception {
@@ -84,7 +85,7 @@ public class PlaceControllerTest {
       .andExpect(content().string(containsString(":href=\"directionsUrl(selectedPlace)\"")));
 
     String module = Files.readString(
-      Paths.get("src", "main", "webapp", "resources", "core", "js", "pages", "places-list.js")
+      Paths.get("src", "main", "webapp", "resources", "core", "js", "lib", "places-map.js")
     );
     assertTrue(module.contains("maps/dir/?api=1"), "el helper arma el link de directions");
   }

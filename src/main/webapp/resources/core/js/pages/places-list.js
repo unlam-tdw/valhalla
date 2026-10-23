@@ -7,6 +7,13 @@
  */
 import { apiFetch } from '../lib/api.js';
 import { el } from '../lib/dom.js';
+import {
+  buildMarker,
+  categoryIconHtml as categoryIcon,
+  categoryIconNode,
+  directionsLink,
+  directionsUrl
+} from '../lib/places-map.js';
 
 const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
@@ -84,14 +91,6 @@ createApp({
       return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     };
 
-    /* Iconos de categoría desde la librería vendorizada en resources/core/js/lucide.min.js,
-       igual que Vue y Tailwind: sin CDN y sin depender de la red en el E2E. El mapa es
-       enum -> nombre de Lucide y el SVG lo arma la propia librería (createElement), no
-       un wrapper escrito a mano que se repite diez veces.
-
-       Lucide dibuja con stroke="currentColor", así que el color se hereda del CSS y
-       desaparece el parámetro que antes viajaba por función: el marker pone el color en
-       su div y el panel ya lo tiene en el contenedor. */
     /* Un icono de Lucide listo para v-html. La librería dibuja con stroke="currentColor", así
        que el color lo pone el contenedor. */
     const lucideIcon = (name, size = 16) =>
@@ -100,22 +99,6 @@ createApp({
         height: size,
         'aria-hidden': 'true'
       }).outerHTML;
-
-    const categoryIcon = (category, size = 16) => {
-      const icons = {
-        'RESTAURANT': 'Utensils',
-        'BAR': 'Wine',
-        'CAFE': 'Coffee',
-        'MUSEUM': 'Landmark',
-        'PARK': 'Trees',
-        'SHOPPING': 'ShoppingBag',
-        'NIGHTLIFE': 'Music',
-        'CULTURE': 'BookOpen',
-        'SPORT': 'Trophy',
-        'OTHER': 'MapPin'
-      };
-      return lucideIcon(icons[category] || icons['OTHER'], size);
-    };
 
     /* OSM suele traer la web sin esquema ("parrilla.example.com"). Se asume https y nunca se
        navega a otro esquema: si el dato dice "javascript:...", el resultado es una URL HTTPS
@@ -128,18 +111,6 @@ createApp({
 
     const websiteLabel = (website) =>
       websiteHref(website).replace(/^https?:\/\//i, '').replace(/\/$/, '');
-
-    /* [MAPS] Direccion de Google Maps para "Como llegar". El dataset trae direccion y
-       coordenada que no coinciden, asi que el destino es el TEXTO de la direccion (el
-       mismo que se muestra en la ficha), con el nombre delante para desambiguar las
-       vagas (ej. "Palermo"). */
-    const directionsUrl = (place) => {
-      const query = ((place.name || '') + ' ' + (place.address || '')).trim();
-      return (
-        'https://www.google.com/maps/dir/?api=1&destination=' +
-        encodeURIComponent(query)
-      );
-    };
 
     /* tel: no lleva espacios ni guiones; el número que se muestra sí los conserva. */
     const telHref = (phone) => 'tel:' + (phone || '').replace(/[^\d+]/g, '');
@@ -307,14 +278,7 @@ createApp({
       // direccion de texto (no la coordenada) para no mandar a otra calle, con el
       // nombre delante para desambiguar.
       el('br'),
-      el('a', {
-        class: 'text-primary fw-medium d-inline-block mt-1',
-        href: 'https://www.google.com/maps/dir/?api=1&destination=' +
-          encodeURIComponent(((place.name || '') + ' ' + (place.address || '')).trim()),
-        target: '_blank',
-        rel: 'noopener',
-        text: 'Cómo llegar'
-      })
+      directionsLink(place, { class: 'text-primary fw-medium d-inline-block mt-1' })
     ]);
 
     const updateMarkers = () => {
@@ -326,22 +290,18 @@ createApp({
       filteredPlaces.value.forEach(place => {
         if (place.latitude && place.longitude) {
           const color = categoryColor(place.category);
-          const icon = categoryIcon(place.category);
 
           // El icono usa stroke="currentColor", así que este color:white es lo que
           // lo pinta de blanco sobre el fondo de categoría. Antes venía hardcodeado
           // dentro de cada SVG.
           // data-category es el hook estable del E2E (AC-09): el color sigue pintando
           // el pin, pero el test no se ata a su hex.
-          const divIcon = L.divIcon({
-            className: 'custom-marker',
-            html: '<div data-category="' + place.category + '" style="background-color:' + color + '; color:#fff; width:32px; height:32px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:16px;">' + icon + '</div>',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
-            popupAnchor: [0, -16]
-          });
+          const badge = el('div', {
+            dataset: { category: place.category },
+            style: 'background-color:' + color + '; color:#fff; width:32px; height:32px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;'
+          }, [categoryIconNode(place.category, 16)]);
 
-          const marker = L.marker([place.latitude, place.longitude], { icon: divIcon }).addTo(map);
+          const marker = buildMarker(place, { badge, className: 'custom-marker', size: 32, popupAnchor: [0, -16] }).addTo(map);
 
           marker.bindPopup(popupContent(place), { autoPan: false });
           marker.on('click', () => {

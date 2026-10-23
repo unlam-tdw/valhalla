@@ -8,6 +8,13 @@
  */
 import { apiFetch } from '../lib/api.js';
 import { el } from '../lib/dom.js';
+import {
+    buildMarker,
+    categoryIconHtml,
+    categoryIconNode,
+    directionsLink,
+    directionsUrl
+} from '../lib/places-map.js';
 
 const { createApp, ref, computed, onMounted } = Vue;
 const seed = window.PLAN_DETAIL_SEED || {};
@@ -76,33 +83,22 @@ createApp({
             return `${day}/${month}/${year}`;
         };
 
-        // [MAPS] Direccion de Google Maps para "Como llegar": usa la DIRECCION de texto del
-        // lugar (el dataset trae direccion y coordenada desfasadas), con el nombre delante
-        // para desambiguar las vagas. Mismo criterio que el mapa y el resto de las vistas.
-        const directionsUrl = (item) => {
-            const query = `${item.name || ''} ${item.address || ''}`.trim();
-            return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
-        };
-
         const getCategoryLabel = (category) => {
             const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
             return labels[category] || 'Lugar';
         };
 
-        const getCategoryIcon = (category) => {
-            const icons = {
-                RESTAURANT: 'fa-utensils',
-                NIGHTLIFE:  'fa-wine-glass-alt',
-                MUSEUM:     'fa-landmark',
-                SHOPPING:   'fa-shopping-bag',
-                CAFE:       'fa-coffee',
-                PARK:       'fa-tree',
-                CULTURE:    'fa-book',
-                BAR:        'fa-beer-mug-empty',
-                SPORT:      'fa-futbol',
-                DEFAULT:    'fa-map-marker-alt'
-            };
-            return icons[category] || icons.DEFAULT;
+        /* A Lucide icon as markup for the template's v-html slots. Trusted: our own SVG.
+           The template names icons the way HTML does ("map-pinned", "trash-2"), while
+           `lucide.icons` keys are PascalCase: normalise before the lookup, or Lucide builds
+           an empty <svg> and the icon is silently blank. */
+        const iconHtml = (name, size = 16) => {
+            const key = name.replace(/(?:^|-)([a-z0-9])/g, (_, letter) => letter.toUpperCase());
+            return lucide.createElement(lucide.icons[key] || lucide.icons.MapPin, {
+                width: size,
+                height: size,
+                'aria-hidden': 'true'
+            }).outerHTML;
         };
 
         const renderMarkers = (focusPlaceId = null) => {
@@ -124,7 +120,6 @@ createApp({
                         const isInPlan = itineraryIndex !== -1;
 
                         const categoryClass = 'cat-' + place.category;
-                        const iconClass = getCategoryIcon(place.category);
                         const isNumbered = isInPlan && !isSinglePlace;
 
                         let activeClass = '';
@@ -137,15 +132,8 @@ createApp({
                             { class: 'custom-map-icon ' + categoryClass + ' ' + activeClass },
                             [isNumbered
                                 ? el('span', { text: String(itineraryIndex + 1) })
-                                : el('i', { class: 'fa-solid ' + iconClass })]
+                                : categoryIconNode(place.category, 15)]
                         );
-
-                        const customIcon = L.divIcon({
-                            html: badge,
-                            className: 'custom-div-icon',
-                            iconSize: [30, 30],
-                            iconAnchor: [15, 15]
-                        });
 
                         /* Leaflet parses a String popup as HTML, and both the name and the
                            category come from the catalogue: the popup is a node, never markup.
@@ -175,17 +163,10 @@ createApp({
                             // desfasada), con el nombre delante para desambiguar; mismo
                             // criterio que el resto.
                             el('br'),
-                            el('a', {
-                                class: 'text-primary underline-offset-4 text-decoration-none fw-medium',
-                                href: 'https://www.google.com/maps/dir/?api=1&destination=' +
-                                    encodeURIComponent(((place.name || '') + ' ' + (place.address || '')).trim()),
-                                target: '_blank',
-                                rel: 'noopener',
-                                text: 'Cómo llegar'
-                            })
+                            directionsLink(place, { class: 'text-primary underline-offset-4 text-decoration-none fw-medium' })
                         ]);
 
-                        const marker = L.marker([place.latitude, place.longitude], { icon: customIcon })
+                        const marker = buildMarker(place, { badge })
                             .addTo(map)
                             .bindPopup(popup);
 
@@ -336,7 +317,7 @@ createApp({
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
             placeDialog, availablePlaces, formatVisitDate, directionsUrl,
-            getCategoryLabel, getCategoryIcon, showPlace, updateDateTime, addPlace,
+            getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateDateTime, addPlace,
             removePlace, onDragStart, onDrop
         };
     }

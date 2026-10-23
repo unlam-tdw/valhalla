@@ -7,6 +7,7 @@
  */
 
 import { el } from '../lib/dom.js';
+import { buildMarker, directionsLink } from '../lib/places-map.js';
 
 const stops = (window.PUBLIC_PLAN_SEED || {}).stops || [];
 
@@ -34,12 +35,6 @@ function renderMap() {
       { class: 'custom-map-icon cat-' + (stop.category || 'DEFAULT') + ' in-itinerary' },
       [el('span', { text: String(index + 1) })]
     );
-    const icon = L.divIcon({
-      html: badge,
-      className: 'custom-div-icon',
-      iconSize: [30, 30],
-      iconAnchor: [15, 15]
-    });
     // El popup se arma con DOM, no con string concatenado: un nombre de lugar con
     // "<script>" tiene que renderizarse como texto.
     const popup = el('div', {}, [
@@ -48,18 +43,9 @@ function renderMap() {
       // [MAPS] Como llegar desde el popup, igual que en el detalle y en explore. Usa la
       // direccion de texto (no la coordenada) y el nombre delante para desambiguar.
       el('br'),
-      el('a', {
-        class: 'text-primary fw-medium d-inline-block mt-1',
-        href: 'https://www.google.com/maps/dir/?api=1&destination=' +
-          encodeURIComponent(((stop.name || '') + ' ' + (stop.address || '')).trim()),
-        target: '_blank',
-        rel: 'noopener',
-        text: 'Cómo llegar'
-      })
+      directionsLink(stop, { class: 'text-primary fw-medium d-inline-block mt-1' })
     ]);
-    L.marker([stop.latitude, stop.longitude], { icon: icon })
-      .addTo(map)
-      .bindPopup(popup);
+    buildMarker(stop, { badge }).addTo(map).bindPopup(popup);
     bounds.push([stop.latitude, stop.longitude]);
   });
 
