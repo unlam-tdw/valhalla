@@ -52,7 +52,10 @@ $ruleInfo = [ordered]@{
     'JS04' = @{ Sev = 'FAIL'; Name = 'alert() as the error channel' }
     'JS05' = @{ Sev = 'FAIL'; Name = 'innerHTML assigned a non-literal' }
     'JS06' = @{ Sev = 'INFO'; Name = 'inline script over budget' }
-    'JS07' = @{ Sev = 'INFO'; Name = 'runtime dependency from a remote origin' }
+    # JS07 is FAIL because it is the one rule whose violation is invisible in a browser with
+    # network: a remote asset renders fine here and dies in the demo room. The tree has zero
+    # findings, so it costs nothing to enforce.
+    'JS07' = @{ Sev = 'FAIL'; Name = 'runtime dependency from a remote origin' }
 }
 
 $findings = New-Object System.Collections.ArrayList

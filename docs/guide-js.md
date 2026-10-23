@@ -326,7 +326,7 @@ being cheap enough to trust. It walks `resources/core/js` recursively, so a modu
 | **JS04** | FAIL | `alert(` outside comments |
 | **JS05** | FAIL | `innerHTML` assigned anything but a literal |
 | **JS06** | INFO | an inline `<script>` over 20 lines |
-| **JS07** | INFO | a `<script src>` or stylesheet `<link>` on an `http(s)://` origin, Google Fonts excepted |
+| **JS07** | FAIL | a `<script src>` or stylesheet `<link>` on an `http(s)://` origin, Google Fonts excepted |
 
 INFO rules never fail the gate, with or without `-Strict`: they mark structure to fix when
 the file is open anyway, not defects. A FAIL rule, on the other hand, is a red build --
@@ -343,10 +343,10 @@ CI runs the gate with `-Strict`.
 - Anything inside `v-html`, `insertAdjacentHTML` or a `data:` URL.
 - `Vue.createApp` with `data()`: R1 is review-only. The tree has none left, but the gate
   would not see one coming back.
-- A reintroduced CDN asset: JS07 is INFO, so it reports without failing, and CI runs
-  `-Strict`. The step enforces the five FAIL rules; the two INFO rules are a report even
-  there. Moving JS07 to FAIL is the change that would make the "no remote origin" rule
-  self-enforcing, and it is not made here.
+- A remote asset the gate cannot read: it matches `<script src>` and stylesheet `<link>` tags
+  in templates, so a URL assembled in JavaScript or injected by another script still gets
+  through. The shapes it does read are FAIL since phase 6, so the regression path that
+  matters -- a new page copying an old CDN tag -- is closed.
 
 ### Current debt
 
@@ -361,7 +361,7 @@ Each phase lowers it; this table is the live count.
 | JS04 | 0 | shipped in phase 2 |
 | JS05 | 0 | preventive: no `innerHTML` in the tree today |
 | JS06 | 4 | `avatar-picker` 52 lines, `navbar-menu` 40, `landing` 41 and 65 |
-| JS07 | 0 | shipped in phase 5: Leaflet js + css, Bootstrap 5.3 and Lucide all local |
+| JS07 | 0 | shipped in phase 5: Leaflet js + css, Bootstrap 5.3 and Lucide all local. FAIL since, so a reintroduced CDN tag is a red build |
 
 **0 FAIL, 4 INFO.** The `backend` job in `.github/workflows/ci.yml` runs the gate with
 `-Strict` in its `Frontend JS contract` step, before the Maven build, so a FAIL rule is a
@@ -395,7 +395,7 @@ Each phase is independently shippable and independently reviewable.
 | 3 | Extract `places/list`, `plans/detail`, `place-import`, `plans/public` to `pages/`; ship `lib/dom.js` and consolidate every popup on it | shipped: JS06 11 -> 7 |
 | 4 | Convert the 8 remaining Options API views to `setup()`: `place-form`, `places`, `user-form`, `users`, `login`, `new-user`, `home`, `plans-detail.js`. Rename each root to `#<view>-app`, E2E page objects included | shipped: R1 and R2 satisfied, JS06 7 -> 4 |
 | 5 | Vendor Leaflet (js + css); extract `buildMarker()` to `lib/places-map.js`; resolve the Bootstrap/Font Awesome conflict in `plans/detail` | shipped: JS07 10 -> 0, every asset served from `/js/` or `/css/` |
-| 6 | Flip CI to `.\scripts\gate.ps1 js -Strict` | shipped: `Frontend JS contract` step in the `backend` job, 0 FAIL |
+| 6 | Flip CI to `.\scripts\gate.ps1 js -Strict` | shipped: `Frontend JS contract` step in the `backend` job, 0 FAIL. JS07 promoted from INFO to FAIL, so a remote asset is a red build, not a report |
 
 ## Two things that are not JavaScript, but block the claims above
 
