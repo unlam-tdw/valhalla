@@ -441,7 +441,7 @@
         <template v-if="selectedEntry">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 id="place-detail-title" class="m-0">{{ selectedEntry.name }}</h4>
-                <button type="button" class="btn-close" aria-label="Cerrar" @click="$refs.placeDialog.close()"></button>
+                <button type="button" class="btn-close" aria-label="Cerrar" @click="placeDialog.close()"></button>
             </div>
             <dl>
                 <dt>Dirección</dt><dd>{{ selectedEntry.address || 'Sin dirección' }}</dd>
