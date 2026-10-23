@@ -4,7 +4,9 @@ Step-by-step guide for creating a view without frameworks, using only HTML + CSS
 
 > The JavaScript rules still apply here: this guide is the no-framework path, not a
 > different contract. See [guide-js.md](guide-js.md) for the API style, where server data
-> enters, and DOM vs markup.
+> enters, and DOM vs markup. Two snippets below predate it -- `var` and
+> `innerHTML = await res.text()`. The contract's answer is `const`/`let` (R5) and a node
+> built with `el()` (R7); what those snippets show is the no-framework shape, not the rule.
 
 ## Base Structure
 
@@ -226,10 +228,10 @@ document.getElementById('my-form').addEventListener('submit', async function(e) 
 | :--- | :--- | :--- |
 | Simple form (1-2 fields) | Better | Overkill |
 | Form with loading state | Manual | Reactive |
-| Inline errors | innerHTML | v-if |
+| Inline errors | textContent | v-if |
 | Confirmation modal | Manual DOM | Reactive v-if |
 | Reactive list | Painful | v-for |
-| Timer / clock | setInterval | data() |
+| Timer / clock | setInterval | ref() |
 | No frameworks allowed | Only option | Do not use |
 
 ## Rules
@@ -242,4 +244,4 @@ document.getElementById('my-form').addEventListener('submit', async function(e) 
 4. **`th:if` for errors** , only shown if they exist
 5. **`async/await` in fetch** , clean code
 6. **`res.redirected`** , follow server redirects
-7. **`innerHTML` on error** , replace only the form area
+7. **`textContent` on error** , replace only the text of the form area; `innerHTML` with a server value is an XSS (R7 in [guide-js.md](guide-js.md))

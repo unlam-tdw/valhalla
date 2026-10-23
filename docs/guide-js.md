@@ -28,8 +28,8 @@ Related: [guide-vue.md](guide-vue.md) for the Thymeleaf + Vue view structure,
 
 ### R1 -- One API: Composition, via `setup()`
 
-All new page code uses `setup()` with `ref`/`computed`/`watch`. The Options API pages that
-remain are migration targets, not a second style to copy.
+All page code uses `setup()` with `ref`/`computed`/`watch`. There is no `data()` left in the
+tree: the eight Options API views were converted in phase 4, the largest last.
 
 ```js
 createApp({
@@ -40,22 +40,29 @@ createApp({
 }).mount('#explore-app');
 ```
 
-Why: the two largest views in the tree -- `pages/places-list.js` and
-`pages/place-import.js` -- already use it, and it is the only form whose state can be
-tested without mounting a component.
+Why: state is declared where it is created, a template ref is a variable instead of
+`this.$refs`, and it is the only form whose state can be tested without mounting a
+component.
+
+One habit worth copying from the conversion: when a view reads six fields off its own
+`data-*` root, share `const field = (key) => ref(data[key] || '')` instead of writing six
+identical `ref` lines. It is shorter than the `data()` object it replaced.
+
+Two things stay plain `let` rather than `ref`: handles the page does not render, such as a
+Leaflet map, its markers and the index of the row being dragged. A ref there only wraps the
+object in a reactive proxy nobody reads.
 
 ### R2 -- One root per page, named after the view
 
-The mount target is `#<view>-app`: `#place-form-app`, `#users-app`, `#explore-app`. Not
-`#app`.
+The mount target is `#<view>-app`: `#place-form-app`, `#users-app`, `#explore-app`,
+`#place-import-app`. Not `#app`.
 
 Mount exactly one app per page. A fragment that mounts is a bug: the host page owns the
 lifecycle of the subtree.
 
-R2 is not satisfied by the four extracted views yet -- `pages/places-list.js` and
-`pages/place-import.js` still mount `#app`. The rename is phase 4, because `#app` is a
-structural selector (`#app > aside`) in ten E2E page objects: renaming the root without
-those edits turns every mobile layout test into a timeout.
+The root id is not free decoration: it is a structural selector in the E2E page objects
+(`#explore-app > aside`), so renaming one is a coordinated change -- the template, the module
+and every page object that anchors on it, in the same commit.
 
 ### R3 -- Server data enters through `data-*`, never as an inline expression
 
@@ -309,15 +316,15 @@ the file is open anyway, not defects.
 
 ### What the gate cannot see
 
-- `bindPopup(popupText)` -- the popup expression assigned to a variable first.
-  `pages/plans-detail.js` does exactly this and is a real finding the gate reports as clean.
-  Review R7 by eye there.
+- `bindPopup(popupText)` -- the popup expression assigned to a variable first. The gate reads
+  the call site, so it cannot tell a node from a string there. `pages/plans-detail.js` hid the
+  tree's last HTML popup this way until phase 4; review R7 by eye on any marker code.
 - `v-for` without `:key`, focus handling, `role`/`tabindex`: R10 is review-only.
 - `@import` and `url()` inside a stylesheet: JS07 reads HTML tags, so a remote asset pulled
   in by CSS is invisible to it.
 - Anything inside `v-html`, `insertAdjacentHTML` or a `data:` URL.
-- `Vue.createApp` with `data()`: R1 is review-only, because the Options API is legal
-  legacy here until its page is migrated.
+- `Vue.createApp` with `data()`: R1 is review-only. The tree has none left, but the gate
+  would not see one coming back.
 
 ### Current debt
 
@@ -331,16 +338,21 @@ Each phase lowers it; this table is the live count.
 | JS03 | 0 | shipped in phase 1 |
 | JS04 | 0 | shipped in phase 2 |
 | JS05 | 0 | preventive: no `innerHTML` in the tree today |
-| JS06 | 7 | `avatar-picker` 52 lines, `landing` 65 and 41, `navbar-menu` 40, `place-form` 25, `login` 22, `home` 22 |
+| JS06 | 4 | `avatar-picker` 52 lines, `landing` 65 and 41, `navbar-menu` 40 |
 | JS07 | 10 | Leaflet js + css in four views; Bootstrap 5.3 and Font Awesome in `plans/detail` |
 
-**42 FAIL, 17 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
+**42 FAIL, 14 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
 to `-Strict`.
 
 Phase 3 paid back what phases 1 and 2 borrowed: the four big views carried 1164 lines of
 inline JavaScript between them (`places/list` 532, `plans/detail` 322, `place-import` 215,
-`public` 95) and JS06 does not flag any of them now. The remaining seven are ordinary pages
-under 70 lines, and they move with their own phase rather than as a batch.
+`public` 95) and JS06 does not flag any of them now.
+
+Phase 4 left four inline scripts that are all structurally large -- a component with its own
+Avatar picker, the navbar menu, two sections of the landing page. They are not "ordinary
+pages" waiting for a move; each is a self-contained component, and extracting it means giving
+it a module of its own. `login` and `home` left the budget by declaring their state in
+`setup()` instead of a `data()` object.
 
 ## Migration order
 
@@ -352,7 +364,7 @@ Each phase is independently shippable and independently reviewable.
 | 1 | Fix every JS01 and JS03: `data-*` bridge, DOM popups | shipped: FAIL 72 -> 50 |
 | 2 | Ship `lib/api.js`, migrate the API `fetch` calls, replace the 8 `alert()`s with an inline error surface | shipped: JS04 0, FAIL 50 -> 42 |
 | 3 | Extract `places/list`, `plans/detail`, `place-import`, `plans/public` to `pages/`; ship `lib/dom.js` and consolidate every popup on it | shipped: JS06 11 -> 7 |
-| 4 | Convert the 8 remaining Options API views to `setup()`: `place-form`, `places`, `user-form`, `users`, `login`, `new-user`, `home`, `plans-detail.js`. Rename each root to `#<view>-app`, E2E page objects included | R1 and R2 satisfied |
+| 4 | Convert the 8 remaining Options API views to `setup()`: `place-form`, `places`, `user-form`, `users`, `login`, `new-user`, `home`, `plans-detail.js`. Rename each root to `#<view>-app`, E2E page objects included | shipped: R1 and R2 satisfied, JS06 7 -> 4 |
 | 5 | Vendor Leaflet (js + css); extract `buildMarker()` to `lib/places-map.js`; resolve the Bootstrap/Font Awesome conflict in `plans/detail` | JS07 -> 0 |
 | 6 | Flip CI to `.\scripts\gate.ps1 js -Strict` | 0 FAIL |
 

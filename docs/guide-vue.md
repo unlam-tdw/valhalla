@@ -22,12 +22,12 @@ Every view follows this structure:
   </main>
 
   <script>
-    Vue.createApp({
-      data() {
-        return { /* reactive state */ }
-      },
-      methods: {
-        /* functions */
+    const { createApp, ref } = Vue;
+
+    createApp({
+      setup() {
+        const message = ref('');
+        return { message };
       }
     }).mount('#my-app');
   </script>
