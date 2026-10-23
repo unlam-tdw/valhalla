@@ -7,6 +7,7 @@
  * object graphs that a data-* attribute cannot carry without a serializer.
  */
 import { apiFetch } from '../lib/api.js';
+import { el } from '../lib/dom.js';
 
 const { createApp, ref, computed, onMounted } = Vue;
 const seed = window.PLAN_DETAIL_SEED || {};
@@ -124,50 +125,69 @@ createApp({
 
                         const categoryClass = 'cat-' + place.category;
                         const iconClass = getCategoryIcon(place.category);
+                        const isNumbered = isInPlan && !isSinglePlace;
 
                         let activeClass = '';
-                        let innerContent = '<i class="fa-solid ' + iconClass + '"></i>';
-
                         if (isInPlan) {
-                            if (isSinglePlace) {
-                                activeClass = 'single-place-pulse';
-                                innerContent = '<i class="fa-solid ' + iconClass + '"></i>';
-                            } else {
-                                activeClass = 'in-itinerary';
-                                innerContent = '<span>' + (itineraryIndex + 1) + '</span>';
-                            }
+                            activeClass = isSinglePlace ? 'single-place-pulse' : 'in-itinerary';
                         }
 
-                        const customHtml = '<div class="custom-map-icon ' + categoryClass + ' ' + activeClass + '">' + innerContent + '</div>';
+                        const badge = el(
+                            'div',
+                            { class: 'custom-map-icon ' + categoryClass + ' ' + activeClass },
+                            [isNumbered
+                                ? el('span', { text: String(itineraryIndex + 1) })
+                                : el('i', { class: 'fa-solid ' + iconClass })]
+                        );
 
                         const customIcon = L.divIcon({
-                            html: customHtml,
+                            html: badge,
                             className: 'custom-div-icon',
                             iconSize: [30, 30],
                             iconAnchor: [15, 15]
                         });
 
-                        let popupText = '<b>' + place.name + '</b><br><small>' + place.category + '</small>';
-                        if (isInPlan) {
-                            if (isSinglePlace) {
-                                popupText = '<b>📍 Único lugar seleccionado:</b><br><strong>' + place.name + '</strong>';
-                            } else {
-                                popupText = '<b>Paso ' + (itineraryIndex + 1) + ': ' + place.name + '</b><br><small class="text-success">✔ En el itinerario</small>';
-                            }
+                        /* Leaflet parses a String popup as HTML, and both the name and the
+                           category come from the catalogue: the popup is a node, never markup.
+                           R7, and the reason lib/dom.js exists. */
+                        let head;
+                        if (isInPlan && isSinglePlace) {
+                            head = [
+                                el('b', { text: '📍 Único lugar seleccionado:' }),
+                                el('br'),
+                                el('strong', { text: place.name })
+                            ];
+                        } else if (isInPlan) {
+                            head = [
+                                el('b', { text: 'Paso ' + (itineraryIndex + 1) + ': ' + place.name }),
+                                el('br'),
+                                el('small', { class: 'text-success', text: '✔ En el itinerario' })
+                            ];
+                        } else {
+                            head = [el('b', { text: place.name }), el('br'),
+                                el('small', { text: place.category })];
                         }
-                        // [MAPS] Como llegar desde el propio popup del mapa: usa la direccion
-                        // de texto (no la coordenada, que el dataset trae desfasada), con el
-                        // nombre delante para desambiguar; mismo criterio que el resto.
-                        popupText =
-                            '<div>' + popupText + '</div>' +
-                            '<a class="text-primary underline-offset-4 text-decoration-none fw-medium" ' +
-                            'href="https://www.google.com/maps/dir/?api=1&destination=' +
-                            encodeURIComponent(((place.name || '') + ' ' + (place.address || '')).trim()) + '" ' +
-                            'target="_blank" rel="noopener">Cómo llegar</a>';
+
+                        const popup = el('div', {}, [
+                            ...head,
+                            // [MAPS] Como llegar desde el propio popup del mapa: usa la
+                            // direccion de texto (no la coordenada, que el dataset trae
+                            // desfasada), con el nombre delante para desambiguar; mismo
+                            // criterio que el resto.
+                            el('br'),
+                            el('a', {
+                                class: 'text-primary underline-offset-4 text-decoration-none fw-medium',
+                                href: 'https://www.google.com/maps/dir/?api=1&destination=' +
+                                    encodeURIComponent(((place.name || '') + ' ' + (place.address || '')).trim()),
+                                target: '_blank',
+                                rel: 'noopener',
+                                text: 'Cómo llegar'
+                            })
+                        ]);
 
                         const marker = L.marker([place.latitude, place.longitude], { icon: customIcon })
                             .addTo(map)
-                            .bindPopup(popupText);
+                            .bindPopup(popup);
 
                         markers.push(marker);
                         bounds.push([place.latitude, place.longitude]);
