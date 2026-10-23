@@ -209,19 +209,38 @@ El frontend no tiene bundles compilados. Lo propio es solo esto:
 src/main/webapp/resources/
 ├── core/js/
 │   ├── tailwind-browser.js      (@tailwindcss/browser vendorizado: compila Tailwind en el browser)
-│   └── vue.global.prod.js
+│   ├── vue.global.prod.js
+│   ├── lucide.min.js
+│   ├── add-to-plan.js           agrega un lugar a un plan (módulo)
+│   ├── plan-share.js            comparte un plan (script clásico, defer)
+│   ├── lib/
+│   │   ├── api.js                   csrfToken(), apiFetch(), ApiError
+│   │   └── dom.js                   el(): el único constructor de nodos
+│   └── pages/
+│       ├── places-list.js           mapa, filtros y panel de plan
+│       ├── plans-detail.js          mapa, itinerario y catálogo
+│       ├── place-import.js          importador OSM
+│       └── plans-public.js          mapa público de solo lectura
+├── css/
+    └── brand.css
 └── images/
     └── place-placeholder.svg
 ```
 
+`lib/` y `pages/` son módulos ES nativos: el browser resuelve `import` sin bundler, y
+`BaseWebConfig` mapea `/js/**` a `core/js/`. El contrato que los gobierna es
+[guide-js.md](guide-js.md).
+
 **Tailwind es local y vendorizado**: `layouts/base.html` lo carga con
 `<script th:src="@{/js/tailwind-browser.js}" defer>`. No hay paso de build de CSS.
 
-**Leaflet sí viene de CDN**, y solo en `pages/places/list.html`:
-`https://unpkg.com/leaflet@1.9.4/dist/leaflet.{css,js}`. No existe `lib/leaflet/` en el repo.
+**Leaflet viene de CDN**, en las cuatro vistas con mapa —`places/list`, `plans/detail`,
+`admin/place-import` y `plans/public`—: `https://unpkg.com/leaflet@1.9.4/dist/leaflet.{css,js}`.
+No existe `lib/leaflet/` en el repo; vendorizarlo es la fase 5 de [guide-js.md](guide-js.md).
 
 No existe `js/map.js`, `js/places.js`, `js/plan-builder.js` ni `js/share-view.js`: la lógica de
-Leaflet vive **inline** dentro de los templates Thymeleaf.
+Leaflet vive en los módulos de `resources/core/js/pages/` (`places-list.js`,
+`plans-detail.js`, `place-import.js`, `plans-public.js`), no inline en los templates.
 
 ### Map Integration (Leaflet + OSM)
 

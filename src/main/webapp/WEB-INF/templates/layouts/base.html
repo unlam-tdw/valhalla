@@ -11,7 +11,7 @@
      tokens and scripts. head(pageTitle) delegates to it. -->
 
 <head th:fragment="head(pageTitle)">
-  <!-- CSRF para el JS de fetch: add-to-plan.js y el Vue de pages/places/list.html leen estos
+  <!-- CSRF para el JS de fetch: add-to-plan.js y pages/places-list.js leen estos
        metas para el POST a /api/plans/{id}/places. Van acá, en el head completo de la app, y
        no en headContent: la vista pública read-only (pages/plans/public.html, que hereda
        headContent) no debe exponer el token. [_csrf] puede ser null en páginas públicas. -->
