@@ -21,7 +21,7 @@ Related: [guide-vue.md](guide-vue.md) for the Thymeleaf + Vue view structure,
 | Path | Status |
 | :--- | :--- |
 | `src/main/webapp/WEB-INF/templates/**/*.html` | covered, inline `<script>` included |
-| `src/main/webapp/resources/core/js/*.js` | covered |
+| `src/main/webapp/resources/core/js/**/*.js` | covered, `pages/` and `lib/` included |
 | `vue.global.prod.js`, `tailwind-browser.js`, `lucide.min.js` | vendored, excluded |
 
 ## The rules
@@ -40,9 +40,9 @@ createApp({
 }).mount('#explore-app');
 ```
 
-Why: the two largest scripts in the tree -- `places/list.html` and `place-import.html` --
-already use it, and it is the only form whose state can be tested without mounting a
-component.
+Why: the two largest views in the tree -- `pages/places-list.js` and
+`pages/place-import.js` -- already use it, and it is the only form whose state can be
+tested without mounting a component.
 
 ### R2 -- One root per page, named after the view
 
@@ -51,6 +51,11 @@ The mount target is `#<view>-app`: `#place-form-app`, `#users-app`, `#explore-ap
 
 Mount exactly one app per page. A fragment that mounts is a bug: the host page owns the
 lifecycle of the subtree.
+
+R2 is not satisfied by the four extracted views yet -- `pages/places-list.js` and
+`pages/place-import.js` still mount `#app`. The rename is phase 4, because `#app` is a
+structural selector (`#app > aside`) in ten E2E page objects: renaming the root without
+those edits turns every mobile layout test into a timeout.
 
 ### R3 -- Server data enters through `data-*`, never as an inline expression
 
@@ -75,6 +80,26 @@ value ends the string and kills the page's script.
 `th:inline="javascript"` with the comment form is the accepted alternative when the value
 really must sit in a literal -- it is what `layouts/base.html` does for the dev-reload
 token. Prefer `data-*`: it keeps the template free of JavaScript syntax.
+
+There is one case `data-*` cannot carry: an **object graph**. A `data-*` attribute holds a
+string, so a list of places reaches a module only through a serializer the controller does
+not need to own. The accepted form is one seed object on `window`, assigned by a
+`th:inline` literal, with the module reading it and defaulting every field:
+
+```html
+<script th:inline="javascript">
+  window.PUBLIC_PLAN_SEED = { stops: /*[[${itineraryPlaces}]]*/ [] };
+</script>
+<script type="module" th:src="@{/js/pages/plans-public.js}"></script>
+```
+
+```js
+const stops = (window.PUBLIC_PLAN_SEED || {}).stops || [];
+```
+
+Three pages use it (`PLAN_DETAIL_SEED`, `PLACE_IMPORT_SEED`, `PUBLIC_PLAN_SEED`). It is the
+same handoff as `data-*`, one scope wider, and it stays confined to the template: the
+module never reads Thymeleaf.
 
 Gate: **JS01**.
 
@@ -112,22 +137,33 @@ export async function apiFetch(url, { method, body, headers, signal } = {}) { /*
 ```
 
 `apiFetch` returns the `Response`, so the caller keeps its own `.json()` / `.text()`. It
-throws `ApiError` in three cases:
+throws `ApiError` in two cases:
 
 - the response is a redirect or carries `text/html` -- an expired session answers `/api/*`
   with the login page and **status 200**, which is what used to reach the user as a parse
   error;
-- `!response.ok`, with the API's `message` when the body has one, or the status otherwise;
-- the request itself fails (network, abort).
+- `!response.ok`, with the API's `message` when the body has one, or the status otherwise.
+
+A failed request -- network, abort -- is **not** wrapped. `apiFetch` awaits `fetch()`
+directly, so an `AbortError` arrives with its own name and a caller that cancels on purpose
+can still tell a cancel from a failure:
+
+```js
+try {
+  const response = await apiFetch(url, { signal: controller.signal });
+} catch (failure) {
+  if (failure.name === 'AbortError') return;   // superseded by a newer request
+  error.value = failure.status === 401 ? failure.message : 'No se pudo cargar.';
+}
+```
+
+That is why `pages/place-import.js` uses it too, `AbortController` and all. The one direct
+`fetch` left in the tree is not API traffic: `layouts/base.html` polls `/reload/version`,
+exists only under the `dev` profile, and has no CSRF, no JSON and no error surface to
+normalize. It stays as it is.
 
 Callers branch on `error.status`: `409` is a product answer, `401` already carries the
 right copy, everything else gets the page's own sentence.
-
-One page still calls `fetch` directly: `admin/place-import.html` drives its search with an
-`AbortController`, and the autocomplete needs to tell an abort apart from a failure. It
-moves with its page in phase 3. The other direct call is not API traffic: `layouts/base.html`
-polls `/reload/version`, exists only under the `dev` profile, and has no CSRF, no JSON and no
-error surface to normalize. It stays as it is.
 
 Manual review rule; no gate id.
 
@@ -141,15 +177,28 @@ Two sinks, both real:
 marker.bindPopup('<strong>' + place.name + '</strong>');
 
 // yes
-marker.bindPopup(el('div', {}, [el('strong', { textContent: place.name })]));
+marker.bindPopup(el('div', {}, [el('strong', { text: place.name })]));
 ```
 
 `innerHTML` follows the same rule: assigning a literal is fine, assigning data is not.
 `textContent` is the only way a value becomes text.
 
-`el(tag, props, children)` in `/js/lib/dom.js` is the one constructor for new code. It does
-not exist yet: a plain `<script>` cannot `import`, so the two popups rebuilt in phase 1 each
-carry a local `createElement` helper, and phase 3 consolidates them into the shared module.
+`el(tag, props, children)` in `/js/lib/dom.js` is the one constructor for new code, and the
+only file under `pages/` and `lib/` that calls `document.createElement`. The name of the
+text prop is `text` -- it sets `textContent`:
+
+```js
+el('a', {
+  class: 'text-primary fw-medium d-inline-block mt-1',
+  href: directionsUrl(place),
+  target: '_blank',
+  rel: 'noopener',
+  text: 'Cómo llegar'
+})
+```
+
+Every other prop becomes an attribute, `dataset` is merged, and `null`/`undefined` props
+**and children** are skipped, so `cond ? el('br') : null` is a conditional node.
 
 Gate: **JS03**, **JS05**.
 
@@ -167,8 +216,8 @@ try {
 ```
 
 A module with no error surface of its own does not invent one: it dispatches a `CustomEvent`
-and the host page renders it. `add-to-plan.js` emits `plan-error`; `places/list.html` feeds
-that into the same banner as its own failures.
+and the host page renders it. `add-to-plan.js` emits `plan-error`; `pages/places-list.js`
+feeds that into the same banner as its own failures.
 
 Every `await` on a request sits inside a `try`, and the loading flag is cleared in the
 `catch` as well: a spinner that never stops is a worse failure than the original error.
@@ -209,17 +258,25 @@ Gate: **JS07**.
 
 ```
 src/main/webapp/resources/core/js/
-  pages/<view>.js      one entry point per view: /js/pages/place-import.js
-  lib/api.js           csrfToken(), apiFetch(), ApiError          [shipped]
-  lib/dom.js           el()
-  lib/places-map.js    buildMarker(place, { color, icon })
-  <vendored>.js        vue.global.prod.js, tailwind-browser.js, lucide.min.js
+  pages/places-list.js     the Places view: map, filters, plan panel      [shipped]
+  pages/plans-detail.js    one plan's map, itinerary and catalogue        [shipped]
+  pages/place-import.js    the OSM importer                              [shipped]
+  pages/plans-public.js    the read-only public plan map                 [shipped]
+  lib/api.js               csrfToken(), apiFetch(), ApiError             [shipped]
+  lib/dom.js               el()                                          [shipped]
+  lib/places-map.js        buildMarker(place, { color, icon })           [pending]
+  <vendored>.js            vue.global.prod.js, tailwind-browser.js, lucide.min.js
 ```
 
-`lib/api.js` is live and imported by the three migrated views. `pages/`, `lib/dom.js` and
-`lib/places-map.js` do not exist yet: they are the destination of the migration below.
-Vendored stylesheets (Leaflet's, once it is local) belong in `resources/css/` next to
-`brand.css`, not at the document root.
+`lib/api.js` and `lib/dom.js` are live, and the four extracted views import them. Nothing
+under `WEB-INF/templates` builds a node by hand any more: `document.createElement` appears
+once in the tree, inside `el()`. A classic script cannot `import`, so `lib/` is only usable
+from a module.
+
+`lib/places-map.js` does not exist yet: `buildMarker()` is the destination of phase 5,
+when Leaflet moves from a remote `<script src>` to a vendored file. Vendored stylesheets
+(Leaflet's, once it is local) belong in `resources/css/` next to `brand.css`, not at the
+document root.
 
 Naming: files `kebab-case.js` matching their view, functions `camelCase`, event handlers
 prefixed `on`, module-level constants `UPPER_SNAKE`, `data-*` attributes `kebab-case`.
@@ -234,7 +291,8 @@ prefixed `on`, module-level constants `UPPER_SNAKE`, `data-*` attributes `kebab-
 
 A grep gate, not a linter: it reads templates and project JS, never touches the files, and
 matches the shapes below. It is deliberately narrow -- a rule that needs a parser stops
-being cheap enough to trust.
+being cheap enough to trust. It walks `resources/core/js` recursively, so a module under
+`pages/` or `lib/` is checked exactly like a template's inline script.
 
 | Rule | Severity | Catches |
 | :--- | :--- | :--- |
@@ -251,8 +309,9 @@ the file is open anyway, not defects.
 
 ### What the gate cannot see
 
-- `bindPopup(popupText)` -- the popup expression assigned to a variable first. `plans/detail.html`
-  does exactly this and is a real finding the gate reports as clean. Review R7 by eye there.
+- `bindPopup(popupText)` -- the popup expression assigned to a variable first.
+  `pages/plans-detail.js` does exactly this and is a real finding the gate reports as clean.
+  Review R7 by eye there.
 - `v-for` without `:key`, focus handling, `role`/`tabindex`: R10 is review-only.
 - `@import` and `url()` inside a stylesheet: JS07 reads HTML tags, so a remote asset pulled
   in by CSS is invisible to it.
@@ -272,29 +331,29 @@ Each phase lowers it; this table is the live count.
 | JS03 | 0 | shipped in phase 1 |
 | JS04 | 0 | shipped in phase 2 |
 | JS05 | 0 | preventive: no `innerHTML` in the tree today |
-| JS06 | 11 | `places/list` 532 lines, `plans/detail` 322, `place-import` 215, `public` 95, plus 7 more between 22 and 65 |
+| JS06 | 7 | `avatar-picker` 52 lines, `landing` 65 and 41, `navbar-menu` 40, `place-form` 25, `login` 22, `home` 22 |
 | JS07 | 10 | Leaflet js + css in four views; Bootstrap 5.3 and Font Awesome in `plans/detail` |
 
-**42 FAIL, 21 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
+**42 FAIL, 17 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
 to `-Strict`.
 
-JS06, and with it the INFO total, does not move until phase 3: extraction is what pays it
-back. It went *up* in phases 1 and 2 (526 -> 532 lines in `places/list`), because the `data-*`
-bridge, the request helper and the inline error surface all live in the page until it becomes
-a module.
+Phase 3 paid back what phases 1 and 2 borrowed: the four big views carried 1164 lines of
+inline JavaScript between them (`places/list` 532, `plans/detail` 322, `place-import` 215,
+`public` 95) and JS06 does not flag any of them now. The remaining seven are ordinary pages
+under 70 lines, and they move with their own phase rather than as a batch.
 
 ## Migration order
 
 Each phase is independently shippable and independently reviewable.
 
-| Phase | Work | Gate effect |
+| Phase | Work | State |
 | :--- | :--- | :--- |
-| 0 | This document + the gate | 72 FAIL, report only |
-| 1 | Fix every JS01 and JS03: `data-*` bridge, DOM popups | FAIL 72 -> 50 |
-| 2 | Ship `lib/api.js` and migrate 9 of the 10 API `fetch` calls to it; replace the 8 `alert()`s with an inline error surface | JS04 down to 0, FAIL 50 -> 42 |
-| 3 | Extract `places/list`, `plans/detail`, `place-import`, `plans/public` to `pages/`; consolidate the two popup builders into `lib/dom.js` | JS06 down to 7 |
-| 4 | Convert the 8 Options API views to `setup()` and `#<view>-app` | R1 satisfied |
-| 5 | Vendor Leaflet (js + css); resolve the Bootstrap/Font Awesome conflict in `plans/detail` | JS07 -> 0 |
+| 0 | This document + the gate | shipped: 72 FAIL, report only |
+| 1 | Fix every JS01 and JS03: `data-*` bridge, DOM popups | shipped: FAIL 72 -> 50 |
+| 2 | Ship `lib/api.js`, migrate the API `fetch` calls, replace the 8 `alert()`s with an inline error surface | shipped: JS04 0, FAIL 50 -> 42 |
+| 3 | Extract `places/list`, `plans/detail`, `place-import`, `plans/public` to `pages/`; ship `lib/dom.js` and consolidate every popup on it | shipped: JS06 11 -> 7 |
+| 4 | Convert the 8 remaining Options API views to `setup()`: `place-form`, `places`, `user-form`, `users`, `login`, `new-user`, `home`, `plans-detail.js`. Rename each root to `#<view>-app`, E2E page objects included | R1 and R2 satisfied |
+| 5 | Vendor Leaflet (js + css); extract `buildMarker()` to `lib/places-map.js`; resolve the Bootstrap/Font Awesome conflict in `plans/detail` | JS07 -> 0 |
 | 6 | Flip CI to `.\scripts\gate.ps1 js -Strict` | 0 FAIL |
 
 ## Two things that are not JavaScript, but block the claims above

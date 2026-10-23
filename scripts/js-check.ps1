@@ -190,7 +190,9 @@ foreach ($file in (Get-ChildItem -LiteralPath $templates -Recurse -Filter '*.htm
 }
 
 # ---- project JavaScript -------------------------------------------------------------
-foreach ($file in (Get-ChildItem -LiteralPath $jsRoot -Filter '*.js' | Sort-Object Name)) {
+# Recurse: `pages/` and `lib/` are where the contract actually lives now, and a rule that
+# only reads the root would stop seeing it.
+foreach ($file in (Get-ChildItem -LiteralPath $jsRoot -Recurse -Filter '*.js' | Sort-Object FullName)) {
     if ($vendored -contains $file.Name) { continue }
     $relative = ($file.FullName.Substring($root.Length + 1) -replace '\\', '/')
     $raw = Get-Content -LiteralPath $file.FullName -Raw
