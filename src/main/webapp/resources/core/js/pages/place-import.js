@@ -220,4 +220,4 @@ createApp({
       formUrl
     };
   }
-}).mount('#app');
+}).mount('#place-import-app');

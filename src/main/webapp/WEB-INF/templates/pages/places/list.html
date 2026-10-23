@@ -28,11 +28,11 @@
 
     <!-- [MOBILE] El mapa ocupa toda el area y Places/Plans se despliegan como pestañas desde la
          barra de abajo: dos radios sr-only (uno dentro de cada label) y cada panel se controla
-         con group-has-[#id:checked] sobre este #app. Sin JS: ni el Vue ni los scripts se tocan
+         con group-has-[#id:checked] sobre este #explore-app. Sin JS: ni el Vue ni los scripts se tocan
          (AC-08). Sin tab activo al cargar, el mapa queda limpio de overlays. Desde md vuelve el
          layout de escritorio (mapa a la izquierda, sidebar junto al borde, paneles siempre
          visibles via md:visible). -->
-    <div id="app" class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
+    <div id="explore-app" class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
       <!-- Error surface for the whole view: the 5 request paths below and the add-to-plan
            module all report here instead of opening a browser alert box. role="alert"
            announces it to a screen reader. -->
@@ -494,7 +494,7 @@
         <!-- [MOBILE] Barra de pestañas: Places y Plans despliegan su panel sobre el mapa. Los
              radios viven dentro de su label (el activo se pinta con peer-checked en el span) y
              los paneles, que estan en otros puntos del arbol, se enteran por las variantes
-             group-has-[#id:checked] declaradas en #app. Cero JS (AC-08); md:hidden la deja fuera
+             group-has-[#id:checked] declaradas en #explore-app. Cero JS (AC-08); md:hidden la deja fuera
              de escritorio. -->
         <div class="absolute inset-x-0 bottom-0 z-[1050] flex h-12 border-t border-gray-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.10)] md:hidden">
           <!-- Tercer estado del grupo: tildado = ninguna tab activa y ambos paneles ocultos.

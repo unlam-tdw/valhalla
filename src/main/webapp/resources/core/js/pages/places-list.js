@@ -536,4 +536,4 @@ createApp({
       createNewPlan
     };
   }
-}).mount('#app');
+}).mount('#explore-app');
