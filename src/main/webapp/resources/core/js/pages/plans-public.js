@@ -6,6 +6,8 @@
  * model. Nothing here fetches: a shared plan is read-only.
  */
 
+import { el } from '../lib/dom.js';
+
 const stops = (window.PUBLIC_PLAN_SEED || {}).stops || [];
 
 function renderMap() {
@@ -26,13 +28,12 @@ function renderMap() {
     }
     // Mismo marcador que pages/plans/detail.html: circulo por categoria (cat-*), numerado
     // por parada y con el borde amarillo de "en el itinerario" (todas las paradas lo son
-    // aca). El numero va en un nodo con textContent, no en un string con el nombre.
-    const badge = document.createElement('div');
-    badge.className =
-      'custom-map-icon cat-' + (stop.category || 'DEFAULT') + ' in-itinerary';
-    const number = document.createElement('span');
-    number.textContent = String(index + 1);
-    badge.appendChild(number);
+    // aca). El numero va en un nodo, no en un string con el nombre.
+    const badge = el(
+      'div',
+      { class: 'custom-map-icon cat-' + (stop.category || 'DEFAULT') + ' in-itinerary' },
+      [el('span', { text: String(index + 1) })]
+    );
     const icon = L.divIcon({
       html: badge,
       className: 'custom-div-icon',
@@ -41,36 +42,24 @@ function renderMap() {
     });
     // El popup se arma con DOM, no con string concatenado: un nombre de lugar con
     // "<script>" tiene que renderizarse como texto.
+    const popup = el('div', {}, [
+      el('strong', { text: stop.name }),
+      ...(stop.category ? [el('br'), el('small', { text: stop.category })] : []),
+      // [MAPS] Como llegar desde el popup, igual que en el detalle y en explore. Usa la
+      // direccion de texto (no la coordenada) y el nombre delante para desambiguar.
+      el('br'),
+      el('a', {
+        class: 'text-primary fw-medium d-inline-block mt-1',
+        href: 'https://www.google.com/maps/dir/?api=1&destination=' +
+          encodeURIComponent(((stop.name || '') + ' ' + (stop.address || '')).trim()),
+        target: '_blank',
+        rel: 'noopener',
+        text: 'Cómo llegar'
+      })
+    ]);
     L.marker([stop.latitude, stop.longitude], { icon: icon })
       .addTo(map)
-      .bindPopup(function () {
-        const content = document.createElement('div');
-        const title = document.createElement('strong');
-        title.textContent = stop.name;
-        content.appendChild(title);
-        if (stop.category) {
-          const lineBreak = document.createElement('br');
-          const label = document.createElement('small');
-          label.textContent = stop.category;
-          lineBreak.appendChild(label);
-          content.appendChild(lineBreak);
-        }
-        // [MAPS] Como llegar desde el popup, igual que en el detalle y en explore. Se
-        // arma con DOM y no con string concatenado, por la misma razon que el popup.
-        // Usa la direccion de texto (no la coordenada) y el nombre delante para
-        // desambiguar.
-        const directions = document.createElement('a');
-        directions.href =
-          'https://www.google.com/maps/dir/?api=1&destination=' +
-          encodeURIComponent(((stop.name || '') + ' ' + (stop.address || '')).trim());
-        directions.target = '_blank';
-        directions.rel = 'noopener';
-        directions.textContent = 'Cómo llegar';
-        directions.className = 'text-primary fw-medium d-inline-block mt-1';
-        content.appendChild(document.createElement('br'));
-        content.appendChild(directions);
-        return content;
-      });
+      .bindPopup(popup);
     bounds.push([stop.latitude, stop.longitude]);
   });
 

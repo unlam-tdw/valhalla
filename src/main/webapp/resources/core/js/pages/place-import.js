@@ -6,6 +6,7 @@
  * module. The CABA box comes from the page, because only Thymeleaf knows the backend value.
  */
 import { apiFetch } from '../lib/api.js';
+import { el } from '../lib/dom.js';
 
 const CABA = (window.PLACE_IMPORT_SEED || {}).cabaBounds ?? null;
 const { createApp, ref, computed, watch, onMounted } = Vue;
@@ -142,9 +143,7 @@ createApp({
           }).addTo(map);
           /* Leaflet parses a String popup as HTML and the OSM name is unsanitized:
              the label is a node, not markup. */
-          const label = document.createElement('strong');
-          label.textContent = poi.name;
-          marker.bindPopup(label);
+          marker.bindPopup(el('strong', { text: poi.name }));
           marker.on('click', () => {
             window.location.href = formUrl(poi);
           });

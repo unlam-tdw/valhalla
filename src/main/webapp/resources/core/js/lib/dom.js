@@ -11,6 +11,7 @@
  *
  * A child that is not a Node becomes a text node, so `[place.name]` and
  * `[el('strong', { text: place.name })]` both work and neither parses markup.
+ * `null`/`undefined` children are skipped too, so `cond ? el('br') : null` is safe.
  */
 
 export function el(tag, props = {}, children = []) {
@@ -22,6 +23,7 @@ export function el(tag, props = {}, children = []) {
     else node.setAttribute(key, value);
   }
   for (const child of [].concat(children)) {
+    if (child === null || child === undefined) continue;
     node.append(child instanceof Node ? child : document.createTextNode(child));
   }
   return node;
