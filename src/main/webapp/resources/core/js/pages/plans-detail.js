@@ -28,8 +28,11 @@ createApp({
             { id: 10, name: "Parrilla Don Julio", category: "RESTAURANT", address: "Guatemala 4699", latitude: -34.5892, longitude: -58.4262 }
         ];
 
-        const backendAllPlaces = /*[[${allPlaces}]]*/ [] || [];
-        const backendPlanPlaces = /*[[${itineraryPlaces}]]*/ [] || [];
+        // The seed, not a Thymeleaf comment: this file is a module, and the comment form only
+        // works inside a `th:inline` script. As a module both expressions were dead code and
+        // silently collapsed to [], which is why the page showed no itinerary for a while.
+        const backendAllPlaces = seed.allPlaces || [];
+        const backendPlanPlaces = seed.itineraryPlaces || [];
 
         const parsePlace = (p) => {
             if (!p) return null;
