@@ -36,9 +36,9 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | `listPlaces()` sin filtros retorna todos los lugares | AC-14 |
-| U-02 | `listPlaces()` con category retorna lugares filtrados | AC-06 |
-| U-03 | `listPlaces()` con search retorna lugares filtrados | AC-07 |
+| U-01 | `listPlaces()` sin argumentos retorna la vista de explorar | AC-14 |
+| U-02 | `listPlaces()` no pone `places` ni `categories` en el modelo: el listado lo pide el JS a `/api/places` | AC-14 |
+| U-03 | `listPlaces()` arma `defaultPlanSettings` y `today` para el panel de alta de plan | AC-14 |
 
 ### Tests Unitarios (`domain/place/PlaceServiceImplTest.java`)
 
@@ -54,9 +54,9 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| I-01 | `GET /places` retorna 200 y vista con lugares | AC-14 |
-| I-02 | `GET /places?category=RESTAURANT` retorna 200 con filtrados | AC-06 |
-| I-03 | `GET /places?search=Don` retorna 200 con filtrados | AC-07 |
+| I-01 | `GET /places` retorna 200, la vista y ningun catalogo en el modelo | AC-14 |
+| I-02 | `GET /places?category=RESTAURANT` retorna 200: el filtro por categoria es del cliente | AC-06 |
+| I-03 | `GET /places?search=Don` retorna 200: la busqueda por nombre es del cliente | AC-07 |
 
 ### Tests de Integracion (`integration/PlaceRestControllerTest.java`)
 
@@ -100,6 +100,12 @@ El sistema muestra un mapa interactivo de Buenos Aires con markers por cada luga
   puede cerrar con `button[aria-label='Close place details']`.
 - **Trello**: el check `PLC-010` de la card PLC figura COMPLETE por un archivo que no existe.
   Queda obsoleto — el trabajo real es el panel lateral, no un template de detalle.
+- **El servidor no filtra ni lista**: `PlaceController.listPlaces` no consulta el catalogo. Arma
+  `defaultPlanSettings` y `today` (los usa el panel de alta de plan) y devuelve el template; los
+  lugares, el filtro por categoria y la busqueda los resuelve `pages/places/list.html` contra
+  `/api/places`. El `?category=`/`?search=` de la URL sigue entrando sin error, pero el servidor
+  lo ignora. Antes habia una lectura completa de la tabla `places` por visita cuyo resultado
+  ningun template leia.
 
 ## Referencia de Implementacion
 

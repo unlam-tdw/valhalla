@@ -43,27 +43,29 @@ public class PlaceControllerTest {
       .perform(get("/explore"))
       .andExpect(status().isOk())
       .andExpect(view().name("pages/places/list"))
-      .andExpect(model().attributeExists("places"));
+      .andExpect(model().attributeDoesNotExist("places", "categories"));
   }
 
+  /**
+   * El filtro por categoria de la URL lo resuelve el JS contra /api/places. El servidor solo tiene
+   * que seguir sirviendo la pagina cuando la URL trae el parametro viejo.
+   */
   @Test
   @WithMockUser
-  public void shouldFilterPlacesByCategory() throws Exception {
+  public void shouldIgnoreTheLegacyCategoryParam() throws Exception {
     mockMvc
       .perform(get("/explore").param("category", "RESTAURANT"))
       .andExpect(status().isOk())
-      .andExpect(view().name("pages/places/list"))
-      .andExpect(model().attributeExists("places"));
+      .andExpect(view().name("pages/places/list"));
   }
 
   @Test
   @WithMockUser
-  public void shouldSearchPlacesByName() throws Exception {
+  public void shouldIgnoreTheLegacySearchParam() throws Exception {
     mockMvc
       .perform(get("/explore").param("search", "Don"))
       .andExpect(status().isOk())
-      .andExpect(view().name("pages/places/list"))
-      .andExpect(model().attributeExists("places"));
+      .andExpect(view().name("pages/places/list"));
   }
 
   @Test
