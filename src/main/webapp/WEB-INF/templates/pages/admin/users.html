@@ -99,12 +99,13 @@
     </div>
 
     <script>
-      Vue.createApp({
-        data() {
+      const { createApp, ref } = Vue;
+
+      createApp({
+        setup() {
           const data = document.getElementById('users-app').dataset;
-          return {
-            error: data.error || ''
-          }
+          const error = ref(data.error || '');
+          return { error };
         }
       }).mount('#users-app');
     </script>

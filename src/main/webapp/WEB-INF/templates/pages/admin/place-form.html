@@ -102,29 +102,22 @@
     </div>
 
     <script>
-      Vue.createApp({
-        data() {
+      const { createApp, ref } = Vue;
+
+      createApp({
+        setup() {
           const data = document.getElementById('place-form-app').dataset;
+          const field = (key) => ref(data[key] || '');
+          const loading = ref(false);
+          const form = ref(null);
+          const submit = () => { loading.value = true; form.value.submit(); };
           return {
-            name: data.name || '',
-            category: data.category || '',
-            description: data.description || '',
-            address: data.address || '',
-            imageUrl: data.imageUrl || '',
-            latitude: data.latitude || '',
-            longitude: data.longitude || '',
-            openingHours: data.openingHours || '',
-            phone: data.phone || '',
-            website: data.website || '',
-            error: data.error || '',
-            loading: false
-          }
-        },
-        methods: {
-          submit() {
-            this.loading = true;
-            this.$refs.form.submit();
-          }
+            name: field('name'), category: field('category'), description: field('description'),
+            address: field('address'), imageUrl: field('imageUrl'), latitude: field('latitude'),
+            longitude: field('longitude'), openingHours: field('openingHours'),
+            phone: field('phone'), website: field('website'), error: field('error'),
+            loading, form, submit
+          };
         }
       }).mount('#place-form-app');
     </script>

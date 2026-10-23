@@ -62,23 +62,19 @@
     </div>
 
     <script>
-      Vue.createApp({
-        data() {
+      const { createApp, ref } = Vue;
+
+      createApp({
+        setup() {
           const data = document.getElementById('user-form-app').dataset;
+          const field = (key) => ref(data[key] || '');
+          const loading = ref(false);
+          const form = ref(null);
+          const submit = () => { loading.value = true; form.value.submit(); };
           return {
-            firstName: data.firstName || '',
-            lastName: data.lastName || '',
-            email: data.email || '',
-            role: data.role || '',
-            error: data.error || '',
-            loading: false
-          }
-        },
-        methods: {
-          submit() {
-            this.loading = true;
-            this.$refs.form.submit();
-          }
+            firstName: field('firstName'), lastName: field('lastName'), email: field('email'),
+            role: field('role'), error: field('error'), loading, form, submit
+          };
         }
       }).mount('#user-form-app');
     </script>

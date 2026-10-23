@@ -34,28 +34,23 @@
       </form>
     </div>
     <script>
-      const app = Vue.createApp({
-        data() {
+      const { createApp, ref } = Vue;
+
+      createApp({
+        setup() {
           const data = document.getElementById('login-app').dataset;
-          return {
-            email: '',
-            password: '',
-            error: data.error || '',
-            // Spring Security redirects here with ?logout=true after a successful logout. Read
-            // client-side because it is a boolean flag with fixed copy, and mixing a Thymeleaf
-            // th:if into this Vue-mounted template would put two template engines in one subtree.
-            logout: new URLSearchParams(window.location.search).has('logout'),
-            loading: false
-          }
-        },
-        methods: {
-          submit() {
-            this.loading = true;
-            this.$refs.form.submit();
-          }
+          const email = ref('');
+          const password = ref('');
+          const error = ref(data.error || '');
+          const loading = ref(false);
+          const form = ref(null);
+          // Spring Security redirects here with ?logout=true: read it client-side so this
+          // subtree keeps one template engine instead of mixing a th:if into it.
+          const logout = new URLSearchParams(window.location.search).has('logout');
+          const submit = () => { loading.value = true; form.value.submit(); };
+          return { email, password, error, logout, loading, form, submit };
         }
-      });
-      app.mount('#login-app');
+      }).mount('#login-app');
     </script>
   </main>
 

@@ -43,26 +43,22 @@
       </form>
     </div>
     <script>
-      const app = Vue.createApp({
-        data() {
+      const { createApp, ref } = Vue;
+
+      createApp({
+        setup() {
           const data = document.getElementById('register-app').dataset;
-          return {
-            firstName: '',
-            lastName: '',
-            email: '',
-            password: '',
-            error: data.error || '',
-            loading: false
-          }
-        },
-        methods: {
-          submit() {
-            this.loading = true;
-            this.$refs.form.submit();
-          }
+          const firstName = ref('');
+          const lastName = ref('');
+          const email = ref('');
+          const password = ref('');
+          const error = ref(data.error || '');
+          const loading = ref(false);
+          const form = ref(null);
+          const submit = () => { loading.value = true; form.value.submit(); };
+          return { firstName, lastName, email, password, error, loading, form, submit };
         }
-      });
-      app.mount('#register-app');
+      }).mount('#register-app');
     </script>
   </main>
 
