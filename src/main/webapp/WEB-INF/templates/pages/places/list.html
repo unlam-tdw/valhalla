@@ -33,6 +33,16 @@
          layout de escritorio (mapa a la izquierda, sidebar junto al borde, paneles siempre
          visibles via md:visible). -->
     <div id="app" class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
+      <!-- Error surface for the whole view: the 5 request paths below and the add-to-plan
+           module all report here instead of opening a browser alert box. role="alert"
+           announces it to a screen reader. -->
+      <div v-if="error" role="alert"
+        class="fixed left-1/2 top-4 z-[2500] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-start gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">
+        <span class="flex-1">{{ error }}</span>
+        <button type="button" @click="error = ''" aria-label="Cerrar el aviso"
+          class="shrink-0 text-lg leading-none text-red-500 hover:text-red-700">&times;</button>
+      </div>
+
       <!-- Sidebar -->
       <aside
         class="invisible pointer-events-none translate-y-4 opacity-0 transition-[opacity,transform] duration-200 group-has-[#tab-places:checked]:visible group-has-[#tab-places:checked]:pointer-events-auto group-has-[#tab-places:checked]:translate-y-0 group-has-[#tab-places:checked]:opacity-100 md:visible md:pointer-events-auto md:translate-y-0 md:opacity-100 absolute md:static inset-x-0 bottom-12 z-[1040] md:z-auto w-full md:w-80 md:min-w-[20rem] max-h-[40vh] md:max-h-none min-h-0 overflow-y-auto overscroll-contain bg-white border-t md:border-t-0 md:border-l border-gray-200 p-4 flex flex-col gap-4">
@@ -516,14 +526,16 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <!-- Add to Plan functionality -->
-    <script src="/js/add-to-plan.js"></script>
+    <script type="module" src="/js/add-to-plan.js"></script>
     <!-- Lucide, vendorizado junto a Vue y Tailwind. Va antes del script de Vue porque el
          mapa de iconos se construye al montar la app, y un script clásico se ejecuta en
          orden: cuando corra createElement, window.lucide ya existe. -->
     <script th:src="@{/js/lucide.min.js}"></script>
 
     <!-- Vue.js app (Vue is already loaded by the layout) -->
-    <script>
+    <script type="module">
+      import { apiFetch } from '/js/lib/api.js';
+
       const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
       createApp({
@@ -543,6 +555,16 @@
           const availablePlans = ref([]);
           const selectedPlanId = ref('');
           const publicPlans = ref([]);
+          const error = ref('');
+          const setError = (message) => {
+            error.value = message;
+          };
+          /* A session expiry keeps the helper's sentence -- "log in again" is the only
+             useful thing to say -- while every other failure keeps this page's copy. */
+          const failure = (cause, fallback) => {
+            console.error(cause);
+            return cause.status === 401 ? cause.message : fallback;
+          };
           let nextDraftKey = 0;
           let map = null;
           let mapResizeObserver = null;
@@ -705,8 +727,7 @@
           const activePlan = ref(null);
 
           const loadActiveEntries = async (planId) => {
-            const response = await fetch('/api/plans/' + planId + '/places');
-            if (!response.ok) throw new Error('GET itinerary ' + response.status);
+            const response = await apiFetch('/api/plans/' + planId + '/places');
             return response.json();
           };
 
@@ -716,8 +737,7 @@
               showCreatePlan.value = false;
               activePlan.value = { id, name, entries };
             } catch (error) {
-              console.error(error);
-              alert('Error al cargar el plan');
+              setError(failure(error, 'Error al cargar el plan.'));
             }
           };
 
@@ -727,22 +747,14 @@
 
           const addToActivePlan = async (place) => {
             const plan = activePlan.value;
-            const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
             try {
-              const response = await fetch('/api/plans/' + plan.id + '/places?placeId=' + place.id, {
-                method: 'POST',
-                headers: { [csrfHeader]: csrfToken }
-              });
-              if (response.status === 409) {
-                alert('El destino ya se encuentra en el plan');
-                return;
-              }
-              if (!response.ok) throw new Error('POST ' + response.status);
+              await apiFetch('/api/plans/' + plan.id + '/places?placeId=' + place.id, { method: 'POST' });
               plan.entries = await loadActiveEntries(plan.id);
             } catch (error) {
-              console.error(error);
-              alert('Error al agregar el lugar al plan');
+              // 409 is a product answer, not a failure: the place is already in the plan.
+              setError(error.status === 409
+                ? 'El destino ya se encuentra en el plan.'
+                : failure(error, 'Error al agregar el lugar al plan.'));
             }
           };
 
@@ -752,18 +764,13 @@
           const toggleBookmark = async (plan) => {
             const removing = plan.bookmarked === true;
             if (removing && !window.confirm('¿Quitar este plan de Guardados?')) return;
-            const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
             try {
-              const response = await fetch('/api/plans/' + plan.id + '/bookmarks', {
-                method: removing ? 'DELETE' : 'POST',
-                headers: { [csrfHeader]: csrfToken }
+              await apiFetch('/api/plans/' + plan.id + '/bookmarks', {
+                method: removing ? 'DELETE' : 'POST'
               });
-              if (!response.ok) throw new Error('bookmarks ' + response.status);
               plan.bookmarked = !removing;
             } catch (error) {
-              console.error(error);
-              alert('Error al actualizar Guardados');
+              setError(failure(error, 'Error al actualizar Guardados.'));
             }
           };
 
@@ -922,13 +929,7 @@
             placeToAdd.value = place;
 
             try {
-              const response = await fetch('/api/plans');
-              if (!response.ok) {
-                const bodyText = await response.text().catch(() => '(sin cuerpo)');
-                console.error('GET /api/plans ->', response.status, response.statusText, bodyText);
-                throw new Error('Failed to fetch plans (' + response.status + ')');
-              }
-
+              const response = await apiFetch('/api/plans');
               const userPlans = await response.json();
 
               const plansWithoutPlace = userPlans.filter(plan =>
@@ -943,9 +944,13 @@
               selectedPlanId.value = '';
               showAddToPlan.value = true;
             } catch (error) {
-              console.error('Error fetching plans:', error);
-              alert('Error al cargar los planes');
+              setError(failure(error, 'Error al cargar los planes.'));
             }
+          });
+
+          // The add-to-plan module has no error surface of its own: it reports here.
+          document.addEventListener('plan-error', (event) => {
+            setError(event.detail.message);
           });
 
           onMounted(async () => {
@@ -954,14 +959,10 @@
             // [PPV] Feed real de /explore: planes públicos próximos desde la API. Un fallo deja la
             // lista vacía (igual que el resto de la página), nunca rompe el mapa ni el panel.
             try {
-              const publicResponse = await fetch('/api/plans/public');
-              if (publicResponse.ok) {
-                publicPlans.value = await publicResponse.json();
-              } else {
-                const bodyText = await publicResponse.text().catch(() => '(sin cuerpo)');
-                console.error('GET /api/plans/public ->', publicResponse.status, publicResponse.statusText, bodyText);
-              }
+              const publicResponse = await apiFetch('/api/plans/public');
+              publicPlans.value = await publicResponse.json();
             } catch (error) {
+              // A failed feed leaves the list empty, exactly like having no plans.
               console.error('Error fetching public plans:', error);
             }
 
@@ -998,8 +999,12 @@
             }).addTo(map);
 
             // Fetch places from API
-            const response = await fetch('/api/places');
-            places.value = await response.json();
+            try {
+              const response = await apiFetch('/api/places');
+              places.value = await response.json();
+            } catch (error) {
+              setError(failure(error, 'Error al cargar los lugares.'));
+            }
 
             // Extract unique categories
             const cats = new Set(places.value.map(p => p.category));
@@ -1016,6 +1021,7 @@
 
           return {
             places,
+            error,
             selectedPlace,
             selectedCategory,
             searchQuery,

@@ -102,24 +102,32 @@ Gate: **JS02**.
 
 ### R6 -- One request helper
 
-CSRF, `!response.ok`, redirect-to-login and error normalization are written once:
+`/js/lib/api.js` is the only place that writes `fetch`. It adds the CSRF header from the
+`_csrf` metas, turns an expired session into a sentence instead of a JSON parse error, and
+raises one error type that carries the status:
 
 ```js
-// /js/lib/api.js -- target shape, lands with the migration
-export function csrfToken() {
-  return document.querySelector('meta[name="_csrf"]')?.content ?? null;
-}
-
-export async function apiFetch(url, { method = 'GET', body } = {}) { /* ... */ }
+export class ApiError extends Error { /* message, status */ }
+export async function apiFetch(url, { method, body, headers, signal } = {}) { /* ... */ }
 ```
 
-The host page is `fetch`-less. A page that writes `fetch(` directly is doing four things
-by hand that the helper already does, and will get one of them wrong -- the redirect case
-is the one that has already bitten: an expired session answers `/api/*` with the login HTML
-and status 200, so `response.json()` throws and the user reads a JSON parse error.
+`apiFetch` returns the `Response`, so the caller keeps its own `.json()` / `.text()`. It
+throws `ApiError` in three cases:
 
-One exception: the dev-reload poller in `layouts/base.html` stays as it is. It polls a
-development endpoint that exists only under the `dev` profile, not the API.
+- the response is a redirect or carries `text/html` -- an expired session answers `/api/*`
+  with the login page and **status 200**, which is what used to reach the user as a parse
+  error;
+- `!response.ok`, with the API's `message` when the body has one, or the status otherwise;
+- the request itself fails (network, abort).
+
+Callers branch on `error.status`: `409` is a product answer, `401` already carries the
+right copy, everything else gets the page's own sentence.
+
+One page still calls `fetch` directly: `admin/place-import.html` drives its search with an
+`AbortController`, and the autocomplete needs to tell an abort apart from a failure. It
+moves with its page in phase 3. The other direct call is not API traffic: `layouts/base.html`
+polls `/reload/version`, exists only under the `dev` profile, and has no CSRF, no JSON and no
+error surface to normalize. It stays as it is.
 
 Manual review rule; no gate id.
 
@@ -137,8 +145,11 @@ marker.bindPopup(el('div', {}, [el('strong', { textContent: place.name })]));
 ```
 
 `innerHTML` follows the same rule: assigning a literal is fine, assigning data is not.
-`el(tag, props, children)` in `/js/lib/dom.js` is the one constructor to use, and
 `textContent` is the only way a value becomes text.
+
+`el(tag, props, children)` in `/js/lib/dom.js` is the one constructor for new code. It does
+not exist yet: a plain `<script>` cannot `import`, so the two popups rebuilt in phase 1 each
+carry a local `createElement` helper, and phase 3 consolidates them into the shared module.
 
 Gate: **JS03**, **JS05**.
 
@@ -154,6 +165,10 @@ try {
   error.value = failure.message;
 }
 ```
+
+A module with no error surface of its own does not invent one: it dispatches a `CustomEvent`
+and the host page renders it. `add-to-plan.js` emits `plan-error`; `places/list.html` feeds
+that into the same banner as its own failures.
 
 Every `await` on a request sits inside a `try`, and the loading flag is cleared in the
 `catch` as well: a spinner that never stops is a worse failure than the original error.
@@ -195,15 +210,16 @@ Gate: **JS07**.
 ```
 src/main/webapp/resources/core/js/
   pages/<view>.js      one entry point per view: /js/pages/place-import.js
-  lib/api.js           csrfToken(), apiFetch()
+  lib/api.js           csrfToken(), apiFetch(), ApiError          [shipped]
   lib/dom.js           el()
   lib/places-map.js    buildMarker(place, { color, icon })
   <vendored>.js        vue.global.prod.js, tailwind-browser.js, lucide.min.js
 ```
 
-`lib/` and `pages/` do not exist yet: they are the destination of the migration below, not
-something to import today. Vendored stylesheets (Leaflet's, once it is local) belong in
-`resources/css/` next to `brand.css`, not at the document root.
+`lib/api.js` is live and imported by the three migrated views. `pages/`, `lib/dom.js` and
+`lib/places-map.js` do not exist yet: they are the destination of the migration below.
+Vendored stylesheets (Leaflet's, once it is local) belong in `resources/css/` next to
+`brand.css`, not at the document root.
 
 Naming: files `kebab-case.js` matching their view, functions `camelCase`, event handlers
 prefixed `on`, module-level constants `UPPER_SNAKE`, `data-*` attributes `kebab-case`.
@@ -246,23 +262,26 @@ the file is open anyway, not defects.
 
 ### Current debt
 
-Baseline when the contract landed -- this table **is** the migration backlog:
+The contract landed on a baseline of **72 FAIL, 21 INFO** -- every FAIL row was the backlog.
+Each phase lowers it; this table is the live count.
 
 | Rule | Findings | Where |
 | :--- | ---: | :--- |
-| JS01 | 20 | `place-form` 11, `user-form` 5, `places`, `users`, `auth/login`, `new-user` 1 each |
+| JS01 | 0 | shipped in phase 1 |
 | JS02 | 42 | `avatar-picker` 12, `layouts/base` 12, `landing` 10, `navbar-menu` 8 |
-| JS03 | 2 | `places/list`, `admin/place-import` |
-| JS04 | 8 | `places/list` 5, `add-to-plan.js` 3 |
-| JS05 | 0 | preventive: there is no `innerHTML` in the tree today |
-| JS06 | 11 | `places/list` 526 lines, `plans/detail` 314, `place-import` 211 |
+| JS03 | 0 | shipped in phase 1 |
+| JS04 | 0 | shipped in phase 2 |
+| JS05 | 0 | preventive: no `innerHTML` in the tree today |
+| JS06 | 11 | `places/list` 532 lines, `plans/detail` 322, `place-import` 215, `public` 95, plus 7 more between 22 and 65 |
 | JS07 | 10 | Leaflet js + css in four views; Bootstrap 5.3 and Font Awesome in `plans/detail` |
 
-**72 FAIL, 21 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
+**42 FAIL, 21 INFO.** CI keeps reporting until the FAIL count is zero, then the gate flips
 to `-Strict`.
 
-Phase 1 (the JS01 and JS03 fixes) has since shipped: the tree is at **50 FAIL, 21 INFO**, with
-JS01 and JS03 at zero and the single-page routes above converted to the `data-*` bridge.
+JS06, and with it the INFO total, does not move until phase 3: extraction is what pays it
+back. It went *up* in phases 1 and 2 (526 -> 532 lines in `places/list`), because the `data-*`
+bridge, the request helper and the inline error surface all live in the page until it becomes
+a module.
 
 ## Migration order
 
@@ -272,8 +291,8 @@ Each phase is independently shippable and independently reviewable.
 | :--- | :--- | :--- |
 | 0 | This document + the gate | 72 FAIL, report only |
 | 1 | Fix every JS01 and JS03: `data-*` bridge, DOM popups | FAIL 72 -> 50 |
-| 2 | Extract `lib/api.js` and `lib/dom.js`; migrate the 10 API `fetch` calls (the dev-reload poller stays) | JS04 down to 0 |
-| 3 | Extract `places/list`, `plans/detail`, `place-import`, `plans/public` to `pages/` | JS06 down to 7 |
+| 2 | Ship `lib/api.js` and migrate 9 of the 10 API `fetch` calls to it; replace the 8 `alert()`s with an inline error surface | JS04 down to 0, FAIL 50 -> 42 |
+| 3 | Extract `places/list`, `plans/detail`, `place-import`, `plans/public` to `pages/`; consolidate the two popup builders into `lib/dom.js` | JS06 down to 7 |
 | 4 | Convert the 8 Options API views to `setup()` and `#<view>-app` | R1 satisfied |
 | 5 | Vendor Leaflet (js + css); resolve the Bootstrap/Font Awesome conflict in `plans/detail` | JS07 -> 0 |
 | 6 | Flip CI to `.\scripts\gate.ps1 js -Strict` | 0 FAIL |
