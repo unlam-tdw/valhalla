@@ -1,0 +1,16 @@
+<!-- [DIS] 17-DIS, AC-01: la card de lugar unica. La consume el itinerario del hero en
+     landing.html (con los HeroStop de LandingController); el detalle del plan usa la misma
+     clase .place-card de brand.css sobre su markup Vue, porque un <li> que clona v-for no
+     puede invocar un fragmento de Thymeleaf. El chrome (borde, radius, padding, superficie,
+     hover) vive en .place-card; adentro cada lado compone su contenido. -->
+<li th:fragment="place-card(stop)" class="place-card">
+  <span class="font-mono text-sm font-semibold text-primary" th:text="${stop.time}">10:00</span>
+  <span class="min-w-0 flex-1">
+    <span class="block text-sm font-semibold text-gray-900" th:text="${stop.place}">
+      Cafe Tortoni
+    </span>
+    <span class="block text-xs text-gray-500" th:text="${stop.address}">Av. de Mayo 825</span>
+  </span>
+  <span class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+    th:text="${stop.category}">Café</span>
+</li>
