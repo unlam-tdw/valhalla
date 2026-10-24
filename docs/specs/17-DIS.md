@@ -285,6 +285,36 @@ Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anot
   uniforme por altura de mayúscula y alineado al baseline y al centro-x del vector anterior.
   La salida es un `<path>` estático: el SVG no introduce ninguna fuente en tiempo de
   ejecución.
+- **AC-14 ajustado en revisión visual: banda sólida de marca, sin imagen.** El banner con
+  cover genérico (`cover-3.svg`) + overlay no sobrevivió a la revisión de la usuaria: la
+  ilustración 1200×640 estirada en una franja fina y ancha mostraba una rebanada con
+  cortes duros de color (azul → navy → gris) que leía como una tira suelta, no como una
+  banda intencional. Se probó un overlay de gradiente horizontal de tokens de marca y
+  tampoco disimulaba las aristas. Decisión de la revisión: `background-color: var(--primary)`
+  sólido con el título en blanco — limpio e intencional a cualquier ancho y en ambos modos
+  de tema. La imagen por defecto detrás del título queda para la card [IMG], como el AC
+  originalmente preveía.
+- **Revisión visual posterior: tres ajustes sobre lo implementado.** La revisión de la
+  usuaria en 320×752 / 390×844 y desktop levantó tres defectos, corregidos sin tocar
+  markup ni tests:
+  - **Tiles del resumen ilegibles en oscuro.** `.bg-light` usa `--bs-light`, que Bootstrap
+    no redefine en dark: quedaba mancha blanca (#f8f9fa) y el texto hereda
+    `--bs-body-color` (#adb5bd), gris sobre blanco. Fix en `detail.html`:
+    `[data-bs-theme="dark"] .bg-light { background-color: var(--bs-tertiary-bg) !important }`
+    (solo el resumen usa `.bg-light` en el sitio).
+  - **Iconos del itinerario por encima del texto.** Los pares icono+texto ("Cómo llegar",
+    "Eliminar", fecha/hora) dependían del baseline del SVG inline y se desalineaban.
+    Fix: `inline-flex; align-items: center` en `.stop-directions`, `.stop-remove` y
+    `.stop-schedule > span`.
+- **El mapa Leaflet tapaba el nav sticky al hacer scroll (hallazgo de la revisión).**
+  `.leaflet-container` venía con `z-index: auto`: no creaba stacking context, y sus
+  paneles (z-index 400–800, marcadores custom hasta 1000) escapaban al contexto raíz y se
+  dibujaban por encima del nav (`sticky z-50`) al scrollear el detalle del plan. Fix
+  global en `brand.css`: `.leaflet-container { position: relative; z-index: 0; }`, que
+  convierte al mapa en su propio stacking context y contiene los paneles dentro de él.
+  Cubre el detalle y `/explore` sin tocar el `leaflet.css` vendorizado. Diagnosticado con
+  Playwright sobre la app corriendo (`elementFromPoint` dentro de la banda del nav devolvía
+  un marcador del mapa; tras el fix devuelve el nav).
 
 ## Archivos a crear/modificar
 
