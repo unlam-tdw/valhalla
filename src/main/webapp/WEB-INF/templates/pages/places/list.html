@@ -96,6 +96,7 @@
                 <span class="mt-1 self-start text-sm font-medium text-gray-500">View details &rarr;</span>
               </div>
               <img :src="place.imageUrl || '/images/place-placeholder.svg'" :alt="place.name"
+                loading="lazy" decoding="async"
                 class="w-28 shrink-0 self-stretch bg-gray-100 object-cover" />
             </div>
             <button v-if="showCreatePlan || activePlan" type="button" :data-add-to-plan="place.id" :data-place-name="place.name"

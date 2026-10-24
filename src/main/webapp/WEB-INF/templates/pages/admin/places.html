@@ -42,6 +42,7 @@
             <td class="px-4 py-3 text-sm text-gray-700" th:text="${p.address}">address</td>
             <td class="px-4 py-3">
               <img th:src="${p.imageUrl ?: '/images/place-placeholder.svg'}" th:alt="${p.name}"
+                loading="lazy" decoding="async"
                 class="h-10 w-10 rounded-md object-cover" />
             </td>
             <td class="flex justify-end gap-2 px-4 py-3">

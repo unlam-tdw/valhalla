@@ -29,7 +29,7 @@ import org.thymeleaf.templatemode.TemplateMode;
  */
 @Configuration
 @EnableWebMvc
-@Import({ SecurityConfig.class, ValidationConfig.class })
+@Import({ SecurityConfig.class, ValidationConfig.class, CacheConfig.class })
 // com.valhalla.domain is deliberately absent. Nothing in it is a component, and scanning it
 // would let the domain grow @Service classes again without anyone noticing the coupling.
 @ComponentScan({ "com.valhalla.presentation", "com.valhalla.infrastructure" })

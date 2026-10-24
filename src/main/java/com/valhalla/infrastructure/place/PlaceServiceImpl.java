@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class PlaceServiceImpl implements PlaceService {
   }
 
   @Override
+  @Cacheable("places")
   @Transactional(readOnly = true)
   public List<Place> getAllPlaces() {
     return placeRepository.findAll();
