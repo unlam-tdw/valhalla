@@ -34,12 +34,13 @@
         <h1 class="text-2xl font-semibold text-gray-900">Importar del mapa</h1>
         <p class="text-sm text-gray-600">
           Elegí el tipo de lugar y presioná Cargar: se consultan los puntos de OpenStreetMap que
-          están en la zona visible del mapa. Después hacé click en un punto y el alta del ABM se
-          abre pre-llenada con sus datos.
+          están en la zona visible del mapa y quedan guardados. Después hacé click en un punto y el
+          alta del ABM se abre pre-llenada con sus datos.
         </p>
         <p class="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-500">
-          Cada consulta trae hasta 300 puntos de la zona visible y tarda ~30 s. La misma zona con el
-          mismo tipo se reutiliza por 10 minutos.
+          Cada consulta trae hasta 300 puntos de la zona visible y tarda ~30 s. Lo ya cargado queda
+          guardado: al mover el mapa o volver a entrar, los puntos se leen de la base sin consultar
+          OpenStreetMap.
         </p>
 
         <div class="flex flex-col gap-1">
@@ -52,12 +53,16 @@
           </select>
         </div>
 
-        <button id="load-pois" type="button" @click="loadPois" :disabled="loading || !canLoad"
+        <button id="load-pois" type="button" @click="refreshZone" :disabled="loading || !canLoad"
           class="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50">
-          {{ loading ? 'Cargando...' : 'Cargar puntos de esta zona' }}
+          {{ loadLabel }}
         </button>
         <p v-if="!canLoad && !loading" id="outside-caba" class="text-xs text-amber-700">
           La zona visible está fuera de CABA: acercate a la ciudad para buscar.
+        </p>
+        <!-- Frescura de lo que se está mirando: la lleva la cobertura de la zona, no cada punto. -->
+        <p v-if="zoneLoaded" id="zone-freshness" role="status" class="text-xs text-gray-500">
+          Última carga de esta zona: {{ loadedAgo }}.
         </p>
 
         <!-- El buscador aparece recien cuando hay una lista que filtrar. -->
@@ -72,16 +77,11 @@
         <p v-if="error" role="alert" class="rounded-md bg-red-100 px-3 py-2 text-sm text-red-700">
           {{ error }}
         </p>
-        <!-- La lista no se toca al mover el mapa: se avisa y se recarga a pedido. -->
-        <p v-if="staleArea" id="stale-area" role="status"
-          class="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Te moviste a otra zona: presioná «Cargar puntos de esta zona» para traer los puntos de acá.
-        </p>
 
         <!-- Misma navegacion que el click del marker, en texto: el mapa no es la unica via. -->
-        <ul class="flex flex-col gap-2 transition-opacity" :class="{ 'opacity-50': loading }"
-          :aria-busy="loading">
-          <li v-for="poi in filtered" :key="poi.name + poi.latitude + poi.longitude">
+        <ul class="flex flex-col gap-2 transition-opacity" :class="{ 'opacity-50': refreshing }"
+          :aria-busy="refreshing">
+          <li v-for="poi in filtered" :key="keyOf(poi)">
             <a :href="formUrl(poi)"
               class="block rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition hover:bg-gray-50">
               <span class="block text-sm font-medium text-gray-900">{{ poi.name }}</span>
@@ -90,10 +90,11 @@
             </a>
           </li>
         </ul>
-        <p v-if="!loading && !loaded && !error" id="load-hint" class="text-sm text-gray-500">
-          Elegí un tipo de lugar y presioná «Cargar puntos de esta zona».
+        <p v-if="neverLoaded" id="zone-never-loaded" class="text-sm text-gray-500">
+          Esta zona todavía no se cargó. Presioná «Cargar puntos de esta zona» para traer los puntos
+          de OpenStreetMap que hay acá.
         </p>
-        <p v-if="!loading && loaded && pois.length === 0 && !error" id="empty-area"
+        <p v-if="!loading && zoneLoaded && pois.length === 0 && !error" id="empty-area"
           class="text-sm text-gray-500">
           No hay puntos de este tipo en la zona visible.
         </p>
