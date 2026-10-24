@@ -41,6 +41,7 @@ sin dependencias de red en ningun test.
 | AC-10 | Ningun test de integracion ni E2E depende de red: `OverpassClient` se mockea en los tests; ninguna suite golpea Overpass ni Nominatim |
 | AC-11 | No se puede dar de baja un lugar que forma parte de planes: el ABM informa el motivo, no borra, y el place sigue en la base (la FK `plan_places.place_id` no se rompe) |
 | AC-12 | Lo traído queda en la base: una fila por POI en `poi` (identidad natural `osm:<type>/<id>` en `source_key`, unique) y una de cobertura por zona y tag en `poi_zone(zone_key, tag_key, tag_value, fetched_at)`. Volver a cargar la misma zona aplica **sólo el diff**: inserta lo nuevo, actualiza únicamente lo que cambió, marca `REMOVED` lo que Overpass dejó de devolver (baja lógica) y reactiva lo que reaparece; recargar con datos idénticos no escribe ninguna fila. Un fallo de Overpass no toca lo guardado, y la vista muestra la antigüedad de la última carga o que la zona nunca se cargó |
+| AC-13 | Elegir el mismo POI del importador dos veces **no duplica el lugar**: el link del ABM lleva `externalId=osm:<type>/<id>`, el form lo postea como hidden y el alta reusa la fila de ese `places.external_id` (nullable, unique), quedándose con los datos de la última importación. Un lugar creado a mano queda sin identidad y editar un lugar importado no la pierde |
 
 ## Escenarios de Test
 
@@ -101,6 +102,15 @@ sin dependencias de red en ningun test.
 | U-26 | `read` devuelve sólo los `ACTIVE` de la caja con el `fetchedAt` de la zona, y `null` cuando esa zona nunca se cargó; no escribe nada | AC-04, AC-12 |
 | U-27 | `zoneOf` agranda la caja pedida a la grilla de 0.01° (la zona contiene la vista) y la deja intacta si ya está en la grilla; una caja entera fuera de CABA se devuelve tal cual | AC-12 |
 
+### Tests Unitarios (`domain/place/PlaceServiceImplTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| U-28 | Con un `externalId` ya guardado, `create` reusa esa fila (misma instancia), aplica los datos nuevos y guarda una sola vez | AC-13 |
+| U-29 | Con un `externalId` desconocido, `create` arma un lugar nuevo con la identidad y lo guarda | AC-13 |
+| U-30 | Un alta sin `externalId` no consulta la identidad guardada y deja el lugar en `null` | AC-13 |
+| U-31 | Editar sin `externalId` no borra la identidad del lugar importado | AC-13 |
+
 ### Tests de Integracion (`integration/PlaceRestControllerTest.java`)
 
 | # | Test | AC que cubre |
@@ -122,6 +132,15 @@ sin dependencias de red en ningun test.
 | I-10 | `POST /admin/places` sin `name` o sin `category` re-renderiza el form con error y no persiste | AC-01 |
 | I-11 | Borrar un lugar referenciado en `plan_places` es rechazado con mensaje, el place sigue en la base y el plan conserva su entrada | AC-11 |
 | I-12 | Alta sin `imageUrl` guarda `null` | AC-02 |
+| I-26 | `POST /admin/places` dos veces con el mismo `externalId` deja **una** fila con esa identidad, con el nombre de la segunda importación | AC-13 |
+| I-27 | `GET /admin/places/new?externalId=osm:node/9001&…` pre-llena el hidden `externalId` del form | AC-13 |
+
+### Tests de Integracion (`infrastructure/place/PlaceRepositoryTest.java`)
+
+| # | Test | AC que cubre |
+|---|------|-------------|
+| I-28 | `findByExternalId` devuelve el lugar guardado con esa identidad | AC-13 |
+| I-29 | `findByExternalId` queda vacío para una identidad que nunca se importó (los 12 lugares del seeder no tienen identidad) | AC-13 |
 
 ### Tests de Integracion (`integration/PlaceImageTest.java`)
 
@@ -165,7 +184,7 @@ sin dependencias de red en ningun test.
 | E-04 | `e2e/PlaceViewABME2E.java` | Admin crea un place desde `/admin/places/new` (con horarios, telefono y web) → aparece en el listado del ABM y en `/explore`, y su panel de detalle muestra los tres datos (telefono como `tel:`, web como `https`) | AC-01, AC-05b |
 | E-05 | `e2e/PlaceViewABME2E.java` | Admin edita el place creado → los cambios se ven en el listado y en `/explore`, y los datos opcionales siguen en el panel de detalle | AC-01, AC-05b |
 | E-06 | `e2e/PlaceViewABME2E.java` | Admin da de baja el place → desaparece del listado y de `/explore` | AC-01 |
-| E-07 | `e2e/PlaceImportE2E.java` | Admin entra a `/admin/places/import`: la lista se pinta desde `GET /pois` (stub) sin un solo pedido de ingesta; con el click en "Cargar puntos de esta zona" llega exactamente 1 pedido a `/refresh`, aparecen los 3 POIs, el buscador se habilita y elegir uno abre `/admin/places/new` con el form pre-llenado (nombre, categoria, direccion, lat/lng, horarios, telefono, web) | AC-04, AC-05, AC-10, AC-12 |
+| E-07 | `e2e/PlaceImportE2E.java` | Admin entra a `/admin/places/import`: la lista se pinta desde `GET /pois` (stub) sin un solo pedido de ingesta; con el click en "Cargar puntos de esta zona" llega exactamente 1 pedido a `/refresh`, aparecen los 3 POIs, el buscador se habilita y elegir uno abre `/admin/places/new` con el form pre-llenado (nombre, categoria, direccion, lat/lng, horarios, telefono, web) y el hidden `externalId` con `osm:way/1` | AC-04, AC-05, AC-10, AC-12, AC-13 |
 | E-08 | `e2e/PlaceImportE2E.java` | Con la ingesta stubbeada en 502, tras el click la vista muestra el mensaje de error y la lista queda vacia | AC-04, AC-10 |
 | E-09 | `e2e/PlaceImportE2E.java` | El buscador por nombre filtra la lista y los markers en el acto: "PARRILLA" → 1, "cafe" encuentra "Café" (sin acentos ni mayusculas), "zzz" → 0 y limpiar el filtro devuelve los 3 | AC-04, AC-10 |
 | E-10 | `e2e/PlaceImportE2E.java` | La lectura viaja con el area visible (`south`/`west`/`north`/`east` en la URL) y a zoom 17 pide una zona mas chica que la vista inicial; mover el mapa (zoom y arrastres) vuelve a leer de la base sin un solo pedido de ingesta y sin vaciar la lista | AC-04, AC-10, AC-12 |
@@ -303,11 +322,23 @@ dominio / fila sembrada), nunca dentro de la lógica de la vista.
   recién después llama a `PoiIngestService.ingest`, que es el único `@Transactional`: sostener una
   conexión del pool durante 30 s por click es la forma más rápida de dejar el sitio sin conexiones.
   Si Overpass falla, la respuesta es 502 y no se tocó ninguna fila.
+- **Un POI elegido dos veces no crea dos lugares.** `places.external_id` guarda la identidad de
+  origen (`osm:<type>/<id>`), nullable y unique: nullable porque un lugar hecho a mano no tiene
+  identidad, y en SQL dos `NULL` no colisionan. El link del importador manda
+  `externalId=osm:<type>/<id>`, `PlaceAdminController.formFromQuery` lo pone en el
+  `EditPlaceRequest`, el form lo postea como hidden y `PlaceServiceImpl.create` busca por esa
+  identidad: si la encuentra, actualiza esa fila con lo que vino del POI; si no, inserta. La clave
+  de respaldo de `poi.source_key` (`fallback:<nombre>@<lat>,<lon>`) **no** se usa acá: se rompe con
+  un rename y dejaría de deduplicar. `externalId` se escribe sólo cuando llega no vacío, así el
+  hidden vacío (o un POST manipulado) no borra la identidad de un lugar ya importado. El campo
+  aparece además en `GET /api/places`, porque la API serializa el domain `Place` entero.
 - **Sin migraciones: `hbm2ddl.auto=update` alcanza.** `poi` y `poi_zone` son tablas nuevas, así que
-  Hibernate las crea enteras con su unique y el índice `idx_poi_position`; una base existente no
-  necesita ningún paso manual. Si alguna vez una tabla quedó sin sus constraints, el `ALTER` es:
+  Hibernate las crea enteras con su unique y el índice `idx_poi_position`, y `places.external_id`
+  es una columna nueva en una tabla existente; una base existente no necesita ningún paso manual.
+  Si alguna vez una tabla quedó sin sus constraints, el `ALTER` es:
 
   ```sql
+  ALTER TABLE places ADD CONSTRAINT places_external_id_key UNIQUE (external_id);
   ALTER TABLE poi ADD CONSTRAINT poi_source_key_key UNIQUE (source_key);
   CREATE INDEX idx_poi_position ON poi (latitude, longitude);
   ALTER TABLE poi_zone ADD CONSTRAINT poi_zone_zone_key_tag_key_tag_value_key
@@ -346,10 +377,21 @@ private String website;
 Con getters y setters, y lo mismo que `description` ya resuelve: nada de `@Lob` (en PostgreSQL
 `@Lob` es un `oid` que exige transaccion para leerse en auto-commit).
 
-File: `src/main/java/com/valhalla/domain/place/PlaceRepository.java` — el ABM necesita borrar:
+Y la identidad del POI de origen, para que dos importaciones del mismo punto no dupliquen el lugar
+(AC-13). Nullable porque un lugar creado a mano no la tiene, y unique porque es la clave natural
+del importador:
+
+```java
+@Column(name = "external_id", unique = true, length = 255)
+private String externalId;
+```
+
+File: `src/main/java/com/valhalla/domain/place/PlaceRepository.java` — el ABM necesita borrar y
+reconocer un POI ya importado:
 
 ```java
 void deleteById(Long id);
+Optional<Place> findByExternalId(String externalId);
 ```
 
 File: `src/main/java/com/valhalla/infrastructure/place/PlaceRepositoryImpl.java` delega a
@@ -386,8 +428,19 @@ Place update(Long id, EditPlaceRequest request);
 void delete(Long id);                            // con la guarda del paso 2
 ```
 
-El upsert mapea el request a `Place` (nombre, descripcion, categoria, direccion, imageUrl,
+El alta mapea el request a `Place` (nombre, descripcion, categoria, direccion, imageUrl,
 latitud, longitud, horarios, telefono, web). `getPlaceById` ya existe.
+
+`create` es un upsert por identidad, no un insert ciego (AC-13):
+
+```java
+Place place = existingFor(request.getExternalId()).orElseGet(Place::new);
+```
+
+`existingFor` devuelve `Optional.empty()` cuando el `externalId` viene vacío (un alta manual no
+tiene nada que buscar) y `placeRepository.findByExternalId(...)` cuando viene con valor. En
+`applyRequest` — compartido con la edicion — la identidad se escribe sólo si llega no vacía, para
+que un hidden vacío no borre la de un lugar ya importado.
 
 ### 4. Mapping OSM → PlaceCategory
 
@@ -495,13 +548,15 @@ public class PlaceAdminController {
 
 File nuevo: `src/main/java/com/valhalla/presentation/place/EditPlaceRequest.java` — espejo de
 `EditUserRequest`: bean con `@NotBlank name`, `@NotNull category`, y opcionales `description`,
-`address`, `imageUrl`, `latitude`, `longitude`, `openingHours`, `phone`, `website`. El mismo
+`address`, `imageUrl`, `latitude`, `longitude`, `openingHours`, `phone`, `website` y `externalId`
+(este último hidden: no se edita a mano, sólo viaja del importador al alta). El mismo
 DTO se usa para alta, edicion y pre-llena.
 
-El pre-llena del importador es server-side: `GET /admin/places/new?name=...&address=...&latitude=...&longitude=...&openingHours=...&phone=...&website=...&category=...`
-arma el `EditPlaceRequest` inicial (paso 7 de E2E: I-17, I-18). El `category` del query param
+El pre-llena del importador es server-side: `GET /admin/places/new?name=...&address=...&latitude=...&longitude=...&openingHours=...&phone=...&website=...&category=...&externalId=osm:<tipo>/<id>`
+arma el `EditPlaceRequest` inicial (paso 7 de E2E: I-17, I-18, I-27). El `category` del query param
 es el resultado de `PlaceCategory.fromOsm(...)` ya mapeado a enum; si viene invalido, se
-ignora y el form arranca en `OTHER`.
+ignora y el form arranca en `OTHER`. El `externalId` viaja hasta el POST para que el alta reconozca
+el POI ya importado (AC-13); si falta, el alta es manual y no busca nada.
 
 Los dos endpoints del importador comparten forma y sobre, y solo uno toca la red:
 
@@ -526,7 +581,10 @@ Files nuevos en `src/main/webapp/WEB-INF/templates/pages/admin/`:
   `<input type="hidden" name="_method" value="DELETE">`, igual que en `users.html`.
 - `place-form.html` — espejo de `user-form.html`: campos del `EditPlaceRequest`, select de
   `PlaceCategory.values()` (el admin siempre puede cambiar la categoria pre-llena, AC-06),
-  `imageUrl` opcional con hint de placeholder, y submit POST (PUT via `_method` en edicion).
+  `imageUrl` opcional con hint de placeholder, y submit POST (PUT via `_method` en edicion). Lleva
+  un hidden `externalId` con `th:value="${placeForm.externalId}"`: la identidad del POI tiene que
+  viajar en el POST, y el form envia valores del DOM (un atributo `data-*`, que solo alimenta el
+  estado de Vue, no se postea).
 - `place-import.html` — Leaflet con el CSS vendorizado (version fija 1.9.4), tile layer OSM con
   attribution `© OpenStreetMap contributors`: mapa centrado en CABA, select de queries predefinidas
   (restaurantes, bares, cafes, tiendas, museos), lista de POIs y markers por POI. Al entrar y al
@@ -623,7 +681,7 @@ siembra la fila por JDBC). Los mock de `OverpassClient` en integracion son `@Moc
 |---------|--------|
 | `domain/place/Place.java` | Actualizar (columnas opcionales `openingHours`, `phone`, `website`) |
 | `domain/place/PlaceCategory.java` | Actualizar (`fromOsm(key, value)`) |
-| `domain/place/PlaceRepository.java` | Actualizar (`deleteById`) |
+| `domain/place/PlaceRepository.java` | Actualizar (`deleteById`, `findByExternalId`) |
 | `domain/place/PlaceService.java` | Actualizar (create/update/delete) |
 | `domain/place/OsmPoi.java` | Crear (DTO del POI importado, con identidad `osmType`/`osmId`) |
 | `domain/place/OverpassClient.java` | Crear (interfaz, mockeable en tests) |
@@ -636,7 +694,7 @@ siembra la fila por JDBC). Los mock de `OverpassClient` en integracion son `@Moc
 | `domain/planplace/PlanPlaceRepository.java` | Actualizar (`existsByPlaceId`) |
 | `infrastructure/place/JpaPlanPlaceRepository.java` | Actualizar (`existsByPlaceId` derivado) |
 | `infrastructure/place/PlaceRepositoryImpl.java` | Actualizar (`deleteById`) |
-| `infrastructure/place/PlaceServiceImpl.java` | Actualizar (alta/edicion/baja protegida) |
+| `infrastructure/place/PlaceServiceImpl.java` | Actualizar (alta/edicion/baja protegida, upsert por `externalId`) |
 | `infrastructure/place/HttpOverpassClient.java` | Crear (implementacion HTTP de `OverpassClient`, sin cache) |
 | `infrastructure/place/JpaMapPoiRepository.java` | Crear (Spring Data de `MapPoi`) |
 | `infrastructure/place/MapPoiRepositoryImpl.java` | Crear (baja por caja: `findInBox`, `saveAll`) |
@@ -648,7 +706,7 @@ siembra la fila por JDBC). Los mock de `OverpassClient` en integracion son `@Moc
 | `presentation/place/PlaceImportController.java` | Crear (`/import`, `/pois` y `/refresh`) |
 | `presentation/place/EditPlaceRequest.java` | Crear (DTO del form, espejo de `EditUserRequest`) |
 | `templates/pages/admin/places.html` | Crear (listado, espejo de `users.html`) |
-| `templates/pages/admin/place-form.html` | Crear (alta/edicion, espejo de `user-form.html`) |
+| `templates/pages/admin/place-form.html` | Crear (alta/edicion, espejo de `user-form.html`, hidden `externalId`) |
 | `templates/pages/admin/place-import.html` | Crear (Leaflet + capa Overpass + attribution OSM) |
 | `templates/pages/places/list.html` | Actualizar (`data-category` en el marker) |
 | `domain/place/PlaceCategoryTest.java` | Actualizar (U-01..U-04) |
@@ -657,7 +715,9 @@ siembra la fila por JDBC). Los mock de `OverpassClient` en integracion son `@Moc
 | `domain/place/MapPoiTest.java` | Crear (U-19..U-22) |
 | `infrastructure/place/PoiIngestServiceTest.java` | Crear (U-23..U-27) |
 | `integration/PlaceRestControllerTest.java` | Actualizar (I-01..I-05) |
-| `integration/PlaceAdminControllerTest.java` | Crear (I-06..I-12) |
+| `integration/PlaceAdminControllerTest.java` | Crear (I-06..I-12, I-26, I-27) |
+| `domain/place/PlaceServiceImplTest.java` | Actualizar (U-28..U-31, upsert por identidad) |
+| `infrastructure/place/PlaceRepositoryTest.java` | Actualizar (I-28, I-29, `findByExternalId`) |
 | `integration/PlaceImageTest.java` | Crear (I-13, I-14) |
 | `integration/PlaceImportControllerTest.java` | Crear (I-15..I-25) |
 | `integration/PlaceAdminSecurityTest.java` | Crear (S-01..S-04) |
