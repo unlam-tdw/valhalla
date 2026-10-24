@@ -257,6 +257,35 @@ Re-tracear la P del logo con la familia elegida (font-to-path offline) y reempla
 del glyph en `resources/images/logo.svg`. Los círculos decorativos y los colores quedan como
 están: solo cambia el glyph de la letra.
 
+## Notas de implementación (hallazgos)
+
+Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anotado arriba.
+
+- **AC-04/AC-05: la raíz NO era el bundle, era el `return` con reduced-motion.** La nota de
+  diseño de arriba diagnóstica el tag "Público" como un icono `users` ausente del bundle y
+  proponía regenerarlo. En la práctica el bundle vendorizado está completo: los 12
+  `data-lucide` del landing se reemplazan (12/12 SVG dibujados, 0 avisos en consola). La causa
+  real era que el IIFE de reveal de la landing hace `return` temprano bajo
+  `prefers-reduced-motion` (muestra todo sin animar), y ese `return` saltaba el
+  `createIcons()`: con reduced-motion activo todos los `<i>` quedaban vacíos. El fix es un
+  `<script>` propio que llama a `lucide.createIcons()` antes y aparte de ese IIFE (no depende
+  del observer ni de `reveal-ready`). No hizo falta regenerar el bundle.
+- **La card de lugar: un fragmento para el landing, la misma clase para el detalle.** El
+  itinerario del hero consume `components/place-card.html` (raíz `<li th:fragment>`); el
+  hero lo itera con `th:block th:each>` por afuera, porque `th:each` y `th:replace` en el
+  mismo elemento rompen (el contexto del fragmento queda `null`). El detalle no puede invocar
+  un fragmento de Thymeleaf dentro de su `<li>` que clona `v-for` de Vue, así que usa la
+  **clase doble** `.itinerary-stop.place-card`: `.place-card` (brand.css) aporta el chrome
+  compartido y `.itinerary-stop` conserva las reglas propias del detalle (fondo
+  `--bs-body-bg` que re-colorea el modo oscuro y que clava `ThemeModeTest`, ajuste mobile y
+  reduced-motion), en un bloque `<style>` posterior al `<link>` de brand.css para ganar la
+  cascada.
+- **La P del logo se re-trazó con Java2D, sin dependencias.** `Font.createFont` +
+  `GlyphVector.getOutline` sobre `BreeSerif-Regular.ttf` (la serif de brand.css), escalado
+  uniforme por altura de mayúscula y alineado al baseline y al centro-x del vector anterior.
+  La salida es un `<path>` estático: el SVG no introduce ninguna fuente en tiempo de
+  ejecución.
+
 ## Archivos a crear/modificar
 
 | Archivo | Accion |
