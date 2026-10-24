@@ -41,19 +41,34 @@ public class PlaceImportPage extends WebPage {
   }
 
   public String hintText() {
-    return this.getElementText("#load-hint").trim();
+    return this.getElementText("#zone-never-loaded").trim();
   }
 
-  public boolean hasStaleNotice() {
-    return page.locator("#stale-area").count() > 0;
+  /** Lo que el boton va a hacer: la primera vez trae, despues actualiza la zona. */
+  public String buttonLabel() {
+    return this.getElementText("#load-pois").trim();
   }
 
-  public void waitForStaleNotice() {
-    page.waitForSelector("#stale-area");
+  /** Aviso de que la zona (y el tipo) que se mira nunca se cargo. */
+  public void waitForNeverLoadedNotice() {
+    page.waitForSelector("#zone-never-loaded");
   }
 
-  public void waitForStaleNoticeGone() {
-    page.waitForFunction("() => !document.querySelector('#stale-area')");
+  public boolean hasNeverLoadedNotice() {
+    return page.locator("#zone-never-loaded").count() > 0;
+  }
+
+  /** Frescura de lo guardado: solo aparece cuando la zona ya se cargo alguna vez. */
+  public void waitForFreshnessNotice() {
+    page.waitForSelector("#zone-freshness");
+  }
+
+  public boolean hasFreshnessNotice() {
+    return page.locator("#zone-freshness").count() > 0;
+  }
+
+  public String freshnessText() {
+    return this.getElementText("#zone-freshness").trim();
   }
 
   public void waitForError() {

@@ -15,17 +15,21 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * E-07..E-10: el importador visto desde el navegador. El proxy de Overpass se stubbea con {@code
- * page.route}, asi que la vista real corre en Chromium pero el navegador nunca sale a internet
- * (AC-10). El stub tambien es el unico modo de ejercitar el error sin depender de que Overpass este
- * saturado justo en la corrida, y de contar cuantas consultas se hicieron.
+ * E-07..E-10: el importador visto desde el navegador. Los dos endpoints se stubbean con {@code
+ * page.route}, y el test que prueba la lectura desde la base siembra la fila por JDBC: el navegador
+ * nunca sale a internet (AC-10). El stub tambien es el unico modo de ejercitar el error sin
+ * depender de que Overpass este saturado justo en la corrida, y de contar cuantas consultas se
+ * hicieron.
+ *
+ * <p>La distincion que estos tests cuidan es la del cambio: entrar, mover el mapa y recargar leen de
+ * la base ({@code /pois}); solo el boton consulta Overpass ({@code /refresh}).
  */
 public class PlaceImportE2E extends E2eBase {
 
   private static final String PARRILLA = "Parrilla del Puerto";
 
   /** Tres POIs: uno completo, uno sin datos opcionales y uno sin coordenadas (no se dibuja). */
-  private static final String FIXTURE =
+  private static final String FIXTURE_POIS =
     """
     [
       {
@@ -37,7 +41,9 @@ public class PlaceImportE2E extends E2eBase {
         "phone": "+54 11 4444-5555",
         "website": "https://parrilla.example.com",
         "osmKey": "amenity",
-        "osmValue": "restaurant"
+        "osmValue": "restaurant",
+        "osmType": "way",
+        "osmId": 1
       },
       {
         "name": "Bar Sin Datos",
@@ -48,7 +54,9 @@ public class PlaceImportE2E extends E2eBase {
         "phone": null,
         "website": null,
         "osmKey": "amenity",
-        "osmValue": "bar"
+        "osmValue": "bar",
+        "osmType": "node",
+        "osmId": 2
       },
       {
         "name": "Café Sin Coordenadas",
@@ -59,36 +67,77 @@ public class PlaceImportE2E extends E2eBase {
         "phone": null,
         "website": null,
         "osmKey": "amenity",
-        "osmValue": "restaurant"
+        "osmValue": "restaurant",
+        "osmType": "node",
+        "osmId": 3
       }
     ]
     """;
 
+  /** Una zona ya cargada: fecha vieja a proposito, para que "hace X" siempre sea pasado. */
+  private static final String ENVELOPE_LOADED = envelope(FIXTURE_POIS, "\"2020-01-01T10:00:00Z\"");
+
+  /** Zona nunca cargada: hay que distinguirla de una zona cargada sin resultados. */
+  private static final String ENVELOPE_EMPTY = envelope("[]", "null");
+
   @Test
-  void shouldQueryOnlyWhenTheLoadButtonIsPressed() {
+  void shouldReadTheStoredPoisOnEntryWithoutQueryingOverpass() {
     signInAsAdmin();
-    List<String> requests = new ArrayList<>();
-    stubPois(200, FIXTURE, requests);
+    List<String> refreshes = new ArrayList<>();
+    stubStored(ENVELOPE_LOADED);
+    stubRefresh(ENVELOPE_LOADED, refreshes);
 
     PlaceImportPage view = new PlaceImportPage(page);
     view.navigateToImport();
-    view.waitForLoadButton();
+    view.waitForPois(3);
 
-    assertThat("al entrar no se consulta nada", requests, hasSize(0));
-    assertThat("sin lista no hay buscador", view.hasSearchInput(), is(false));
-    assertThat(view.hintText(), containsString("Cargar puntos de esta zona"));
+    assertThat("al entrar no se consulta Overpass", refreshes, hasSize(0));
+    assertThat("con resultados aparece el buscador", view.hasSearchInput(), is(true));
+    view.waitForFreshnessNotice();
+    assertThat(view.freshnessText(), containsString("hace"));
+    assertThat(
+      "la zona ya cargada se puede actualizar",
+      view.buttonLabel(),
+      is("Actualizar puntos de esta zona")
+    );
+  }
+
+  @Test
+  void shouldQueryOnlyWhenTheLoadButtonIsPressed() {
+    signInAsAdmin();
+    List<String> refreshes = new ArrayList<>();
+    stubStored(ENVELOPE_EMPTY);
+    stubRefresh(ENVELOPE_LOADED, refreshes);
+
+    PlaceImportPage view = new PlaceImportPage(page);
+    view.navigateToImport();
+    view.waitForNeverLoadedNotice();
+
+    assertThat("al entrar no se consulta nada", refreshes, hasSize(0));
+    assertThat("sin puntos no hay buscador", view.hasSearchInput(), is(false));
+    assertThat(
+      "la zona sin cargar se anuncia",
+      view.buttonLabel(),
+      is("Cargar puntos de esta zona")
+    );
 
     view.clickLoad();
     view.waitForPois(3);
 
-    assertThat("una sola consulta por click", requests, hasSize(1));
+    assertThat("una sola consulta por click", refreshes, hasSize(1));
     assertThat("con resultados aparece el buscador", view.hasSearchInput(), is(true));
+    assertThat(
+      "despues de cargar, el boton actualiza",
+      view.buttonLabel(),
+      is("Actualizar puntos de esta zona")
+    );
   }
 
   @Test
   void shouldListTheStubbedPoisAndOpenThePrefilledForm() {
     signInAsAdmin();
-    stubPois(200, FIXTURE);
+    stubStored(ENVELOPE_EMPTY);
+    stubRefresh(ENVELOPE_LOADED);
 
     PlaceImportPage view = new PlaceImportPage(page);
     view.navigateToImport();
@@ -117,7 +166,8 @@ public class PlaceImportE2E extends E2eBase {
   @Test
   void shouldFilterThePoisByName() {
     signInAsAdmin();
-    stubPois(200, FIXTURE);
+    stubStored(ENVELOPE_EMPTY);
+    stubRefresh(ENVELOPE_LOADED);
 
     PlaceImportPage view = new PlaceImportPage(page);
     view.navigateToImport();
@@ -145,50 +195,53 @@ public class PlaceImportE2E extends E2eBase {
     assertThat("al limpiar el filtro vuelven todos", view.markerCount(), is(2));
   }
 
-  /** La consulta viaja con el area visible y se repite solo cuando el usuario vuelve a pedirla. */
+  /**
+   * Mover el mapa relee la zona visible, pero de la base: el unico camino a Overpass es el boton.
+   * Antes cada arrastre era una consulta de 30 s.
+   */
   @Test
-  void shouldQueryTheAreaOnScreenAndNoticeWhenTheMapMoves() {
+  void shouldReadTheAreaOnScreenAndOnlyQueryOverpassOnDemand() {
     signInAsAdmin();
-    List<String> requests = new ArrayList<>();
-    stubPois(200, FIXTURE, requests);
+    List<String> reads = new ArrayList<>();
+    List<String> refreshes = new ArrayList<>();
+    stubStored(ENVELOPE_LOADED, reads);
+    stubRefresh(ENVELOPE_LOADED, refreshes);
 
     PlaceImportPage view = new PlaceImportPage(page);
     view.navigateToImport();
-    view.waitForLoadButton();
-    view.clickLoad();
     view.waitForPois(3);
+    page.waitForCondition(() -> !reads.isEmpty());
 
-    String first = requests.get(0);
-    assertThat("la consulta lleva el area visible", hasAllBorders(first), is(true));
+    String first = reads.getLast();
+    assertThat("la lectura lleva el area visible", hasAllBorders(first), is(true));
     double citySpan = latitudeSpan(first);
 
+    int before = reads.size();
     view.zoomTo(17);
-    assertThat("acercarse no invalida la lista ya cargada", view.hasStaleNotice(), is(false));
-
-    view.clickLoad();
-    page.waitForCondition(() -> requests.size() == 2);
+    page.waitForCondition(() -> reads.size() > before);
     assertThat(
-      "zoom 17 consulta una zona mas chica que la vista inicial",
-      latitudeSpan(requests.get(1)),
+      "acercarse relee una zona mas chica",
+      latitudeSpan(reads.getLast()),
       lessThan(citySpan)
     );
 
-    /* Con la zona chica ya cargada, dos arrastres salen del area consultada. */
+    int afterZoom = reads.size();
     view.dragMap(600);
-    view.dragMap(600);
-    view.waitForStaleNotice();
-    assertThat("la lista no se vacia al mover el mapa", view.poiCount(), is(3));
+    view.dragMap(-600);
+    page.waitForCondition(() -> reads.size() > afterZoom);
+
+    assertThat("la lista se mantiene al mover el mapa", view.poiCount(), is(3));
+    assertThat("mover el mapa no consulta Overpass", refreshes, hasSize(0));
 
     view.clickLoad();
-    page.waitForCondition(() -> requests.size() == 3);
-    view.waitForStaleNoticeGone();
-    assertThat("al recargar la zona nueva se apaga el aviso", view.hasStaleNotice(), is(false));
+    page.waitForCondition(() -> refreshes.size() == 1);
   }
 
   @Test
   void shouldShowTheErrorMessageWhenTheProxyFails() {
     signInAsAdmin();
-    stubPois(502, "{\"error\":\"Overpass is not available right now\"}");
+    stubStored(ENVELOPE_EMPTY);
+    stubRefresh(502, "{\"error\":\"Overpass is not available right now\"}");
 
     PlaceImportPage view = new PlaceImportPage(page);
     view.navigateToImport();
@@ -202,6 +255,47 @@ public class PlaceImportE2E extends E2eBase {
       containsString("No se pudieron traer los puntos de OpenStreetMap")
     );
     assertThat("no queda ningun POI en la lista", view.poiCount(), is(0));
+  }
+
+  /**
+   * Lo guardado se pinta al entrar y vuelve a aparecer al recargar la pagina, sin una sola
+   * consulta: es el punto del cambio. La fila se siembra por JDBC porque llegar a Overpass desde un
+   * test esta prohibido (AC-10).
+   */
+  @Test
+  void shouldRenderTheStoredPoisAgainAfterAReload() {
+    signInAsAdmin();
+    ResetDatabase.seedPoi(PARRILLA, -34.6037, -58.3816, "amenity", "restaurant");
+    List<String> requested = new ArrayList<>();
+    page.onRequest(request -> requested.add(request.url()));
+
+    PlaceImportPage view = new PlaceImportPage(page);
+    view.navigateToImport();
+    view.waitForPois(1);
+
+    assertThat(view.poiCount(), is(1));
+    assertThat("el punto guardado se dibuja", view.markerCount(), is(1));
+    assertThat(
+      "la lista vino de la base",
+      requested.stream().anyMatch(url -> url.contains("/admin/places/import/pois")),
+      is(true)
+    );
+
+    view.navigateToImport();
+    view.waitForPois(1);
+
+    assertThat("recargar pinta lo mismo", view.poiCount(), is(1));
+    assertThat("el punto sigue en el mapa", view.markerCount(), is(1));
+    assertThat(
+      "recargar no consulta Overpass",
+      requested.stream().anyMatch(url -> url.contains("/admin/places/import/refresh")),
+      is(false)
+    );
+  }
+
+  /** El sobre que devuelven los dos endpoints: `pois` y `fetchedAt` (null = zona nunca cargada). */
+  private static String envelope(String pois, String fetchedAt) {
+    return "{\"pois\":" + pois + ",\"fetchedAt\":" + fetchedAt + "}";
   }
 
   private boolean hasAllBorders(String url) {
@@ -227,15 +321,36 @@ public class PlaceImportE2E extends E2eBase {
     return null;
   }
 
-  /** Intercepta el proxy en el navegador: el backend no participa y Overpass no se golpea. */
-  private void stubPois(int status, String body) {
-    stubPois(status, body, new ArrayList<>());
+  /** Stub de la lectura: la vista pinta lo que le contesten, sin pasar por la base. */
+  private void stubStored(String body) {
+    stubStored(body, new ArrayList<>());
   }
 
-  /** Igual que {@link #stubPois}, guardando cada URL pedida: el test verifica si hubo consulta. */
-  private void stubPois(int status, String body, List<String> requested) {
+  /** Igual que {@link #stubStored}, guardando cada URL pedida. */
+  private void stubStored(String body, List<String> requested) {
+    stub("**/admin/places/import/pois**", 200, body, requested);
+  }
+
+  private void stubRefresh(String body) {
+    stubRefresh(200, body, new ArrayList<>());
+  }
+
+  private void stubRefresh(String body, List<String> requested) {
+    stubRefresh(200, body, requested);
+  }
+
+  /** Stub de la ingesta: es el unico endpoint que en produccion habla con Overpass. */
+  private void stubRefresh(int status, String body) {
+    stubRefresh(status, body, new ArrayList<>());
+  }
+
+  private void stubRefresh(int status, String body, List<String> requested) {
+    stub("**/admin/places/import/refresh**", status, body, requested);
+  }
+
+  private void stub(String pattern, int status, String body, List<String> requested) {
     page.route(
-      "**/admin/places/import/pois**",
+      pattern,
       route -> {
         requested.add(route.request().url());
         route.fulfill(
