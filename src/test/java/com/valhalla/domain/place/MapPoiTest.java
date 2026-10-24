@@ -51,6 +51,26 @@ public class MapPoiTest {
     assertThat(MapPoi.sourceKeyOf(anonymous), is("fallback:Sin id@-34.6,-58.38"));
   }
 
+  /** Media identidad no alcanza: sin id no hay clave estable, aunque el tipo venga. */
+  @Test
+  public void shouldFallBackWhenTheElementHasATypeButNoId() {
+    OsmPoi halfIdentified = new OsmPoi(
+      "Sin id",
+      null,
+      -34.6,
+      -58.38,
+      null,
+      null,
+      null,
+      "amenity",
+      "cafe",
+      "node",
+      null
+    );
+
+    assertThat(MapPoi.sourceKeyOf(halfIdentified), is("fallback:Sin id@-34.6,-58.38"));
+  }
+
   @Test
   public void shouldStartAsActiveWithTheRequestedTag() {
     MapPoi poi = MapPoi.from(PARRILLA, PlaceCategory.RESTAURANT, "amenity", "restaurant");
