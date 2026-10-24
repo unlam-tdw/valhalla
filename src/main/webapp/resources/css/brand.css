@@ -193,6 +193,18 @@ html[data-theme="dark"] .place-card {
   border-color: var(--dark-border);
 }
 
+/* [DIS] El mapa Leaflet no debe pintar por encima del nav sticky (z-50). Sus traen z-index
+   400-800 (y los marcadores custom, hasta 1000) y, como .leaflet-container venia con
+   z-index: auto, no creaba stacking context: esos descendientes escapaban al contexto raiz y
+   tapaban la barra al hacer scroll (los paneles del mapa se dibujaban sobre el nav). Darle
+   z-index: 0 convierte el container en su propio stacking context, aislando los paneles
+   dentro del mapa. El nav (z-50) vuelve a quedar por encima. Vale para todo mapa del sitio
+   (detalle del plan y explore), sin tocar el leaflet.css vendorizado. */
+.leaflet-container {
+  position: relative;
+  z-index: 0;
+}
+
 /* --- Boton CTA (AC-02): el mismo estilo para el "Crear mi plan gratis" del hero del
  * landing, el de la seccion final y los botones primarios del navbar. Antes era una
  * lista de utilidades de Tailwind pegada string por string en 4 lugares del landing (y
