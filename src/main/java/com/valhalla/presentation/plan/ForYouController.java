@@ -120,6 +120,7 @@ public class ForYouController {
       PlanDiscovery
         .discover(publicPlans, summaries, participantCounts, query, LocalDate.now())
         .stream()
+        .filter(plan -> !plan.isBanned(currentEmail))
         .map(plan ->
           PlanFeedCards.planCard(plan, summaries, bookmarkedPlanIds.contains(plan.getId()))
         )

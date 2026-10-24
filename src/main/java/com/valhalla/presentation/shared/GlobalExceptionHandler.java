@@ -1,5 +1,6 @@
 package com.valhalla.presentation.shared;
 
+import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.exception.UserNotFoundException;
@@ -22,6 +23,7 @@ public class GlobalExceptionHandler {
 
   private static final Logger LOGGER = Logger.getLogger(GlobalExceptionHandler.class.getName());
   private static final String ERROR_KEY = "error";
+  private static final String VIEW_ERROR = "pages/error";
 
   @ExceptionHandler(UserAlreadyExists.class)
   public ModelAndView handleUserAlreadyExists() {
@@ -37,6 +39,15 @@ public class GlobalExceptionHandler {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "User not found");
     return new ModelAndView("redirect:/admin/users", model);
+  }
+
+  @ExceptionHandler(PlanBannedException.class)
+  public ModelAndView handlePlanBanned() {
+    return new ModelAndView(
+      VIEW_ERROR,
+      Map.of(ERROR_KEY, "Fuiste baneado de este plan. No podés acceder ni volver a unirte."),
+      HttpStatus.FORBIDDEN
+    );
   }
 
   @ExceptionHandler(PlanNotFoundException.class)
@@ -63,14 +74,14 @@ public class GlobalExceptionHandler {
   public ModelAndView handleNotFound() {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "Page not found");
-    return new ModelAndView("pages/error", model, HttpStatus.NOT_FOUND);
+    return new ModelAndView(VIEW_ERROR, model, HttpStatus.NOT_FOUND);
   }
 
   @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
   public ModelAndView handleMethodNotAllowed() {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "Method not allowed");
-    return new ModelAndView("pages/error", model, HttpStatus.METHOD_NOT_ALLOWED);
+    return new ModelAndView(VIEW_ERROR, model, HttpStatus.METHOD_NOT_ALLOWED);
   }
 
   @ExceptionHandler(Exception.class)
@@ -78,6 +89,6 @@ public class GlobalExceptionHandler {
     LOGGER.log(Level.SEVERE, "Unhandled error", ex);
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "An unexpected error occurred");
-    return new ModelAndView("pages/error", model, HttpStatus.INTERNAL_SERVER_ERROR);
+    return new ModelAndView(VIEW_ERROR, model, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }

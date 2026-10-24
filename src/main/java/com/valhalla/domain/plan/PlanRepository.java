@@ -13,6 +13,7 @@ public interface PlanRepository {
   List<Plan> findByIsPublicTrueAndAdministratorIdIn(Collection<UUID> administratorIds);
   List<Plan> findByAdministratorId(UUID administratorId);
   List<Plan> findByParticipantsEmail(String email);
+  List<Plan> findByBannedUsersEmail(String email);
   List<Plan> findByInvitationsRecipientEmail(String email);
   Optional<Plan> findByShortCode(String shortCode);
   boolean existsByShortCode(String shortCode);

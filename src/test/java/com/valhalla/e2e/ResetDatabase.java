@@ -19,6 +19,7 @@ public class ResetDatabase {
     String bcryptHash = new BCryptPasswordEncoder().encode("password");
     String[] statements = {
       "DELETE FROM plan_join_requests",
+      "DELETE FROM plan_banned_users",
       "DELETE FROM plan_invitations",
       "DELETE FROM plan_editors",
       "DELETE FROM plan_participants",
