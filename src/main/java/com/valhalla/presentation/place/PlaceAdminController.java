@@ -94,6 +94,7 @@ public class PlaceAdminController {
     form.setImageUrl(place.getImageUrl());
     form.setLatitude(place.getLatitude());
     form.setLongitude(place.getLongitude());
+    form.setExternalId(place.getExternalId());
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLACE_FORM, form);
     model.put(ATTR_PLACE_ID, id);
@@ -142,6 +143,8 @@ public class PlaceAdminController {
     form.setWebsite(params.get("website"));
     form.setLatitude(numberOrNull(params.get("latitude")));
     form.setLongitude(numberOrNull(params.get("longitude")));
+    // Identidad del POI de origen: el alta la reenvia en el POST para no duplicar el lugar.
+    form.setExternalId(params.get("externalId"));
     // AC-06: una categoria sin mapping (o desconocida) arranca en OTHER; el admin la cambia.
     form.setCategory(PlaceCategory.fromCode(params.get("category")).orElse(PlaceCategory.OTHER));
     return form;

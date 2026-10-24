@@ -19,6 +19,8 @@
         th:action="${isEdit} ? @{/admin/places/{id}(id=${placeId})} : @{/admin/places}"
         method="POST">
         <input th:if="${isEdit}" type="hidden" name="_method" value="PUT" />
+        <!-- Identidad del POI de origen (osm:<tipo>/<id>): el POST la reenvia para no duplicar el lugar. -->
+        <input type="hidden" name="externalId" th:value="${placeForm.externalId}" />
 
         <div class="mt-4">
           <label for="name" class="mb-1 block text-sm font-medium text-gray-700">Name</label>

@@ -306,6 +306,58 @@ public class PlaceAdminControllerTest {
     assertThat(fromApi.getImageUrl(), is(nullValue()));
   }
 
+  // --- slice B: la identidad del POI de origen evita el alta duplicada ---
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldNotCreateASecondPlaceWhenTheSamePoiIsImportedTwice() throws Exception {
+    this.mockMvc.perform(
+        post("/admin/places")
+          .with(csrf())
+          .param("name", "Cafe Importado")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/9001")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/places"));
+
+    this.mockMvc.perform(
+        post("/admin/places")
+          .with(csrf())
+          .param("name", "Cafe Importado Renombrado")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/9001")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/places"));
+
+    Place stored = placeRepository.findByExternalId("osm:node/9001").orElseThrow();
+    assertThat(stored.getName(), is("Cafe Importado Renombrado"));
+    assertThat("el segundo envio actualiza la misma fila", placeRepository.count(), is(13L));
+    assertThat(namesOf(placesFrom(get("/api/places"))), not(hasItem("Cafe Importado")));
+    assertThat(namesOf(placesFrom(get("/api/places"))), hasItem("Cafe Importado Renombrado"));
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldPrefillTheExternalIdFromTheImporterLink() throws Exception {
+    String html =
+      this.mockMvc.perform(
+          get("/admin/places/new")
+            .param("externalId", "osm:node/9001")
+            .param("name", "Cafe Importado")
+            .param("category", "CAFE")
+        )
+        .andExpect(status().isOk())
+        .andExpect(view().name("pages/admin/place-form"))
+        .andExpect(model().attribute("placeForm", hasProperty("externalId", is("osm:node/9001"))))
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(inputValue(html, "externalId"), is("osm:node/9001"));
+  }
+
   // --- cobertura del camino "id inexistente" en GET /{id}/edit ---
 
   @Test
@@ -362,6 +414,13 @@ public class PlaceAdminControllerTest {
     Matcher matcher = Pattern.compile(name + "=\"([^\"]*)\"").matcher(html);
     assertThat("attribute " + name + " is rendered", matcher.find(), is(true));
     return HtmlUtils.htmlUnescape(matcher.group(1));
+  }
+
+  /** El value del input cuyo {@code name} es el pedido, sin depender del orden de atributos. */
+  private String inputValue(String html, String fieldName) {
+    Matcher tag = Pattern.compile("<input[^>]*name=\"" + fieldName + "\"[^>]*>").matcher(html);
+    assertThat("input " + fieldName + " is rendered", tag.find(), is(true));
+    return attributeValue(tag.group(), "value");
   }
 
   /** GET a la API y parsea el array de lugares con Jackson (mismo seam que PlaceRestControllerTest). */

@@ -4,7 +4,7 @@ import com.valhalla.domain.place.PlaceCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public class EditPlaceRequest {
+public class EditPlaceRequest { // NOPMD — intencional: 11 campos vs maxfields=10; es el espejo del form del ABM, un getter/setter por campo y sin comportamiento.
 
   @NotBlank(message = "Name is required")
   private String name;
@@ -27,6 +27,9 @@ public class EditPlaceRequest {
   private Double latitude;
 
   private Double longitude;
+
+  // Identidad del POI de origen cuando el alta viene del importador; null en un alta manual.
+  private String externalId;
 
   public EditPlaceRequest() {}
 
@@ -132,5 +135,13 @@ public class EditPlaceRequest {
 
   public void setLongitude(Double longitude) {
     this.longitude = longitude;
+  }
+
+  public String getExternalId() {
+    return externalId;
+  }
+
+  public void setExternalId(String externalId) {
+    this.externalId = externalId;
   }
 }

@@ -63,6 +63,11 @@ public class PlaceFormPage extends WebPage {
     return page.inputValue("#website");
   }
 
+  /** Identidad del POI de origen: el hidden con el que el alta no duplica un lugar importado. */
+  public String getExternalId() {
+    return page.inputValue("input[name='externalId']");
+  }
+
   public void typeOpeningHours(String openingHours) {
     this.typeIntoElement("#openingHours", openingHours);
   }

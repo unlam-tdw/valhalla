@@ -9,6 +9,14 @@ public interface PlaceRepository {
 
   Optional<Place> findById(UUID id);
 
+  /**
+   * Fila que representa al POI de origen, si ya se importo alguna vez.
+   *
+   * @param externalId identidad del POI de origen, con la forma {@code osm:<tipo>/<id>}
+   * @return el lugar ya guardado con esa identidad, o vacio si nunca se importo
+   */
+  Optional<Place> findByExternalId(String externalId);
+
   List<Place> findByCategory(PlaceCategory category);
 
   List<Place> findByNameContainingIgnoreCase(String name);

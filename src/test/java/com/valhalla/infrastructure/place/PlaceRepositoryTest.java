@@ -12,6 +12,7 @@ import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.integration.JpaIntegrationTest;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,5 +60,24 @@ public class PlaceRepositoryTest {
 
     assertThat(places.size(), is(equalTo(1)));
     assertThat(places.getFirst().getName(), is(equalTo("Parrilla Don Julio")));
+  }
+
+  @Test
+  public void shouldFindAPlaceByItsExternalId() {
+    Place place = new Place();
+    place.setName("Importado de OSM");
+    place.setCategory(PlaceCategory.CAFE);
+    place.setExternalId("osm:node/9001");
+    placeRepository.save(place);
+
+    Optional<Place> found = placeRepository.findByExternalId("osm:node/9001");
+
+    assertThat(found.isPresent(), is(true));
+    assertThat(found.orElseThrow().getName(), is(equalTo("Importado de OSM")));
+  }
+
+  @Test
+  public void shouldReturnEmptyForAnIdentityThatWasNeverImported() {
+    assertThat(placeRepository.findByExternalId("osm:node/404").isPresent(), is(false));
   }
 }

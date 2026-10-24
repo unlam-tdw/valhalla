@@ -159,6 +159,11 @@ createApp({
       const param = (name, value) => value === null || value === undefined || value === ''
         ? ''
         : '&' + name + '=' + encodeURIComponent(value);
+      /* Solo tipo e id de OSM son identidad estable. La clave de respaldo (nombre@lat,lon) no
+         sirve como identidad de un lugar: un nombre editado o un punto movido la cambiarian. */
+      const externalId = poi.osmType && poi.osmId
+        ? 'osm:' + poi.osmType + '/' + poi.osmId
+        : null;
       return '/admin/places/new?category=' + encodeURIComponent(selected.value.category) +
         param('name', poi.name) +
         param('address', poi.address) +
@@ -166,7 +171,8 @@ createApp({
         param('longitude', poi.longitude) +
         param('openingHours', poi.openingHours) +
         param('phone', poi.phone) +
-        param('website', poi.website);
+        param('website', poi.website) +
+        param('externalId', externalId);
     };
 
     /* Sin hex nuevo: el color sale de los tokens de marca, igual que los markers de /explore. */

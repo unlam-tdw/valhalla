@@ -161,6 +161,7 @@ public class PlaceImportE2E extends E2eBase {
     assertThat(form.getOpeningHours(), is("Mo-Su 12:00-23:00"));
     assertThat(form.getPhone(), is("+54 11 4444-5555"));
     assertThat(form.getWebsite(), is("https://parrilla.example.com"));
+    assertThat("la identidad del POI viaja al alta", form.getExternalId(), is("osm:way/1"));
   }
 
   @Test

@@ -65,7 +65,8 @@ public class PlaceServiceImpl implements PlaceService {
 
   @Override
   public Place create(EditPlaceRequest request) {
-    Place place = new Place();
+    // Elegir el mismo POI de origen dos veces no crea dos filas: se reusa la que ya lo representa.
+    Place place = existingFor(request.getExternalId()).orElseGet(Place::new);
     applyRequest(place, request);
     placeRepository.save(place);
     return place;
@@ -93,6 +94,17 @@ public class PlaceServiceImpl implements PlaceService {
     placeRepository.deleteById(id);
   }
 
+  /**
+   * Fila que ya representa al POI de origen, si el request trae identidad. Un alta manual llega
+   * sin identidad: ahi no se consulta nada, porque no hay nada que buscar.
+   */
+  private Optional<Place> existingFor(String externalId) {
+    if (externalId == null || externalId.isBlank()) {
+      return Optional.empty();
+    }
+    return placeRepository.findByExternalId(externalId.trim());
+  }
+
   private void applyRequest(Place place, EditPlaceRequest request) {
     place.setName(request.getName());
     place.setDescription(request.getDescription());
@@ -104,6 +116,12 @@ public class PlaceServiceImpl implements PlaceService {
     place.setOpeningHours(request.getOpeningHours());
     place.setPhone(request.getPhone());
     place.setWebsite(request.getWebsite());
+    // Compartido por alta y edicion a proposito: un POST manipulado con el hidden vacio no puede
+    // borrar la identidad de un lugar ya importado.
+    String externalId = request.getExternalId();
+    if (externalId != null && !externalId.isBlank()) {
+      place.setExternalId(externalId.trim());
+    }
   }
 
   private String blankToNull(String value) {

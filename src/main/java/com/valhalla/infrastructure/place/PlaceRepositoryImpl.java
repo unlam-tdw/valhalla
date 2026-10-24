@@ -37,6 +37,11 @@ public class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @Override
+  public Optional<Place> findByExternalId(String externalId) {
+    return jpaPlaceRepository.findByExternalId(externalId);
+  }
+
+  @Override
   public List<Place> findByCategory(PlaceCategory category) {
     return jpaPlaceRepository.findByCategory(category);
   }
