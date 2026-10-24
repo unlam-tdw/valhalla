@@ -23,6 +23,10 @@ import org.hibernate.annotations.UuidGenerator;
  *
  * <p>No hay timestamp por fila: la frescura del conjunto la lleva {@link PoiZone}. Y no hay FK a
  * {@code places}: el catalogo curado sigue siendo otra cosa, que el admin acepta o no.
+ *
+ * <p>Los accessors son exactamente los que el codigo usa. Hibernate entra por campo (el {@code @Id}
+ * esta en el field) y la cobertura de {@code domain} esta pineada al 100%: un getter de mas es una
+ * linea muerta que rompe el build.
  */
 @Entity
 @Table(
@@ -30,7 +34,7 @@ import org.hibernate.annotations.UuidGenerator;
   uniqueConstraints = @UniqueConstraint(columnNames = "source_key"),
   indexes = @Index(name = "idx_poi_position", columnList = "latitude, longitude")
 )
-public class MapPoi { // NOPMD — intentional: 15 fields vs maxfields=10; the extras are the OSM identity (sourceKey, osmType, osmId), the tag it was fetched with and four optional contact columns, one getter/setter pair each, no behaviour.
+public class MapPoi { // NOPMD — intentional: 15 fields vs maxfields=10; the extras are the OSM identity (sourceKey, osmType, osmId), the tag it was fetched with and four optional contact columns, plain columns with no behaviour.
 
   @Id
   @UuidGenerator(algorithm = UuidVersion7Generator.class)
@@ -166,10 +170,6 @@ public class MapPoi { // NOPMD — intentional: 15 fields vs maxfields=10; the e
     return id;
   }
 
-  public void setId(UUID id) {
-    this.id = id;
-  }
-
   public String getSourceKey() {
     return sourceKey;
   }
@@ -178,100 +178,28 @@ public class MapPoi { // NOPMD — intentional: 15 fields vs maxfields=10; the e
     this.sourceKey = sourceKey;
   }
 
-  public String getOsmType() {
-    return osmType;
-  }
-
-  public void setOsmType(String osmType) {
-    this.osmType = osmType;
-  }
-
   public Long getOsmId() {
     return osmId;
-  }
-
-  public void setOsmId(Long osmId) {
-    this.osmId = osmId;
-  }
-
-  public String getTagKey() {
-    return tagKey;
-  }
-
-  public void setTagKey(String tagKey) {
-    this.tagKey = tagKey;
-  }
-
-  public String getTagValue() {
-    return tagValue;
-  }
-
-  public void setTagValue(String tagValue) {
-    this.tagValue = tagValue;
   }
 
   public String getName() {
     return name;
   }
 
-  public void setName(String name) {
-    this.name = name;
-  }
-
   public String getAddress() {
     return address;
-  }
-
-  public void setAddress(String address) {
-    this.address = address;
-  }
-
-  public Double getLatitude() {
-    return latitude;
-  }
-
-  public void setLatitude(Double latitude) {
-    this.latitude = latitude;
-  }
-
-  public Double getLongitude() {
-    return longitude;
-  }
-
-  public void setLongitude(Double longitude) {
-    this.longitude = longitude;
   }
 
   public PlaceCategory getCategory() {
     return category;
   }
 
-  public void setCategory(PlaceCategory category) {
-    this.category = category;
-  }
-
-  public String getOpeningHours() {
-    return openingHours;
-  }
-
-  public void setOpeningHours(String openingHours) {
-    this.openingHours = openingHours;
-  }
-
   public String getPhone() {
     return phone;
   }
 
-  public void setPhone(String phone) {
-    this.phone = phone;
-  }
-
   public String getWebsite() {
     return website;
-  }
-
-  public void setWebsite(String website) {
-    this.website = website;
   }
 
   public PoiStatus getStatus() {

@@ -37,9 +37,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class PoiIngestService {
 
   /** Grilla de la zona: 0.01° ≈ 1.1 km. Redondear hacia afuera es lo que garantiza el "contiene". */
-  private static final double GRID = 0.01;
-
   private static final double GRID_SCALE = 100;
+
+  /**
+   * Tolerancia al redondear. {@code -34.62 * 100} da {@code -3462.0000000000005} en binario: sin
+   * esto, una vista que ya cae justo en la grilla se agrandaria una celda de mas y dos vistas
+   * pegadas dejarian de compartir zona.
+   */
+  private static final double GRID_EPSILON = 1e-9;
 
   private final MapPoiRepository mapPoiRepository;
   private final PoiZoneRepository poiZoneRepository;
@@ -58,10 +63,10 @@ public class PoiIngestService {
    */
   public static BoundingBox zoneOf(BoundingBox requested) {
     BoundingBox snapped = new BoundingBox(
-      Math.floor(requested.south() * GRID_SCALE) / GRID_SCALE,
-      Math.floor(requested.west() * GRID_SCALE) / GRID_SCALE,
-      Math.ceil(requested.north() * GRID_SCALE) / GRID_SCALE,
-      Math.ceil(requested.east() * GRID_SCALE) / GRID_SCALE
+      Math.floor(requested.south() * GRID_SCALE + GRID_EPSILON) / GRID_SCALE,
+      Math.floor(requested.west() * GRID_SCALE + GRID_EPSILON) / GRID_SCALE,
+      Math.ceil(requested.north() * GRID_SCALE - GRID_EPSILON) / GRID_SCALE,
+      Math.ceil(requested.east() * GRID_SCALE - GRID_EPSILON) / GRID_SCALE
     );
     BoundingBox clipped = snapped.intersection(BoundingBox.CABA);
     // Defensivo: el controller ya recorta la vista a CABA, asi que esto solo se dispara si la zona
@@ -199,7 +204,14 @@ public class PoiIngestService {
     );
   }
 
-  /** Conteos del diff. Existen para que el diff sea observable sin contar filas a mano en los tests. */
+  /**
+   * Conteos del diff. Existen para que el diff sea observable sin contar filas a mano en los tests.
+   *
+   * @param created filas nuevas
+   * @param updated filas cuyo contenido visible cambio
+   * @param removed filas que pasaron a {@code REMOVED}
+   * @param reactivated filas {@code REMOVED} que volvieron a aparecer
+   */
   public record IngestResult(int created, int updated, int removed, int reactivated) {}
 
   /** Que le paso a un POI traido, para poder contarlo sin ramas anidadas en {@link #ingest}. */

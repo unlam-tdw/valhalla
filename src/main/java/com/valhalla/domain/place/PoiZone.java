@@ -16,6 +16,9 @@ import org.hibernate.annotations.UuidGenerator;
  * <p>Existe para distinguir "esta zona nunca se cargo" de "se cargo y Overpass no devolvio nada",
  * que sin esta fila se ven iguales, y para mostrar la antiguedad de lo que hay en el mapa sin
  * guardar un timestamp en cada POI.
+ *
+ * <p>Accessors minimos, igual que {@link MapPoi}: Hibernate entra por campo y la cobertura de
+ * {@code domain} esta pineada al 100%.
  */
 @Entity
 @Table(
@@ -49,36 +52,8 @@ public class PoiZone {
     this.fetchedAt = fetchedAt;
   }
 
-  public UUID getId() {
-    return id;
-  }
-
-  public void setId(UUID id) {
-    this.id = id;
-  }
-
   public String getZoneKey() {
     return zoneKey;
-  }
-
-  public void setZoneKey(String zoneKey) {
-    this.zoneKey = zoneKey;
-  }
-
-  public String getTagKey() {
-    return tagKey;
-  }
-
-  public void setTagKey(String tagKey) {
-    this.tagKey = tagKey;
-  }
-
-  public String getTagValue() {
-    return tagValue;
-  }
-
-  public void setTagValue(String tagValue) {
-    this.tagValue = tagValue;
   }
 
   public Instant getFetchedAt() {
