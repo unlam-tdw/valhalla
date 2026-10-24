@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.valhalla.domain.bookmark.PlanBookmarkService;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.plan.Plan;
@@ -43,17 +44,22 @@ public class PlanRestControllerTest {
 
   private static final String OWNER_EMAIL = "dueno@test.com";
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000007");
+  private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000004");
+  private static final UUID ENTRY_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
 
   private PlanRestController controller;
   private PlanService planServiceMock;
   private com.valhalla.domain.rating.PlanRatingService planRatingServiceMock;
+  private PlanBookmarkService planBookmarkServiceMock;
 
   @BeforeEach
   public void init() {
     planServiceMock = mock(PlanService.class);
     planRatingServiceMock = mock(com.valhalla.domain.rating.PlanRatingService.class);
+    planBookmarkServiceMock = mock(PlanBookmarkService.class);
     when(planRatingServiceMock.getSummariesByPlanId()).thenReturn(java.util.Map.of());
-    controller = new PlanRestController(planServiceMock, planRatingServiceMock);
+    controller =
+      new PlanRestController(planServiceMock, planRatingServiceMock, planBookmarkServiceMock);
   }
 
   @Test
@@ -78,8 +84,8 @@ public class PlanRestControllerTest {
     assertThat(summary.eventDate(), is("2026-12-31"));
     assertThat(summary.isPublic(), is(true));
     assertThat(summary.planPlaces(), hasSize(1));
-    assertThat(summary.planPlaces().get(0).id(), is(11L));
-    assertThat(summary.planPlaces().get(0).placeId(), is(4L));
+    assertThat(summary.planPlaces().get(0).id(), is(ENTRY_ID));
+    assertThat(summary.planPlaces().get(0).placeId(), is(PLACE_ID));
     assertThat(summary.planPlaces().get(0).name(), is("MALBA"));
     assertThat(summary.planPlaces().get(0).category(), is("MUSEUM"));
     assertThat(summary.planPlaces().get(0).latitude(), is(-34.6098));
@@ -199,16 +205,53 @@ public class PlanRestControllerTest {
             "eventDate",
             "placeCount",
             "administratorName",
+            "administratorId",
             "cover",
             "ratingAverage",
-            "ratingCount"
+            "ratingCount",
+            "bookmarked"
           )
         )
       )
     );
   }
 
+  // --- [MARK] estado de Guardados en el payload del sidebar ---
+
+  @Test
+  public void shouldFlagThePlansTheSignedInUserBookmarked() {
+    Plan saved = feedPlan("Guardado", LocalDate.of(2026, 12, 1), true, "ana@test.com");
+    Plan other = feedPlan("Otro", LocalDate.of(2026, 12, 2), true, "ana@test.com");
+    when(planServiceMock.getPublicPlans()).thenReturn(List.of(saved, other));
+    when(planBookmarkServiceMock.getBookmarkedPlanIds(OWNER_EMAIL))
+      .thenReturn(java.util.Set.of(saved.getId()));
+
+    List<Card> cards = controller.getPublicPlans(signedInPrincipal());
+
+    assertThat(cards.get(0).bookmarked(), is(true));
+    assertThat(cards.get(1).bookmarked(), is(false));
+    verify(planBookmarkServiceMock).getBookmarkedPlanIds(OWNER_EMAIL);
+  }
+
+  @Test
+  public void shouldNotAskForBookmarksWithoutASignedInPrincipal() {
+    when(planServiceMock.getPublicPlans())
+      .thenReturn(List.of(feedPlan("Plan", null, true, "ana@test.com")));
+
+    List<Card> cards = controller.getPublicPlans(null);
+
+    assertThat(cards.get(0).bookmarked(), is(false));
+    verifyNoInteractions(planBookmarkServiceMock);
+  }
+
   // --- helpers ---
+
+  private static Principal signedInPrincipal() {
+    return new UsernamePasswordAuthenticationToken(
+      new org.springframework.security.core.userdetails.User(OWNER_EMAIL, "n/a", List.of()),
+      "n/a"
+    );
+  }
 
   private static Plan feedPlan(
     String name,
@@ -233,14 +276,14 @@ public class PlanRestControllerTest {
 
   private static Plan planWithOnePlace() {
     Place place = new Place();
-    place.setId(4L);
+    place.setId(PLACE_ID);
     place.setName("MALBA");
     place.setCategory(PlaceCategory.MUSEUM);
     place.setLatitude(-34.6098);
     place.setLongitude(-58.3711);
 
     PlanPlace planPlace = new PlanPlace();
-    planPlace.setId(11L);
+    planPlace.setId(ENTRY_ID);
     planPlace.setPlace(place);
 
     Plan plan = new Plan();

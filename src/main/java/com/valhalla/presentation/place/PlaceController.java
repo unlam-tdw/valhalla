@@ -3,6 +3,7 @@ package com.valhalla.presentation.place;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceService;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,8 +36,11 @@ public class PlaceController {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLACES, getPlaces(category, search));
     model.put("categories", PlaceCategory.values());
+    model.put("defaultPlanSettings", new com.valhalla.domain.plan.PlanSettings());
     model.put("category", category);
     model.put("search", search);
+    // [WEA] El selector de fecha del plan no acepta días ya pasados.
+    model.put("today", LocalDate.now().toString());
     return new ModelAndView(VIEW_LIST, model);
   }
 

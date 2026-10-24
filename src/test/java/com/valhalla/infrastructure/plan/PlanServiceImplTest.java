@@ -55,9 +55,33 @@ public class PlanServiceImplTest {
   private static final String OWNER_EMAIL = "dueno@test.com";
   private static final String OTHER_EMAIL = "otro@test.com";
   private static final String UNKNOWN_EMAIL = "nadie@test.com";
-  private static final Long OWNER_ID = 7L;
+  private static final UUID OWNER_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000007");
+  private static final UUID OTHER_OWNER_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000008"
+  );
+  private static final UUID CLONER_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000009");
+  private static final UUID PARTICIPANT_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-00000000000c"
+  );
+  private static final UUID EDITOR_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000d");
+  private static final UUID INVITED_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000e");
+  private static final UUID RECIPIENT_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000000f");
   private static final UUID PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000002a");
   private static final UUID OTHER_PLAN_ID = UUID.fromString("0192f0a1-0000-7000-8000-00000000002b");
+  private static final UUID PLACE_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000005");
+  private static final UUID OTHER_PLACE_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000006"
+  );
+  private static final UUID UNKNOWN_PLACE_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000063"
+  );
+  private static final UUID JOIN_REQUEST_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000010"
+  );
+  private static final UUID UNKNOWN_JOIN_REQUEST_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000011"
+  );
+  private static final UUID INVITATION_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000012");
 
   /** The backend generates an 8 character uppercase alphanumeric code out of a UUID. */
   private static final String SHORT_CODE_PATTERN = "[A-Z0-9]{8}";
@@ -86,7 +110,7 @@ public class PlanServiceImplTest {
   @Test
   public void expelledParticipantCanRejoinPublicPlan() {
     Plan plan = invitationPlan(true);
-    User participant = owner(9L, OTHER_EMAIL);
+    User participant = owner(PARTICIPANT_ID, OTHER_EMAIL);
     plan.getParticipants().add(participant);
     planService.removeParticipant(PLAN_ID, OTHER_EMAIL, OWNER_EMAIL);
     assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
@@ -100,7 +124,7 @@ public class PlanServiceImplTest {
   @Test
   public void bannedEditorCannotRejoinOrReceiveInvitation() {
     Plan plan = invitationPlan(true);
-    User participant = owner(9L, OTHER_EMAIL);
+    User participant = owner(PARTICIPANT_ID, OTHER_EMAIL);
     plan.getParticipants().add(participant);
     plan.getEditors().add(participant);
     planService.banParticipant(PLAN_ID, OTHER_EMAIL, OWNER_EMAIL);
@@ -120,8 +144,8 @@ public class PlanServiceImplTest {
   @Test
   public void editorCannotBanAnotherEditorOrOwner() {
     Plan plan = invitationPlan(true);
-    User editor = owner(8L, OTHER_EMAIL);
-    User otherEditor = owner(9L, UNKNOWN_EMAIL);
+    User editor = owner(EDITOR_ID, OTHER_EMAIL);
+    User otherEditor = owner(PARTICIPANT_ID, UNKNOWN_EMAIL);
     plan.getParticipants().addAll(List.of(editor, otherEditor));
     plan.getEditors().addAll(List.of(editor, otherEditor));
     assertThrows(
@@ -140,8 +164,8 @@ public class PlanServiceImplTest {
   @Test
   public void editorCanBanParticipantAndClearsPendingInvitation() {
     Plan plan = invitationPlan(false);
-    User editor = owner(8L, OTHER_EMAIL);
-    User participant = owner(9L, UNKNOWN_EMAIL);
+    User editor = owner(EDITOR_ID, OTHER_EMAIL);
+    User participant = owner(PARTICIPANT_ID, UNKNOWN_EMAIL);
     plan.getParticipants().addAll(List.of(editor, participant));
     plan.getEditors().add(editor);
     plan.getInvitations().add(new PlanInvitation(plan, participant, editor, "guest"));
@@ -156,8 +180,8 @@ public class PlanServiceImplTest {
   @Test
   public void participantCannotBanAnyone() {
     Plan plan = invitationPlan(true);
-    plan.getParticipants().add(owner(8L, OTHER_EMAIL));
-    plan.getParticipants().add(owner(9L, UNKNOWN_EMAIL));
+    plan.getParticipants().add(owner(EDITOR_ID, OTHER_EMAIL));
+    plan.getParticipants().add(owner(PARTICIPANT_ID, UNKNOWN_EMAIL));
     assertThrows(
       PlanNotFoundException.class,
       () -> planService.banParticipant(PLAN_ID, UNKNOWN_EMAIL, OTHER_EMAIL)
@@ -169,19 +193,19 @@ public class PlanServiceImplTest {
   @Test
   public void bannedRecipientCannotAcceptPendingInvitation() {
     Plan plan = invitationPlan(false);
-    User recipient = owner(8L, OTHER_EMAIL);
+    User recipient = owner(EDITOR_ID, OTHER_EMAIL);
     PlanInvitation invitation = new PlanInvitation(
       plan,
       recipient,
       plan.getAdministrator(),
       "editor"
     );
-    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "id", 42L);
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "id", INVITATION_ID);
     plan.getInvitations().add(invitation);
     plan.getBannedUsers().add(recipient);
     assertThrows(
       PlanNotFoundException.class,
-      () -> planService.respondToInvitation(PLAN_ID, 42L, true, OTHER_EMAIL)
+      () -> planService.respondToInvitation(PLAN_ID, INVITATION_ID, true, OTHER_EMAIL)
     );
     assertThat(plan.getParticipants(), empty());
     verify(planRepositoryMock, never()).save(any());
@@ -192,7 +216,7 @@ public class PlanServiceImplTest {
   @Test
   public void ownerCanInviteEditor() {
     Plan plan = invitationPlan(false);
-    User invited = owner(9L, OTHER_EMAIL);
+    User invited = owner(INVITED_ID, OTHER_EMAIL);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(invited));
     planService.inviteParticipant(PLAN_ID, " " + OTHER_EMAIL + " ", "editor", OWNER_EMAIL);
     assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
@@ -205,11 +229,11 @@ public class PlanServiceImplTest {
   @Test
   public void editorCanInviteParticipant() {
     Plan plan = invitationPlan(false);
-    User editor = owner(8L, OTHER_EMAIL);
+    User editor = owner(EDITOR_ID, OTHER_EMAIL);
     plan.getParticipants().add(editor);
     plan.getEditors().add(editor);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(editor));
-    User invited = owner(9L, UNKNOWN_EMAIL);
+    User invited = owner(INVITED_ID, UNKNOWN_EMAIL);
     when(userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.of(invited));
     planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OTHER_EMAIL);
     assertThat(plan.isParticipant(UNKNOWN_EMAIL), is(false));
@@ -233,7 +257,7 @@ public class PlanServiceImplTest {
   @Test
   public void ownerCanInviteParticipantToPublicPlan() {
     Plan plan = invitationPlan(true);
-    User invited = owner(9L, OTHER_EMAIL);
+    User invited = owner(INVITED_ID, OTHER_EMAIL);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(invited));
     planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", OWNER_EMAIL);
     assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
@@ -267,7 +291,7 @@ public class PlanServiceImplTest {
   @Test
   public void privateParticipantCannotInvite() {
     Plan plan = invitationPlan(false);
-    plan.getParticipants().add(owner(8L, OTHER_EMAIL));
+    plan.getParticipants().add(owner(EDITOR_ID, OTHER_EMAIL));
     assertThrows(
       PlanNotFoundException.class,
       () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OTHER_EMAIL)
@@ -282,7 +306,7 @@ public class PlanServiceImplTest {
       IllegalArgumentException.class,
       () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", OWNER_EMAIL)
     );
-    User existing = owner(9L, OTHER_EMAIL);
+    User existing = owner(INVITED_ID, OTHER_EMAIL);
     plan.getParticipants().add(existing);
     plan.getEditors().add(existing);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(existing));
@@ -295,14 +319,258 @@ public class PlanServiceImplTest {
     verify(planRepositoryMock, never()).save(any());
   }
 
+  @Test
+  public void invitationChannelsEnforceIndependentPermissions() {
+    Plan plan = invitationPlan(false);
+    User editor = owner(INVITED_ID, OTHER_EMAIL);
+    plan.getParticipants().add(editor);
+    plan.getEditors().add(editor);
+    User recipient = owner(RECIPIENT_ID, UNKNOWN_EMAIL);
+    when(userRepositoryMock.findByEmail(UNKNOWN_EMAIL)).thenReturn(Optional.of(recipient));
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(editor));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", "email", OTHER_EMAIL)
+    );
+    plan.getSettings().setInviteInternal(com.valhalla.domain.plan.PlanPermission.OWNER);
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", "app", OTHER_EMAIL)
+    );
+    plan.getSettings().setInviteInternal(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
+    plan.getEditors().clear();
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "editor", "app", OTHER_EMAIL)
+    );
+    planService.inviteParticipant(PLAN_ID, UNKNOWN_EMAIL, "guest", "app", OTHER_EMAIL);
+    assertThat(plan.getInvitations(), hasSize(1));
+  }
+
+  @Test
+  public void emailInvitationSendsTokenAndOnlyRecipientCanUseItOnce() {
+    Plan plan = invitationPlan(false);
+    User recipient = owner(INVITED_ID, OTHER_EMAIL);
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(recipient));
+    when(userRepositoryMock.findByEmail(OWNER_EMAIL))
+      .thenReturn(Optional.of(plan.getAdministrator()));
+    com.valhalla.domain.plan.EmailNotifier notifier = mock(
+      com.valhalla.domain.plan.EmailNotifier.class
+    );
+    org.springframework.test.util.ReflectionTestUtils.setField(
+      planService,
+      "emailNotifier",
+      notifier
+    );
+    planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "editor", "email", OWNER_EMAIL);
+    PlanInvitation invitation = plan.getInvitations().getFirst();
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "id", INVITATION_ID);
+    String token = invitation.getToken();
+    assertThat(token.length(), is(64));
+    verify(notifier).sendInvitation(OTHER_EMAIL, PLAN_ID, token);
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.acceptInvitationToken(PLAN_ID, token, UNKNOWN_EMAIL)
+    );
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.acceptInvitationToken(PLAN_ID, "invalid", OTHER_EMAIL)
+    );
+    planService.acceptInvitationToken(PLAN_ID, token, OTHER_EMAIL);
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(true));
+    assertThat(plan.getInvitations(), is(empty()));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.acceptInvitationToken(PLAN_ID, token, OTHER_EMAIL)
+    );
+  }
+
+  @Test
+  public void invalidInvitationChannelDoesNotCreateInvitation() {
+    Plan plan = invitationPlan(false);
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", "unknown", OWNER_EMAIL)
+    );
+    assertThat(plan.getInvitations(), is(empty()));
+  }
+
   private Plan invitationPlan(boolean isPublic) {
     Plan plan = new Plan();
+    plan.setId(PLAN_ID);
     plan.setAdministrator(owner(OWNER_ID, OWNER_EMAIL));
     plan.setIsPublic(isPublic);
     when(planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
     when(userRepositoryMock.findByEmail(OWNER_EMAIL))
       .thenReturn(Optional.of(plan.getAdministrator()));
     return plan;
+  }
+
+  @Test
+  public void BAN_privatePlanRejectsRequestsFromBannedUsers() {
+    Plan plan = invitationPlan(false);
+    plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
+    plan.getBannedUsers().add(owner(INVITED_ID, OTHER_EMAIL));
+    assertThrows(
+      com.valhalla.domain.exception.PlanBannedException.class,
+      () -> planService.requestToJoin(PLAN_ID, OTHER_EMAIL)
+    );
+    assertThat(plan.getJoinRequests(), is(empty()));
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void BAN_pendingRequestCannotRestoreBannedParticipationButCanBeRejected() {
+    Plan plan = invitationPlan(false);
+    User requester = owner(INVITED_ID, OTHER_EMAIL);
+    com.valhalla.domain.plan.PlanJoinRequest request = pendingRequest(plan, requester);
+    plan.getBannedUsers().add(requester);
+    assertThrows(
+      com.valhalla.domain.exception.PlanBannedException.class,
+      () -> planService.respondToJoinRequest(PLAN_ID, request.getId(), "accept", OWNER_EMAIL)
+    );
+    assertThat(plan.getParticipants(), is(empty()));
+    assertThat(plan.getJoinRequests(), hasSize(1));
+    verify(planRepositoryMock, never()).save(any());
+    planService.respondToJoinRequest(PLAN_ID, request.getId(), "reject", OWNER_EMAIL);
+    assertThat(plan.getJoinRequests(), is(empty()));
+    assertThat(plan.isBanned(OTHER_EMAIL), is(true));
+    verify(planRepositoryMock).save(plan);
+  }
+
+  @Test
+  public void PET_requestIsIdempotentAndDoesNotGrantAccess() {
+    Plan plan = invitationPlan(false);
+    plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
+    User requester = owner(INVITED_ID, OTHER_EMAIL);
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(requester));
+    planService.requestToJoin(PLAN_ID, OTHER_EMAIL);
+    planService.requestToJoin(PLAN_ID, OTHER_EMAIL);
+    assertThat(plan.getJoinRequests(), hasSize(1));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    verify(planRepositoryMock, times(1)).save(plan);
+  }
+
+  @Test
+  public void PET_disabledSharingAndPublicPlansRejectRequests() {
+    Plan plan = invitationPlan(false);
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL))
+      .thenReturn(Optional.of(owner(INVITED_ID, OTHER_EMAIL)));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.requestToJoin(PLAN_ID, OTHER_EMAIL)
+    );
+    plan.setIsPublic(true);
+    plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.requestToJoin(PLAN_ID, OTHER_EMAIL)
+    );
+    assertThat(plan.getJoinRequests(), is(empty()));
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void PET_existingMembersDoNotCreateRequests() {
+    Plan plan = invitationPlan(false);
+    User participant = owner(INVITED_ID, OTHER_EMAIL);
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(participant));
+    plan.getParticipants().add(participant);
+    planService.requestToJoin(PLAN_ID, OWNER_EMAIL);
+    planService.requestToJoin(PLAN_ID, OTHER_EMAIL);
+    assertThat(plan.getJoinRequests(), is(empty()));
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void PET_acceptGrantsParticipationAndRemovesPendingInvitation() {
+    Plan plan = invitationPlan(false);
+    User requester = owner(INVITED_ID, OTHER_EMAIL);
+    com.valhalla.domain.plan.PlanJoinRequest request = pendingRequest(plan, requester);
+    plan
+      .getInvitations()
+      .add(new PlanInvitation(plan, requester, plan.getAdministrator(), "editor"));
+    planService.respondToJoinRequest(PLAN_ID, request.getId(), "accept", OWNER_EMAIL);
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+    assertThat(plan.getJoinRequests(), is(empty()));
+    assertThat(plan.getInvitations(), is(empty()));
+    verify(planRepositoryMock).save(plan);
+  }
+
+  @Test
+  public void PET_onlyAuthorizedManagerCanListAndRespond() {
+    Plan plan = invitationPlan(false);
+    User editor = owner(EDITOR_ID, OTHER_EMAIL);
+    plan.getParticipants().add(editor);
+    plan.getEditors().add(editor);
+    com.valhalla.domain.plan.PlanJoinRequest request = pendingRequest(
+      plan,
+      owner(INVITED_ID, UNKNOWN_EMAIL)
+    );
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.getPendingJoinRequests(PLAN_ID, OTHER_EMAIL)
+    );
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.respondToJoinRequest(PLAN_ID, request.getId(), "accept", OTHER_EMAIL)
+    );
+    plan.getSettings().setHandleRequests(com.valhalla.domain.plan.PlanPermission.EDITORS);
+    assertThat(planService.getPendingJoinRequests(PLAN_ID, OTHER_EMAIL), hasSize(1));
+    planService.respondToJoinRequest(PLAN_ID, request.getId(), "reject", OTHER_EMAIL);
+    assertThat(plan.isParticipant(UNKNOWN_EMAIL), is(false));
+    assertThat(plan.getJoinRequests(), is(empty()));
+    verify(planRepositoryMock).save(plan);
+  }
+
+  @Test
+  public void PET_invalidOrMissingResponsePreservesRequest() {
+    Plan plan = invitationPlan(false);
+    pendingRequest(plan, owner(INVITED_ID, OTHER_EMAIL));
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> planService.respondToJoinRequest(PLAN_ID, JOIN_REQUEST_ID, "invalid", OWNER_EMAIL)
+    );
+    assertThrows(
+      PlanNotFoundException.class,
+      () ->
+        planService.respondToJoinRequest(PLAN_ID, UNKNOWN_JOIN_REQUEST_ID, "accept", OWNER_EMAIL)
+    );
+    assertThat(plan.getJoinRequests(), hasSize(1));
+    assertThat(plan.getParticipants(), is(empty()));
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void PET_settingsAreOwnerOnlyAndPersistAllPermissions() {
+    Plan plan = invitationPlan(false);
+    com.valhalla.domain.plan.PlanPermission ownerOnly =
+      com.valhalla.domain.plan.PlanPermission.OWNER;
+    com.valhalla.domain.plan.PlanPermission editors =
+      com.valhalla.domain.plan.PlanPermission.EDITORS;
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.updateSettings(PLAN_ID, editors, editors, ownerOnly, editors, OTHER_EMAIL)
+    );
+    verify(planRepositoryMock, never()).save(any());
+    planService.updateSettings(PLAN_ID, editors, editors, ownerOnly, editors, OWNER_EMAIL);
+    assertThat(plan.getSettings().getShareLink(), is(editors));
+    assertThat(plan.getSettings().getHandleRequests(), is(editors));
+    assertThat(plan.getSettings().getInviteInternal(), is(ownerOnly));
+    assertThat(plan.getSettings().getInviteByEmail(), is(editors));
+    verify(planRepositoryMock).save(plan);
+  }
+
+  private com.valhalla.domain.plan.PlanJoinRequest pendingRequest(Plan plan, User requester) {
+    com.valhalla.domain.plan.PlanJoinRequest request = new com.valhalla.domain.plan.PlanJoinRequest(
+      plan,
+      requester
+    );
+    org.springframework.test.util.ReflectionTestUtils.setField(request, "id", JOIN_REQUEST_ID);
+    plan.getJoinRequests().add(request);
+    return request;
   }
 
   // --- getPendingInvitations ---
@@ -312,7 +580,7 @@ public class PlanServiceImplTest {
     // given
     Plan plan = invitationPlan(true);
     plan.setId(PLAN_ID);
-    User recipient = owner(9L, UNKNOWN_EMAIL);
+    User recipient = owner(INVITED_ID, UNKNOWN_EMAIL);
     plan
       .getInvitations()
       .add(new PlanInvitation(plan, recipient, plan.getAdministrator(), "guest"));
@@ -336,7 +604,7 @@ public class PlanServiceImplTest {
     // given
     Plan plan = invitationPlan(false);
     plan.setId(PLAN_ID);
-    User recipient = owner(9L, UNKNOWN_EMAIL);
+    User recipient = owner(INVITED_ID, UNKNOWN_EMAIL);
     plan
       .getInvitations()
       .add(new PlanInvitation(plan, recipient, plan.getAdministrator(), "editor"));
@@ -360,13 +628,13 @@ public class PlanServiceImplTest {
     when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
       .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
     Place real = new Place();
-    real.setId(5L);
-    when(this.placeRepositoryMock.findById(5L)).thenReturn(Optional.of(real));
+    real.setId(PLACE_ID);
+    when(this.placeRepositoryMock.findById(PLACE_ID)).thenReturn(Optional.of(real));
     Plan plan = new Plan();
     plan.setName("Viaje");
     for (int order = 1; order <= 2; order++) {
       Place stub = new Place();
-      stub.setId(5L);
+      stub.setId(PLACE_ID);
       PlanPlace entry = new PlanPlace();
       entry.setPlace(stub);
       entry.setSortOrder(order);
@@ -388,10 +656,10 @@ public class PlanServiceImplTest {
     // given
     when(this.userRepositoryMock.findByEmail(OWNER_EMAIL))
       .thenReturn(Optional.of(owner(OWNER_ID, OWNER_EMAIL)));
-    when(this.placeRepositoryMock.findById(99L)).thenReturn(Optional.empty());
+    when(this.placeRepositoryMock.findById(UNKNOWN_PLACE_ID)).thenReturn(Optional.empty());
     Plan plan = new Plan();
     Place stub = new Place();
-    stub.setId(99L);
+    stub.setId(UNKNOWN_PLACE_ID);
     PlanPlace entry = new PlanPlace();
     entry.setPlace(stub);
     plan.addPlanPlace(entry);
@@ -633,7 +901,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_029_getOwnedPlan_fallaIgualSiElPlanEsDeOtroUsuario() {
     // given
-    Plan planOfSomebodyElse = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    Plan planOfSomebodyElse = ownedPlan(PLAN_ID, owner(OTHER_OWNER_ID, OTHER_EMAIL));
     planOfSomebodyElse.setName("Plan ajeno");
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(planOfSomebodyElse));
 
@@ -708,7 +976,7 @@ public class PlanServiceImplTest {
     // given
     Plan plan = ownedPlan(PLAN_ID, owner(OWNER_ID, OWNER_EMAIL));
     plan.setIsPublic(true);
-    plan.getParticipants().add(owner(OWNER_ID + 2, "participante@test.com"));
+    plan.getParticipants().add(owner(PARTICIPANT_ID, "participante@test.com"));
     List<User> participantsBefore = List.copyOf(plan.getParticipants());
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(plan));
 
@@ -743,7 +1011,7 @@ public class PlanServiceImplTest {
     changes.setIsPublic(true);
     // A hostile post would carry these; the form never does and they must not be copied.
     changes.setShortCode("IGNORADO");
-    changes.setAdministrator(owner(OWNER_ID + 1, OTHER_EMAIL));
+    changes.setAdministrator(owner(OTHER_OWNER_ID, OTHER_EMAIL));
 
     // when
     Plan updated = this.planService.updatePlan(PLAN_ID, changes, OWNER_EMAIL);
@@ -763,7 +1031,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_032_updatePlan_fallaSiNoEsElDuenoYNoGuardaNiTocaElPlan() {
     // given
-    Plan planOfSomebodyElse = ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL));
+    Plan planOfSomebodyElse = ownedPlan(PLAN_ID, owner(OTHER_OWNER_ID, OTHER_EMAIL));
     planOfSomebodyElse.setName("Intocable");
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(planOfSomebodyElse));
 
@@ -795,7 +1063,7 @@ public class PlanServiceImplTest {
   public void T_PLN_034_deleteOwnedPlan_noBorraSiElPlanEsDeOtroUsuario() {
     // given
     when(this.planRepositoryMock.findById(PLAN_ID))
-      .thenReturn(Optional.of(ownedPlan(PLAN_ID, owner(OWNER_ID + 1, OTHER_EMAIL))));
+      .thenReturn(Optional.of(ownedPlan(PLAN_ID, owner(OTHER_OWNER_ID, OTHER_EMAIL))));
 
     // when and then
     assertThrows(
@@ -811,7 +1079,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_035_clonePlan_conPlanPublicoLaCopiaTieneAlClonerComoDueno() {
     // given (U-01)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
@@ -829,7 +1097,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_036_clonePlan_generaUnShortCodeDistintoDelOriginal() {
     // given (U-02): the source keeps its join key, the copy gets a fresh one
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
@@ -848,7 +1116,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_037_clonePlan_dejaLaCopiaPrivadaAunqueElOriginalSeaPublico() {
     // given (U-03)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
@@ -865,7 +1133,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_038_clonePlan_copiaNombreDescripcionFechaYHoraDelEvento() {
     // given (U-04)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(publicPlan()));
     givenSaveEchoes();
@@ -883,12 +1151,12 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_039_clonePlan_copiaElItinerarioConLosMismosLugaresYOrdenSecuencial() {
     // given (U-05)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
     Place beach = new Place();
-    beach.setId(5L);
+    beach.setId(PLACE_ID);
     Place museum = new Place();
-    museum.setId(6L);
+    museum.setId(OTHER_PLACE_ID);
     source.addPlanPlace(itineraryEntry(beach, "desayuno", 3));
     source.addPlanPlace(itineraryEntry(museum, null, 2));
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
@@ -913,9 +1181,9 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_040_clonePlan_laCopiaNaceSinParticipantes() {
     // given (U-06)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
-    source.getParticipants().add(owner(OWNER_ID + 3, "participant@test.com"));
+    source.getParticipants().add(owner(PARTICIPANT_ID, "participant@test.com"));
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
     givenSaveEchoes();
@@ -931,7 +1199,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_041_clonePlan_planPrivadoAjenoLanzaPlanNotFoundExceptionYNoGuarda() {
     // given (U-07): private plan, cloner is neither administrator nor participant
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
     source.setIsPublic(false);
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
@@ -948,7 +1216,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_042_clonePlan_planPrivadoLoPuedeClonarUnParticipant() {
     // given (U-08)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
     source.setIsPublic(false);
     source.getParticipants().add(cloner);
@@ -967,7 +1235,7 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_043_clonePlan_idInexistenteLanzaPlanNotFoundExceptionYNoGuarda() {
     // given (U-09)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.empty());
 
@@ -982,10 +1250,10 @@ public class PlanServiceImplTest {
   @Test
   public void T_PLN_044_clonePlan_noModificaElPlanOriginal() {
     // given (U-10)
-    User cloner = owner(OWNER_ID + 2, OTHER_EMAIL);
+    User cloner = owner(CLONER_ID, OTHER_EMAIL);
     Plan source = publicPlan();
     source.addPlanPlace(itineraryEntry(new Place(), "desayuno", 1));
-    source.getParticipants().add(owner(OWNER_ID + 3, "participant@test.com"));
+    source.getParticipants().add(owner(PARTICIPANT_ID, "participant@test.com"));
     when(this.userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(cloner));
     when(this.planRepositoryMock.findById(PLAN_ID)).thenReturn(Optional.of(source));
     givenSaveEchoes();
@@ -1052,7 +1320,7 @@ public class PlanServiceImplTest {
     return entry;
   }
 
-  private User owner(Long id, String email) {
+  private User owner(UUID id, String email) {
     User user = new User();
     user.setId(id);
     user.setEmail(email);

@@ -1,5 +1,6 @@
 <!DOCTYPE HTML>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head th:replace="~{layouts/base :: head('Places')}"></head>
 
@@ -21,15 +22,43 @@
       }
     </style>
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet CSS, vendorizado con la version fija (1.9.4) en el repo. Ya no viene de CDN:
+         un CDN caido dejaba el mapa muerto, y divIcon({ html: elemento }) depende del contrato
+         de 1.9, asi que la version no puede quedar en manos de un origen remoto. -->
+    <link rel="stylesheet" th:href="@{/css/leaflet.css}" />
 
-    <div id="app" class="flex-1 min-h-0 min-w-0 flex flex-row-reverse overflow-hidden">
+    <!-- [MOBILE] El mapa ocupa toda el area y Places/Plans se despliegan como pestañas desde la
+         barra de abajo: dos radios sr-only (uno dentro de cada label) y cada panel se controla
+         con group-has-[#id:checked] sobre este #explore-app. Sin JS: ni el Vue ni los scripts se tocan
+         (AC-08). Sin tab activo al cargar, el mapa queda limpio de overlays. Desde md vuelve el
+         layout de escritorio (mapa a la izquierda, sidebar junto al borde, paneles siempre
+         visibles via md:visible). -->
+    <div id="explore-app" class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
+      <!-- Error surface for the whole view: the 5 request paths below and the add-to-plan
+           module all report here instead of opening a browser alert box. role="alert"
+           announces it to a screen reader. -->
+      <div v-if="error" role="alert"
+        class="fixed left-1/2 top-4 z-[2500] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-start gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">
+        <span class="flex-1">{{ error }}</span>
+        <button type="button" @click="error = ''" aria-label="Cerrar el aviso"
+          class="shrink-0 text-lg leading-none text-red-500 hover:text-red-700">&times;</button>
+      </div>
+
       <!-- Sidebar -->
       <aside
-        class="w-80 min-w-[20rem] min-h-0 overflow-y-auto overscroll-contain bg-white border-l border-gray-200 p-4 flex flex-col gap-4">
-        <h1 class="text-2xl font-semibold text-gray-900">Places</h1>
+        class="invisible pointer-events-none translate-y-4 opacity-0 transition-[opacity,transform] duration-200 group-has-[#tab-places:checked]:visible group-has-[#tab-places:checked]:pointer-events-auto group-has-[#tab-places:checked]:translate-y-0 group-has-[#tab-places:checked]:opacity-100 md:visible md:pointer-events-auto md:translate-y-0 md:opacity-100 absolute md:static inset-x-0 bottom-12 z-[1040] md:z-auto w-full md:w-80 md:min-w-[20rem] max-h-[40vh] md:max-h-none min-h-0 overflow-y-auto overscroll-contain bg-white border-t md:border-t-0 md:border-l border-gray-200 p-4 flex flex-col gap-4">
+        <div class="flex shrink-0 items-center justify-between">
+          <h1 class="text-2xl font-semibold text-gray-900">Places</h1>
+          <!-- Cierra el desplegable (tilda tab-none del grupo de pestañas); solo en mobile,
+               donde el panel es una pestaña. En desktop no existe la barra de tabs. -->
+          <label for="tab-none" title="Cerrar el panel"
+            class="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 md:hidden">
+            <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </label>
+        </div>
 
         <!-- Filters -->
         <div class="flex flex-col gap-3">
@@ -84,8 +113,11 @@
       <!-- Map -->
       <div class="flex-1 min-w-0 relative">
         <div id="map" class="absolute inset-0 w-full h-full"></div>
+        <!-- [MOBILE] El detalle es una card superpuesta centrada sobre el mapa (margenes a los
+             costados, esquinas redondeadas, scroll interno); desde md vuelve al panel derecho
+             de altura completa. -->
         <aside v-if="selectedPlace" id="place-details-aside" role="complementary" :aria-label="'Details for ' + selectedPlace.name"
-          class="absolute inset-y-0 right-0 z-[1000] flex w-80 max-w-full flex-col overflow-y-auto bg-white shadow-xl"
+          class="absolute left-4 right-4 top-1/2 z-[1100] max-h-[60vh] -translate-y-1/2 rounded-2xl shadow-xl md:left-auto md:right-0 md:top-0 md:bottom-0 md:z-[1000] md:max-h-none md:translate-y-0 md:rounded-none flex w-auto md:w-80 max-w-full flex-col overflow-y-auto bg-white"
           :style="{ borderLeft: '5px solid ' + categoryColor(selectedPlace.category) }">
           <div class="relative shrink-0">
             <img :src="selectedPlace.imageUrl || '/images/place-placeholder.svg'" :alt="selectedPlace.name"
@@ -111,7 +143,9 @@
             </div>
             <p v-if="selectedPlace.address" class="text-sm text-gray-600">{{ selectedPlace.address }}</p>
             <!-- Datos que hoy solo cargan el importador y el ABM: se muestran si existen. -->
-            <dl v-if="selectedPlace.openingHours || selectedPlace.phone || selectedPlace.website"
+            <!-- [MAPS] El dl tambien abre solo por coordenadas: es el unico dato que puede
+                 traer un lugar sin horarios, telefono ni web. -->
+            <dl v-if="selectedPlace.openingHours || selectedPlace.phone || selectedPlace.website || (selectedPlace.latitude && selectedPlace.longitude)"
               class="flex flex-col gap-2 border-t border-gray-100 pt-4 text-sm text-gray-700">
               <div v-if="selectedPlace.openingHours" class="flex gap-2">
                 <span class="mt-0.5 shrink-0 text-gray-400" v-html="lucideIcon('Clock')"></span>
@@ -146,6 +180,21 @@
                   </dd>
                 </div>
               </div>
+              <!-- [MAPS] Cómo llegar: directions de Google Maps usando la DIRECCION del lugar,
+                   la misma que se muestra arriba. El dataset trae direccion y coordenada que no
+                   coinciden, asi que el link sigue el texto para no mandar a otra calle. El
+                   nombre desambigua direcciones vagas (ej. "Palermo"). -->
+              <div v-if="selectedPlace.address" class="flex gap-2">
+                <span class="mt-0.5 shrink-0 text-gray-400" v-html="lucideIcon('Navigation')"></span>
+                <div class="min-w-0">
+                  <dt class="sr-only">Cómo llegar</dt>
+                  <dd>
+                    <a :href="directionsUrl(selectedPlace)"
+                      target="_blank" rel="noopener noreferrer"
+                      class="block text-gray-900 underline-offset-2 hover:underline">Cómo llegar</a>
+                  </dd>
+                </div>
+              </div>
             </dl>
             <p v-if="selectedPlace.description" class="whitespace-pre-line text-sm leading-6 text-gray-700">
               {{ selectedPlace.description }}
@@ -162,22 +211,57 @@
           </div>
         </aside>
 
-        <!-- Plans discovery -->
+        <!-- Plans discovery: en mobile se despliega desde la tab Plans; en desktop es sidebar. -->
         <aside v-if="!showCreatePlan && !activePlan" id="plans-aside" role="complementary" aria-label="Plans"
-          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
-          <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
+          class="invisible pointer-events-none translate-y-4 opacity-0 transition-[opacity,transform] duration-200 group-has-[#tab-plans:checked]:visible group-has-[#tab-plans:checked]:pointer-events-auto group-has-[#tab-plans:checked]:translate-y-0 group-has-[#tab-plans:checked]:opacity-100 md:visible md:pointer-events-auto md:translate-y-0 md:opacity-100 absolute inset-x-0 bottom-12 md:top-0 md:right-auto md:bottom-0 z-[1040] max-h-[35vh] md:max-h-none flex w-auto md:w-80 max-w-full flex-col gap-4 overflow-y-auto overscroll-contain bg-white p-5 shadow-xl">
+          <div class="flex shrink-0 items-center justify-between">
+            <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
+            <!-- Cierra el desplegable (tilda tab-none del grupo de pestañas); solo en mobile. -->
+            <label for="tab-none" title="Cerrar el panel"
+              class="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 md:hidden">
+              <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </label>
+          </div>
           <input v-model="plansQuery" type="search" placeholder="Search public plans..."
             aria-label="Search public plans"
             class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
           <button type="button" @click="openCreatePlan"
-            class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+            class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
             Create plan
           </button>
           <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Upcoming public plans</h3>
           <ul class="flex flex-col gap-3">
-            <li v-for="plan in filteredPlans" :key="plan.id">
+            <li v-for="plan in filteredPlans" :key="plan.id" class="relative">
+              <!-- [MARK] Toggle de Guardados del sidebar. Vue renderiza las cards, asi que el
+                   estado viene de GET /api/plans/public y el click pega contra
+                   POST/DELETE /api/plans/{id}/bookmarks sin recargar. Sin sesion el boton no se
+                   renderiza (sec:authorize, mismo criterio que el resto de CTAs). -->
+              <button type="button" sec:authorize="isAuthenticated()"
+                @click.stop.prevent="toggleBookmark(plan)"
+                :aria-pressed="plan.bookmarked ? 'true' : 'false'"
+                :aria-label="plan.bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'"
+                :title="plan.bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'"
+                :class="plan.bookmarked ? 'text-primary' : 'text-gray-600 hover:text-primary'"
+                class="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+                data-bookmark-toggle="true" :data-bookmarked="plan.bookmarked ? 'true' : 'false'">
+                <svg v-if="plan.bookmarked" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"
+                  aria-hidden="true">
+                  <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
+                </svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
+                </svg>
+              </button>
               <a :href="'/plans/' + plan.id + '/public'"
-                class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:bg-gray-50">
+                class="block rounded-lg border border-gray-200 bg-white p-4 pr-12 shadow-sm transition hover:bg-gray-50">
                 <h4 class="text-base font-medium text-gray-900">{{ plan.name }}</h4>
                 <p class="text-xs text-gray-500">{{ plan.eventDate || 'No date' }} &middot; {{ plan.placeCount }} places</p>
                 <!-- [CAL] Indicador read-only del agregado (16-CAL.md, AC-10): la version Vue
@@ -211,7 +295,7 @@
 
         <!-- Existing plan being edited: places are added from the Places aside -->
         <aside v-if="activePlan" id="plans-aside" role="complementary" aria-labelledby="active-plan-title"
-          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col gap-3 overflow-y-auto bg-white p-5 shadow-xl">
+          class="invisible pointer-events-none translate-y-4 opacity-0 transition-[opacity,transform] duration-200 group-has-[#tab-plans:checked]:visible group-has-[#tab-plans:checked]:pointer-events-auto group-has-[#tab-plans:checked]:translate-y-0 group-has-[#tab-plans:checked]:opacity-100 md:visible md:pointer-events-auto md:translate-y-0 md:opacity-100 absolute inset-x-0 bottom-12 md:top-0 md:right-auto md:bottom-0 z-[1040] max-h-[35vh] md:max-h-none flex w-auto md:w-80 max-w-full flex-col gap-3 overflow-y-auto overscroll-contain bg-white p-5 shadow-xl">
           <div class="flex items-center justify-between gap-2">
             <h2 id="active-plan-title" class="min-w-0 truncate text-xl font-semibold text-gray-900">{{ activePlan.name }}</h2>
             <button type="button" @click="closeActivePlan" aria-label="Close plan"
@@ -284,7 +368,7 @@
 
         <!-- Create plan: replaces the Plans aside in place, leaving the map interactive -->
         <aside v-if="showCreatePlan" id="plans-aside" role="complementary" aria-labelledby="create-plan-title"
-          class="absolute inset-y-0 left-0 z-[1000] flex w-80 max-w-full flex-col overflow-hidden bg-white p-5 shadow-xl">
+          class="invisible pointer-events-none translate-y-4 opacity-0 transition-[opacity,transform] duration-200 group-has-[#tab-plans:checked]:visible group-has-[#tab-plans:checked]:pointer-events-auto group-has-[#tab-plans:checked]:translate-y-0 group-has-[#tab-plans:checked]:opacity-100 md:visible md:pointer-events-auto md:translate-y-0 md:opacity-100 absolute inset-x-0 bottom-12 md:top-0 md:right-auto md:bottom-0 z-[1040] max-h-[70vh] md:max-h-none flex w-auto md:w-80 max-w-full flex-col overflow-y-auto md:overflow-hidden bg-white p-5 shadow-xl">
           <div class="flex items-center justify-between gap-2">
             <h2 id="create-plan-title" class="text-xl font-semibold text-gray-900">Crear plan</h2>
             <button type="button" @click="closeCreatePlan" aria-label="Close create plan form"
@@ -296,21 +380,22 @@
             </button>
           </div>
             <div class="mb-4 mt-2" aria-live="polite">
-              <p class="mb-1 text-sm text-gray-500">Paso {{ planStep }} de 2:
-                {{ planStep === 1 ? 'Datos del plan' : 'Lugares' }}</p>
+              <p class="mb-1 text-sm text-gray-500">Paso {{ planStep }} de 3:
+                {{ planStep === 1 ? 'Datos del plan' : planStep === 2 ? 'Lugares' : 'Privacidad y permisos' }}</p>
               <div class="flex gap-2">
                 <span class="h-1.5 flex-1 rounded-full" :class="planStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'"></span>
                 <span class="h-1.5 flex-1 rounded-full" :class="planStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'"></span>
+                <span class="h-1.5 flex-1 rounded-full" :class="planStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'"></span>
               </div>
             </div>
             <form th:action="@{/plans}" method="POST" @submit="onPlanSubmit" class="flex min-h-0 flex-1 flex-col">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
               <div class="flex min-h-0 flex-1 overflow-hidden">
-                <div class="flex w-[200%] shrink-0 transition-transform duration-300 ease-in-out"
-                  :class="planStep === 2 ? '-translate-x-1/2' : 'translate-x-0'">
+                <div class="flex w-[300%] shrink-0 transition-transform duration-300 ease-in-out"
+                  :style="{ transform: 'translateX(-' + ((planStep - 1) * 100 / 3) + '%)' }">
                   <!-- Step 1 -->
-                  <div class="w-1/2 shrink-0 overflow-y-auto px-1" :inert="planStep !== 1 ? '' : null">
+                  <div class="w-1/3 shrink-0 overflow-y-auto px-1" :inert="planStep !== 1 ? '' : null">
                     <div>
                       <label for="plan-name" class="mb-1 block text-sm font-medium text-gray-700">Nombre del
                         plan</label>
@@ -326,23 +411,19 @@
                     </div>
                     <div class="mt-4">
                       <label for="plan-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
-                      <input type="date" id="plan-date" name="eventDate"
+                      <input type="date" id="plan-date" name="eventDate" th:attr="min=${today}"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
                     </div>
-                    <div class="mt-4 flex items-center gap-2">
-                      <input type="checkbox" id="plan-public" name="isPublic" value="true"
-                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                      <input type="hidden" name="_isPublic" value="on" />
-                      <label for="plan-public" class="text-sm font-medium text-gray-700">Hacer público este
-                        plan</label>
-                    </div>
+
                   </div>
 
                   <!-- Step 2 -->
-                  <div class="flex w-1/2 shrink-0 flex-col gap-3 overflow-y-auto px-1"
+                  <div class="flex w-1/3 shrink-0 flex-col gap-3 overflow-y-auto px-1"
                     :inert="planStep !== 2 ? '' : null">
                     <p class="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                      Usá el botón + de los lugares del panel derecho para agregarlos a este plan.</p>
+                      Usá el botón + de los lugares del panel derecho para agregarlos a este plan.
+                      Todos los lugares se visitan el mismo día que el plan: acá solo definís la hora
+                      de cada parada.</p>
 
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
                       In this plan ({{ draftPlaces.length }})</h3>
@@ -367,16 +448,24 @@
                         <input type="text" v-model="item.description" :name="'places[' + index + '].description'"
                           placeholder="Nota (opcional)" aria-label="Nota"
                           class="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
-                        <div class="mt-2 flex gap-2">
-                          <input type="date" v-model="item.visitDate" :name="'places[' + index + '].visitDate'"
-                            aria-label="Fecha de visita"
-                            class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm" />
+                        <div class="mt-2">
                           <input type="time" v-model="item.visitTime" :name="'places[' + index + '].visitTime'"
                             aria-label="Hora de visita"
-                            class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm" />
+                            class="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
                         </div>
                       </li>
                     </ol>
+                  </div>
+                  <div class="w-1/3 shrink-0 overflow-y-auto px-1" :inert="planStep !== 3 ? '' : null">
+                    <h3 class="font-semibold">Privacidad y permisos</h3>
+                    <div class="mt-4 flex items-center gap-2">
+                      <input type="checkbox" id="plan-public" name="isPublic" value="true"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="hidden" name="_isPublic" value="on" />
+                      <label for="plan-public" class="text-sm font-medium text-gray-700">Hacer público este
+                        plan</label>
+                    </div>
+                    <div class="mt-4" th:replace="~{components/plan-permissions :: selectors(${defaultPlanSettings}, 'settings.')}"></div>
                   </div>
                 </div>
               </div>
@@ -393,514 +482,66 @@
                   </button>
                 </template>
                 <template v-else>
-                  <button type="button" @click="planStep = 1"
+                  <button type="button" @click="planStep--"
                     class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-300">
                     Atrás
                   </button>
-                  <button type="submit" :disabled="draftPlaces.length === 0"
-                    class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button v-if="planStep === 2" type="button" @click="nextPlanStep" :disabled="draftPlaces.length === 0" class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50">Siguiente</button>
+                  <button v-if="planStep === 3" type="submit" :disabled="draftPlaces.length === 0"
+                    class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M5 12h14" />
+                      <path d="M12 5v14" />
+                    </svg>
                     Crear plan
                   </button>
                 </template>
               </div>
             </form>
         </aside>
+
+        <!-- [MOBILE] Barra de pestañas: Places y Plans despliegan su panel sobre el mapa. Los
+             radios viven dentro de su label (el activo se pinta con peer-checked en el span) y
+             los paneles, que estan en otros puntos del arbol, se enteran por las variantes
+             group-has-[#id:checked] declaradas en #explore-app. Cero JS (AC-08); md:hidden la deja fuera
+             de escritorio. -->
+        <div class="absolute inset-x-0 bottom-0 z-[1050] flex h-12 border-t border-gray-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.10)] md:hidden">
+          <!-- Tercer estado del grupo: tildado = ninguna tab activa y ambos paneles ocultos.
+               Las cruzes de cada panel apuntan aca, porque un radio no se puede destildar con
+               su propio label pero si cambiarse por otro del mismo grupo. -->
+          <input type="radio" name="explore-tab" id="tab-none" class="sr-only" />
+          <label for="tab-places"
+            class="flex flex-1 cursor-pointer items-center justify-center border-r border-gray-200 text-sm font-medium text-gray-500 hover:text-gray-900">
+            <input type="radio" name="explore-tab" id="tab-places" class="peer sr-only" />
+            <span
+              class="rounded-md px-3 py-1.5 text-gray-500 transition-colors peer-checked:bg-blue-50 peer-checked:text-blue-700 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-blue-600">
+              Places
+            </span>
+          </label>
+          <label for="tab-plans"
+            class="flex flex-1 cursor-pointer items-center justify-center text-sm font-medium text-gray-500 hover:text-gray-900">
+            <input type="radio" name="explore-tab" id="tab-plans" class="peer sr-only" />
+            <span
+              class="rounded-md px-3 py-1.5 text-gray-500 transition-colors peer-checked:bg-blue-50 peer-checked:text-blue-700 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-blue-600">
+              Plans
+            </span>
+          </label>
+        </div>
       </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet JS, vendorizado (1.9.4 fija): mismo motivo que la hoja de estilos. -->
+    <script th:src="@{/js/leaflet.js}"></script>
 
     <!-- Add to Plan functionality -->
-    <script src="/js/add-to-plan.js"></script>
+    <script type="module" src="/js/add-to-plan.js"></script>
     <!-- Lucide, vendorizado junto a Vue y Tailwind. Va antes del script de Vue porque el
          mapa de iconos se construye al montar la app, y un script clásico se ejecuta en
          orden: cuando corra createElement, window.lucide ya existe. -->
     <script th:src="@{/js/lucide.min.js}"></script>
 
     <!-- Vue.js app (Vue is already loaded by the layout) -->
-    <script>
-      const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
-
-      createApp({
-        setup() {
-          const places = ref([]);
-          const selectedPlace = ref(null);
-          const selectedCategory = ref('');
-          const searchQuery = ref('');
-          const categories = ref([]);
-          const plansQuery = ref('');
-          const showCreatePlan = ref(false);
-          const planNameInput = ref(null);
-          const planStep = ref(1);
-          const draftPlaces = ref([]);
-          const showAddToPlan = ref(false);
-          const placeToAdd = ref(null);
-          const availablePlans = ref([]);
-          const selectedPlanId = ref('');
-          const publicPlans = ref([]);
-          let nextDraftKey = 0;
-          let map = null;
-          let mapResizeObserver = null;
-          let markers = [];
-          const markersByPlaceId = new Map();
-
-          /* Tokens de categoría declarados una sola vez, en layouts/base :: head.
-             Se leen del :root computado, así que ningún hex vive acá y el mapa
-             del marker y el del panel comparten la misma fuente. */
-          const CATEGORY_TOKEN_BY_ENUM = {
-            'RESTAURANT': '--category-restaurant',
-            'BAR': '--category-bar',
-            'CAFE': '--category-cafe',
-            'MUSEUM': '--category-museum',
-            'PARK': '--category-park',
-            'SHOPPING': '--category-shopping',
-            'NIGHTLIFE': '--category-nightlife',
-            'CULTURE': '--category-culture',
-            'SPORT': '--category-sport',
-            'OTHER': '--category-other'
-          };
-          const OTHER_COLOR_TOKEN = '--category-other';
-
-          const categoryColor = (category) => {
-            const rootStyle = getComputedStyle(document.documentElement);
-            const token = CATEGORY_TOKEN_BY_ENUM[category] || OTHER_COLOR_TOKEN;
-            // trim() importa: getPropertyValue devuelve el valor crudo del token,
-            // con espacios alrededor en varios navegadores. El fallback también sale
-            // de un token, para que ningún hex quede literal acá.
-            return rootStyle.getPropertyValue(token).trim()
-              || rootStyle.getPropertyValue(OTHER_COLOR_TOKEN).trim();
-          };
-
-          const filteredPlaces = computed(() => {
-            return places.value.filter(place => {
-              const matchCategory = !selectedCategory.value || place.category === selectedCategory.value;
-              const matchSearch = !searchQuery.value ||
-                place.name.toLowerCase().includes(searchQuery.value.toLowerCase());
-              return matchCategory && matchSearch;
-            });
-          });
-
-          const capitalize = (str) => {
-            if (!str) return '';
-            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-          };
-
-          /* Iconos de categoría desde la librería vendorizada en resources/core/js/lucide.min.js,
-             igual que Vue y Tailwind: sin CDN y sin depender de la red en el E2E. El mapa es
-             enum -> nombre de Lucide y el SVG lo arma la propia librería (createElement), no
-             un wrapper escrito a mano que se repite diez veces.
-
-             Lucide dibuja con stroke="currentColor", así que el color se hereda del CSS y
-             desaparece el parámetro que antes viajaba por función: el marker pone el color en
-             su div y el panel ya lo tiene en el contenedor. */
-          /* Un icono de Lucide listo para v-html. La librería dibuja con stroke="currentColor", así
-             que el color lo pone el contenedor. */
-          const lucideIcon = (name, size = 16) =>
-            lucide.createElement(lucide.icons[name], {
-              width: size,
-              height: size,
-              'aria-hidden': 'true'
-            }).outerHTML;
-
-          const categoryIcon = (category, size = 16) => {
-            const icons = {
-              'RESTAURANT': 'Utensils',
-              'BAR': 'Wine',
-              'CAFE': 'Coffee',
-              'MUSEUM': 'Landmark',
-              'PARK': 'Trees',
-              'SHOPPING': 'ShoppingBag',
-              'NIGHTLIFE': 'Music',
-              'CULTURE': 'BookOpen',
-              'SPORT': 'Trophy',
-              'OTHER': 'MapPin'
-            };
-            return lucideIcon(icons[category] || icons['OTHER'], size);
-          };
-
-          /* OSM suele traer la web sin esquema ("parrilla.example.com"). Se asume https y nunca se
-             navega a otro esquema: si el dato dice "javascript:...", el resultado es una URL HTTPS
-             inválida en vez de código. Una web vacía devuelve '' y la fila no se muestra. */
-          const websiteHref = (website) => {
-            const raw = (website || '').trim();
-            if (!raw) return '';
-            return /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
-          };
-
-          const websiteLabel = (website) =>
-            websiteHref(website).replace(/^https?:\/\//i, '').replace(/\/$/, '');
-
-          /* tel: no lleva espacios ni guiones; el número que se muestra sí los conserva. */
-          const telHref = (phone) => 'tel:' + (phone || '').replace(/[^\d+]/g, '');
-
-          const clearFilters = () => {
-            selectedCategory.value = '';
-            searchQuery.value = '';
-          };
-
-          const applyFilters = () => {
-            updateMarkers();
-          };
-
-          const overlayWidth = (id) => {
-            const el = document.getElementById(id);
-            return el ? el.offsetWidth : 0;
-          };
-
-          const focusPlace = async (place) => {
-            const marker = markersByPlaceId.get(place.id);
-            if (!map || !marker) return;
-
-            // The details aside is rendered after the reactive update.
-            await nextTick();
-            map.stop();
-            // Instant: a second animated setView issued mid-zoom-animation is superseded by
-            // the first one's target, so rapid card clicks would land on the wrong marker.
-            map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: false });
-            // Plans (left) and details (right) overlay the map: center on the uncovered area.
-            const offsetX = (overlayWidth('plans-aside') - overlayWidth('place-details-aside')) / 2;
-            if (offsetX) map.panBy([-offsetX, 0], { animate: false });
-            marker.openPopup();
-          };
-
-          const selectPlace = (place) => {
-            selectedPlace.value = place;
-            focusPlace(place);
-          };
-
-          const filteredPlans = computed(() => {
-            const query = plansQuery.value.trim().toLowerCase();
-            return publicPlans.value.filter(plan => !query || plan.name.toLowerCase().includes(query));
-          });
-
-          const openCreatePlan = async () => {
-            showCreatePlan.value = true;
-            await nextTick();
-            if (planNameInput.value) planNameInput.value.focus();
-          };
-
-          const closeCreatePlan = () => {
-            showCreatePlan.value = false;
-            planStep.value = 1;
-            draftPlaces.value = [];
-          };
-
-          const activePlan = ref(null);
-
-          const loadActiveEntries = async (planId) => {
-            const response = await fetch('/api/plans/' + planId + '/places');
-            if (!response.ok) throw new Error('GET itinerary ' + response.status);
-            return response.json();
-          };
-
-          const openActivePlan = async (id, name) => {
-            try {
-              const entries = await loadActiveEntries(id);
-              showCreatePlan.value = false;
-              activePlan.value = { id, name, entries };
-            } catch (error) {
-              console.error(error);
-              alert('Error al cargar el plan');
-            }
-          };
-
-          const closeActivePlan = () => {
-            activePlan.value = null;
-          };
-
-          const addToActivePlan = async (place) => {
-            const plan = activePlan.value;
-            const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
-            try {
-              const response = await fetch('/api/plans/' + plan.id + '/places?placeId=' + place.id, {
-                method: 'POST',
-                headers: { [csrfHeader]: csrfToken }
-              });
-              if (response.status === 409) {
-                alert('El destino ya se encuentra en el plan');
-                return;
-              }
-              if (!response.ok) throw new Error('POST ' + response.status);
-              plan.entries = await loadActiveEntries(plan.id);
-            } catch (error) {
-              console.error(error);
-              alert('Error al agregar el lugar al plan');
-            }
-          };
-
-          document.addEventListener('click', (event) => {
-            const link = event.target.closest('[data-open-plan]');
-            if (!link) return;
-            event.preventDefault();
-            openActivePlan(link.dataset.planId, link.dataset.planName);
-          });
-
-          document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && activePlan.value) closeActivePlan();
-          });
-
-          document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && showCreatePlan.value) closeCreatePlan();
-          });
-
-          // The same place may be added repeatedly, so rows are keyed by their own counter.
-          const addToDraft = (place) => {
-            draftPlaces.value.push({ key: nextDraftKey++, place, description: '', visitDate: '', visitTime: '' });
-          };
-
-          const removeDraft = (index) => {
-            draftPlaces.value.splice(index, 1);
-          };
-
-          const moveDraft = (index, offset) => {
-            const target = index + offset;
-            if (target < 0 || target >= draftPlaces.value.length) return;
-            const [item] = draftPlaces.value.splice(index, 1);
-            draftPlaces.value.splice(target, 0, item);
-          };
-
-          const nextPlanStep = () => {
-            if (planNameInput.value && !planNameInput.value.reportValidity()) return;
-            planStep.value = 2;
-          };
-
-          const onPlanSubmit = (event) => {
-            if (planStep.value === 1) {
-              event.preventDefault();
-              nextPlanStep();
-            } else if (draftPlaces.value.length === 0) {
-              event.preventDefault();
-            }
-          };
-
-          const closeDetails = () => {
-            selectedPlace.value = null;
-            if (map) map.closePopup();
-          };
-
-          const updateMarkers = () => {
-            if (!map) return;
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
-            markersByPlaceId.clear();
-
-            filteredPlaces.value.forEach(place => {
-              if (place.latitude && place.longitude) {
-                const color = categoryColor(place.category);
-                const icon = categoryIcon(place.category);
-
-                // El icono usa stroke="currentColor", así que este color:white es lo que
-                // lo pinta de blanco sobre el fondo de categoría. Antes venía hardcodeado
-                // dentro de cada SVG.
-                // data-category es el hook estable del E2E (AC-09): el color sigue pintando
-                // el pin, pero el test no se ata a su hex.
-                const divIcon = L.divIcon({
-                  className: 'custom-marker',
-                  html: '<div data-category="' + place.category + '" style="background-color:' + color + '; color:#fff; width:32px; height:32px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:16px;">' + icon + '</div>',
-                  iconSize: [32, 32],
-                  iconAnchor: [16, 16],
-                  popupAnchor: [0, -16]
-                });
-
-                const marker = L.marker([place.latitude, place.longitude], { icon: divIcon }).addTo(map);
-
-                marker.bindPopup(
-                  '<strong>' + place.name + '</strong><br>' +
-                  place.category,
-                  { autoPan: false }
-                );
-                marker.on('click', () => {
-                  selectedPlace.value = place;
-                });
-                markers.push(marker);
-                markersByPlaceId.set(place.id, marker);
-              }
-            });
-          };
-
-          const closeAddToPlan = () => {
-            showAddToPlan.value = false;
-            placeToAdd.value = null;
-            availablePlans.value = [];
-          };
-
-          const confirmAddToPlan = async () => {
-            if (!placeToAdd.value || !selectedPlanId.value) return;
-            // Emit event for the external JS module to handle the API call
-            const event = new CustomEvent('confirm-add-to-plan', {
-              detail: {
-                planId: selectedPlanId.value,
-                placeId: placeToAdd.value.id
-              }
-            });
-            document.dispatchEvent(event);
-            closeAddToPlan();
-          };
-
-          const createNewPlan = () => {
-            // La creación ya no vive en /plans/new: se abre el panel de creación de /explore con el
-            // lugar pendiente ya cargado en el borrador. El modal "Agregar a plan" se cierra
-            // después de copiar el lugar, porque tapa el panel (overlay z-2000 sobre aside z-1000).
-            const pendingPlace = placeToAdd.value;
-            closeAddToPlan();
-            if (pendingPlace) {
-              addToDraft(pendingPlace);
-            }
-            openCreatePlan();
-          };
-
-          // Listen for add-to-plan events from the external JavaScript module
-          document.addEventListener('add-to-plan', async (event) => {
-            const place = event.detail;
-
-            if (showCreatePlan.value) {
-              addToDraft(place);
-              return;
-            }
-            if (activePlan.value) {
-              await addToActivePlan(place);
-              return;
-            }
-
-            placeToAdd.value = place;
-
-            try {
-              const response = await fetch('/api/plans');
-              if (!response.ok) {
-                const bodyText = await response.text().catch(() => '(sin cuerpo)');
-                console.error('GET /api/plans ->', response.status, response.statusText, bodyText);
-                throw new Error('Failed to fetch plans (' + response.status + ')');
-              }
-
-              const userPlans = await response.json();
-
-              const plansWithoutPlace = userPlans.filter(plan =>
-                !plan.planPlaces.some(pp => pp.placeId === place.id)
-              );
-
-              // La modal se abre siempre (tengas 0, algunos o todos los
-              // planes ocupados por este lugar): desde ahí siempre se puede
-              // crear un plan nuevo, y si hay planes disponibles también se
-              // puede elegir uno existente.
-              availablePlans.value = plansWithoutPlace;
-              selectedPlanId.value = '';
-              showAddToPlan.value = true;
-            } catch (error) {
-              console.error('Error fetching plans:', error);
-              alert('Error al cargar los planes');
-            }
-          });
-
-          onMounted(async () => {
-            await nextTick();
-
-            // [PPV] Feed real de /explore: planes públicos próximos desde la API. Un fallo deja la
-            // lista vacía (igual que el resto de la página), nunca rompe el mapa ni el panel.
-            try {
-              const publicResponse = await fetch('/api/plans/public');
-              if (publicResponse.ok) {
-                publicPlans.value = await publicResponse.json();
-              } else {
-                const bodyText = await publicResponse.text().catch(() => '(sin cuerpo)');
-                console.error('GET /api/plans/public ->', publicResponse.status, publicResponse.statusText, bodyText);
-              }
-            } catch (error) {
-              console.error('Error fetching public plans:', error);
-            }
-
-            // The vendored Tailwind compiler runs deferred, so this can execute before any
-            // stylesheet exists: L.map() inside that 1280x0 box bakes an offset center which
-            // invalidateSize({ pan: false }) then preserves, leaving the opening view shifted
-            // and the markers outside the window. Wait for the layout to settle first.
-            const mapContainer = document.getElementById('map');
-            const layoutDeadline = performance.now() + 2000;
-            while (!mapContainer.clientHeight && performance.now() < layoutDeadline) {
-              await new Promise((resolve) => requestAnimationFrame(resolve));
-            }
-
-            // Initialize map centered on Buenos Aires
-            map = L.map('map', {
-              center: [-34.6037, -58.3816],
-              zoom: 13
-            });
-            // Plans aside overlays the left edge: center on the uncovered area.
-            map.panBy([-overlayWidth('plans-aside') / 2, 0], { animate: false });
-
-            mapResizeObserver = new ResizeObserver(() => {
-              map.invalidateSize({ pan: false });
-            });
-            mapResizeObserver.observe(map.getContainer());
-            requestAnimationFrame(() => map.invalidateSize({ pan: false }));
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            // Fetch places from API
-            const response = await fetch('/api/places');
-            places.value = await response.json();
-
-            // Extract unique categories
-            const cats = new Set(places.value.map(p => p.category));
-            categories.value = Array.from(cats).sort();
-
-            // Add markers
-            updateMarkers();
-
-          });
-
-          watch(filteredPlaces, () => {
-            updateMarkers();
-          });
-
-          return {
-            places,
-            selectedPlace,
-            selectedCategory,
-            searchQuery,
-            categories,
-            filteredPlaces,
-            capitalize,
-            categoryColor,
-            categoryIcon,
-            lucideIcon,
-            websiteHref,
-            websiteLabel,
-            telHref,
-            clearFilters,
-            applyFilters,
-            focusPlace,
-            selectPlace,
-            closeDetails,
-            plansQuery,
-            filteredPlans,
-            showCreatePlan,
-            planNameInput,
-            openCreatePlan,
-            closeCreatePlan,
-            planStep,
-            draftPlaces,
-            activePlan,
-            closeActivePlan,
-            addToDraft,
-            removeDraft,
-            moveDraft,
-            nextPlanStep,
-            onPlanSubmit,
-            showAddToPlan,
-            placeToAdd,
-            availablePlans,
-            selectedPlanId,
-            closeAddToPlan,
-            confirmAddToPlan,
-            createNewPlan
-          };
-        }
-      }).mount('#app');
-    </script>
+    <script type="module" th:src="@{/js/pages/places-list.js}"></script>
   </main>
 
 </body>

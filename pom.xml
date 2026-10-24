@@ -38,6 +38,16 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-support</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>2.0.3</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework</groupId>
@@ -447,6 +457,7 @@
                         <exclude>com/valhalla/presentation/plan/PlanRestController$PlanPlaceSummary.class</exclude>
                         <exclude>com/valhalla/presentation/plan/PlanPlaceRestController$ItineraryEntry.class</exclude>
                         <exclude>com/valhalla/presentation/user/*Request.class</exclude>
+                        <exclude>com/valhalla/presentation/profile/*Form.class</exclude>
                         <exclude>com/valhalla/presentation/place/EditPlaceRequest.class</exclude>
                         <exclude>com/valhalla/presentation/shared/*Request.class</exclude>
                         <exclude>com/valhalla/presentation/shared/UserSession.class</exclude>

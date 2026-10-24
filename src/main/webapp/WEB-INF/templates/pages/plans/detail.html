@@ -2,12 +2,20 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="csrf-token" th:content="${_csrf.token}">
-    <meta name="csrf-header" th:content="${_csrf.headerName}">
+    <!-- This page owns its <head> and inherits layouts/base :: headContent, which deliberately
+         omits the CSRF metas so the public read-only view cannot leak them. The itinerary
+         endpoints need the token, so it is declared here under the canonical names. -->
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" />
+    <!-- Font Awesome se saco: era un webfont entero por 16 glifos, y Lucide ya estaba
+         vendorizado para los iconos de categoria. Dos lenguajes de iconos en un mismo head era
+         justamente el "conflicto Bootstrap/Font Awesome" que anota docs/guide-js.md. -->
+    <!-- Leaflet CSS, vendorizado con la version fija (1.9.4) en el repo. Ya no viene de CDN:
+         un CDN caido dejaba el mapa muerto, y divIcon({ html: elemento }) depende del contrato
+         de 1.9, asi que la version no puede quedar en manos de un origen remoto. -->
+    <link rel="stylesheet" th:href="@{/css/leaflet.css}" />
 
     <style>
         [v-cloak] { display: none; }
@@ -26,7 +34,7 @@
         .place-item[draggable="true"] { cursor: grab; }
         .place-item[draggable="true"]:active { cursor: grabbing; }
         .itinerary-step { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-secondary-bg); color: var(--bs-body-color); font-weight: 700; z-index: 1; }
-        .itinerary-stop { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--bs-border-color); border-radius: 8px; background: white; transition: transform .18s, box-shadow .18s; }
+        .itinerary-stop { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--bs-border-color); border-radius: 8px; background: var(--bs-body-bg); transition: transform .18s, box-shadow .18s; }
         .itinerary-stop:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,.06); }
         .stop-content { flex: 1; min-width: 0; }
         .stop-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
@@ -39,6 +47,9 @@
         .visit-editor { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--bs-border-color); }
         .visit-editor-heading { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color); margin-bottom: 8px; }
         .stop-description { color: var(--bs-secondary-color); font-size: .85rem; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .stop-directions { display: inline-block; margin-top: 6px; color: var(--bs-primary); font-size: .85rem; font-weight: 600; text-decoration: none; }
+        .stop-directions:hover { text-decoration: underline; }
+        .stop-directions:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 2px; }
         .stop-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
         .stop-details { border: 1px solid var(--bs-secondary); border-radius: 6px; background: var(--bs-secondary); color: white; padding: 5px 10px; font-size: .8rem; font-weight: 600; }
         .stop-details:hover { background: #5c636a; }
@@ -50,10 +61,18 @@
             #plan-app { padding-left: 16px !important; padding-right: 16px !important; }
             #plan-app > .d-flex:first-child { flex-wrap: wrap; gap: 12px; }
             #plan-app h2 { overflow-wrap: anywhere; max-width: 100%; }
-            .itinerary-panel { padding: 18px; }
+            /* [MOBILE] Con px-5 (48px) del container + 32 de #plan-app + 36 del panel, la parada
+               quedaba en ~156px y las acciones (flex: 0 0 auto) le robaban ~70: el titulo, con
+               overflow-wrap: anywhere, se partia letra por letra. Aflojo los paddings y las
+               acciones bajan a su propia fila debajo del contenido. */
+            /* El px-5 de Bootstrap es !important: sin lo propio el override pierde y sobran
+               48px por costado. */
+            main.container-fluid { padding-left: 12px !important; padding-right: 12px !important; }
+            .itinerary-panel { padding: 14px; }
             .place-item { gap: 8px; }
-            .stop-actions { flex-direction: column; gap: 2px; }
-            .itinerary-stop { padding: 10px; gap: 8px; }
+            .itinerary-stop { padding: 8px; gap: 8px; flex-wrap: wrap; }
+            .stop-content { flex: 1 1 100%; }
+            .stop-actions { flex: 1 1 100%; flex-direction: row; justify-content: flex-start; gap: 6px; }
         }
         @media (prefers-reduced-motion: reduce) { .itinerary-stop { transition: none; } .itinerary-stop:hover { transform: none; } }
 
@@ -136,40 +155,84 @@
         main h2 { font-size: 2rem; }
         main h4 { font-size: 1.5rem; }
         main h5 { font-size: 1.25rem; }
+        /* [MAPS] El popup del mapa separa el texto del link "Cómo llegar" que se agrega al final. */
+        .leaflet-popup-content a { display: inline-block; margin-top: 0.35rem; }
+
+        /* Modo oscuro. data-bs-theme lo escribe el script temprano de layouts/base ::
+           headContent con el mismo valor que data-theme, así que Bootstrap re-colorea por su
+           cuenta body, bordes, formularios, cards y chips (el background de
+           .itinerary-stop sale de --bs-body-bg: blanco en claro, #212529 en oscuro, igual
+           que el panel donde vive). La excepción es --bs-light, que Bootstrap no redefine
+           en dark y se queda en #f8f9fa: las tres superficies que lo usan pasarían a ser
+           manchas blancas. --bs-tertiary-bg sí cambia (#2b3035). */
+        [data-bs-theme="dark"] .stop-category,
+        [data-bs-theme="dark"] .itinerary-empty,
+        [data-bs-theme="dark"] .stop-remove:hover { background: var(--bs-tertiary-bg); }
     </style>
 </head>
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
 <main class="container-fluid px-5">
     <div id="plan-app">
-    <div class="d-flex justify-content-between align-items-center mb-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-4 mt-4">
         <h2 class="fw-bold m-0" th:text="${plan.name}">Nombre del plan</h2>
+        <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
+        <div th:if="${canBookmark}" class="flex-shrink-0">
+            <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
+        </div>
     </div>
 
     <div class="d-flex flex-wrap justify-content-end gap-2 mb-4">
+        <a th:if="${isPlanAdministrator}" th:href="@{/plans/{id}/settings(id=${plan.id})}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>Configuración del plan</a>
         <form th:if="${isPlanAdministrator}" th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-            <button type="submit" class="btn btn-danger">Eliminar plan</button>
+            <button type="submit" class="btn btn-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>Eliminar plan</button>
         </form>
         <form th:if="${isPlanParticipant == true and isPlanAdministrator != true}" th:action="@{/plans/{id}/leave(id=${plan.id})}" method="POST">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-            <button type="submit" class="btn btn-outline-danger">Salir del plan</button>
+            <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>Salir del plan</button>
         </form>
         <form th:action="@{/plans/{id}/clone(id=${plan.id})}" method="POST">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-            <button type="submit" class="btn btn-outline-primary">Clonar plan</button>
+            <button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>Clonar plan</button>
         </form>
-        <div th:if="${canEditPlan}" class="position-relative" @focusout="closePlanOptions" @keydown.esc.prevent="planOptionsOpen = false; $refs.planOptionsButton.focus()">
+        <div th:if="${canEditPlan}" class="position-relative" @focusout="closePlanOptions" @keydown.esc.prevent="planOptionsOpen = false; planOptionsButton.focus()">
             <button ref="planOptionsButton" type="button" class="btn btn-outline-secondary" @click="planOptionsOpen = !planOptionsOpen" :aria-expanded="planOptionsOpen" aria-controls="plan-options-menu">
-                <i class="fa-solid fa-ellipsis me-1" aria-hidden="true"></i> M&aacute;s opciones
+                <span class="me-1" v-html="iconHtml('ellipsis', 16)"></span> M&aacute;s opciones
             </button>
             <div v-cloak v-show="planOptionsOpen" id="plan-options-menu" class="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-2">
-                <button type="button" class="dropdown-item" aria-haspopup="dialog" aria-controls="banned-participants" @click="planOptionsOpen = false; $refs.bannedParticipantsDialog.showModal()">Ver miembros baneados</button>
+                <button type="button" class="dropdown-item" aria-haspopup="dialog" aria-controls="banned-participants" @click="planOptionsOpen = false; bannedParticipantsDialog.showModal()">Ver miembros baneados</button>
             </div>
         </div>
     </div>
 
     <div class="row g-4">
+        <section th:if="${canShareLink}" class="col-12" aria-labelledby="share-link-heading">
+            <div class="card border-0 shadow-sm p-4">
+                <h5 id="share-link-heading" class="fw-bold">Compartir link</h5>
+                <div class="d-flex gap-2">
+                    <input id="plan-share-link" type="text" readonly th:value="@{/plans/{id}/public(id=${plan.id})}" class="form-control" aria-label="Link del plan" />
+                    <button id="copy-plan-share-link" type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>Copiar link</button>
+                </div>
+                <p id="plan-share-status" role="status" class="small text-muted mt-2 mb-0"></p>
+            </div>
+        </section>
+        <section th:if="${canHandleRequests}" class="col-12" aria-labelledby="join-requests-heading">
+            <div class="card border-0 shadow-sm p-4">
+                <h5 id="join-requests-heading" class="fw-bold">Solicitudes</h5>
+                <p th:if="${#lists.isEmpty(joinRequests)}" class="text-muted mb-0">No hay solicitudes pendientes.</p>
+                <ul th:unless="${#lists.isEmpty(joinRequests)}" class="list-group list-group-flush">
+                    <li th:each="request : ${joinRequests}" class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <a th:href="@{/profile/{id}(id=${request.requesterId})}" th:text="${request.requesterName}">Ver perfil</a>
+                        <form th:action="@{/plans/{id}/join-requests/{rid}/respond(id=${plan.id},rid=${request.id})}" method="post" class="d-flex gap-2 mb-0">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                            <button type="submit" name="action" value="accept" class="btn btn-primary btn-sm">Aceptar</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-outline-danger btn-sm">Rechazar</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </section>
         <div class="col-md-7">
             <div class="card border-0 shadow-sm p-3 mb-4">
                 <div id="map"></div>
@@ -201,7 +264,7 @@
                 </div>
                 <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
                 <div v-if="planPlaces.length === 0" class="itinerary-empty">
-                    <i class="fa-solid fa-map-location-dot fs-3 mb-3" aria-hidden="true"></i>
+                    <span class="mb-3 d-inline-block" v-html="iconHtml('map-pinned', 28)"></span>
                     <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
                     <span class="small">Los lugares del plan aparecer&aacute;n ac&aacute;.</span>
                 </div>
@@ -218,19 +281,25 @@
                             <div class="stop-content">
                                 <div class="stop-heading">
                                     <button type="button" class="stop-title" @click="showPlace(item)">{{ item.name }}</button>
-                                    <span class="stop-category"><i :class="['fa-solid', getCategoryIcon(item.category)]" aria-hidden="true"></i>{{ getCategoryLabel(item.category) }}</span>
+                                    <span class="stop-category"><span v-html="categoryIconHtml(item.category, 14)"></span>{{ getCategoryLabel(item.category) }}</span>
                                 </div>
                                 <div class="stop-schedule">
-                                    <span v-if="item.visitDate"><i class="fa-regular fa-calendar me-1" aria-hidden="true"></i>{{ formatVisitDate(item.visitDate) }}</span>
-                                    <span v-if="item.visitTime"><i class="fa-regular fa-clock me-1" aria-hidden="true"></i>{{ item.visitTime.slice(0, 5) }}</span>
+                                    <span v-if="item.visitDate"><span class="me-1" v-html="iconHtml('calendar', 14)"></span>{{ formatVisitDate(item.visitDate) }}</span>
+                                    <span v-if="item.visitTime"><span class="me-1" v-html="iconHtml('clock', 14)"></span>{{ item.visitTime.slice(0, 5) }}</span>
                                     <span v-if="!item.visitDate && !item.visitTime">Horario por definir</span>
                                 </div>
                                 <p v-if="item.description" class="stop-description">{{ item.description }}</p>
+                                <!-- [MAPS] Como llegar en la lista del itinerario, ademas del mapa:
+                                     mismo link que la ficha y el popup (direccion de texto). -->
+                                <a v-if="item.address" class="stop-directions" :href="directionsUrl(item)"
+                                    target="_blank" rel="noopener">
+                                    <span class="me-1" v-html="iconHtml('navigation', 14)"></span>C&oacute;mo llegar
+                                </a>
                             </div>
                             <div class="stop-actions">
                                 <button type="button" class="stop-details" @click="showPlace(item)">Ver m&aacute;s</button>
                                 <button th:if="${canEditPlan}" @click="removePlace(index)" type="button" class="stop-remove" :disabled="saving">
-                                    <i class="fa-regular fa-trash-can me-1" aria-hidden="true"></i>Eliminar
+                                    <span class="me-1" v-html="iconHtml('trash-2', 14)"></span>Eliminar
                                 </button>
                             </div>
                         </div>
@@ -261,7 +330,13 @@
                     </div>
                     <div class="col-6 bg-light p-3 rounded">
                         <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">ADMINISTRADOR</small>
-                        <span th:text="${plan.administrator != null ? plan.administrator.email : 'Sin administrador'}">Administrador</span>
+                        <!-- [PROF] AC-22/PROF-014: el email del admin deja de ser la etiqueta; aca
+                             se ve el nombre y linkea al perfil publico (es un usuario real). -->
+                        <a th:if="${plan.administrator != null}"
+                          th:href="@{/profile/{id}(id=${plan.administrator.id})}"
+                          th:text="${#strings.trim((plan.administrator.firstName == null ? '' : plan.administrator.firstName) + ' ' + (plan.administrator.lastName == null ? '' : plan.administrator.lastName))}"
+                          class="text-decoration-none text-decoration-underline-hover">Administrador</a>
+                        <span th:if="${plan.administrator == null}">Sin administrador</span>
                     </div>
                     <div class="col-6 bg-light p-3 rounded">
                         <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">CÓDIGO</small>
@@ -288,6 +363,11 @@
                         </select>
                     </div>
                     <input th:unless="${canEditPlan}" type="hidden" name="role" value="guest" />
+                    <label for="invitation-channel" class="form-label">Enviar invitación</label>
+                    <select id="invitation-channel" name="channel" class="form-select mb-3">
+                        <option th:if="${canInviteInternal}" value="app">Dentro de la app</option>
+                        <option th:if="${canInviteByEmail}" value="email">Por email y en Mis planes</option>
+                    </select>
                     <button type="submit" class="btn btn-primary">Invitar</button>
                 </form>
                 <h5 id="participants-heading" class="fw-bold mb-3">
@@ -297,7 +377,10 @@
                 <ol class="list-group list-group-numbered" th:unless="${#lists.isEmpty(participantEmails)}">
                     <li class="list-group-item d-flex flex-wrap align-items-center gap-2" th:each="participant : ${participants}" th:with="email=${participant.email}">
                         <div class="flex-grow-1 text-break" style="min-width: 0;">
-                            <strong class="d-block" th:text="${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">Nombre completo</strong>
+                            <!-- [PROF] AC-22/PROF-014: el nombre del participante linkea a su
+                                 perfil publico; el email queda como sub-linea interna. -->
+                            <a th:href="@{/profile/{id}(id=${participant.id})}" class="text-decoration-none"
+                              th:text="${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">Nombre completo</a>
                             <span class="text-muted small" th:text="${email}">usuario@ejemplo.com</span>
                         </div>
                         <span th:if="${plan.isAdministrator(email)}" class="badge bg-primary flex-shrink-0">Due&ntilde;o</span>
@@ -367,17 +450,17 @@
                     </div>
 
                     <div class="d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary px-4 fw-bold" :disabled="saving">Guardar cambios</button>
+                        <button type="submit" class="btn btn-primary px-4 fw-bold d-inline-flex align-items-center gap-2" :disabled="saving"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>Guardar cambios</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     <p v-if="requestError" class="alert alert-danger mt-3" role="alert">{{ requestError }}</p>
-    <dialog th:if="${canEditPlan}" id="banned-participants" ref="bannedParticipantsDialog" aria-labelledby="banned-participants-title" @close="$refs.planOptionsButton.focus()" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%; max-height: 80dvh; overflow-y: auto; margin: auto;">
+    <dialog th:if="${canEditPlan}" id="banned-participants" ref="bannedParticipantsDialog" aria-labelledby="banned-participants-title" @close="planOptionsButton.focus()" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%; max-height: 80dvh; overflow-y: auto; margin: auto;">
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h4 id="banned-participants-title" class="m-0">Miembros baneados <span class="badge bg-secondary" th:text="${bannedParticipants == null ? 0 : #lists.size(bannedParticipants)}">0</span></h4>
-            <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar miembros baneados" @click="$refs.bannedParticipantsDialog.close()"></button>
+            <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar miembros baneados" @click="bannedParticipantsDialog.close()"></button>
         </div>
         <p th:if="${bannedParticipants == null or #lists.isEmpty(bannedParticipants)}" class="text-muted small mt-3 mb-0">No hay usuarios baneados en este plan.</p>
         <div th:unless="${bannedParticipants == null or #lists.isEmpty(bannedParticipants)}" class="mt-3">
@@ -401,10 +484,20 @@
         <template v-if="selectedEntry">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 id="place-detail-title" class="m-0">{{ selectedEntry.name }}</h4>
-                <button type="button" class="btn-close" aria-label="Cerrar" @click="$refs.placeDialog.close()"></button>
+                <button type="button" class="btn-close" aria-label="Cerrar" @click="placeDialog.close()"></button>
             </div>
             <dl>
                 <dt>Dirección</dt><dd>{{ selectedEntry.address || 'Sin dirección' }}</dd>
+                <!-- [MAPS] Cómo llegar: directions de Google Maps usando la DIRECCION del lugar
+                     (la misma que se muestra arriba), no la coordenada: el dataset las trae
+                     desfasadas. El nombre delante desambigua direcciones vagas. Sin direccion,
+                     sin link. -->
+                <template v-if="selectedEntry.address">
+                    <dt>Cómo llegar</dt>
+                    <dd><a class="text-primary underline-offset-4 hover:underline"
+                        :href="'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent((selectedEntry.name + ' ' + selectedEntry.address).trim())"
+                        target="_blank" rel="noopener">Abrir en Google Maps</a></dd>
+                </template>
                 <dt>Categoría</dt><dd>{{ selectedEntry.category || 'Sin categoría' }}</dd>
                 <dt>Descripción del lugar</dt><dd>{{ selectedEntry.placeDescription || 'Sin descripción' }}</dd>
                 <dt>Descripción de la visita</dt><dd>{{ selectedEntry.description || 'Sin descripción' }}</dd>
@@ -433,310 +526,25 @@
     </dialog>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script th:if="${canShareLink}" th:src="@{/js/plan-share.js}" defer></script>
+    <!-- Leaflet vendorizado (1.9.4 fija): mismo motivo que la hoja de estilos. -->
+    <script th:src="@{/js/leaflet.js}"></script>
+    <!-- Lucide vendorizado: un script clasico se ejecuta antes que el type="module" de abajo,
+         asi window.lucide ya existe cuando el modulo arma sus iconos. -->
+    <script th:src="@{/js/lucide.min.js}"></script>
 
+    <!-- The module cannot read Thymeleaf, so the page hands it exactly these four values.
+         `th:inline` is the accepted literal form (docs/guide-js.md R3): the two lists are
+         object graphs, not strings a data-* attribute could carry. -->
     <script th:inline="javascript">
-    const { createApp } = Vue;
-    const itineraryUrl = /*[[@{/api/plans/{id}/places(id=${plan.id})}]]*/ '';
-    const catalogUrl = /*[[@{/api/places}]]*/ '';
-
-    createApp({
-        data() {
-            const seederPlaces = [
-                { id: 1, name: "El Sanjuanino", category: "RESTAURANT", address: "Av. del Libertador 1234", latitude: -34.5895, longitude: -58.4095 },
-                { id: 2, name: "La Viruta", category: "NIGHTLIFE", address: "Armenia 1366", latitude: -34.6025, longitude: -58.4185 },
-                { id: 3, name: "MALBA", category: "MUSEUM", address: "Av. Figueroa Alcorta 3415", latitude: -34.5833, longitude: -58.3928 },
-                { id: 4, name: "Plaza Serrano", category: "SHOPPING", address: "Plaza Cortazar, Palermo", latitude: -34.5818, longitude: -58.4187 },
-                { id: 5, name: "Cafe Tortoni", category: "CAFE", address: "Av. de Mayo 825", latitude: -34.6083, longitude: -58.3722 },
-                { id: 6, name: "Parque Tres de Febrero", category: "PARK", address: "Palermo", latitude: -34.5747, longitude: -58.4103 },
-                { id: 7, name: "El Ateneo Grand Splendid", category: "CULTURE", address: "Av. Santa Fe 1860", latitude: -34.5967, longitude: -58.3817 },
-                { id: 8, name: "Cerveceria General San Martin", category: "BAR", address: "Av. Corrientes 1475", latitude: -34.6033, longitude: -58.3817 },
-                { id: 9, name: "Planetario Galileo Galilei", category: "CULTURE", address: "Av. Sarmiento s/n", latitude: -34.5725, longitude: -58.4172 },
-                { id: 10, name: "Parrilla Don Julio", category: "RESTAURANT", address: "Guatemala 4699", latitude: -34.5892, longitude: -58.4262 }
-            ];
-
-            const backendAllPlaces = /*[[${allPlaces}]]*/ [] || [];
-            const backendPlanPlaces = /*[[${itineraryPlaces}]]*/ [] || [];
-
-            const parsePlace = (p) => {
-                if (!p) return null;
-                const target = p.place ? p.place : p;
-                return {
-                    entryId: p.entryId || null,
-                    description: p.description,
-                    visitDate: p.visitDate,
-                    visitTime: p.visitTime,
-                    id: target.id,
-                    name: target.name || 'Sin nombre',
-                    category: target.category || 'DEFAULT',
-                    latitude: target.latitude || target.lat,
-                    longitude: target.longitude || target.lng
-                };
-            };
-
-            const normalizedAllPlaces = (backendAllPlaces && backendAllPlaces.length > 0)
-                ? backendAllPlaces.map(parsePlace).filter(p => p && p.id)
-                : seederPlaces;
-
-            const normalizedPlanPlaces = backendPlanPlaces.map(parsePlace).filter(p => p && p.id);
-
-            return {
-                map: null,
-                markers: [],
-                routeLine: null,
-                selectedPlaceId: null,
-                draggedIndex: null,
-                selectedEntry: null,
-                planOptionsOpen: false,
-                requestError: '',
-                saving: false,
-                allPlaces: normalizedAllPlaces,
-                planPlaces: normalizedPlanPlaces
-            };
-        },
-        computed: {
-            availablePlaces() {
-                const addedIds = this.planPlaces.map(p => p.id);
-                return this.allPlaces.filter(p => !addedIds.includes(p.id));
-            }
-        },
-        async mounted() {
-            try {
-                const response = await fetch(catalogUrl);
-                if (!response.ok) throw new Error('No se pudo cargar el listado de lugares.');
-                this.allPlaces = await response.json();
-            } catch (error) {
-                this.allPlaces = [];
-                this.requestError = error.message;
-            }
-            this.initMap();
-        },
-        methods: {
-            closePlanOptions(event) {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                    this.planOptionsOpen = false;
-                }
-            },
-            async itineraryRequest(path = '', options = {}) {
-                const headers = { ...options.headers };
-                headers[document.querySelector('meta[name="csrf-header"]').content] = document.querySelector('meta[name="csrf-token"]').content;
-                const response = await fetch(itineraryUrl + path, { ...options, headers });
-                if (!response.ok || response.redirected) throw new Error('No se pudo actualizar o consultar el lugar. Intenta nuevamente.');
-                const text = await response.text();
-                return text ? JSON.parse(text) : null;
-            },
-            async showPlace(item) {
-                this.requestError = '';
-                try {
-                    const entries = await this.itineraryRequest();
-                    this.selectedEntry = entries.find(entry => entry.id === item.entryId);
-                    if (!this.selectedEntry) throw new Error('Este lugar ya no pertenece al plan. Actualiza la página.');
-                    this.$refs.placeDialog.showModal();
-                } catch (error) { this.requestError = error.message; }
-            },
-
-            async updateDateTime(entry, field, value) {
-                if (this.saving || !entry) return;
-                this.saving = true;
-                this.requestError = '';
-                // El PUT reemplaza fecha y hora juntas, así que se manda el par completo: el campo
-                // cambiado y el otro tal como estaba (si no, cambiar uno borra el otro).
-                const payload = {
-                    visitDate: field === 'visitDate' ? (value || null) : (entry.visitDate || null),
-                    visitTime: field === 'visitTime' ? (value || null) : (entry.visitTime || null)
-                };
-                try {
-                    const updated = await this.itineraryRequest('/' + entry.id, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    entry.visitDate = updated.visitDate;
-                    entry.visitTime = updated.visitTime;
-                    const item = this.planPlaces.find(p => p.entryId === entry.id);
-                    if (item) {
-                        item.visitDate = updated.visitDate;
-                        item.visitTime = updated.visitTime;
-                    }
-                } catch (error) { this.requestError = error.message; }
-                finally { this.saving = false; }
-            },
-            formatVisitDate(value) {
-                const [year, month, day] = value.split('-');
-                return `${day}/${month}/${year}`;
-            },
-            getCategoryLabel(category) {
-                const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
-                return labels[category] || 'Lugar';
-            },
-            getCategoryIcon(category) {
-                const icons = {
-                    RESTAURANT: 'fa-utensils',
-                    NIGHTLIFE:  'fa-wine-glass-alt',
-                    MUSEUM:     'fa-landmark',
-                    SHOPPING:   'fa-shopping-bag',
-                    CAFE:       'fa-coffee',
-                    PARK:       'fa-tree',
-                    CULTURE:    'fa-book',
-                    BAR:        'fa-beer-mug-empty',
-                    SPORT:      'fa-futbol',
-                    DEFAULT:    'fa-map-marker-alt'
-                };
-                return icons[category] || icons.DEFAULT;
-            },
-
-            initMap() {
-                this.map = L.map('map').setView([-34.59, -58.40], 12);
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap'
-                }).addTo(this.map);
-
-                this.renderMarkers();
-            },
-
-            renderMarkers(focusPlaceId = null) {
-                this.markers.forEach(m => this.map.removeLayer(m));
-                this.markers = [];
-                if (this.routeLine) {
-                    this.map.removeLayer(this.routeLine);
-                    this.routeLine = null;
-                }
-
-                const isSinglePlace = this.planPlaces.length === 1;
-                const routeLatLngs = [];
-                const bounds = [];
-
-                if (this.allPlaces.length > 0) {
-                    this.allPlaces.forEach((place) => {
-                        if (place.latitude && place.longitude) {
-                            const itineraryIndex = this.planPlaces.findIndex(p => p.id === place.id);
-                            const isInPlan = itineraryIndex !== -1;
-
-                            const categoryClass = 'cat-' + place.category;
-                            const iconClass = this.getCategoryIcon(place.category);
-
-                            let activeClass = '';
-                            let innerContent = '<i class="fa-solid ' + iconClass + '"></i>';
-
-                            if (isInPlan) {
-                                if (isSinglePlace) {
-                                    activeClass = 'single-place-pulse';
-                                    innerContent = '<i class="fa-solid ' + iconClass + '"></i>';
-                                } else {
-                                    activeClass = 'in-itinerary';
-                                    innerContent = '<span>' + (itineraryIndex + 1) + '</span>';
-                                }
-                            }
-
-                            const customHtml = '<div class="custom-map-icon ' + categoryClass + ' ' + activeClass + '">' + innerContent + '</div>';
-
-                            const customIcon = L.divIcon({
-                                html: customHtml,
-                                className: 'custom-div-icon',
-                                iconSize: [30, 30],
-                                iconAnchor: [15, 15]
-                            });
-
-                            let popupText = '<b>' + place.name + '</b><br><small>' + place.category + '</small>';
-                            if (isInPlan) {
-                                if (isSinglePlace) {
-                                    popupText = '<b>📍 Único lugar seleccionado:</b><br><strong>' + place.name + '</strong>';
-                                } else {
-                                    popupText = '<b>Paso ' + (itineraryIndex + 1) + ': ' + place.name + '</b><br><small class="text-success">✔ En el itinerario</small>';
-                                }
-                            }
-
-                            const marker = L.marker([place.latitude, place.longitude], { icon: customIcon })
-                                .addTo(this.map)
-                                .bindPopup(popupText);
-
-                            this.markers.push(marker);
-                            bounds.push([place.latitude, place.longitude]);
-
-                            if ((focusPlaceId && place.id === focusPlaceId) || (isSinglePlace && isInPlan && focusPlaceId)) {
-                                this.map.flyTo([place.latitude, place.longitude], 13, { duration: 1.0 });
-                                setTimeout(() => marker.openPopup(), 1000);
-                            }
-                        }
-                    });
-                }
-
-                if (this.planPlaces.length > 1) {
-                    this.planPlaces.forEach(place => {
-                        if (place.latitude && place.longitude) {
-                            routeLatLngs.push([place.latitude, place.longitude]);
-                        }
-                    });
-
-                    this.routeLine = L.polyline(routeLatLngs, {
-                        color: '#0d6efd',
-                        weight: 3,
-                        opacity: 0.8,
-                        dashArray: '6, 6'
-                    }).addTo(this.map);
-                }
-
-                if (!focusPlaceId && bounds.length > 0) {
-                    this.map.fitBounds(bounds, { padding: [60, 60] });
-                }
-            },
-
-            async addPlace() {
-                if (this.saving) return;
-                this.saving = true;
-                this.requestError = '';
-                const placeObj = this.allPlaces.find(p => p.id === this.selectedPlaceId);
-                try {
-                    if (placeObj) {
-                        const entry = await this.itineraryRequest('?placeId=' + placeObj.id, { method: 'POST' });
-                        const addedId = placeObj.id;
-                        this.planPlaces.push({ ...placeObj, entryId: entry.id, description: entry.description, visitDate: entry.visitDate, visitTime: entry.visitTime });
-                        this.selectedPlaceId = null;
-                        this.renderMarkers(addedId);
-                    }
-                } catch (error) {
-                    this.requestError = error.message;
-                } finally {
-                    this.saving = false;
-                }
-            },
-
-            async removePlace(index) {
-                if (this.saving) return;
-                this.saving = true;
-                this.requestError = '';
-                try {
-                    await this.itineraryRequest('/' + this.planPlaces[index].entryId, { method: 'DELETE' });
-                    this.planPlaces.splice(index, 1);
-                    this.renderMarkers();
-                } catch (error) { this.requestError = error.message; }
-                finally { this.saving = false; }
-            },
-
-            onDragStart(index) {
-                this.draggedIndex = index;
-            },
-
-            async onDrop(dropIndex) {
-                if (this.saving) return;
-                if (this.draggedIndex !== null && this.draggedIndex !== dropIndex) {
-                    this.saving = true;
-                    this.requestError = '';
-                    const previous = [...this.planPlaces];
-                    const movedItem = this.planPlaces.splice(this.draggedIndex, 1)[0];
-                    this.planPlaces.splice(dropIndex, 0, movedItem);
-                    this.draggedIndex = null;
-                    this.renderMarkers();
-                    try {
-                        await this.itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.planPlaces.map(item => item.entryId)) });
-                    } catch (error) { this.planPlaces = previous; this.renderMarkers(); this.requestError = error.message; }
-                    finally { this.saving = false; }
-                }
-            }
-        }
-    }).mount('#plan-app');
-</script>
+      window.PLAN_DETAIL_SEED = {
+        itineraryUrl: /*[[@{/api/plans/{id}/places(id=${plan.id})}]]*/ '',
+        catalogUrl: /*[[@{/api/places}]]*/ '',
+        allPlaces: /*[[${allPlaces}]]*/ [],
+        itineraryPlaces: /*[[${itineraryPlaces}]]*/ []
+      };
+    </script>
+    <script type="module" th:src="@{/js/pages/plans-detail.js}"></script>
 </main>
 </body>
 </html>

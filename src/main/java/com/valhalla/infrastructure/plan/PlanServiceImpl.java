@@ -6,7 +6,9 @@ import com.valhalla.domain.exception.UserNotFoundException;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanInvitation;
+import com.valhalla.domain.plan.PlanJoinRequest;
 import com.valhalla.domain.plan.PlanParticipantCount;
+import com.valhalla.domain.plan.PlanPermission;
 import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
@@ -31,12 +33,132 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   private static final int SHORT_CODE_LENGTH = 8;
   private static final int SHORT_CODE_MAX_ATTEMPTS = 10;
   private static final String PARTICIPANT_ROLE = "guest";
+  private static final String EMAIL_CHANNEL = "email";
   private static final String EDITOR_ROLE = "editor";
+
+  @Autowired
+  private com.valhalla.domain.plan.EmailNotifier emailNotifier;
 
   private final PlanRepository planRepository;
   private final UserRepository userRepository;
   private final PlaceRepository placeRepository;
   private final PlanRatingRepository planRatingRepository;
+
+  @Override
+  @Transactional(readOnly = true)
+  public Plan getSharedPlan(UUID id) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (plan.getIsPublic()) {
+      return getPublicPlan(id);
+    }
+    plan.getParticipants().forEach(user -> user.getEmail());
+    plan.getEditors().forEach(user -> user.getEmail());
+    plan.getJoinRequests().forEach(request -> request.getRequester().getEmail());
+    plan.getBannedUsers().forEach(user -> user.getEmail());
+    return plan;
+  }
+
+  @Override
+  public void requestToJoin(UUID id, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (plan.isBanned(userEmail)) {
+      throw new PlanBannedException();
+    }
+    User requester = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
+    if (plan.isAdministrator(userEmail) || plan.isParticipant(userEmail)) {
+      return;
+    }
+    if (plan.getIsPublic() || !plan.getSettings().isSharingEnabled()) {
+      throw new PlanNotFoundException();
+    }
+    addJoinRequest(plan, requester);
+  }
+
+  private void addJoinRequest(Plan plan, User requester) {
+    if (!plan.hasPendingJoinRequest(requester.getEmail())) {
+      plan.getJoinRequests().add(new PlanJoinRequest(plan, requester));
+      planRepository.save(plan);
+    }
+  }
+
+  @Override
+  public void respondToJoinRequest(UUID id, UUID requestId, String action, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    requireRequestManager(plan, userEmail);
+    if (!"accept".equals(action) && !"reject".equals(action)) {
+      throw new IllegalArgumentException("Respuesta de solicitud inválida.");
+    }
+    PlanJoinRequest request = plan
+      .getJoinRequests()
+      .stream()
+      .filter(item -> item.getId().equals(requestId))
+      .findFirst()
+      .orElseThrow(PlanNotFoundException::new);
+    User requester = request.getRequester();
+    validateJoinResponse(plan, requester, action);
+    if (
+      "accept".equals(action) &&
+      !plan.isAdministrator(requester.getEmail()) &&
+      !plan.isParticipant(requester.getEmail())
+    ) {
+      plan.getParticipants().add(requester);
+      plan.getInvitations().removeIf(item -> item.getRecipient().getId().equals(requester.getId()));
+    }
+    plan.getJoinRequests().remove(request);
+    planRepository.save(plan);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<PendingJoinRequest> getPendingJoinRequests(UUID id, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    requireRequestManager(plan, userEmail);
+    return plan
+      .getJoinRequests()
+      .stream()
+      .map(request -> {
+        User user = request.getRequester();
+        String name =
+          ((user.getFirstName() == null ? "" : user.getFirstName()) +
+            " " +
+            (user.getLastName() == null ? "" : user.getLastName())).trim();
+        return new PendingJoinRequest(
+          request.getId(),
+          user.getId(),
+          name.isEmpty() ? "Ver perfil" : name
+        );
+      })
+      .toList();
+  }
+
+  @Override
+  public void updateSettings(
+    UUID id,
+    PlanPermission shareLink,
+    PlanPermission handleRequests,
+    PlanPermission inviteInternal,
+    PlanPermission inviteByEmail,
+    String userEmail
+  ) {
+    Plan plan = getOwnedPlan(id, userEmail);
+    plan.getSettings().setShareLink(shareLink);
+    plan.getSettings().setHandleRequests(handleRequests);
+    plan.getSettings().setInviteInternal(inviteInternal);
+    plan.getSettings().setInviteByEmail(inviteByEmail);
+    planRepository.save(plan);
+  }
+
+  private void validateJoinResponse(Plan plan, User requester, String action) {
+    if ("accept".equals(action) && plan.isBanned(requester.getEmail())) {
+      throw new PlanBannedException();
+    }
+  }
+
+  private void requireRequestManager(Plan plan, String userEmail) {
+    if (!plan.canHandleRequests(userEmail)) {
+      throw new PlanNotFoundException();
+    }
+  }
 
   @Autowired
   public PlanServiceImpl(
@@ -84,6 +206,22 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Transactional(readOnly = true)
   public List<Plan> getPublicPlans() {
     List<Plan> plans = planRepository.findByIsPublicTrue();
+    plans.forEach(plan -> plan.getBannedUsers().forEach(user -> user.getEmail()));
+    return plans;
+  }
+
+  /**
+   * [FOLLOW] Planes publicos de los autores seguidos: el conjunto lo elige el follow, el orden y
+   * los filtros siguen siendo de {@code PlanDiscovery}, asi que la query no ordena (AC-08, AC-15).
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<Plan> getPublicPlansByAdministrators(Collection<UUID> administratorIds) {
+    // `in :administratorIds` con una coleccion vacia no es JPQL valido: el early return es correcto.
+    if (administratorIds == null || administratorIds.isEmpty()) {
+      return List.of();
+    }
+    List<Plan> plans = planRepository.findByIsPublicTrueAndAdministratorIdIn(administratorIds);
     plans.forEach(plan -> plan.getBannedUsers().forEach(user -> user.getEmail()));
     return plans;
   }
@@ -202,19 +340,39 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
 
   @Override
   public void inviteParticipant(UUID id, String participantEmail, String role, String userEmail) {
+    inviteParticipant(id, participantEmail, role, "app", userEmail);
+  }
+
+  @Override
+  public void inviteParticipant(
+    UUID id,
+    String participantEmail,
+    String role,
+    String channel,
+    String userEmail
+  ) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
-    validateInvitationPermissions(plan, userEmail);
+    validateInvitationChannel(plan, channel, role, userEmail);
     validateInvitationRole(role);
     User participant = findInvitationRecipient(participantEmail);
     validateInvitationRecipient(plan, participant.getEmail());
     User inviter = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
-    plan.getInvitations().add(new PlanInvitation(plan, participant, inviter, role));
+    PlanInvitation invitation = new PlanInvitation(plan, participant, inviter, role);
+    plan.getInvitations().add(invitation);
     planRepository.save(plan);
+    if (EMAIL_CHANNEL.equals(channel)) {
+      emailNotifier.sendInvitation(participant.getEmail(), plan.getId(), invitation.getToken());
+    }
   }
 
-  private void validateInvitationPermissions(Plan plan, String userEmail) {
-    if (userEmail == null || userEmail.isBlank() || !plan.canEdit(userEmail)) {
-      // Un plan sin permiso responde como inexistente: no se confirma que el id exista.
+  private void validateInvitationChannel(Plan plan, String channel, String role, String userEmail) {
+    if (!"app".equals(channel) && !EMAIL_CHANNEL.equals(channel)) {
+      throw new IllegalArgumentException("Canal de invitación inválido.");
+    }
+    boolean allowed = "app".equals(channel)
+      ? plan.canInviteInternal(userEmail)
+      : plan.canInviteByEmail(userEmail);
+    if (!allowed || (EDITOR_ROLE.equals(role) && !plan.canEdit(userEmail))) {
       throw new PlanNotFoundException();
     }
   }
@@ -284,7 +442,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Override
   public void respondToInvitation(
     UUID planId,
-    Long invitationId,
+    UUID invitationId,
     boolean accept,
     String userEmail
   ) {
@@ -302,12 +460,27 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     }
     if (accept && !plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       plan.getParticipants().add(invitation.getRecipient());
+      plan.getJoinRequests().removeIf(item -> item.getRequester().getEmail().equals(userEmail));
       if (EDITOR_ROLE.equals(invitation.getRole())) {
         plan.getEditors().add(invitation.getRecipient());
       }
     }
     plan.getInvitations().remove(invitation);
     planRepository.save(plan);
+  }
+
+  @Override
+  public void acceptInvitationToken(UUID id, String token, String userEmail) {
+    Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    PlanInvitation invitation = plan
+      .getInvitations()
+      .stream()
+      .filter(item ->
+        token.equals(item.getToken()) && item.getRecipient().getEmail().equals(userEmail)
+      )
+      .findFirst()
+      .orElseThrow(PlanNotFoundException::new);
+    respondToInvitation(id, invitation.getId(), true, userEmail);
   }
 
   @Override
@@ -393,8 +566,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     }
     User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
     if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
-      plan.getParticipants().add(user);
-      planRepository.save(plan);
+      if (plan.getIsPublic()) {
+        plan.getParticipants().add(user);
+        plan.getJoinRequests().removeIf(item -> item.getRequester().getEmail().equals(userEmail));
+        planRepository.save(plan);
+      } else {
+        addJoinRequest(plan, user);
+      }
     }
     return plan;
   }

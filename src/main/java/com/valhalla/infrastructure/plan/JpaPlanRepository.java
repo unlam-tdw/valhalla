@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface JpaPlanRepository extends JpaRepository<Plan, UUID> {
-  List<Plan> findByAdministratorId(Long administratorId);
+  List<Plan> findByAdministratorId(UUID administratorId);
 
   @Query(
     "select distinct plan from Plan plan join plan.planManager.participants participant where participant.email = :email"
@@ -38,6 +38,19 @@ public interface JpaPlanRepository extends JpaRepository<Plan, UUID> {
    */
   @Query("select p from Plan p where p.isPublic = true")
   List<Plan> findByIsPublicTrue();
+
+  /**
+   * [FOLLOW] Planes publicos de un conjunto de autores, en una sola consulta (AC-08, AC-15). Sin
+   * ORDER BY a proposito: el orden y los filtros siguen siendo de {@code PlanDiscovery}. La query
+   * es explicita por el mismo motivo que {@link #findByIsPublicTrue()}: el atributo se llama
+   * {@code isPublic} y la resolucion derived de ese prefijo es ambigua.
+   */
+  @Query(
+    "select plan from Plan plan where plan.isPublic = true and plan.administrator.id in :administratorIds"
+  )
+  List<Plan> findByIsPublicTrueAndAdministratorIdIn(
+    @Param("administratorIds") Collection<UUID> administratorIds
+  );
 
   /**
    * [TOP] Participantes por plan, con {@code left join} para que un plan sin participantes

@@ -95,8 +95,8 @@ public class PlanControllerIntegrationTest {
 
   private MockMvc mockMvc;
 
-  private Long ownerId;
-  private Long otherId;
+  private UUID ownerId;
+  private UUID otherId;
 
   @BeforeEach
   public void setUp() {
@@ -108,6 +108,121 @@ public class PlanControllerIntegrationTest {
         .build();
     this.ownerId = givenUser(OWNER_EMAIL);
     this.otherId = givenUser(OTHER_EMAIL);
+  }
+
+  @Test
+  public void permissionsPersistOnCreationAndSettingsAreOwnerOnly() throws Exception {
+    MvcResult result = mockMvc
+      .perform(
+        post("/plans")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("name", "Plan con permisos")
+          .param("settings.shareLink", "PARTICIPANTS")
+          .param("settings.inviteInternal", "OWNER")
+          .param("settings.inviteByEmail", "EDITORS")
+          .param("settings.handleRequests", "EDITORS")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andReturn();
+    UUID id = UUID.fromString(
+      result.getResponse().getRedirectedUrl().substring("/plans/".length())
+    );
+    entityManager.flush();
+    entityManager.clear();
+    Plan plan = planRepository.findById(id).orElseThrow();
+    assertThat(plan.getSettings().getInviteByEmail().name(), is("EDITORS"));
+    assertThat(plan.getSettings().getInviteInternal().name(), is("OWNER"));
+    assertThat(plan.getSettings().getShareLink().name(), is("PARTICIPANTS"));
+    mockMvc
+      .perform(get("/plans/" + id + "/settings").with(user(OWNER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("inviteByEmail")));
+    mockMvc
+      .perform(
+        post("/plans/" + id + "/settings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("shareLink", "OWNER")
+          .param("handleRequests", "OWNER")
+          .param("inviteInternal", "PARTICIPANTS")
+          .param("inviteByEmail", "PARTICIPANTS")
+      )
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    assertThat(plan.getSettings().getInviteInternal().name(), is("OWNER"));
+  }
+
+  @Test
+  public void invitationLinkRequiresRecipientAndCsrfAndGetDoesNotAccept() throws Exception {
+    UUID id = givenPlanFor(ownerId, PLAN_NAME);
+    mockMvc
+      .perform(
+        post("/plans/" + id + "/participants/invite")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("participantEmail", OTHER_EMAIL)
+          .param("channel", "email")
+      )
+      .andExpect(redirectedUrl("/plans/" + id));
+    Plan plan = planRepository.findById(id).orElseThrow();
+    String token = plan.getInvitations().getFirst().getToken();
+    String url = "/plans/" + id + "/invitations/" + token + "/accept";
+    mockMvc.perform(get(url)).andExpect(redirectedUrl("/auth/login?redirect=" + url));
+    mockMvc
+      .perform(get(url).with(user(OTHER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/plans/accept-invitation"));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    mockMvc.perform(post(url).with(user(OTHER_EMAIL))).andExpect(status().isForbidden());
+    mockMvc
+      .perform(post(url).with(user(OWNER_EMAIL)).with(csrf()))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    mockMvc
+      .perform(post(url).with(user(OTHER_EMAIL)).with(csrf()))
+      .andExpect(redirectedUrl("/plans/" + id));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+    mockMvc
+      .perform(post(url).with(user(OTHER_EMAIL)).with(csrf()))
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+  }
+
+  @Test
+  public void exploreRendersThirdStepAndAllPermissionFields() throws Exception {
+    mockMvc
+      .perform(get("/explore").with(user(OWNER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("settings.inviteInternal")))
+      .andExpect(content().string(containsString("settings.inviteByEmail")))
+      .andExpect(content().string(containsString("settings.handleRequests")))
+      .andExpect(content().string(containsString("settings.shareLink")));
+  }
+
+  @Test
+  public void PET_ownerUpdatesAllSettingsAndValuesSurviveReload() throws Exception {
+    UUID id = givenPlanFor(ownerId, PLAN_NAME);
+    mockMvc
+      .perform(
+        post("/plans/" + id + "/settings")
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("shareLink", "PARTICIPANTS")
+          .param("handleRequests", "EDITORS")
+          .param("inviteInternal", "OWNER")
+          .param("inviteByEmail", "EDITORS")
+      )
+      .andExpect(redirectedUrl("/plans/" + id + "/settings?saved=true"));
+    entityManager.flush();
+    entityManager.clear();
+    Plan saved = planRepository.findById(id).orElseThrow();
+    assertThat(saved.getSettings().getShareLink().name(), is("PARTICIPANTS"));
+    assertThat(saved.getSettings().getHandleRequests().name(), is("EDITORS"));
+    assertThat(saved.getSettings().getInviteInternal().name(), is("OWNER"));
+    assertThat(saved.getSettings().getInviteByEmail().name(), is("EDITORS"));
+    mockMvc
+      .perform(get("/plans/" + id + "/settings?saved=true").with(user(OWNER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("Configuración guardada")));
   }
 
   @Test
@@ -636,7 +751,7 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_074b_postPlans_guardaLosLugaresEnOrdenPermitiendoRepetirUnoYDejandoVaciosEnNull()
     throws Exception {
     // given
-    Long placeId = this.placeRepository.findAll().get(0).getId();
+    UUID placeId = this.placeRepository.findAll().get(0).getId();
 
     // when
     MvcResult result =
@@ -668,6 +783,69 @@ public class PlanControllerIntegrationTest {
     assertThat(saved.getPlanPlaces().get(1).getVisitDate(), is(nullValue()));
     assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(nullValue()));
     assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(placeId)));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_074c_postPlans_ordenaLosLugaresPorHoraDeVisitaYNoPorElOrdenDeCarga()
+    throws Exception {
+    // given: el lugar cargado primero es el de las 15:00 y el segundo el de las 12:00
+    UUID afternoon = this.placeRepository.findAll().get(0).getId();
+    UUID morning = this.placeRepository.findAll().get(1).getId();
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(
+          post("/plans")
+            .with(csrf())
+            .param("name", PLAN_NAME)
+            .param("places[0].placeId", afternoon.toString())
+            .param("places[0].visitTime", "15:00")
+            .param("places[1].placeId", morning.toString())
+            .param("places[1].visitTime", "12:00")
+        )
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+
+    // then: el itinerario sigue el día del plan, no el orden en que se vieron los lugares
+    Plan saved =
+      this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
+    assertThat(saved.getPlanPlaces(), hasSize(2));
+    assertThat(saved.getPlanPlaces().get(0).getPlace().getId(), is(equalTo(morning)));
+    assertThat(saved.getPlanPlaces().get(0).getSortOrder(), is(1));
+    assertThat(saved.getPlanPlaces().get(0).getVisitTime(), is(equalTo(LocalTime.of(12, 0))));
+    assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(afternoon)));
+    assertThat(saved.getPlanPlaces().get(1).getSortOrder(), is(2));
+    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(equalTo(LocalTime.of(15, 0))));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_074d_postPlans_losLugaresSinHoraQuedanAlFinal() throws Exception {
+    // given: el cargado primero no tiene hora, así que el recorrido arranca por el que sí tiene
+    UUID untimed = this.placeRepository.findAll().get(0).getId();
+    UUID timed = this.placeRepository.findAll().get(1).getId();
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(
+          post("/plans")
+            .with(csrf())
+            .param("name", PLAN_NAME)
+            .param("places[0].placeId", untimed.toString())
+            .param("places[1].placeId", timed.toString())
+            .param("places[1].visitTime", "09:00")
+        )
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+
+    // then
+    Plan saved =
+      this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
+    assertThat(saved.getPlanPlaces(), hasSize(2));
+    assertThat(saved.getPlanPlaces().get(0).getPlace().getId(), is(equalTo(timed)));
+    assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(untimed)));
+    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(nullValue()));
   }
 
   @Test
@@ -721,7 +899,7 @@ public class PlanControllerIntegrationTest {
     assertThat(html, containsString(OWNER_EMAIL));
     assertThat(html, containsString("test1234"));
     assertThat(html, containsString("2026-12-01"));
-    assertThat(html, containsString("\"id\":" + entry.getPlace().getId()));
+    assertThat(html, containsString("\"id\":\"" + entry.getPlace().getId() + "\""));
     assertThat(html, not(containsString("password123")));
     assertThat(html, not(containsString("\"administrator\":")));
   }
@@ -901,7 +1079,7 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_086_getPlansIdDeLaCopiaRenderizaElMismoItinerario() throws Exception {
     // given (I-03)
     UUID planId = givenPublicPlanWithPlace();
-    Long placeId = this.placeRepository.findAll().get(0).getId();
+    UUID placeId = this.placeRepository.findAll().get(0).getId();
     String location = cloneLocationOf(planId);
     this.entityManager.flush();
     this.entityManager.clear();
@@ -920,7 +1098,7 @@ public class PlanControllerIntegrationTest {
 
     // then: the clone's detail renders the same place and visit data as the original
     assertThat(html, containsString("desayuno"));
-    assertThat(html, containsString("\"id\":" + placeId));
+    assertThat(html, containsString("\"id\":\"" + placeId + "\""));
     assertThat(html, containsString("\"visitDate\":\"2026-12-01\""));
   }
 
@@ -948,7 +1126,7 @@ public class PlanControllerIntegrationTest {
   public void T_PLN_088_postPlansIdClone_dejaElOriginalIntacto() throws Exception {
     // given (I-05): public plan with a participant and an itinerary
     UUID planId = givenPublicPlanWithPlace();
-    Long participantId = givenUser("participant@test.com");
+    UUID participantId = givenUser("participant@test.com");
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.getParticipants().add(this.userRepository.findById(participantId).orElseThrow());
     this.planRepository.save(plan);
@@ -1018,6 +1196,68 @@ public class PlanControllerIntegrationTest {
     );
   }
 
+  // --- [MAPS] Link "Cómo llegar" con la direccion del lugar ---
+
+  @Test
+  public void T_MAPS_001_getPlansIdPublic_muestraElLinkDeMapsConLaDireccionDelLugar()
+    throws Exception {
+    // given: un plan publico con una parada que tiene direccion
+    UUID planId = givenPublicPlanWithPlace();
+    Place place =
+      this.planRepository.findById(planId).orElseThrow().getPlanPlaces().get(0).getPlace();
+
+    // when: cualquiera abre la vista publica
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: el link apunta a las directions de Google Maps con la DIRECCION del lugar (el
+    // dataset trae direccion y coordenada desfasadas, asi que el link sigue el texto). El
+    // destino va url-encoded; se decodifica para comparar sin atarse a %20 vs +.
+    assertThat(html, containsString("maps/dir/?api=1"));
+    java.util.regex.Matcher destino = java.util.regex.Pattern
+      .compile("destination=([^&\"']+)")
+      .matcher(html);
+    assertThat(destino.find(), is(true));
+    String esperado = (place.getName() + " " + place.getAddress()).trim();
+    assertThat(
+      java.net.URLDecoder.decode(destino.group(1), java.nio.charset.StandardCharsets.UTF_8),
+      is(esperado)
+    );
+  }
+
+  @Test
+  public void T_MAPS_002_getPlansIdPublic_sinDireccionNoMuestraElLinkDeMaps() throws Exception {
+    // given: un plan publico cuya unica parada no tiene direccion
+    UUID planId = givenPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setIsPublic(true);
+    Place sinDireccion = new Place();
+    sinDireccion.setName("Lugar sin direccion");
+    sinDireccion.setCategory(PlaceCategory.RESTAURANT);
+    this.placeRepository.save(sinDireccion);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(sinDireccion);
+    plan.addPlanPlace(entry);
+    this.planRepository.save(plan);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: sin direccion la vista no ofrece el link. Se busca el href ya renderizado (el
+    // ancla), no el texto suelto: el popup del mapa arma su link en el script, asi que
+    // "maps/dir/" aparece como literal de JS aunque no haya parada con direccion.
+    assertThat(html, not(containsString("href=\"https://www.google.com/maps/dir")));
+  }
+
   @Test
   @WithMockUser(username = OTHER_EMAIL)
   public void participantCanJoinReadAndLeaveWithoutDeletingPlan() throws Exception {
@@ -1027,7 +1267,7 @@ public class PlanControllerIntegrationTest {
     plan.setDescription("Recorrido con amigos");
     plan.setEventDate(LocalDate.of(2026, 12, 31));
     plan.setEventTime(LocalTime.of(18, 30));
-    Long remainingUserId = givenUser("remaining@test.com");
+    UUID remainingUserId = givenUser("remaining@test.com");
     plan.getParticipants().add(this.userRepository.findById(remainingUserId).orElseThrow());
     PlanPlace entry = new PlanPlace();
     entry.setPlace(this.placeRepository.findAll().get(0));
@@ -1035,8 +1275,23 @@ public class PlanControllerIntegrationTest {
     this.planRepository.save(plan);
 
     this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", " join1234 "))
-      .andExpect(redirectedUrl("/plans/" + planId));
+      .andExpect(redirectedUrl("/plans/" + planId + "/public"));
     this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", "JOIN1234"))
+      .andExpect(redirectedUrl("/plans/" + planId + "/public"));
+    assertThat(plan.getJoinRequests(), hasSize(1));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    this.mockMvc.perform(
+        post(
+          "/plans/" +
+          planId +
+          "/join-requests/" +
+          plan.getJoinRequests().getFirst().getId() +
+          "/respond"
+        )
+          .with(user(OWNER_EMAIL))
+          .with(csrf())
+          .param("action", "accept")
+      )
       .andExpect(redirectedUrl("/plans/" + planId));
     this.entityManager.flush();
     this.entityManager.clear();
@@ -1166,13 +1421,13 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void T_PVP_004_getPlansIdPublic_conPlanPrivadoRespondeIgualQueUnoInexistente()
+  public void T_PVP_004_getPlansIdPublic_privadoRedirigeALoginSinExponerContenido()
     throws Exception {
     UUID planId = givenPlanFor(this.ownerId, OTHER_PLAN_NAME);
 
     this.mockMvc.perform(get("/plans/" + planId + "/public"))
       .andExpect(status().is3xxRedirection())
-      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+      .andExpect(redirectedUrl("/auth/login?redirect=/plans/" + planId + "/public"));
 
     this.mockMvc.perform(get("/plans/" + MISSING_PLAN_ID + "/public"))
       .andExpect(status().is3xxRedirection())
@@ -1285,7 +1540,7 @@ public class PlanControllerIntegrationTest {
     // given: el plan publico tiene dos participantes ademas de su administrador
     UUID planId = givenPublicPlanWithPlace();
     Plan plan = this.planRepository.findById(planId).orElseThrow();
-    Long otroId = givenUser("otro@test.com");
+    UUID otroId = givenUser("otro@test.com");
     plan.getParticipants().add(this.userRepository.findById(this.otherId).orElseThrow());
     plan.getParticipants().add(this.userRepository.findById(otroId).orElseThrow());
     this.planRepository.save(plan);
@@ -1666,7 +1921,7 @@ public class PlanControllerIntegrationTest {
     Plan saved = this.planRepository.findById(planId).orElseThrow();
     assertThat(saved.isParticipant(OTHER_EMAIL), is(false));
     assertThat(saved.isEditor(OTHER_EMAIL), is(false));
-    Long invitationId = saved.getInvitations().getFirst().getId();
+    UUID invitationId = saved.getInvitations().getFirst().getId();
     this.mockMvc.perform(get("/plans").with(user(OTHER_EMAIL)))
       .andExpect(status().isOk())
       .andExpect(model().attribute("pendingInvitations", hasSize(1)))
@@ -1715,7 +1970,7 @@ public class PlanControllerIntegrationTest {
     this.entityManager.flush();
     this.entityManager.clear();
     Plan plan = this.planRepository.findById(planId).orElseThrow();
-    Long invitationId = plan.getInvitations().getFirst().getId();
+    UUID invitationId = plan.getInvitations().getFirst().getId();
     this.mockMvc.perform(post(invitePath).with(csrf()).param("participantEmail", OTHER_EMAIL))
       .andExpect(
         org.springframework.test.web.servlet.result.MockMvcResultMatchers
@@ -1747,7 +2002,7 @@ public class PlanControllerIntegrationTest {
     this.entityManager.flush();
     this.entityManager.clear();
     plan = this.planRepository.findById(planId).orElseThrow();
-    Long nextInvitationId = plan.getInvitations().getFirst().getId();
+    UUID nextInvitationId = plan.getInvitations().getFirst().getId();
     this.mockMvc.perform(
         post("/plans/" + planId + "/invitations/" + nextInvitationId + "/respond")
           .with(user(OTHER_EMAIL))
@@ -1891,7 +2146,7 @@ public class PlanControllerIntegrationTest {
     assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
   }
 
-  private Long givenUser(String email) {
+  private UUID givenUser(String email) {
     User user = new User();
     user.setEmail(email);
     user.setPassword("password123");
@@ -1903,7 +2158,7 @@ public class PlanControllerIntegrationTest {
     return this.userRepository.findByEmail(email).orElseThrow().getId();
   }
 
-  private UUID givenPlanFor(Long administratorId, String name) {
+  private UUID givenPlanFor(UUID administratorId, String name) {
     Plan plan = new Plan();
     plan.setName(name);
     plan.setAdministrator(this.userRepository.findById(administratorId).orElseThrow());
@@ -1911,7 +2166,7 @@ public class PlanControllerIntegrationTest {
   }
 
   /** [PPV] Un plan visible para el listado publico. */
-  private UUID givenPublicPlanFor(Long administratorId, String name) {
+  private UUID givenPublicPlanFor(UUID administratorId, String name) {
     UUID id = givenPlanFor(administratorId, name);
     Plan plan = this.planRepository.findById(id).orElseThrow();
     plan.setIsPublic(true);
@@ -1923,7 +2178,7 @@ public class PlanControllerIntegrationTest {
    * tiene categoria propia, matchea por la categoria del lugar de su itinerario.
    */
   private UUID givenSearchablePublicPlan(
-    Long administratorId,
+    UUID administratorId,
     String name,
     LocalDate eventDate,
     PlaceCategory category

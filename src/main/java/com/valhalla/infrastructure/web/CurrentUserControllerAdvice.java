@@ -1,5 +1,8 @@
 package com.valhalla.infrastructure.web;
 
+import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.user.User;
+import com.valhalla.domain.user.UserService;
 import com.valhalla.infrastructure.security.AppUserDetails;
 import com.valhalla.presentation.shared.LoginRedirects;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,6 +31,12 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 @ControllerAdvice
 public class CurrentUserControllerAdvice {
 
+  private final UserService userService;
+
+  public CurrentUserControllerAdvice(UserService userService) {
+    this.userService = userService;
+  }
+
   @ModelAttribute("userInitial")
   public String userInitial(Principal principal) {
     String name = displayNameOf(principal);
@@ -40,6 +49,31 @@ public class CurrentUserControllerAdvice {
   @ModelAttribute("userDisplayName")
   public String userDisplayName(Principal principal) {
     return displayNameOf(principal);
+  }
+
+  /**
+   * Avatar URL del usuario con sesion, o null para dejar el fallback de iniciales. La pide el
+   * navbar (trigger del modal) y el header del modal, porque el avatar actualizado en el perfil
+   * tiene que verse en ambas superficies en el render siguiente — la pagina se rinde por request,
+   * asi que el redirect del Guardar Perfil alcanza, sin JS ni cache.
+   *
+   * <p>Defensiva como el resto del advice: sin sesion o un principal que no reside en la tabla
+   * (nombres sinteticos de MockMvc, anonymous) devuelven null y el navbar sigue rindiendo
+   * iniciales. La consulta es un lookup indexado por email; el session id real de
+   * {@code AppUserDetails} no cambia ni se toca aqui.
+   */
+  @ModelAttribute("userAvatarUrl")
+  public String userAvatarUrl(Principal principal) {
+    if (principal == null || principal instanceof AnonymousAuthenticationToken) {
+      return null;
+    }
+    try {
+      User user = userService.getByEmail(principal.getName());
+      String avatarUrl = user.getAvatarUrl();
+      return avatarUrl == null || avatarUrl.isBlank() ? null : avatarUrl.trim();
+    } catch (UserNotFoundException syntheticPrincipal) {
+      return null;
+    }
   }
 
   /**
@@ -65,6 +99,27 @@ public class CurrentUserControllerAdvice {
    */
   @ModelAttribute("currentPath")
   public String currentPath(HttpServletRequest request) {
+    return visiblePath(request);
+  }
+
+  /**
+   * [MARK] La ruta con su query string, para que los forms de Guardados vuelvan a la misma pantalla
+   * con los filtros del feed intactos (el feed lleva {@code q}/{@code category}/{@code when}/
+   * {@code sort} en la URL). Mismas exclusiones que {@link #currentPath}: las paginas de auth y
+   * admin no ofrecen el toggle.
+   */
+  @ModelAttribute("currentUrl")
+  public String currentUrl(HttpServletRequest request) {
+    String path = visiblePath(request);
+    if (path == null) {
+      return null;
+    }
+    String query = request.getQueryString();
+    return query == null || query.isBlank() ? path : path + "?" + query;
+  }
+
+  /** Path de la request sin context path, o null donde el navbar no tiene que hablar. */
+  private static String visiblePath(HttpServletRequest request) {
     String path = request.getRequestURI().substring(request.getContextPath().length());
     if ("/auth".equals(path) || path.startsWith("/auth/") || isInAdminArea(request)) {
       return null;

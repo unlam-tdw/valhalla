@@ -145,7 +145,19 @@ public class SecurityConfig {
           // [PVP] La vista publica de un plan compartido tambien es visible sin sesion. La
           // allowlist de ambas es solo para GET: el POST de /plans/{id}/clone [CLO] sigue
           // exigiendo estar autenticado.
-          .requestMatchers(org.springframework.http.HttpMethod.GET, "/plans/*/public")
+          .requestMatchers(
+            org.springframework.http.HttpMethod.GET,
+            "/plans/*/public",
+            "/plans/*/invitations/*/accept"
+          )
+          .permitAll()
+          // [PROF] La vista publica del perfil es abierta (11-PROF v2.3: el link compartido
+          // funciona sin sesion). Solo el GET con id UUID; GET /profile (atajo "mi perfil")
+          // y el POST quedan en anyRequest().authenticated() de abajo.
+          .requestMatchers(
+            org.springframework.http.HttpMethod.GET,
+            "/profile/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}"
+          )
           .permitAll()
           .requestMatchers("/api/**")
           .authenticated()

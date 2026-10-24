@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.options.WaitUntilState;
@@ -37,13 +38,14 @@ public class PlacesViewE2E extends E2eBase {
   /**
    * AC-13: el navbar se decide por área, no por rol. El arrange de esta clase es justo el caso
    * reportado —una sesión ADMIN parada en /explore— y tiene que ver el menú de usuario (sin
-   * "Users"); el conjunto se pinnea entero para que un item fantasma también falle.
+   * "Users"); el conjunto se pinnea entero para que un item fantasma también falle. El último
+   * item es el toggle de modo oscuro: un botón de solo ícono cuyo único texto es el sr-only.
    */
   @Test
   void shouldShowTheUserNavbarToAnAdminBrowsingTheExplore() {
     assertThat(
       new WebPage(page).getNavbarItems(),
-      contains("PlanIt", "Para vos", "Explore", "Plans", "Logout")
+      contains("PlanIt", "Para vos", "Explore", "Plans", "A", "Cambiar tema")
     );
   }
 
@@ -58,20 +60,20 @@ public class PlacesViewE2E extends E2eBase {
       is(equalTo(2))
     );
 
-    page.locator("#app > aside select").selectOption("RESTAURANT");
+    page.locator("#explore-app > aside select").selectOption("RESTAURANT");
     waitForPlaceCount(2);
     assertThat(
       placeCards().allTextContents().stream().allMatch(cardText -> cardText.contains("RESTAURANT")),
       is(true)
     );
 
-    page.locator("#app > aside select").selectOption("");
-    page.locator("#app > aside input[type='text']").fill("Don");
+    page.locator("#explore-app > aside select").selectOption("");
+    page.locator("#explore-app > aside input[type='text']").fill("Don");
     waitForPlaceCount(1);
     assertThat(placeCards().first().textContent(), containsString("Don"));
 
     page
-      .locator("#app > aside button")
+      .locator("#explore-app > aside button")
       .filter(new Locator.FilterOptions().setHasText("Clear Filters"))
       .click();
     waitForPlaceCount(TOTAL_PLACES);
@@ -87,8 +89,16 @@ public class PlacesViewE2E extends E2eBase {
 
     assertThat(panel.locator("h2").textContent(), containsString("El Sanjuanino"));
     assertThat(page.locator(".leaflet-popup").textContent(), containsString("RESTAURANT"));
-    // Leaflet's own close button is an <a>; only the content must stay link-free.
-    assertThat(page.locator(".leaflet-popup-content a").count(), is(equalTo(0)));
+    // [MAPS] El popup ganó el link "Cómo llegar": es el único contenido linkeable, y el
+    // marcador clickeado siempre tiene dirección (la del lugar que se muestra en la ficha).
+    Locator directions = page.locator(".leaflet-popup-content a");
+    assertThat(directions.count(), is(equalTo(1)));
+    assertThat(directions.textContent(), is(equalTo("Cómo llegar")));
+    assertThat(
+      directions.getAttribute("href"),
+      // El destino es la dirección del lugar (url-encoded), no la coordenada.
+      matchesPattern(".*google\\.com/maps/dir/\\?api=1&destination=([^&\\s]|%[0-9A-F]{2})+.*")
+    );
     assertThat(page.url(), equalTo(placesUrl()));
   }
 
@@ -152,7 +162,7 @@ public class PlacesViewE2E extends E2eBase {
 
   @Test
   void shouldKeepPageFixedWhilePlacesSidebarScrolls() {
-    Locator sidebar = page.locator("#app > aside");
+    Locator sidebar = page.locator("#explore-app > aside");
     assertThat(
       (Boolean) sidebar.evaluate("element => element.scrollHeight > element.clientHeight"),
       is(true)
@@ -164,7 +174,7 @@ public class PlacesViewE2E extends E2eBase {
 
     sidebar.hover();
     page.mouse().wheel(0, 500);
-    page.waitForFunction("() => document.querySelector('#app > aside').scrollTop > 0");
+    page.waitForFunction("() => document.querySelector('#explore-app > aside').scrollTop > 0");
 
     assertThat(
       (Boolean) page.evaluate(
@@ -209,7 +219,7 @@ public class PlacesViewE2E extends E2eBase {
   }
 
   private Locator placeCards() {
-    return page.locator("#app > aside article");
+    return page.locator("#explore-app > aside article");
   }
 
   private void waitForMarkerCentered(int markerIndex) {
@@ -231,7 +241,7 @@ public class PlacesViewE2E extends E2eBase {
 
   private void waitForPlaceCount(int expectedCount) {
     page.waitForFunction(
-      "() => document.querySelectorAll('#app > aside article').length === " +
+      "() => document.querySelectorAll('#explore-app > aside article').length === " +
       expectedCount +
       " && document.querySelectorAll('#map .leaflet-marker-icon').length === " +
       expectedCount

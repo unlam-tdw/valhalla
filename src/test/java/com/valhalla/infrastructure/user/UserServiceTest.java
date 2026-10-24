@@ -13,6 +13,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.valhalla.domain.bookmark.PlanBookmarkRepository;
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.exception.UserNotFoundException;
 import com.valhalla.domain.plan.Plan;
@@ -34,29 +35,42 @@ public class UserServiceTest {
 
   private static final UUID PLAN_ID_A = UUID.fromString("0192f0a1-0000-7000-8000-00000000000a");
   private static final UUID PLAN_ID_B = UUID.fromString("0192f0a1-0000-7000-8000-00000000000b");
+  private static final UUID USER_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000001");
+  private static final UUID OTHER_USER_ID = UUID.fromString("0192f0a1-0000-7000-8000-000000000002");
+  private static final UUID SESSION_USER_ID = UUID.fromString(
+    "0192f0a1-0000-7000-8000-000000000007"
+  );
+  private static final UUID MISSING_ID = UUID.fromString("0192f0a1-0000-7000-8000-0000000003e7");
 
   private UserService userService;
   private UserRepository userRepositoryMock;
   private PlanRepository planRepositoryMock;
+  private PlanBookmarkRepository planBookmarkRepositoryMock;
   private PasswordEncoder passwordEncoder;
 
   @BeforeEach
   public void init() {
     this.userRepositoryMock = mock(UserRepository.class);
     this.planRepositoryMock = mock(PlanRepository.class);
+    this.planBookmarkRepositoryMock = mock(PlanBookmarkRepository.class);
     this.passwordEncoder = new BCryptPasswordEncoder();
     this.userService =
-      new UserServiceImpl(this.userRepositoryMock, this.planRepositoryMock, this.passwordEncoder);
+      new UserServiceImpl(
+        this.userRepositoryMock,
+        this.planRepositoryMock,
+        this.planBookmarkRepositoryMock,
+        this.passwordEncoder
+      );
   }
 
   @Test
   public void shouldReturnAllUsersWhenFindAll() {
     // given
     User user1 = new User();
-    user1.setId(1L);
+    user1.setId(USER_ID);
     user1.setEmail("a@test.com");
     User user2 = new User();
-    user2.setId(2L);
+    user2.setId(OTHER_USER_ID);
     user2.setEmail("b@test.com");
     when(this.userRepositoryMock.findAll()).thenReturn(List.of(user1, user2));
 
@@ -71,7 +85,7 @@ public class UserServiceTest {
   @Test
   public void shouldReturnUserWhenFindByIdExists() {
     // given
-    Long id = 1L;
+    UUID id = USER_ID;
     User expectedUser = new User();
     expectedUser.setId(id);
     expectedUser.setEmail("test@test.com");
@@ -87,7 +101,7 @@ public class UserServiceTest {
   @Test
   public void shouldThrowWhenFindByIdDoesNotExist() {
     // given
-    Long id = 999L;
+    UUID id = MISSING_ID;
     when(this.userRepositoryMock.findById(id)).thenReturn(Optional.empty());
 
     // when and then
@@ -135,7 +149,7 @@ public class UserServiceTest {
   @Test
   public void shouldUpdateEmailAndRoleWhenUpdateWithValidData() {
     // given
-    Long id = 1L;
+    UUID id = USER_ID;
     User existingUser = new User();
     existingUser.setId(id);
     existingUser.setEmail("old@test.com");
@@ -158,7 +172,7 @@ public class UserServiceTest {
   @Test
   public void shouldThrowWhenUpdateNonExistentUser() {
     // given
-    Long id = 999L;
+    UUID id = MISSING_ID;
     when(this.userRepositoryMock.findById(id)).thenReturn(Optional.empty());
 
     // when and then
@@ -171,7 +185,7 @@ public class UserServiceTest {
   @Test
   public void shouldSetActiveFalseWhenDeactivate() {
     // given
-    Long id = 1L;
+    UUID id = USER_ID;
     User user = new User();
     user.setId(id);
     user.setEmail("test@test.com");
@@ -191,7 +205,7 @@ public class UserServiceTest {
   @Test
   public void shouldThrowWhenDeactivateNonExistentUser() {
     // given
-    Long id = 999L;
+    UUID id = MISSING_ID;
     when(this.userRepositoryMock.findById(id)).thenReturn(Optional.empty());
 
     // when and then
@@ -201,7 +215,7 @@ public class UserServiceTest {
   @Test
   public void shouldDeleteUserWhenDeleteWithExistingId() {
     // given
-    Long id = 1L;
+    UUID id = USER_ID;
     when(this.userRepositoryMock.existsById(id)).thenReturn(true);
     when(this.planRepositoryMock.findByAdministratorId(id)).thenReturn(List.of());
 
@@ -220,7 +234,7 @@ public class UserServiceTest {
   @Test
   public void shouldDeleteThePlansOfTheUserBeforeDeletingTheUser() {
     // given
-    Long id = 1L;
+    UUID id = USER_ID;
     when(this.userRepositoryMock.existsById(id)).thenReturn(true);
     when(this.planRepositoryMock.findByAdministratorId(id))
       .thenReturn(List.of(planOwnedBy(id, PLAN_ID_A), planOwnedBy(id, PLAN_ID_B)));
@@ -236,6 +250,26 @@ public class UserServiceTest {
   }
 
   /**
+   * [MARK] Los guardados cuelgan de {@code users.id}: si el usuario se borra con guardados encima
+   * la FK revienta. Se borran antes del usuario, igual que sus planes.
+   */
+  @Test
+  public void shouldDeleteTheBookmarksOfTheUserBeforeDeletingTheUser() {
+    // given
+    UUID id = USER_ID;
+    when(this.userRepositoryMock.existsById(id)).thenReturn(true);
+    when(this.planRepositoryMock.findByAdministratorId(id)).thenReturn(List.of());
+
+    // when
+    this.userService.delete(id);
+
+    // then
+    InOrder inOrder = inOrder(this.planBookmarkRepositoryMock, this.userRepositoryMock);
+    inOrder.verify(this.planBookmarkRepositoryMock).deleteAllByUserId(id);
+    inOrder.verify(this.userRepositoryMock).deleteById(id);
+  }
+
+  /**
    * El recorte por dueño no lo hace este servicio: lo hace la consulta. Lo que se verifica es que
    * se pregunte por los planes de <em>ese</em> usuario y no por el catálogo entero, porque un
    * findAll() ahí habría borrado los planes de todos.
@@ -243,7 +277,7 @@ public class UserServiceTest {
   @Test
   public void shouldAskForThePlansOfThatUserAndNotForTheWholeCatalogue() {
     // given
-    Long id = 1L;
+    UUID id = USER_ID;
     when(this.userRepositoryMock.existsById(id)).thenReturn(true);
     when(this.planRepositoryMock.findByAdministratorId(id))
       .thenReturn(List.of(planOwnedBy(id, PLAN_ID_A)));
@@ -258,7 +292,7 @@ public class UserServiceTest {
     verify(this.userRepositoryMock, times(1)).deleteById(id);
   }
 
-  private Plan planOwnedBy(Long administratorId, UUID planId) {
+  private Plan planOwnedBy(UUID administratorId, UUID planId) {
     Plan plan = new Plan();
     plan.setId(planId);
     User administrator = new User();
@@ -270,17 +304,17 @@ public class UserServiceTest {
   @Test
   public void shouldThrowWhenDeleteNonExistentUser() {
     // given
-    Long id = 999L;
+    UUID id = MISSING_ID;
     when(this.userRepositoryMock.existsById(id)).thenReturn(false);
 
     // when and then
     assertThrows(UserNotFoundException.class, () -> this.userService.delete(id));
-    verify(this.userRepositoryMock, never()).deleteById(any(Long.class));
+    verify(this.userRepositoryMock, never()).deleteById(any(UUID.class));
   }
 
   @Test
   public void shouldSetActiveTrueWhenActivate() {
-    Long id = 1L;
+    UUID id = USER_ID;
     User user = new User();
     user.setId(id);
     user.setEmail("test@test.com");
@@ -296,7 +330,7 @@ public class UserServiceTest {
 
   @Test
   public void shouldThrowWhenActivateNonExistentUser() {
-    Long id = 999L;
+    UUID id = MISSING_ID;
     when(this.userRepositoryMock.findById(id)).thenReturn(Optional.empty());
 
     assertThrows(UserNotFoundException.class, () -> this.userService.activate(id));
@@ -304,7 +338,7 @@ public class UserServiceTest {
 
   @Test
   public void shouldReturnNewPasswordWhenRotatePassword() {
-    Long id = 1L;
+    UUID id = USER_ID;
     User user = new User();
     user.setId(id);
     user.setEmail("test@test.com");
@@ -322,7 +356,7 @@ public class UserServiceTest {
 
   @Test
   public void shouldThrowWhenRotatePasswordNonExistentUser() {
-    Long id = 999L;
+    UUID id = MISSING_ID;
     when(this.userRepositoryMock.findById(id)).thenReturn(Optional.empty());
 
     assertThrows(UserNotFoundException.class, () -> this.userService.rotatePassword(id));
@@ -339,5 +373,88 @@ public class UserServiceTest {
     String first = this.userService.generatePassword();
     String second = this.userService.generatePassword();
     assert !first.equals(second);
+  }
+
+  // --- [PROF] U-07 ---
+
+  @Test
+  public void shouldPersistTheProfileUpdateForAnExistingUser() {
+    UUID id = USER_ID;
+    User user = new User();
+    user.setId(id);
+    user.setEmail("profile@test.com");
+    when(this.userRepositoryMock.findById(id)).thenReturn(Optional.of(user));
+
+    this.userService.updateProfile(id, "Ada", "Lovelace", "/images/avatars/avatar-1.svg");
+
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(this.userRepositoryMock, times(1)).update(captor.capture());
+    User saved = captor.getValue();
+    assertThat(saved.getFirstName(), is(equalTo("Ada")));
+    assertThat(saved.getLastName(), is(equalTo("Lovelace")));
+    assertThat(saved.getAvatarUrl(), is(equalTo("/images/avatars/avatar-1.svg")));
+  }
+
+  // --- [PROF] U-08 ---
+
+  @Test
+  public void shouldFailGracefullyWhenUpdatingTheProfileOfAMissingUser() {
+    UUID id = MISSING_ID;
+    when(this.userRepositoryMock.findById(id)).thenReturn(Optional.empty());
+
+    assertThrows(
+      UserNotFoundException.class,
+      () -> this.userService.updateProfile(id, "Ada", "Lovelace", null)
+    );
+  }
+
+  // --- [PROF] U-09 ---
+
+  @Test
+  public void shouldRejectThePasswordChangeAndWriteNothingWhenTheCurrentOneIsWrong() {
+    UUID id = USER_ID;
+    User user = new User();
+    user.setId(id);
+    user.setPassword(this.passwordEncoder.encode("la-correcta"));
+    when(this.userRepositoryMock.findById(id)).thenReturn(Optional.of(user));
+
+    boolean changed = this.userService.changePassword(id, "incorrecta", "la-nueva-123");
+
+    assertThat(changed, is(false));
+    verify(this.userRepositoryMock, never()).update(any(User.class));
+  }
+
+  // --- [PROF] U-10 ---
+
+  @Test
+  public void shouldPersistTheNewHashWhenTheCurrentPasswordIsCorrect() {
+    UUID id = USER_ID;
+    User user = new User();
+    user.setId(id);
+    user.setPassword(this.passwordEncoder.encode("la-correcta"));
+    when(this.userRepositoryMock.findById(id)).thenReturn(Optional.of(user));
+
+    boolean changed = this.userService.changePassword(id, "la-correcta", "la-nueva-123");
+
+    assertThat(changed, is(true));
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(this.userRepositoryMock, times(1)).update(captor.capture());
+    assertThat(
+      this.passwordEncoder.matches("la-nueva-123", captor.getValue().getPassword()),
+      is(true)
+    );
+  }
+
+  // --- [PROF] U-11 ---
+
+  @Test
+  public void shouldReturnTheSessionUserFindByEmail() {
+    User user = new User();
+    user.setId(SESSION_USER_ID);
+    user.setEmail("session@test.com");
+    when(this.userRepositoryMock.findByEmail("session@test.com")).thenReturn(Optional.of(user));
+
+    assertThat(this.userService.getByEmail("session@test.com"), is(equalTo(user)));
+    assertThrows(UserNotFoundException.class, () -> this.userService.getByEmail("nope@test.com"));
   }
 }

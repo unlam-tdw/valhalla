@@ -97,7 +97,23 @@ invitar nuevamente y que una expulsión permite volver a unirse.
 Las comprobaciones de `PlanControllerIntegrationTest` usan la etiqueta vigente
 «Expulsar del plan a» para verificar qué controles puede ver cada rol.
 
-Validación realizada con `mvn test -Djacoco.gate.skip=true`: 476 pruebas aprobadas,
+Validación realizada con `mvn test -Djacoco.gate.skip=true`: 854 pruebas aprobadas,
 sin fallos, errores ni omisiones. También pasaron las comprobaciones de formato,
 PMD y duplicación del ciclo Maven. El umbral de cobertura se omitió explícitamente;
 no se ejecutaron pruebas de navegador.
+
+
+## Integraci?n con main
+
+Se conservan Guardados, el feed Siguiendo, los permisos configurables, las solicitudes
+para planes privados y el m?dulo `pages/plans-detail.js`. El men? y di?logo de baneos
+usan Composition API en ese m?dulo, sin restaurar el script inline anterior.
+
+Las lecturas de planes compartidos privados y del feed Siguiendo inicializan los
+baneos dentro de la transacci?n. El baneo se verifica antes de mostrar el resumen
+privado, crear una solicitud o aceptar una solicitud pendiente. Rechazarla sigue
+permitido. Quitar el baneo no evita la aprobaci?n requerida para un plan privado.
+
+Pruebas adicionales: solicitud de usuario baneado, aceptaci?n bloqueada y rechazo
+permitido, vista compartida privada bloqueada y exclusi?n del feed Siguiendo.
+El control `powershell -File scripts/js-check.ps1 -Strict` pas? con 0 FAIL y 4 INFO.

@@ -27,11 +27,10 @@ import org.junit.jupiter.api.Test;
  * del arrange, que es el admin: por eso el observador del feed es un usuario recien registrado en
  * un contexto aparte, para quien el plan del admin es ajeno.
  *
- * <p>El nombre del plan es ASCII a proposito, no por estetica: la app responde las paginas como
- * {@code text/html;charset=iso-8859-1}, asi que el browser arma el body del form en Latin-1 y
- * Jetty lo rechaza con 400 "Unable to parse form content: Invalid UTF-8" en cuanto un campo trae
- * un acento. Ese bug de codificacion es preexistente y le toca a la card de creacion de planes,
- * no a esta: agregarle un acento aca volveria rojo este E2E por un motivo que PPV no controla.
+ * <p>El nombre del plan es ASCII a proposito, por estilo del suite: la app ahora responde las
+ * paginas como {@code text/html;charset=UTF-8} (charset fijado en BaseWebConfig; hasta ese fix
+ * las paginas salian iso-8859-1, el browser armaba el body del form en Latin-1 y Jetty lo
+ * rechazaba con 400 "Unable to parse form content: Invalid UTF-8" al primer acento).
  */
 public class PublicPlansListE2E extends E2eBase {
 
@@ -49,12 +48,17 @@ public class PublicPlansListE2E extends E2eBase {
     assertThat(
       "el navbar sin sesion ofrece el feed",
       web.getNavbarItems(),
-      contains("PlanIt", "Para vos", "Register", "Login")
+      contains("PlanIt", "Para vos", "Register", "Login", "Cambiar tema")
     );
     assertThat(
       "el link del navbar sin sesion apunta a /for-you",
       page.locator("body > nav a:has-text('Para vos')").getAttribute("href"),
       containsString("/for-you")
+    );
+    assertThat(
+      "el navbar sin sesion no ofrece el menu hamburguesa",
+      page.locator("#navbar-menu-btn").count(),
+      is(0)
     );
 
     // --- El plan publico lo arma el admin, y EL NO LO VE en su propio feed ---
@@ -130,6 +134,62 @@ public class PublicPlansListE2E extends E2eBase {
     String copyId = page.url().replaceAll(".*/plans/([0-9a-f-]{36})(?:[?#].*)?$", "$1");
     assertThat("la copia tiene un id propio", copyId, not(is(sourceId)));
     assertThat(new PlansPage(page).getDetailHeading(), containsString(PLAN_NAME));
+  }
+
+  /**
+   * [DIS] T-DIS-04 (23-DIS): "Por {autor}" del feed en una sola linea. La autora del plan tiene
+   * nombre (el seed del E2E reinserta al admin sin nombre, por eso el arrange registra una
+   * usuaria), la linea renderiza, y "Por" y el link del autor comparten linea: el link trunca
+   * con ellipsis computado y el title lleva el nombre completo (accesibilidad del truncado).
+   */
+  @Test
+  void T_DIS_04_porYAutorCompartenLineaEnElFeed() {
+    WebPage web = new WebPage(page);
+
+    // --- Arrange: una usuaria registrada (con nombre y apellido) publica un plan publico ---
+    RegisterPage register = new RegisterPage(page);
+    register.typeFirstName("Veronica");
+    register.typeLastName("Visitante");
+    register.typeEmail("autora.dis@unlam.edu.ar");
+    register.typePassword(PASSWORD);
+    register.typeConfirmPassword(PASSWORD);
+    register.clickRegister();
+    web.waitForPath(LoginRedirects.USER_LANDING);
+    new PlansPage(page).createPublicPlanViaExplore(PLAN_NAME, PLAN_DESCRIPTION, "2026-12-31");
+
+    // --- Act: OTRA sesion mira el feed y encuentra la tarjeta con su autora ---
+    newContext();
+    givenARegisteredUserOpensFeed();
+    web = new WebPage(page);
+    Locator card = page
+      .locator("main article")
+      .filter(new Locator.FilterOptions().setHasText(PLAN_NAME));
+    assertThat("el feed muestra el plan de la autora", card.count(), is(1));
+
+    // --- Assert: una sola linea, truncado accesible ---
+    Locator authorLine = card.locator("[data-testid='plan-card-author']");
+    assertThat("la linea del autor renderiza (la autora tiene nombre)", authorLine.count(), is(1));
+    Locator por = authorLine.locator("span").first();
+    Locator authorLink = authorLine.locator("a");
+    assertThat(
+      "el nombre linkea al perfil publico de la autora",
+      authorLink.getAttribute("href"),
+      matchesPattern(".*/profile/[0-9a-f-]{36}")
+    );
+    assertThat(
+      "el title del link lleva el nombre completo (hover y lectura de pantalla)",
+      authorLink.getAttribute("title"),
+      containsString("Veronica")
+    );
+    double porTop = por.boundingBox().y;
+    double linkTop = authorLink.boundingBox().y;
+    assertThat(
+      "'Por' y el nombre comparten linea (no se parten en dos renglones)",
+      Math.abs(porTop - linkTop) < 1.0,
+      is(true)
+    );
+    Object textOverflow = authorLink.evaluate("el => getComputedStyle(el).textOverflow");
+    assertThat("el nombre largo trunca con elipsis", String.valueOf(textOverflow), is("ellipsis"));
   }
 
   /** Crea el plan publico con la sesion admin y la deja abierta sobre su detalle. */

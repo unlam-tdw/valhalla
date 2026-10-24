@@ -58,6 +58,9 @@ public class PlanBanSecurityTest {
   @Autowired
   private EntityManager entityManager;
 
+  @Autowired
+  private com.valhalla.domain.follow.FollowService followService;
+
   private MockMvc mvc;
   private UUID planId;
 
@@ -111,19 +114,12 @@ public class PlanBanSecurityTest {
       Plan plan = plans.findById(planId).orElseThrow();
       plan.setIsPublic(publicPlan);
       plans.save(plan);
-      for (String path : publicPlan
-        ? List.of("/plans/" + planId, "/plans/" + planId + "/public")
-        : List.of("/plans/" + planId)) {
+      for (String path : List.of("/plans/" + planId, "/plans/" + planId + "/public")) {
         mvc
           .perform(get(path).with(user(MEMBER)))
           .andExpect(status().isForbidden())
           .andExpect(content().string(containsString("Fuiste baneado")))
           .andExpect(content().string(not(containsString(plan.getDescription()))));
-      }
-      if (!publicPlan) {
-        mvc
-          .perform(get("/plans/{id}/public", planId).with(user(MEMBER)))
-          .andExpect(status().is3xxRedirection());
       }
       mvc
         .perform(get("/api/plans/{id}/places", planId).with(user(MEMBER)))
@@ -152,7 +148,11 @@ public class PlanBanSecurityTest {
     assertThat(html, containsString(PLAN_NAME));
     assertThat(html, containsString("baneo activo para tu cuenta"));
     assertThat(html, not(containsString("/plans/" + planId)));
-    for (String path : List.of("/for-you", "/api/plans/public")) {
+    followService.follow(
+      users.findByEmail(MEMBER).orElseThrow().getId(),
+      users.findByEmail(OWNER).orElseThrow().getId()
+    );
+    for (String path : List.of("/for-you", "/for-you?scope=following", "/api/plans/public")) {
       mvc
         .perform(get(path).with(user(MEMBER)))
         .andExpect(status().isOk())
@@ -171,7 +171,7 @@ public class PlanBanSecurityTest {
     plan.getInvitations().add(invitation);
     Plan saved = plans.save(plan);
     entityManager.flush();
-    Long invitationId = saved.getInvitations().getFirst().getId();
+    UUID invitationId = saved.getInvitations().getFirst().getId();
     mvc
       .perform(
         post("/plans/{id}/invitations/{invitationId}/respond", planId, invitationId)
@@ -224,6 +224,7 @@ public class PlanBanSecurityTest {
     for (String manager : List.of(OWNER, EDITOR)) {
       Plan plan = plans.findById(planId).orElseThrow();
       plan.setIsPublic(false);
+      plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
       plan.getEditors().add(users.findByEmail(MEMBER).orElseThrow());
       plans.save(plan);
       service.banParticipant(planId, MEMBER, OWNER);
@@ -250,7 +251,15 @@ public class PlanBanSecurityTest {
         .perform(
           post("/plans/join").with(user(MEMBER)).with(csrf()).param("shortCode", " ban12345 ")
         )
-        .andExpect(redirectedUrl("/plans/" + planId));
+        .andExpect(redirectedUrl("/plans/" + planId + "/public"));
+      plan = plans.findById(planId).orElseThrow();
+      assertThat(plan.isParticipant(MEMBER), is(false));
+      service.respondToJoinRequest(
+        planId,
+        plan.getJoinRequests().getFirst().getId(),
+        "accept",
+        OWNER
+      );
       entityManager.flush();
       entityManager.clear();
       plan = plans.findById(planId).orElseThrow();
@@ -330,7 +339,7 @@ public class PlanBanSecurityTest {
     service.unbanParticipant(planId, MEMBER, EDITOR);
     service.inviteParticipant(planId, MEMBER, "guest", OWNER);
     entityManager.flush();
-    Long invitationId = plans.findById(planId).orElseThrow().getInvitations().getFirst().getId();
+    UUID invitationId = plans.findById(planId).orElseThrow().getInvitations().getFirst().getId();
     mvc
       .perform(
         post("/plans/{id}/invitations/{invitationId}/respond", planId, invitationId)

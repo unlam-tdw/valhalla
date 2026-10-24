@@ -1,8 +1,10 @@
 package com.valhalla.presentation.plan;
 
+import com.valhalla.domain.bookmark.PlanBookmarkService;
 import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanPermission;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceService;
@@ -37,6 +39,7 @@ public class PlanController {
   private static final String VIEW_PLANS_LIST = "pages/plans/list";
   private static final String VIEW_PLAN_DETAIL = "pages/plans/detail";
   private static final String VIEW_PUBLIC_PLAN = "pages/plans/public";
+  private static final String PUBLIC_SUFFIX = "/public";
   private static final String REDIRECT_PLANS = "redirect:/plans";
   private static final String REDIRECT_PLAN_DETAIL = "redirect:/plans/";
   private static final String REDIRECT_EXPLORE = "redirect:/explore";
@@ -46,16 +49,19 @@ public class PlanController {
   private final PlanService planService;
   private final PlanPlaceService planPlaceService;
   private final PlanRatingService planRatingService;
+  private final PlanBookmarkService planBookmarkService;
 
   @Autowired
   public PlanController(
     PlanService planService,
     PlanPlaceService planPlaceService,
-    PlanRatingService planRatingService
+    PlanRatingService planRatingService,
+    PlanBookmarkService planBookmarkService
   ) {
     this.planService = planService;
     this.planPlaceService = planPlaceService;
     this.planRatingService = planRatingService;
+    this.planBookmarkService = planBookmarkService;
   }
 
   @GetMapping
@@ -82,9 +88,19 @@ public class PlanController {
     model.put("canEditPlan", plan.canEdit(userEmail));
     model.put("isPlanAdministrator", plan.isAdministrator(userEmail));
     model.put("isPlanParticipant", plan.isParticipant(userEmail));
-    model.put("canInvite", userEmail != null && plan.canEdit(userEmail));
     if (plan.canEdit(userEmail)) {
       model.put("bannedParticipants", planService.getBannedParticipants(id, userEmail));
+    }
+    model.put("canInviteInternal", plan.canInviteInternal(userEmail));
+    model.put("canInviteByEmail", plan.canInviteByEmail(userEmail));
+    model.put("canInvite", plan.canInviteInternal(userEmail) || plan.canInviteByEmail(userEmail));
+    model.put(
+      "canShareLink",
+      plan.canShareLink(userEmail) && (plan.getIsPublic() || plan.getSettings().isSharingEnabled())
+    );
+    model.put("canHandleRequests", plan.canHandleRequests(userEmail));
+    if (plan.canHandleRequests(userEmail)) {
+      model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
     }
     model.put(
       "participants",
@@ -113,20 +129,18 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }
 
-  /**
-   * Vista publica read-only de un plan compartido. La visibilidad la decide el servicio: un plan
-   * privado responde igual que un id inexistente. Los CTAs se deciden por el estado real de la
-   * sesion (isLogged, isParticipant, isPlanAdministrator) y no por {@code authentication != null}:
-   * con anonimo ese objeto existe como AnonymousAuthenticationToken y seria siempre true.
-   */
   @GetMapping("/{id}/public")
   public ModelAndView showPublicPlan(@PathVariable UUID id, Authentication authentication) {
-    Plan plan = planService.getPublicPlan(id);
+    Plan plan = planService.getSharedPlan(id);
     if (plan.isBanned(currentEmail(authentication))) {
       throw new PlanBannedException();
+    }
+    if (!plan.getIsPublic()) {
+      return showJoinLanding(plan, currentEmail(authentication));
     }
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLAN, plan);
@@ -136,6 +150,11 @@ public class PlanController {
     );
     // AC-03: "Creado por" en la vista pública; sin nombre de visualización se usa el email.
     model.put("administratorName", displayName(plan.getAdministrator()));
+    // [PROF] AC-22: el autor linkea a su perfil público; el id viaja al link del template.
+    model.put(
+      "administratorId",
+      plan.getAdministrator() == null ? null : plan.getAdministrator().getId()
+    );
     // Cuánta gente acompaña el plan. Es el único dato de participantes que sale al HTML: la
     // vista pública no expone emails ni la lista (PlanPublicSecurityTest S-04).
     model.put("participantCount", plan.getParticipants().size());
@@ -153,7 +172,104 @@ public class PlanController {
     model.put("ratingCount", summary.count());
     // Sin sesion no hay puntaje propio que buscar (AC-05): el anonimo nunca tiene widget de voto.
     model.put("myRating", email == null ? null : this.planRatingService.getMyRating(id, email));
+    addBookmarkFlags(model, plan, email);
     return new ModelAndView(VIEW_PUBLIC_PLAN, model);
+  }
+
+  private ModelAndView showJoinLanding(Plan plan, String email) {
+    UUID id = plan.getId();
+    if (email == null) {
+      return new ModelAndView("redirect:/auth/login?redirect=/plans/" + id + PUBLIC_SUFFIX);
+    }
+    if (plan.isAdministrator(email) || plan.isParticipant(email)) {
+      return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+    }
+    Map<String, Object> model = new ModelMap();
+    boolean sharingEnabled = plan.getSettings().isSharingEnabled();
+    model.put("planId", id);
+    model.put("sharingEnabled", sharingEnabled);
+    model.put("requestPending", plan.hasPendingJoinRequest(email));
+    if (sharingEnabled) {
+      model.put(
+        "summary",
+        new JoinPlanSummary(
+          plan.getName(),
+          plan.getDescription(),
+          plan.getEventDate(),
+          plan.getPlanPlaces().size(),
+          "/images/plans/cover-" + (Math.floorMod(id.hashCode(), 6) + 1) + ".svg"
+        )
+      );
+    }
+    return new ModelAndView("pages/plans/request", model);
+  }
+
+  public record JoinPlanSummary(
+    String name,
+    String description,
+    java.time.LocalDate eventDate,
+    int placeCount,
+    String cover
+  ) {}
+
+  @PostMapping("/{id}/join-requests")
+  public ModelAndView requestToJoin(@PathVariable UUID id, Authentication authentication) {
+    planService.requestToJoin(id, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + PUBLIC_SUFFIX);
+  }
+
+  @PostMapping("/{id}/join-requests/{requestId}/respond")
+  public ModelAndView respondToJoinRequest(
+    @PathVariable UUID id,
+    @PathVariable UUID requestId,
+    @RequestParam String action,
+    Authentication authentication
+  ) {
+    planService.respondToJoinRequest(id, requestId, action, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
+  @GetMapping("/{id}/settings")
+  public ModelAndView showSettings(@PathVariable UUID id, Authentication authentication) {
+    return new ModelAndView(
+      "pages/plans/settings",
+      ATTR_PLAN,
+      planService.getOwnedPlan(id, authentication.getName())
+    );
+  }
+
+  @PostMapping("/{id}/settings")
+  public ModelAndView updateSettings(
+    @PathVariable UUID id,
+    @RequestParam PlanPermission shareLink,
+    @RequestParam PlanPermission handleRequests,
+    @RequestParam PlanPermission inviteInternal,
+    @RequestParam PlanPermission inviteByEmail,
+    Authentication authentication
+  ) {
+    planService.updateSettings(
+      id,
+      shareLink,
+      handleRequests,
+      inviteInternal,
+      inviteByEmail,
+      authentication.getName()
+    );
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "/settings?saved=true");
+  }
+
+  /**
+   * [MARK] Estado del toggle para el usuario de la sesion. Solo los planes publicos se guardan, y
+   * sin sesion no se renderiza el control: {@code canBookmark} es la unica condicion que mira el
+   * template, {@code isBookmarked} solo importa cuando hay sesion.
+   */
+  private void addBookmarkFlags(Map<String, Object> model, Plan plan, String userEmail) {
+    boolean canBookmark = userEmail != null && plan.getIsPublic();
+    model.put("canBookmark", canBookmark);
+    model.put(
+      "isBookmarked",
+      canBookmark && this.planBookmarkService.isBookmarked(plan.getId(), userEmail)
+    );
   }
 
   /** [CAL] "Calificar": upsert del puntaje del usuario logueado sobre el plan publico. Sin matcher
@@ -169,10 +285,10 @@ public class PlanController {
   ) {
     if (bindingResult.hasErrors()) {
       // Tampering con el form (score inválido): de vuelta a la vista publica sin calificar.
-      return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "/public");
+      return new ModelAndView(REDIRECT_PLAN_DETAIL + id + PUBLIC_SUFFIX);
     }
     this.planRatingService.rate(id, authentication.getName(), ratingData.getScore());
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "/public");
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + PUBLIC_SUFFIX);
   }
 
   /** En anonimo el principal es el String "anonymousUser", no un UserDetails. */
@@ -208,7 +324,12 @@ public class PlanController {
       // un POST inválido vuelve a esa vista en vez de re-renderizar pages/plans/new.
       return new ModelAndView(REDIRECT_EXPLORE);
     }
-    Plan created = planService.createPlan(toPlan(planForm), authentication.getName());
+    Plan draft = toPlanOrderedByVisitTime(planForm);
+    draft.getSettings().setShareLink(planForm.getSettings().getShareLink());
+    draft.getSettings().setHandleRequests(planForm.getSettings().getHandleRequests());
+    draft.getSettings().setInviteInternal(planForm.getSettings().getInviteInternal());
+    draft.getSettings().setInviteByEmail(planForm.getSettings().getInviteByEmail());
+    Plan created = planService.createPlan(draft, authentication.getName());
     return new ModelAndView(REDIRECT_PLAN_DETAIL + created.getId());
   }
 
@@ -295,11 +416,37 @@ public class PlanController {
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }
 
+  @GetMapping("/{id}/invitations/{token}/accept")
+  public ModelAndView acceptInvitationLink(
+    @PathVariable UUID id,
+    @PathVariable String token,
+    Authentication authentication
+  ) {
+    String email = currentEmail(authentication);
+    if (email == null) {
+      return new ModelAndView(
+        "redirect:/auth/login?redirect=/plans/" + id + "/invitations/" + token + "/accept"
+      );
+    }
+    return new ModelAndView("pages/plans/accept-invitation", Map.of("planId", id, "token", token));
+  }
+
+  @PostMapping("/{id}/invitations/{token}/accept")
+  public ModelAndView acceptInvitationLinkPost(
+    @PathVariable UUID id,
+    @PathVariable String token,
+    Authentication authentication
+  ) {
+    planService.acceptInvitationToken(id, token, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
   @PostMapping("/{id}/participants/invite")
   public ModelAndView inviteParticipant(
     @PathVariable UUID id,
     @RequestParam String participantEmail,
     @RequestParam(defaultValue = "guest") String role,
+    @RequestParam(defaultValue = "app") String channel,
     Authentication authentication,
     org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
   ) {
@@ -308,11 +455,17 @@ public class PlanController {
         id,
         participantEmail,
         role,
+        channel,
         authentication == null ? null : authentication.getName()
       );
       redirectAttributes.addFlashAttribute(
         "invitationSuccess",
         "Invitación enviada. La persona podrá aceptarla o rechazarla en Mis planes."
+      );
+    } catch (org.springframework.mail.MailException exception) {
+      redirectAttributes.addFlashAttribute(
+        "invitationError",
+        "No se pudo enviar el email. Revisá la configuración SMTP o usá la invitación dentro de la app."
       );
     } catch (IllegalArgumentException exception) {
       redirectAttributes.addFlashAttribute("invitationError", exception.getMessage());
@@ -339,7 +492,7 @@ public class PlanController {
   @PostMapping("/{id}/invitations/{invitationId}/respond")
   public ModelAndView respondToInvitation(
     @PathVariable UUID id,
-    @PathVariable Long invitationId,
+    @PathVariable UUID invitationId,
     @RequestParam boolean accept,
     Authentication authentication,
     org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
@@ -354,8 +507,38 @@ public class PlanController {
 
   @PostMapping("/join")
   public ModelAndView joinPlan(@RequestParam String shortCode, Authentication authentication) {
-    Plan plan = planService.joinPlan(shortCode, authentication.getName());
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + plan.getId());
+    String email = authentication.getName();
+    Plan plan = planService.joinPlan(shortCode, email);
+    boolean awaitingApproval =
+      !plan.getIsPublic() && !plan.isAdministrator(email) && !plan.isParticipant(email);
+    return new ModelAndView(
+      REDIRECT_PLAN_DETAIL + plan.getId() + (awaitingApproval ? PUBLIC_SUFFIX : "")
+    );
+  }
+
+  /**
+   * El orden del formulario es el del mouse, no el del día: quien arma el plan agrega primero el
+   * lugar que vio primero y recién después le pone la hora. Así que al crear, el itinerario se
+   * ordena por hora de visita; los que no tienen hora quedan al final, en el orden en que se
+   * cargaron. Solo al crear: en la edición el orden ya es una decisión del usuario (el drag &amp;
+   * drop del detalle).
+   */
+  private Plan toPlanOrderedByVisitTime(PlanRequest planForm) {
+    Plan plan = toPlan(planForm);
+    plan
+      .getPlanPlaces()
+      .sort(
+        Comparator.comparing(
+          PlanPlace::getVisitTime,
+          Comparator.nullsLast(Comparator.naturalOrder())
+        )
+      );
+    int order = 1;
+    for (PlanPlace entry : plan.getPlanPlaces()) {
+      entry.setSortOrder(order);
+      order++;
+    }
+    return plan;
   }
 
   /** The form owns these fields and its itinerary rows only: id, shortCode and administrator never come from a post. */
@@ -389,13 +572,14 @@ public class PlanController {
   private static Map<String, Object> placeView(PlanPlace entry) {
     Place place = entry.getPlace();
     Map<String, Object> view = new LinkedHashMap<>();
-    view.put("id", place.getId());
-    view.put("entryId", entry.getId());
+    view.put("id", String.valueOf(place.getId()));
+    view.put("entryId", String.valueOf(entry.getId()));
     view.put("description", entry.getDescription());
     view.put("visitDate", entry.getVisitDate() == null ? null : entry.getVisitDate().toString());
     view.put("visitTime", entry.getVisitTime() == null ? null : entry.getVisitTime().toString());
     view.put("name", place.getName());
     view.put("category", place.getCategory() == null ? null : place.getCategory().name());
+    view.put("address", place.getAddress());
     view.put("latitude", place.getLatitude());
     view.put("longitude", place.getLongitude());
     return view;
