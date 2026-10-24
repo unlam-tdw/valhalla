@@ -74,7 +74,9 @@ public class PlaceImportControllerTest {
     "+54 11 4444-5555",
     "https://parrilla.example.com",
     "amenity",
-    "restaurant"
+    "restaurant",
+    "way",
+    1L
   );
 
   @Autowired
