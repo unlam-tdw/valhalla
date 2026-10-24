@@ -355,6 +355,137 @@ public class PlanBanSecurityTest {
     assertThat(plan.isParticipant(MEMBER), is(true));
   }
 
+  @Test
+  public void banEndpointRequiresSessionCsrfAndEditPermission() throws Exception {
+    for (String actor : List.of(MEMBER, "outsider@test.com")) {
+      mvc
+        .perform(
+          post("/plans/{id}/participants/ban", planId)
+            .with(user(actor))
+            .with(csrf())
+            .param("participantEmail", EDITOR)
+        )
+        .andExpect(status().is3xxRedirection());
+    }
+    mvc
+      .perform(
+        post("/plans/{id}/participants/ban", planId)
+          .with(user(OWNER))
+          .param("participantEmail", MEMBER)
+      )
+      .andExpect(status().isForbidden());
+    mvc
+      .perform(
+        post("/plans/{id}/participants/ban", planId).with(csrf()).param("participantEmail", MEMBER)
+      )
+      .andExpect(status().is3xxRedirection());
+    entityManager.flush();
+    entityManager.clear();
+    Plan plan = plans.findById(planId).orElseThrow();
+    assertThat(plan.isParticipant(MEMBER), is(true));
+    assertThat(plan.isEditor(EDITOR), is(true));
+    assertThat(plan.getBannedUsers().isEmpty(), is(true));
+  }
+
+  @Test
+  public void editorCanBanMemberThroughHttpAndOwnerCanBanEditor() throws Exception {
+    mvc
+      .perform(
+        post("/plans/{id}/participants/ban", planId)
+          .with(user(EDITOR))
+          .with(csrf())
+          .param("participantEmail", MEMBER)
+      )
+      .andExpect(redirectedUrl("/plans/" + planId))
+      .andExpect(flash().attributeExists("participantSuccess"));
+    mvc
+      .perform(
+        post("/plans/{id}/participants/ban", planId)
+          .with(user(OWNER))
+          .with(csrf())
+          .param("participantEmail", EDITOR)
+      )
+      .andExpect(redirectedUrl("/plans/" + planId));
+    entityManager.flush();
+    entityManager.clear();
+    Plan plan = plans.findById(planId).orElseThrow();
+    assertThat(plan.isBanned(MEMBER), is(true));
+    assertThat(plan.isBanned(EDITOR), is(true));
+    assertThat(plan.isParticipant(MEMBER), is(false));
+    assertThat(plan.isEditor(EDITOR), is(false));
+  }
+
+  @Test
+  public void privateJoinRequestsCannotBypassBanThroughHttp() throws Exception {
+    service.banParticipant(planId, MEMBER, OWNER);
+    Plan plan = plans.findById(planId).orElseThrow();
+    plan.setIsPublic(false);
+    plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
+    com.valhalla.domain.plan.PlanJoinRequest request = new com.valhalla.domain.plan.PlanJoinRequest(
+      plan,
+      users.findByEmail(MEMBER).orElseThrow()
+    );
+    plan.getJoinRequests().add(request);
+    Plan saved = plans.save(plan);
+    entityManager.flush();
+    UUID requestId = saved.getJoinRequests().getFirst().getId();
+    mvc
+      .perform(post("/plans/{id}/join-requests", planId).with(user(MEMBER)).with(csrf()))
+      .andExpect(status().isForbidden());
+    mvc
+      .perform(
+        post("/plans/{id}/join-requests/{rid}/respond", planId, requestId)
+          .with(user(OWNER))
+          .with(csrf())
+          .param("action", "accept")
+      )
+      .andExpect(status().isForbidden());
+    entityManager.flush();
+    entityManager.clear();
+    plan = plans.findById(planId).orElseThrow();
+    assertThat(plan.isParticipant(MEMBER), is(false));
+    assertThat(plan.getJoinRequests().size(), is(1));
+    mvc
+      .perform(
+        post("/plans/{id}/join-requests/{rid}/respond", planId, requestId)
+          .with(user(OWNER))
+          .with(csrf())
+          .param("action", "reject")
+      )
+      .andExpect(redirectedUrl("/plans/" + planId));
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(plans.findById(planId).orElseThrow().getJoinRequests().isEmpty(), is(true));
+  }
+
+  @Test
+  public void emailInvitationTokenCannotRestoreBannedMembership() throws Exception {
+    service.banParticipant(planId, MEMBER, OWNER);
+    Plan plan = plans.findById(planId).orElseThrow();
+    PlanInvitation invitation = new PlanInvitation(
+      plan,
+      users.findByEmail(MEMBER).orElseThrow(),
+      plan.getAdministrator(),
+      "editor"
+    );
+    plan.getInvitations().add(invitation);
+    plans.save(plan);
+    entityManager.flush();
+    mvc
+      .perform(
+        post("/plans/{id}/invitations/{token}/accept", planId, invitation.getToken())
+          .with(user(MEMBER))
+          .with(csrf())
+      )
+      .andExpect(status().isForbidden());
+    entityManager.flush();
+    entityManager.clear();
+    plan = plans.findById(planId).orElseThrow();
+    assertThat(plan.isBanned(MEMBER), is(true));
+    assertThat(plan.isParticipant(MEMBER), is(false));
+    assertThat(plan.isEditor(MEMBER), is(false));
+  }
+
   private User createUser(String email) {
     User user = new User();
     user.setEmail(email);
