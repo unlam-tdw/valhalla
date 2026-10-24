@@ -97,23 +97,46 @@ invitar nuevamente y que una expulsión permite volver a unirse.
 Las comprobaciones de `PlanControllerIntegrationTest` usan la etiqueta vigente
 «Expulsar del plan a» para verificar qué controles puede ver cada rol.
 
-Validación realizada con `mvn test -Djacoco.gate.skip=true`: 854 pruebas aprobadas,
-sin fallos, errores ni omisiones. También pasaron las comprobaciones de formato,
-PMD y duplicación del ciclo Maven. El umbral de cobertura se omitió explícitamente;
-no se ejecutaron pruebas de navegador.
+Validación de BAN: 859 pruebas unitarias e integración aprobadas, sin fallos,
+errores ni omisiones, con el control de cobertura activo. El paquete
+`com.valhalla.presentation.plan` alcanza 369/369 líneas cubiertas (100%).
+También pasaron formato, PMD, duplicación y el control estricto de JavaScript.
+
+Pasó el gate de navegador con `PlanBanE2E`, `PublicPlanJoinRequestE2E` y
+`DetailPlanCloneE2E`, usando el puerto 8082 y la base aislada `valhalla_e2e`.
+Si esa base conserva IDs numéricos anteriores a la migración UUID de `main`,
+hay que recrear su esquema antes de ejecutar las pruebas; esto no se aplica a
+la base de desarrollo.
 
 
-## Integraci?n con main
+## Integración con main
 
 Se conservan Guardados, el feed Siguiendo, los permisos configurables, las solicitudes
-para planes privados y el m?dulo `pages/plans-detail.js`. El men? y di?logo de baneos
-usan Composition API en ese m?dulo, sin restaurar el script inline anterior.
+para planes privados y el módulo `pages/plans-detail.js`. El menú y diálogo de baneos
+usan Composition API en ese módulo, sin restaurar el script inline anterior.
 
 Las lecturas de planes compartidos privados y del feed Siguiendo inicializan los
-baneos dentro de la transacci?n. El baneo se verifica antes de mostrar el resumen
+baneos dentro de la transacción. El baneo se verifica antes de mostrar el resumen
 privado, crear una solicitud o aceptar una solicitud pendiente. Rechazarla sigue
-permitido. Quitar el baneo no evita la aprobaci?n requerida para un plan privado.
+permitido. Quitar el baneo no evita la aprobación requerida para un plan privado.
 
-Pruebas adicionales: solicitud de usuario baneado, aceptaci?n bloqueada y rechazo
-permitido, vista compartida privada bloqueada y exclusi?n del feed Siguiendo.
-El control `powershell -File scripts/js-check.ps1 -Strict` pas? con 0 FAIL y 4 INFO.
+Pruebas adicionales: solicitud de usuario baneado, aceptación bloqueada y rechazo
+permitido, vista compartida privada bloqueada y exclusión del feed Siguiendo.
+El control `powershell -File scripts/js-check.ps1 -Strict` pasó con 0 FAIL y 4 INFO.
+
+## Cobertura de BAN tras la integración
+
+| Escenario | Pruebas |
+| --- | --- |
+| Expulsión permite volver; baneo revoca participación y rol | `PlanServiceImplTest` |
+| Dueño protegido; editor puede banear participantes; dueño puede banear editores | `PlanServiceImplTest`, `PlanBanSecurityTest` |
+| Sesión, CSRF y permisos para banear y desbanear; aislamiento entre planes | `PlanBanSecurityTest` |
+| Detalle, vista pública, itinerario, código y clonación bloqueados | `PlanBanSecurityTest` |
+| Feeds Para vos, Siguiendo y API; aviso sin datos privados | `PlanBanSecurityTest` |
+| Solicitudes privadas: creación y aceptación bloqueadas; rechazo permitido | `PlanServiceImplTest`, `PlanBanSecurityTest` |
+| Invitación pendiente, enlace por token y nueva invitación tras desbanear | `PlanBanSecurityTest` |
+| Endpoint de baneo: identidad de sesión, confirmación y redirección | `PlanControllerTest` |
+| Menú, diálogo, cierre por Escape, foco, baneo y desbaneo con nueva aprobación | `PlanBanE2E` |
+
+`ResetDatabase` limpia `plan_banned_users` antes de eliminar planes y usuarios para
+que una ejecución E2E con baneos no bloquee la siguiente por claves foráneas.
