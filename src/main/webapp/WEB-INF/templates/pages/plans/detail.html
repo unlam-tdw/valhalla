@@ -49,16 +49,20 @@
         .stop-title { display: block; border: 0; padding: 0; margin: 0; background: none; color: var(--bs-body-color); font-size: 1rem; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
         .stop-title:hover { color: var(--bs-secondary); }
         .stop-schedule { display: flex; flex-wrap: wrap; gap: 12px; color: var(--bs-secondary-color); font-size: .82rem; }
+        /* [DIS] Todo par icono+texto del itinerario queda a la misma altura (icono al lado, no
+           encima): inline-flex + center fuerza el SVG inline contra el texto sin depender del
+           baseline. Aplica a Cómo llegar, Eliminar y los datos de fecha/hora. */
+        .stop-schedule > span { display: inline-flex; align-items: center; }
         .visit-editor { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--bs-border-color); }
         .visit-editor-heading { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color); margin-bottom: 8px; }
         .stop-description { color: var(--bs-secondary-color); font-size: .85rem; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .stop-directions { display: inline-block; margin-top: 6px; color: var(--bs-primary); font-size: .85rem; font-weight: 600; text-decoration: none; }
+        .stop-directions { display: inline-flex; align-items: center; margin-top: 6px; color: var(--bs-primary); font-size: .85rem; font-weight: 600; text-decoration: none; }
         .stop-directions:hover { text-decoration: underline; }
         .stop-directions:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 2px; }
         .stop-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
         .stop-details { border: 1px solid var(--bs-secondary); border-radius: 6px; background: var(--bs-secondary); color: white; padding: 5px 10px; font-size: .8rem; font-weight: 600; }
         .stop-details:hover { background: #5c636a; }
-        .stop-remove { border: 0; border-radius: 20px; background: transparent; color: var(--bs-danger); padding: 5px 6px; font-size: .8rem; }
+        .stop-remove { display: inline-flex; align-items: center; border: 0; border-radius: 20px; background: transparent; color: var(--bs-danger); padding: 5px 6px; font-size: .8rem; }
         .stop-remove:hover { background: var(--bs-light); }
         .stop-title:focus-visible, .stop-details:focus-visible, .stop-remove:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 4px; }
         .itinerary-empty { padding: 28px 18px; margin-top: 20px; text-align: center; background: var(--bs-light); border-radius: 16px; color: var(--bs-secondary-color); }
@@ -170,6 +174,12 @@
         [data-bs-theme="dark"] .stop-category,
         [data-bs-theme="dark"] .itinerary-empty,
         [data-bs-theme="dark"] .stop-remove:hover { background: var(--bs-tertiary-bg); }
+        /* [DIS] Los tiles del resumen (.bg-light) usan --bs-light, que Bootstrap NO redefine en
+           dark: queda #f8f9fa (mancha blanca) y el texto hereda --bs-body-color (#adb5bd), gris
+           sobre blanco = ilegible ("letras apagadas"). Pintamos .bg-light con --bs-tertiary-bg en
+           dark (solo lo usa el resumen) para que el tile sea superficie oscura y el texto claro
+           respire. El !important pisa a la utilidad .bg-light de Bootstrap. */
+        [data-bs-theme="dark"] .bg-light { background-color: var(--bs-tertiary-bg) !important; }
 
         /* ===================== [DIS] 17-DIS =====================
            Van en el bloque de despues de headContent: tiene que pisar a brand.css (su <link>
@@ -191,15 +201,13 @@
             .itinerary-stop:hover { transform: none; }
         }
 
-        /* [DIS] AC-14: banda visual atras del titulo. Cover generico por defecto + doble
-           overlay (negro para legibilidad, gradiente de tokens de marca para identidad): el
-           titulo va encima en blanco y el texto respira. Sin backend; cambiar o quitar la
-           imagen queda para la card [IMG]. */
+        /* [DIS] AC-14: banda visual atras del titulo. Color SOLIDO de marca (--primary): el
+           cover estirado en una franja fina y ancha dejaba rebanadas duras de la ilustracion
+           (colores "cortados"), y el degradado no las disimulaba. Un solido de tokens de marca
+           con el titulo en blanco es limpio e intencional a cualquier ancho. Sin backend. */
         .plan-header {
-            background-image: linear-gradient(rgb(17 24 39 / 0.5), rgb(17 24 39 / 0.68)),
-                url("/images/plans/cover-3.svg");
-            background-size: cover;
-            background-position: center;
+            background-image: none;
+            background-color: var(--primary);
             border-radius: 0.5rem;
         }
 
