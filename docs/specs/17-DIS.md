@@ -53,7 +53,7 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-11 | La página de edición muestra padding inferior suficiente: al scrollear hasta el final, la última sección no toca el borde inferior de la ventana |
 | AC-12 | Cada card de lugar del itinerario muestra un ícono de drag & drop (handle) en su borde izquierdo cuando el usuario puede editar el plan; sin permiso de edición el ícono no aparece |
 | AC-13 | El botón "Clonar plan" solo se muestra a participantes que no son administradores: un plan recién clonado (donde el clonador quedó como administrador) no vuelve a mostrar el botón |
-| AC-14 | La cabecera del plan lleva un banner con imagen por defecto detrás del título, sin taparlo ni solaparse con el contenido; subir/cambiar/quitar la imagen queda fuera de esta spec (card [IMG] aparte) |
+| AC-14 | La cabecera del plan lleva una banda de color de marca sólido detrás del título, sin taparlo ni solaparse con el contenido; subir/cambiar/quitar una imagen decorativa queda fuera de esta spec (card [IMG] aparte). *Ajustado en revisión visual: antes pedía una imagen por defecto, que en una franja fina y ancha se leía como una rebanada estirada* |
 
 ## Escenarios de Test
 
@@ -79,7 +79,7 @@ de sesión; sigue sin tocar backend).
 | V-11 | Scrolleando al final de `/plans/{id}`, la última sección deja padding visible respecto al borde inferior de la ventana | AC-11 |
 | V-12 | Handle de drag visible en el borde izquierdo de cada card de lugar con `canEditPlan`; invisible para un usuario sin permiso de edición | AC-12 |
 | V-13 | Como ADMINISTRADOR del plan no se ve "Clonar plan"; como participante no-admin sí; tras clonar un plan público, la página del clon (redirect) tampoco lo muestra | AC-13 |
-| V-14 | Banner con imagen por defecto detrás del título del plan; el título mantiene contraste y no se solapa con el contenido | AC-14 |
+| V-14 | Banda de color sólido de marca detrás del título del plan (en 320, 390 y desktop, light y dark); el título en blanco mantiene contraste y no se solapa con el contenido | AC-14 |
 
 Los tres estados de sesión (anónimo, USER, ADMIN) en dos anchos (375px y 1280px).
 
