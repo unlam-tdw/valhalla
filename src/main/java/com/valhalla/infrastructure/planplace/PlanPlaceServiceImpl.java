@@ -4,12 +4,13 @@ import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.plan.PlanScheduler;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceRepository;
 import com.valhalla.domain.planplace.PlanPlaceService;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import com.valhalla.domain.planplace.PlanPlaceUpdate;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -47,6 +48,9 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
     entry.setSortOrder(
       repository.findByPlanId(planId).stream().mapToInt(PlanPlace::getSortOrder).max().orElse(0) + 1
     );
+    // [SCH] La parada nueva entra en el orden del itinerario y el horario se recalcula entero: su
+    // traslado depende de la parada anterior y la cadena de las siguientes arranca desde ella.
+    PlanScheduler.apply(plan);
     return repository.save(entry);
   }
 
@@ -71,13 +75,19 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
   public PlanPlace updatePlanPlace(
     UUID planId,
     UUID id,
-    LocalDate date,
-    LocalTime time,
+    PlanPlaceUpdate changes,
     String ownerEmail
   ) {
     PlanPlace entry = ownedEntry(planId, id, ownerEmail);
-    entry.setVisitDate(date);
-    entry.setVisitTime(time);
+    entry.setDurationMinutes(changes.durationMinutes());
+    entry.setTransportModeToNext(changes.transportModeToNext());
+    entry.setVisitDate(changes.visitDate());
+    entry.setVisitTime(changes.visitTime());
+    // [SCH] Una fecha u hora enviada es un pin aunque llegue una sola de las dos: el usuario eligio
+    // ese dato y la derivacion tiene que arrancar de ahi en vez de pisarlo.
+    entry.setTimePinned(changes.visitDate() != null || changes.visitTime() != null);
+    // [SCH] La parada editada puede correr a las siguientes: se deriva el plan completo, no la fila.
+    PlanScheduler.apply(entry.getPlan());
     entry.getPlace().getName();
     return repository.save(entry);
   }
@@ -85,13 +95,17 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
   @Override
   public void removePlaceFromPlan(UUID planId, UUID id, String ownerEmail) {
     PlanPlace entry = ownedEntry(planId, id, ownerEmail);
-    entry.getPlan().getPlanPlaces().remove(entry);
+    Plan plan = entry.getPlan();
+    plan.getPlanPlaces().remove(entry);
+    // [SCH] Sacar una parada corre las siguientes: el hueco que deja su visita y su traslado se
+    // cierra en la misma pasada, antes de que la fila desaparezca.
+    PlanScheduler.apply(plan);
     repository.deleteById(id);
   }
 
   @Override
   public void reorderPlaces(UUID planId, List<UUID> entryIds, String ownerEmail) {
-    planService.getEditablePlan(planId, ownerEmail);
+    Plan plan = planService.getEditablePlan(planId, ownerEmail);
     List<PlanPlace> entries = repository.findByPlanId(planId);
     // The same place can appear several times, so entries are identified by their own id.
     if (
@@ -105,6 +119,14 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
     for (PlanPlace entry : entries) {
       entry.setSortOrder(entryIds.indexOf(entry.getId()) + 1);
       repository.save(entry);
+    }
+    // [SCH] El planificador recorre la coleccion del plan, que conserva el orden con el que se
+    // cargo: hay que reordenarla en memoria antes de derivar, o el horario nuevo seguiria al viejo.
+    plan.getPlanPlaces().sort(Comparator.comparing(PlanPlace::getSortOrder));
+    // [SCH] Con el recalculo automatico apagado el usuario conserva las horas que fijo: el nuevo
+    // orden mueve la posicion de las paradas, no su horario.
+    if (plan.getSettings().getAutoSchedule()) {
+      PlanScheduler.apply(plan);
     }
   }
 
