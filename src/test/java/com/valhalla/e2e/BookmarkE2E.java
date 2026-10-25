@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Route;
 import com.valhalla.e2e.views.PlansPage;
 import com.valhalla.e2e.views.RegisterPage;
 import com.valhalla.e2e.views.WebPage;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
@@ -40,10 +42,7 @@ public class BookmarkE2E extends E2eBase {
 
     // --- guardar desde la card del feed: el icono de contorno pasa a relleno
     page.navigate(plans.baseUrl() + "/for-you");
-    Locator card = page
-      .locator("article")
-      .filter(new Locator.FilterOptions().setHasText(PLAN_NAME));
-    assertThat(card).hasCount(1);
+    Locator card = feedCard();
     card.locator("[data-bookmarked='false']").click();
     page.waitForSelector("article [data-bookmarked='true']");
 
@@ -75,6 +74,110 @@ public class BookmarkE2E extends E2eBase {
     page.onDialog(dialog -> dialog.accept());
     page.locator("#bookmarks button:has-text('Quitar')").click();
     page.waitForSelector("[data-bookmarks-empty]");
+  }
+
+  /**
+   * [MARK] El toggle del feed es optimista y no recarga: guardar y quitar cambian el icono en el
+   * lugar. La vista publica del plan usa el mismo modulo y el token del input oculto, porque no
+   * hereda los metas de CSRF.
+   */
+  @Test
+  void E02_saveAndRemoveFromTheFeedAndThePublicViewWithoutReloading() {
+    String planId = givenAnAdminOwnsAPublicPlan();
+    signUpANormalUser();
+
+    PlansPage plans = new PlansPage(page);
+    page.navigate(plans.baseUrl() + "/for-you");
+    Locator card = feedCard();
+    Locator toggle = card.locator("[data-bookmark-toggle]");
+
+    page.evaluate("window.__markNoReload = true");
+    toggle.click();
+    assertThat(toggle).hasAttribute("data-bookmarked", "true");
+    assertThat(toggle).hasAttribute("aria-pressed", "true");
+    assertThat(toggle.locator("[data-bookmark-icon='filled']")).isVisible();
+    assertThat(toggle.locator("[data-bookmark-icon='outline']")).isHidden();
+    assertTrue(
+      Boolean.TRUE.equals(page.evaluate("window.__markNoReload === true")),
+      "guardar no debe recargar la pagina"
+    );
+
+    // El estado optimista coincide con el que persiste el servidor.
+    page.reload();
+    toggle = feedCard().locator("[data-bookmark-toggle]");
+    assertThat(toggle).hasAttribute("data-bookmarked", "true");
+
+    page.onDialog(dialog -> dialog.accept());
+    page.evaluate("window.__markNoReload = true");
+    toggle.click();
+    assertThat(toggle).hasAttribute("data-bookmarked", "false");
+    assertThat(toggle).hasAttribute("aria-pressed", "false");
+    assertThat(toggle.locator("[data-bookmark-icon='outline']")).isVisible();
+    assertThat(toggle.locator("[data-bookmark-icon='filled']")).isHidden();
+    assertTrue(
+      Boolean.TRUE.equals(page.evaluate("window.__markNoReload === true")),
+      "quitar no debe recargar la pagina"
+    );
+
+    // La vista publica no tiene metas de CSRF: el token sale del input oculto del form.
+    page.navigate(plans.baseUrl() + "/plans/" + planId + "/public");
+    Locator publicToggle = page.locator("[data-bookmark-toggle]");
+    assertThat(publicToggle).isVisible();
+    page.evaluate("window.__markNoReload = true");
+    publicToggle.click();
+    assertThat(publicToggle).hasAttribute("data-bookmarked", "true");
+    assertTrue(
+      Boolean.TRUE.equals(page.evaluate("window.__markNoReload === true")),
+      "guardar desde la vista publica no debe recargar"
+    );
+
+    // Deja la base como la encontro: el reset tambien limpia, pero el flujo cierra completo.
+    publicToggle.click();
+    assertThat(publicToggle).hasAttribute("data-bookmarked", "false");
+  }
+
+  /** [MARK] Si la API falla, el estado optimista vuelve atras y el toast explica el motivo. */
+  @Test
+  void E03_aFailedToggleRevertsTheIconAndShowsTheToast() {
+    givenAnAdminOwnsAPublicPlan();
+    signUpANormalUser();
+
+    PlansPage plans = new PlansPage(page);
+    page.navigate(plans.baseUrl() + "/for-you");
+    Locator toggle = feedCard().locator("[data-bookmark-toggle]");
+    AtomicInteger attempts = new AtomicInteger();
+    page.route(
+      "**/api/plans/*/bookmarks",
+      route -> {
+        attempts.incrementAndGet();
+        route.fulfill(
+          new Route.FulfillOptions()
+            .setStatus(500)
+            .setContentType("application/json")
+            .setBody("{\"message\":\"fallo simulado\"}")
+        );
+      }
+    );
+
+    toggle.click();
+
+    assertThat(page.locator("#bookmark-alert")).isVisible();
+    assertThat(page.locator("#bookmark-alert")).containsText("No se pudo actualizar Guardados.");
+    assertThat(toggle).hasAttribute("data-bookmarked", "false");
+    assertThat(toggle).hasAttribute("aria-pressed", "false");
+    assertThat(toggle.locator("[data-bookmark-icon='outline']")).isVisible();
+    assertThat(toggle.locator("[data-bookmark-icon='filled']")).isHidden();
+    assertThat(toggle).isEnabled();
+    assertTrue(attempts.get() > 0, "el toggle tiene que pegarle a la API");
+  }
+
+  /** La card del plan sembrado en el feed. */
+  private Locator feedCard() {
+    Locator card = page
+      .locator("article")
+      .filter(new Locator.FilterOptions().setHasText(PLAN_NAME));
+    assertThat(card).hasCount(1);
+    return card;
   }
 
   /** El admin crea el plan publico con un lugar y devuelve el id del original. */

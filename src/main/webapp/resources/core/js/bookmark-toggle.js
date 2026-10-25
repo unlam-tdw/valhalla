@@ -13,9 +13,29 @@
 import { ApiError, apiFetch } from './lib/api.js';
 
 const CONFIRM_REMOVE = '¿Quitar este plan de Guardados?';
+const GENERIC_ERROR = 'No se pudo actualizar Guardados. Intentá de nuevo.';
+const GONE_ERROR = 'No se pudo guardar: el plan ya no está disponible.';
 
 function labelFor(bookmarked) {
   return bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados';
+}
+
+function messageFor(error) {
+  if (error.status === 401) return error.message;
+  if (error.status === 404) return GONE_ERROR;
+  return GENERIC_ERROR;
+}
+
+function hideAlert() {
+  document.getElementById('bookmark-alert')?.classList.add('hidden');
+}
+
+function showAlert(message) {
+  const alert = document.getElementById('bookmark-alert');
+  const text = document.getElementById('bookmark-alert-message');
+  if (!alert || !text) return;
+  text.textContent = message;
+  alert.classList.remove('hidden');
 }
 
 /** Pinta el estado final en el boton y deja el form coherente si el JS se desactiva despues. */
@@ -58,6 +78,7 @@ async function toggle(button) {
 
   // Optimista: el estado se pinta antes de la respuesta. El boton queda bloqueado para que un
   // doble click no dispare dos POST/DELETE contradictorios.
+  hideAlert();
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   paint(button, !removing);
@@ -70,7 +91,12 @@ async function toggle(button) {
       throw new ApiError(`La operación falló (${response.status}).`, response.status);
     }
   } catch (error) {
-    console.error('No se pudo actualizar Guardados:', error);
+    // El estado optimista no se sostiene: se vuelve al anterior y el toast explica por que.
+    paint(button, removing);
+    showAlert(messageFor(error));
+    if (error.status === 401) {
+      window.setTimeout(() => window.location.assign('/auth/login'), 1200);
+    }
   } finally {
     button.disabled = false;
     button.removeAttribute('aria-busy');
@@ -100,3 +126,6 @@ function onSubmit(event) {
 }
 
 document.addEventListener('submit', onSubmit);
+document.addEventListener('click', (event) => {
+  if (event.target.closest('[data-bookmark-alert-close]')) hideAlert();
+});

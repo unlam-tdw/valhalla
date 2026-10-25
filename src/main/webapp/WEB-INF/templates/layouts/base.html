@@ -272,6 +272,23 @@
        helpers E2E ("body > nav a, body > nav button") no lo ve. -->
   <div th:replace="~{components/navbar-menu}"></div>
 
+  <!-- [MARK] Error del toggle optimista: si la API falla, el icono vuelve al estado anterior
+       y este aviso explica el motivo. role="alert" lo anuncia sin mover el foco. -->
+  <div id="bookmark-alert" role="alert" aria-live="assertive" aria-atomic="true"
+    class="fixed bottom-6 left-1/2 z-50 hidden w-[92vw] max-w-lg -translate-x-1/2 rounded-lg border border-red-200 bg-white p-4 text-sm text-red-700 shadow-lg">
+    <div class="flex items-start gap-3">
+      <p id="bookmark-alert-message" class="flex-1"></p>
+      <button type="button" data-bookmark-alert-close aria-label="Cerrar aviso"
+        class="shrink-0 rounded p-0.5 text-red-500 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" aria-hidden="true">
+          <path d="M18 6 6 18"></path>
+          <path d="m6 6 12 12"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
   <th:block th:replace="${content}"></th:block>
 
   <!-- [MARK] Toggle de Guardados: intercepta el submit de las vistas server-rendered y usa la API
