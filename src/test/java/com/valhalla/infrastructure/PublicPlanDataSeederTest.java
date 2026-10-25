@@ -1,8 +1,10 @@
 package com.valhalla.infrastructure;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -21,12 +23,14 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.rating.PlanRating;
 import com.valhalla.domain.rating.PlanRatingRepository;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import com.valhalla.domain.user.UserService;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -272,6 +276,34 @@ public class PublicPlanDataSeederTest {
     // then
     verify(this.planRepositoryMock, times(6)).save(any(Plan.class));
     verify(this.planRatingRepositoryMock, times(9)).save(any(PlanRating.class));
+  }
+
+  @Test
+  public void I12_losPlanesDemoSalenConVentanaModoYHorarioDerivado() {
+    // given: el catalogo completo y los fantasmas por crear
+    System.setProperty(ENABLE_PROPERTY, "true");
+    givenFullCatalog();
+    givenGhostsCanBeLookedUp(1);
+
+    // when
+    this.seeder.onApplicationEvent(null);
+
+    // then: cada plan nace con ventana y modo, y cada parada con duracion y horario
+    ArgumentCaptor<Plan> captor = ArgumentCaptor.forClass(Plan.class);
+    verify(this.planRepositoryMock, times(6)).save(captor.capture());
+    for (Plan plan : captor.getAllValues()) {
+      assertThat(plan.getDayEndTime(), is(equalTo(LocalTime.of(23, 0))));
+      assertThat(plan.getTransportMode(), is(notNullValue()));
+      assertThat(plan.getPlanPlaces(), is(not(empty())));
+      for (PlanPlace stop : plan.getPlanPlaces()) {
+        assertThat(stop.getDurationMinutes(), is(notNullValue()));
+        assertThat(stop.getVisitDate(), is(notNullValue()));
+        assertThat(stop.getVisitTime(), is(notNullValue()));
+      }
+      // el horario derivado arranca donde arranca el plan, no en una hora inventada
+      assertThat(plan.getPlanPlaces().get(0).getVisitDate(), is(equalTo(plan.getEventDate())));
+      assertThat(plan.getPlanPlaces().get(0).getVisitTime(), is(equalTo(plan.getEventTime())));
+    }
   }
 
   // --- fixtures ---

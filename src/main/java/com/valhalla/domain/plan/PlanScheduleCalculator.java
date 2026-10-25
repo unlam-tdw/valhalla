@@ -150,15 +150,33 @@ public final class PlanScheduleCalculator {
     return cursor;
   }
 
-  /** Cascada de duraciones: override de la visita, duracion del lugar, default de la categoria. */
+  /**
+   * [SCH] Cascada de duraciones: override de la visita, duracion del lugar y default de la
+   * categoria. Es publica porque los seeders y el backfill completan duraciones sin armar una
+   * parada; la calculadora y ellos tienen que resolver el mismo nivel.
+   *
+   * @param durationMinutes override de la visita; {@code null} o no positivo lo descarta
+   * @param placeDurationMinutes duracion tipica del lugar; {@code null} o no positiva la descarta
+   * @param category categoria del lugar, la ultima fuente de la cascada
+   * @return la primera duracion positiva de la cascada, o el default de la categoria
+   */
+  public static int effectiveDuration(
+    Integer durationMinutes,
+    Integer placeDurationMinutes,
+    PlaceCategory category
+  ) {
+    if (durationMinutes != null && durationMinutes > 0) {
+      return durationMinutes;
+    }
+    if (placeDurationMinutes != null && placeDurationMinutes > 0) {
+      return placeDurationMinutes;
+    }
+    return defaultDurationMinutes(category);
+  }
+
+  /** Cascada de duraciones de una parada, delegada en la version publica. */
   private static int effectiveDuration(Stop stop) {
-    if (stop.durationMinutes() != null && stop.durationMinutes() > 0) {
-      return stop.durationMinutes();
-    }
-    if (stop.placeDurationMinutes() != null && stop.placeDurationMinutes() > 0) {
-      return stop.placeDurationMinutes();
-    }
-    return defaultDurationMinutes(stop.category());
+    return effectiveDuration(stop.durationMinutes(), stop.placeDurationMinutes(), stop.category());
   }
 
   /**

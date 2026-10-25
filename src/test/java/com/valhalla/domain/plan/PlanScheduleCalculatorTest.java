@@ -416,6 +416,18 @@ public class PlanScheduleCalculatorTest {
     assertSlot(slots.get(0), PLAN_DATE, "09:00", "10:00");
   }
 
+  @Test
+  public void U22_laCascadaDeDuracionesEsPublicaYRespetaSuOrden() {
+    // override de la visita
+    assertEquals(30, PlanScheduleCalculator.effectiveDuration(30, 120, PlaceCategory.RESTAURANT));
+    // override no positivo: manda la duracion del lugar
+    assertEquals(120, PlanScheduleCalculator.effectiveDuration(0, 120, PlaceCategory.RESTAURANT));
+    // las dos primeras nulas: manda el default de la categoria
+    assertEquals(90, PlanScheduleCalculator.effectiveDuration(null, null, PlaceCategory.MUSEUM));
+    // sin categoria: el default generico
+    assertEquals(60, PlanScheduleCalculator.effectiveDuration(null, null, null));
+  }
+
   private static PlanScheduleCalculator.Stop stop(
     Integer duration,
     Integer placeDuration,
