@@ -324,11 +324,17 @@ public class BookmarkControllerIntegrationTest {
     assertThat(countOf(feed, "data-bookmarked=\"true\""), is(1));
     assertThat(countOf(feed, "data-bookmarked=\"false\""), is(1));
     assertThat(feed, containsString("aria-pressed=\"true\""));
+    assertThat(countOf(feed, "data-plan-id=\"" + savedPlanId + "\""), is(1));
+    assertThat(feed, containsString("data-bookmark-icon=\"filled\""));
+    assertThat(feed, containsString("data-bookmark-icon=\"outline\""));
 
     this.mockMvc.perform(get("/plans/" + savedPlanId + "/public"))
       .andExpect(status().isOk())
       .andExpect(content().string(containsString("data-bookmark-toggle=\"true\"")))
+      .andExpect(content().string(containsString("data-plan-id=\"" + savedPlanId + "\"")))
       .andExpect(content().string(containsString("data-bookmarked=\"true\"")))
+      .andExpect(content().string(containsString("data-bookmark-icon=\"filled\"")))
+      .andExpect(content().string(containsString("data-bookmark-icon=\"outline\"")))
       .andExpect(content().string(containsString("aria-label=\"Quitar de Guardados\"")));
   }
 

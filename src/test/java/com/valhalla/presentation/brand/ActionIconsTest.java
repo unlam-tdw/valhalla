@@ -144,6 +144,8 @@ public class ActionIconsTest {
     assertThat(read(BOOKMARK), containsString("title="));
     assertThat(read(BOOKMARK), containsString("sr-only"));
     assertThat(read(BOOKMARK), containsString("aria-pressed"));
+    assertThat(read(BOOKMARK), containsString("data-bookmark-icon=\"filled\""));
+    assertThat(read(BOOKMARK), containsString("data-bookmark-icon=\"outline\""));
     assertThat(read(NAVBAR_MENU), containsString("aria-hidden=\"true\""));
     assertThat(read(EXPLORER), containsString(":aria-label="));
   }
