@@ -310,6 +310,73 @@ public class PlanControllerIntegrationTest {
     assertThat(planRepository.findById(planId).orElseThrow().getName(), is("Edited by editor"));
   }
 
+  @Test
+  public void ownerSeesRoleFormAndEditorOnlySeesBadge() throws Exception {
+    UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    User editor = this.userRepository.findById(this.otherId).orElseThrow();
+    plan.getParticipants().add(editor);
+    plan.getEditors().add(editor);
+    this.planRepository.save(plan);
+
+    String ownerSection = participantsSection(
+      this.mockMvc.perform(get("/plans/" + planId).with(user(OWNER_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString()
+    );
+
+    // AC-14/AC-15: el dueño ve el formulario de rol y los emails solo en inputs hidden.
+    assertThat(ownerSection, containsString("Guardar rol"));
+    assertThat(
+      ownerSection,
+      containsString("name=\"participantEmail\" value=\"" + OTHER_EMAIL + "\"")
+    );
+    assertThat(ownerSection, not(containsString(">" + OTHER_EMAIL + "<")));
+    assertThat(ownerSection, not(containsString(">" + OWNER_EMAIL + "<")));
+    assertThat(ownerSection, containsString("Test User"));
+
+    String editorSection = participantsSection(
+      this.mockMvc.perform(get("/plans/" + planId).with(user(OTHER_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString()
+    );
+
+    // El editor conserva la información del rol, pero no el control para cambiarlo.
+    assertThat(editorSection, not(containsString("Guardar rol")));
+    assertThat(editorSection, containsString(">Editor<"));
+    assertThat(editorSection, not(containsString(">" + OTHER_EMAIL + "<")));
+    assertThat(editorSection, not(containsString(">" + OWNER_EMAIL + "<")));
+  }
+
+  @Test
+  public void editorCannotChangeAnotherParticipantsRole() throws Exception {
+    UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    String guestEmail = "guest@test.com";
+    User guest = this.userRepository.findById(givenUser(guestEmail)).orElseThrow();
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    User editor = this.userRepository.findById(this.otherId).orElseThrow();
+    plan.getParticipants().addAll(List.of(editor, guest));
+    plan.getEditors().add(editor);
+    this.planRepository.save(plan);
+
+    this.mockMvc.perform(
+        post("/plans/" + planId + "/participants/role")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("participantEmail", guestEmail)
+          .param("role", "editor")
+      )
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    this.entityManager.flush();
+    this.entityManager.clear();
+    assertThat(this.planRepository.findById(planId).orElseThrow().isEditor(guestEmail), is(false));
+  }
+
   // --- listado ---
 
   @Test
@@ -2220,6 +2287,14 @@ public class PlanControllerIntegrationTest {
       .andReturn()
       .getResponse()
       .getContentAsString();
+  }
+
+  /**
+   * Recorta la seccion de participantes del detalle: el navbar lleva el email de la sesion, asi
+   * que las aserciones de privacidad no pueden mirar el HTML entero.
+   */
+  private static String participantsSection(String html) {
+    return html.substring(html.indexOf("participants-heading"), html.indexOf("Editar plan"));
   }
 
   private static int occurrences(String haystack, String needle) {
