@@ -19,16 +19,19 @@
     <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}"
       th:value="${_csrf.token}" />
     <button type="submit" data-bookmark-toggle="true"
-      th:attr="data-bookmarked=${bookmarked}, aria-pressed=${bookmarked}, aria-label=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}, title=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}"
+      th:attr="data-plan-id=${planId}, data-bookmarked=${bookmarked}, aria-pressed=${bookmarked}, aria-label=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}, title=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}"
       th:classappend="${bookmarked} ? 'text-primary' : 'text-gray-600 hover:text-primary'"
-      class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
-      <!-- Relleno: ya esta guardado. -->
-      <svg th:if="${bookmarked}" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"
+      class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary disabled:cursor-not-allowed disabled:opacity-50">
+      <!-- Relleno: ya esta guardado. Los dos iconos viajan siempre para que el JS pueda
+           intercambiarlos sin reconstruir el boton. -->
+      <svg data-bookmark-icon="filled" class="h-5 w-5"
+        th:classappend="${bookmarked} ? null : 'hidden'" viewBox="0 0 24 24" fill="currentColor"
         aria-hidden="true">
         <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
       </svg>
       <!-- Contorno: todavia no esta guardado. -->
-      <svg th:unless="${bookmarked}" class="h-5 w-5" viewBox="0 0 24 24" fill="none"
+      <svg data-bookmark-icon="outline" class="h-5 w-5"
+        th:classappend="${bookmarked} ? 'hidden' : null" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
         <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
       </svg>
