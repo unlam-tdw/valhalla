@@ -477,13 +477,13 @@
                 </h5>
                 <p class="text-muted small mb-0" th:if="${#lists.isEmpty(participantEmails)}">Todav&iacute;a no se ha unido nadie al plan.</p>
                 <ol class="list-group list-group-numbered" th:unless="${#lists.isEmpty(participantEmails)}">
-                    <li class="list-group-item d-flex flex-wrap align-items-center gap-2" th:each="participant : ${participants}" th:with="email=${participant.email}">
+                    <li class="list-group-item d-flex flex-wrap align-items-center gap-2" th:each="participant : ${participants}" th:with="email=${participant.email}, displayName=${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">
                         <div class="flex-grow-1 text-break" style="min-width: 0;">
                             <!-- [PROF] AC-22/PROF-014: el nombre del participante linkea a su
-                                 perfil publico; el email queda como sub-linea interna. -->
+                                 perfil publico. El email es interno: no se muestra como texto,
+                                 solo viaja en los inputs hidden de las acciones autorizadas. -->
                             <a th:href="@{/profile/{id}(id=${participant.id})}" class="text-decoration-none"
-                              th:text="${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">Nombre completo</a>
-                            <span class="text-muted small" th:text="${email}">usuario@ejemplo.com</span>
+                              th:text="${#strings.isEmpty(displayName) ? 'Sin nombre' : displayName}">Nombre completo</a>
                         </div>
                         <span th:if="${plan.isAdministrator(email)}" class="badge bg-primary flex-shrink-0">Due&ntilde;o</span>
                         <!-- El dueño es el único que reasigna roles existentes; los editores ven el
@@ -501,7 +501,7 @@
                         <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/remove(id=${plan.id})}" method="POST" class="mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Eliminar del plan a ' + email}">Eliminar del plan</button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Eliminar del plan a ' + (#strings.isEmpty(displayName) ? 'esta persona' : displayName)}">Eliminar del plan</button>
                         </form>
                     </li>
                 </ol>

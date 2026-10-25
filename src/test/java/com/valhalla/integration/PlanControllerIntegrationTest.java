@@ -895,8 +895,15 @@ public class PlanControllerIntegrationTest {
         .andReturn();
 
     // then: render real properties and serialize places without the parent or its password.
+    // El email del dueño ya no es texto visible en la lista: se muestra el nombre. El navbar sí
+    // lleva el email de la sesión, así que la aserción se acota a la sección de participantes.
     String html = result.getResponse().getContentAsString();
-    assertThat(html, containsString(OWNER_EMAIL));
+    String participantsSection = html.substring(
+      html.indexOf("participants-heading"),
+      html.indexOf("Editar plan")
+    );
+    assertThat(participantsSection, containsString("Test User"));
+    assertThat(participantsSection, not(containsString(OWNER_EMAIL)));
     assertThat(html, containsString("test1234"));
     assertThat(html, containsString("2026-12-01"));
     assertThat(html, containsString("\"id\":\"" + entry.getPlace().getId() + "\""));
@@ -1805,7 +1812,8 @@ public class PlanControllerIntegrationTest {
         .getContentAsString();
     assertThat(html, not(containsString("Invitar a alguien")));
     assertThat(html, containsString("Test User"));
-    assertThat(html, containsString(OWNER_EMAIL));
+    // El email del participante no se muestra como texto: solo nombre, rol y link al perfil.
+    assertThat(html, not(containsString(OWNER_EMAIL)));
     assertThat(html, not(containsString("Salir del plan")));
     assertThat(html, not(containsString("Editar plan")));
     assertThat(html, not(containsString("Eliminar plan")));
@@ -2046,11 +2054,12 @@ public class PlanControllerIntegrationTest {
     plan.getEditors().add(editor);
     this.planRepository.save(plan);
     String removePath = "/plans/" + planId + "/participants/remove";
+    // El nombre accesible del botón usa el nombre visible, nunca el email.
     this.mockMvc.perform(get("/plans/" + planId))
       .andExpect(
         org.springframework.test.web.servlet.result.MockMvcResultMatchers
           .content()
-          .string(containsString("Eliminar del plan a " + OTHER_EMAIL))
+          .string(containsString("Eliminar del plan a Test User"))
       );
     this.mockMvc.perform(post(removePath).param("participantEmail", OTHER_EMAIL))
       .andExpect(status().isForbidden());
@@ -2093,9 +2102,13 @@ public class PlanControllerIntegrationTest {
         .andReturn()
         .getResponse()
         .getContentAsString();
-    assertThat(html, containsString("Eliminar del plan a guest@test.com"));
-    assertThat(html, not(containsString("Eliminar del plan a editor@test.com")));
-    assertThat(html, not(containsString("Eliminar del plan a " + OTHER_EMAIL)));
+    // El editor solo puede eliminar al participante común: ni al dueño, ni a sí mismo, ni a otro
+    // editor. El aria-label ya no distingue por email, así que el conteo es la señal.
+    assertThat(occurrences(html, "Eliminar del plan a Test User"), is(1));
+    assertThat(
+      html,
+      containsString("name=\"participantEmail\" value=\"" + guest.getEmail() + "\"")
+    );
     String removePath = "/plans/" + planId + "/participants/remove";
     for (String email : List.of(
       OWNER_EMAIL,
