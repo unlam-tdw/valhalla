@@ -3,6 +3,7 @@ package com.valhalla.infrastructure.place;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +40,11 @@ public class PlaceRepositoryImpl implements PlaceRepository {
   @Override
   public Optional<Place> findByExternalId(String externalId) {
     return jpaPlaceRepository.findByExternalId(externalId);
+  }
+
+  @Override
+  public List<Place> findByExternalIdIn(Collection<String> externalIds) {
+    return jpaPlaceRepository.findByExternalIdIn(externalIds);
   }
 
   @Override

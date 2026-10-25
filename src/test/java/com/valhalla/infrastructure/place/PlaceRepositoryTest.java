@@ -1,9 +1,12 @@
 package com.valhalla.infrastructure.place;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -79,5 +82,34 @@ public class PlaceRepositoryTest {
   @Test
   public void shouldReturnEmptyForAnIdentityThatWasNeverImported() {
     assertThat(placeRepository.findByExternalId("osm:node/404").isPresent(), is(false));
+  }
+
+  @Test
+  public void shouldFindThePlacesOfAGivenSetOfIdentities() {
+    placeRepository.save(imported("Importado Uno", "osm:node/7001"));
+    placeRepository.save(imported("Importado Dos", "osm:way/7002"));
+
+    List<Place> found = placeRepository.findByExternalIdIn(
+      List.of("osm:node/7001", "osm:way/7002", "osm:node/70404")
+    );
+
+    assertThat(found, hasSize(2));
+    assertThat(
+      found.stream().map(Place::getExternalId).toList(),
+      containsInAnyOrder("osm:node/7001", "osm:way/7002")
+    );
+  }
+
+  @Test
+  public void shouldReturnNothingForAnEmptySetOfIdentities() {
+    assertThat(placeRepository.findByExternalIdIn(List.of()), is(empty()));
+  }
+
+  private static Place imported(String name, String externalId) {
+    Place place = new Place();
+    place.setName(name);
+    place.setCategory(PlaceCategory.CAFE);
+    place.setExternalId(externalId);
+    return place;
   }
 }

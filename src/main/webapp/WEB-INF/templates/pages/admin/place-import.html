@@ -34,8 +34,9 @@
         <h1 class="text-2xl font-semibold text-gray-900">Importar del mapa</h1>
         <p class="text-sm text-gray-600">
           Elegí el tipo de lugar y presioná Cargar: se consultan los puntos de OpenStreetMap que
-          están en la zona visible del mapa y quedan guardados. Después hacé click en un punto y el
-          alta del ABM se abre pre-llenada con sus datos.
+          están en la zona visible del mapa y quedan guardados. Después hacé click en un punto o en
+          una fila de la lista y se abre la vista previa con todos sus datos; desde ahí el alta del
+          ABM se abre pre-llenada.
         </p>
         <p class="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-500">
           Cada consulta trae hasta 300 puntos de la zona visible y tarda ~30 s. Lo ya cargado queda
@@ -78,13 +79,21 @@
           {{ error }}
         </p>
 
-        <!-- Misma navegacion que el click del marker, en texto: el mapa no es la unica via. -->
+        <!-- Misma via que el click del marker, en texto: el mapa no es la unica forma de elegir.
+             El click abre la vista previa; el href queda como respaldo sin JS. -->
         <ul class="flex flex-col gap-2 transition-opacity" :class="{ 'opacity-50': refreshing }"
           :aria-busy="refreshing">
           <li v-for="poi in filtered" :key="keyOf(poi)">
-            <a :href="formUrl(poi)"
+            <a :href="formUrl(poi)" @click.prevent="selectPoi(poi)"
               class="block rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition hover:bg-gray-50">
-              <span class="block text-sm font-medium text-gray-900">{{ poi.name }}</span>
+              <span class="flex items-start gap-2">
+                <span class="grow text-sm font-medium text-gray-900">{{ poi.name }}</span>
+                <!-- El punto que ya es un lugar del catalogo se avisa aca, sin abrir el panel. -->
+                <span v-if="poi.savedPlaceId" data-saved-badge
+                  class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                  Guardado
+                </span>
+              </span>
               <span class="block text-xs text-gray-500">{{ poi.address || 'Sin dirección' }}</span>
               <span v-if="poi.openingHours" class="block text-xs text-gray-500">{{ poi.openingHours }}</span>
             </a>
@@ -106,6 +115,76 @@
 
       <div class="flex-1 min-w-0 relative">
         <div id="map" class="absolute inset-0 w-full h-full"></div>
+
+        <!-- Vista previa del punto elegido: se abre sobre el mapa, asi el click no hace perder la
+             zona que se estaba mirando. En mobile es un bottom sheet; desde md cuelga del borde
+             derecho del mapa. -->
+        <div v-if="selectedPoi" id="poi-preview" role="region"
+          aria-label="Vista previa del punto seleccionado"
+          class="absolute left-4 right-4 bottom-4 z-[1100] max-h-[60%] overflow-y-auto overscroll-contain rounded-lg border border-gray-200 bg-white p-4 shadow-lg md:left-auto md:right-4 md:top-4 md:bottom-auto md:max-h-[80%] md:w-full md:max-w-sm">
+          <div class="flex items-start justify-between gap-3">
+            <h2 class="text-base font-semibold text-gray-900">{{ selectedPoi.name }}</h2>
+            <button type="button" id="poi-preview-close" @click="closePreview"
+              class="rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700">
+              Cerrar
+            </button>
+          </div>
+
+          <!-- El mismo token de color que pinta el marker: la categoria y su punto se leen juntos. -->
+          <p class="mt-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
+            <span id="poi-preview-category-dot" class="inline-block h-3 w-3 rounded-full"
+              :style="{ backgroundColor: categoryColor(selectedPoi.category) }"></span>
+            {{ selectedPoi.category }}
+          </p>
+
+          <dl class="mt-3 flex flex-col gap-1 text-sm text-gray-700">
+            <div class="flex gap-2">
+              <dt class="w-24 shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+                Dirección
+              </dt>
+              <dd id="poi-preview-address" class="break-words">{{ orDash(selectedPoi.address) }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="w-24 shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+                Horarios
+              </dt>
+              <dd id="poi-preview-hours" class="break-words">{{ orDash(selectedPoi.openingHours) }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="w-24 shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+                Teléfono
+              </dt>
+              <dd id="poi-preview-phone" class="break-words">{{ orDash(selectedPoi.phone) }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="w-24 shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+                Sitio web
+              </dt>
+              <dd id="poi-preview-website" class="break-all">{{ orDash(selectedPoi.website) }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="w-24 shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+                Coordenadas
+              </dt>
+              <dd id="poi-preview-coordinates">{{ coordinatesOf(selectedPoi) }}</dd>
+            </div>
+          </dl>
+
+          <!-- Un punto que ya es un lugar no se crea de nuevo: se linkea el que existe. -->
+          <p v-if="selectedPoi.savedPlaceId" id="poi-saved-note" class="mt-3 text-xs text-emerald-700">
+            Ya está guardado en el catálogo.
+          </p>
+          <div class="mt-3">
+            <a v-if="!selectedPoi.savedPlaceId" :href="formUrl(selectedPoi)" id="poi-create"
+              class="inline-block rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-gray-800">
+              Crear lugar
+            </a>
+            <a v-else :href="'/admin/places/' + selectedPoi.savedPlaceId + '/edit'" id="poi-saved-link"
+              class="inline-block rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-gray-800">
+              Ver el lugar guardado
+            </a>
+          </div>
+        </div>
       </div>
     </div>
 

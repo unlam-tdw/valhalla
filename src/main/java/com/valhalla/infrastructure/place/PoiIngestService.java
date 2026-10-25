@@ -76,13 +76,15 @@ public class PoiIngestService {
 
   /**
    * Lo guardado de la caja pedida. No toca la red: es lo que corre al entrar y al mover el mapa.
+   *
+   * <p>Devuelve las filas tal como estan guardadas, porque el sobre necesita su categoria y su
+   * identidad; el controller las proyecta a {@code PoiView}.
    */
   public ZonePois read(String tagKey, String tagValue, BoundingBox requested) {
-    List<OsmPoi> pois = mapPoiRepository
+    List<MapPoi> pois = mapPoiRepository
       .findInBox(tagKey, tagValue, requested)
       .stream()
       .filter(poi -> poi.getStatus() == PoiStatus.ACTIVE)
-      .map(MapPoi::toOsmPoi)
       .toList();
     Instant fetchedAt = poiZoneRepository
       .find(zoneKey(zoneOf(requested)), tagKey, tagValue)

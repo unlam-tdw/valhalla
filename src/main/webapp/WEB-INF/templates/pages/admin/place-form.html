@@ -15,6 +15,17 @@
         th:text="${isEdit} ? 'Edit Place' : 'New Place'">Form Title</h3>
       <hr class="mb-6 border-gray-200">
 
+      <!-- El punto que llego del importador ya es un lugar del catalogo: se avisa antes de que el
+           admin cargue un duplicado, y el link lleva al que existe. -->
+      <div th:if="${savedPlaceId}" id="place-already-saved"
+        class="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p>Este punto ya está guardado en el catálogo.</p>
+        <a th:href="@{/admin/places/{id}/edit(id=${savedPlaceId})}"
+          class="mt-1 inline-block font-medium underline">
+          Ver el lugar guardado
+        </a>
+      </div>
+
       <form ref="form" @submit.prevent="submit"
         th:action="${isEdit} ? @{/admin/places/{id}(id=${placeId})} : @{/admin/places}"
         method="POST">

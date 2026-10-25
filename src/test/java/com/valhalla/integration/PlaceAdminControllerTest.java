@@ -1,6 +1,7 @@
 package com.valhalla.integration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasProperty;
@@ -358,6 +359,49 @@ public class PlaceAdminControllerTest {
     assertThat(inputValue(html, "externalId"), is("osm:node/9001"));
   }
 
+  // --- aviso de "ya guardado" al abrir el alta desde el importador ---
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldWarnThatThePoiIsAlreadySavedWhenTheFormOpensWithAKnownExternalId()
+    throws Exception {
+    Place saved = givenSavedPoi("Cafe Importado", "osm:node/9001");
+
+    this.mockMvc.perform(
+        get("/admin/places/new")
+          .param("name", "Cafe Importado")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/9001")
+      )
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/admin/place-form"))
+      .andExpect(model().attribute("savedPlaceId", saved.getId()))
+      .andExpect(
+        model()
+          .attribute(
+            "placeForm",
+            allOf(
+              hasProperty("name", is("Cafe Importado")),
+              hasProperty("category", is(PlaceCategory.CAFE)),
+              hasProperty("externalId", is("osm:node/9001"))
+            )
+          )
+      );
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldNotFlagASavedPlaceForANewIdentity() throws Exception {
+    this.mockMvc.perform(
+        get("/admin/places/new")
+          .param("name", "Cafe Nuevo")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/404")
+      )
+      .andExpect(status().isOk())
+      .andExpect(model().attribute("savedPlaceId", is(nullValue())));
+  }
+
   // --- cobertura del camino "id inexistente" en GET /{id}/edit ---
 
   @Test
@@ -375,6 +419,15 @@ public class PlaceAdminControllerTest {
     request.setName(name);
     request.setCategory(category);
     request.setImageUrl(imageUrl);
+    return placeService.create(request);
+  }
+
+  /** Un lugar que ya representa a un POI de OSM, para el aviso de "ya guardado". */
+  private Place givenSavedPoi(String name, String externalId) {
+    EditPlaceRequest request = new EditPlaceRequest();
+    request.setName(name);
+    request.setCategory(PlaceCategory.CAFE);
+    request.setExternalId(externalId);
     return placeService.create(request);
   }
 

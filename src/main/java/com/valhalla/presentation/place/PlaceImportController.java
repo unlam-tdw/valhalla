@@ -1,8 +1,10 @@
 package com.valhalla.presentation.place;
 
 import com.valhalla.domain.place.BoundingBox;
+import com.valhalla.domain.place.MapPoi;
 import com.valhalla.domain.place.OsmPoi;
 import com.valhalla.domain.place.OverpassClient;
+import com.valhalla.domain.place.PlaceService;
 import com.valhalla.domain.place.ZonePois;
 import com.valhalla.infrastructure.place.PoiIngestService;
 import java.util.LinkedHashMap;
@@ -10,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,13 +84,22 @@ public class PlaceImportController {
   /** Un unico tag por consulta: el proxy no acepta combos de tags ni parametros de mas. */
   private static final int SINGLE_TAG = 1;
 
+  /** Solo las claves con este prefijo son una identidad de OSM que el alta puede reusar. */
+  private static final String OSM_PREFIX = "osm:";
+
   private final OverpassClient overpassClient;
   private final PoiIngestService poiIngestService;
+  private final PlaceService placeService;
 
   @Autowired
-  public PlaceImportController(OverpassClient overpassClient, PoiIngestService poiIngestService) {
+  public PlaceImportController(
+    OverpassClient overpassClient,
+    PoiIngestService poiIngestService,
+    PlaceService placeService
+  ) {
     this.overpassClient = overpassClient;
     this.poiIngestService = poiIngestService;
+    this.placeService = placeService;
   }
 
   /** El modelo lleva la caja de CABA: la vista decide con ella si el boton de cargar esta activo. */
@@ -191,17 +203,39 @@ public class PlaceImportController {
    * Mismo sobre para los dos endpoints: {@code fetchedAt} en {@code null} es "zona nunca cargada",
    * que es distinto de "cargada sin resultados".
    *
+   * <p>Cada punto viaja como {@link PoiView}, con su categoria (el color del marcador) y el id del
+   * lugar que ya lo representa. Los ids guardados se piden una sola vez para toda la pantalla: la
+   * vista puede traer hasta 300 puntos y una consulta por punto no escala.
+   *
    * <p>{@code fetchedAt} va como ISO-8601 ya formateado, no como {@code Instant}: asi el navegador
    * lo parsea con zona horaria en vez de depender de como serialice fechas el ObjectMapper.
    */
   private Map<String, Object> envelope(ZonePois zonePois) {
+    Map<String, UUID> savedPlaceIds = placeService.savedPlaceIds(osmKeysOf(zonePois.pois()));
     Map<String, Object> body = new LinkedHashMap<>();
-    body.put(FIELD_POIS, zonePois.pois());
+    body.put(FIELD_POIS, viewsOf(zonePois.pois(), savedPlaceIds));
     body.put(
       FIELD_FETCHED_AT,
       zonePois.fetchedAt() == null ? null : zonePois.fetchedAt().toString()
     );
     return body;
+  }
+
+  /** Las identidades que vale la pena preguntar: el fallback no es una identidad de OSM. */
+  private static List<String> osmKeysOf(List<MapPoi> pois) {
+    return pois
+      .stream()
+      .map(MapPoi::getSourceKey)
+      .filter(key -> key.startsWith(OSM_PREFIX))
+      .toList();
+  }
+
+  /** Un punto por {@link PoiView}, con el lugar guardado que le corresponde (o {@code null}). */
+  private static List<PoiView> viewsOf(List<MapPoi> pois, Map<String, UUID> savedPlaceIds) {
+    return pois
+      .stream()
+      .map(poi -> PoiView.from(poi, savedPlaceIds.get(poi.getSourceKey())))
+      .toList();
   }
 
   /** Vacio si hay parametros desconocidos o si no vino exactamente un tag del allowlist. */

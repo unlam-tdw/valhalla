@@ -2,6 +2,7 @@ package com.valhalla.e2e;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
@@ -28,54 +29,26 @@ public class PlaceImportE2E extends E2eBase {
 
   private static final String PARRILLA = "Parrilla del Puerto";
 
-  /** Tres POIs: uno completo, uno sin datos opcionales y uno sin coordenadas (no se dibuja). */
-  private static final String FIXTURE_POIS =
-    """
-    [
-      {
-        "name": "Parrilla del Puerto",
-        "address": "Av. Corrientes 1234",
-        "latitude": -34.6037,
-        "longitude": -58.3816,
-        "openingHours": "Mo-Su 12:00-23:00",
-        "phone": "+54 11 4444-5555",
-        "website": "https://parrilla.example.com",
-        "osmKey": "amenity",
-        "osmValue": "restaurant",
-        "osmType": "way",
-        "osmId": 1
-      },
-      {
-        "name": "Bar Sin Datos",
-        "address": null,
-        "latitude": -34.61,
-        "longitude": -58.37,
-        "openingHours": null,
-        "phone": null,
-        "website": null,
-        "osmKey": "amenity",
-        "osmValue": "bar",
-        "osmType": "node",
-        "osmId": 2
-      },
-      {
-        "name": "Café Sin Coordenadas",
-        "address": "Av. Rivadavia 100",
-        "latitude": null,
-        "longitude": null,
-        "openingHours": null,
-        "phone": null,
-        "website": null,
-        "osmKey": "amenity",
-        "osmValue": "restaurant",
-        "osmType": "node",
-        "osmId": 3
-      }
-    ]
-    """;
+  /** Id con el que el backend marca que un POI ya es una fila de places. */
+  private static final String SAVED_PLACE_ID = "0192f0c4-7b3a-7c2e-9f10-2a1b3c4d5e6f";
+
+  /**
+   * Tres POIs, cada uno con su categoria: uno completo, uno sin datos opcionales y uno sin
+   * coordenadas (no se dibuja). Ninguno es todavia un lugar guardado.
+   */
+  private static final String FIXTURE_POIS = fixturePois("null");
+
+  /** El mismo fixture, con la parrilla ya convertida en lugar: el importador tiene que marcarlo. */
+  private static final String FIXTURE_POIS_SAVED = fixturePois("\"" + SAVED_PLACE_ID + "\"");
 
   /** Una zona ya cargada: fecha vieja a proposito, para que "hace X" siempre sea pasado. */
   private static final String ENVELOPE_LOADED = envelope(FIXTURE_POIS, "\"2020-01-01T10:00:00Z\"");
+
+  /** La misma zona, con un punto que ya existe en el catalogo. */
+  private static final String ENVELOPE_SAVED = envelope(
+    FIXTURE_POIS_SAVED,
+    "\"2020-01-01T10:00:00Z\""
+  );
 
   /** Zona nunca cargada: hay que distinguirla de una zona cargada sin resultados. */
   private static final String ENVELOPE_EMPTY = envelope("[]", "null");
@@ -149,12 +122,34 @@ public class PlaceImportE2E extends E2eBase {
     assertThat("el POI sin coordenadas no tiene marker", view.markerCount(), is(2));
 
     view.selectPoi(PARRILLA);
+    view.waitForPreview();
+
+    assertThat(
+      "la fila abre la vista previa, no el alta",
+      page.url(),
+      containsString("/admin/places/import")
+    );
+    assertThat("el panel es el del punto elegido", view.previewName(), is(PARRILLA));
+    assertThat(view.previewAddress(), is("Av. Corrientes 1234"));
+    assertThat(view.previewHours(), is("Mo-Su 12:00-23:00"));
+    assertThat(view.previewPhone(), is("+54 11 4444-5555"));
+    assertThat(view.previewWebsite(), is("https://parrilla.example.com"));
+    assertThat(view.previewCoordinates(), is("-34.6037, -58.3816"));
+    // El color sale del token de RESTAURANT, el mismo que pinta el marker de /explore.
+    assertThat(
+      "el punto de categoria pinta con su token",
+      view.previewCategoryColor(),
+      is("rgb(231, 76, 60)")
+    );
+    assertThat("el punto todavia no es un lugar", view.hasCreateAction(), is(true));
+
+    view.clickCreateFromPreview();
     view.waitForPath("/admin/places/new");
     page.waitForFunction("() => document.querySelector('#name')?.value === '" + PARRILLA + "'");
 
     PlaceFormPage form = new PlaceFormPage(page);
     assertThat(form.getName(), is(PARRILLA));
-    assertThat("la categoria sugiere la del selector", form.getCategory(), is("RESTAURANT"));
+    assertThat("la categoria sugiere la del punto", form.getCategory(), is("RESTAURANT"));
     assertThat(form.getAddress(), is("Av. Corrientes 1234"));
     assertThat(form.getLatitude(), is("-34.6037"));
     assertThat(form.getLongitude(), is("-58.3816"));
@@ -162,6 +157,65 @@ public class PlaceImportE2E extends E2eBase {
     assertThat(form.getPhone(), is("+54 11 4444-5555"));
     assertThat(form.getWebsite(), is("https://parrilla.example.com"));
     assertThat("la identidad del POI viaja al alta", form.getExternalId(), is("osm:way/1"));
+  }
+
+  /** El marker abre el mismo panel que la fila: el mapa tampoco navega al alta. */
+  @Test
+  void shouldPreviewAMarkerWithoutLeavingThePage() {
+    signInAsAdmin();
+    stubStored(ENVELOPE_EMPTY);
+    stubRefresh(ENVELOPE_LOADED);
+
+    PlaceImportPage view = new PlaceImportPage(page);
+    view.navigateToImport();
+    view.waitForLoadButton();
+    view.clickLoad();
+    view.waitForPois(3);
+    assertThat(view.markerCount(), is(2));
+
+    view.clickFirstMarker();
+    view.waitForPreview();
+
+    assertThat("el marker abre la vista previa", view.previewName(), is(PARRILLA));
+    assertThat(
+      "el click no navega: la pagina sigue en el importador",
+      page.url(),
+      containsString("/admin/places/import")
+    );
+
+    view.closePreview();
+    assertThat("el panel se puede cerrar sin dejar nada abierto", view.hasPreview(), is(false));
+  }
+
+  /**
+   * El punto que ya es un lugar del catalogo se marca en la fila y en el panel, y no ofrece un
+   * alta que duplicaria la fila.
+   */
+  @Test
+  void shouldMarkThePoiThatIsAlreadyAPlace() {
+    signInAsAdmin();
+    stubStored(ENVELOPE_EMPTY);
+    stubRefresh(ENVELOPE_SAVED);
+
+    PlaceImportPage view = new PlaceImportPage(page);
+    view.navigateToImport();
+    view.waitForLoadButton();
+    view.clickLoad();
+    view.waitForPois(3);
+
+    assertThat("solo la parrilla ya es un lugar", view.savedBadgeCount(), is(1));
+
+    view.selectPoi(PARRILLA);
+    view.waitForPreview();
+
+    assertThat(view.previewName(), is(PARRILLA));
+    assertThat(view.previewText(), containsString("Ya está guardado"));
+    assertThat(
+      "el link lleva al lugar que ya existe",
+      view.savedPlaceHref(),
+      endsWith("/admin/places/" + SAVED_PLACE_ID + "/edit")
+    );
+    assertThat("no se ofrece crear un lugar que ya existe", view.hasCreateAction(), is(false));
   }
 
   @Test
@@ -297,6 +351,55 @@ public class PlaceImportE2E extends E2eBase {
   /** El sobre que devuelven los dos endpoints: `pois` y `fetchedAt` (null = zona nunca cargada). */
   private static String envelope(String pois, String fetchedAt) {
     return "{\"pois\":" + pois + ",\"fetchedAt\":" + fetchedAt + "}";
+  }
+
+  /**
+   * Los tres POIs del stub, con la forma que manda el backend: categoria del enum e identidad del
+   * POI en {@code externalId}, sin los viejos {@code osmType}/{@code osmId}.
+   *
+   * @param savedPlaceId id del lugar que ya representa a la parrilla, o {@code null} en JSON
+   */
+  private static String fixturePois(String savedPlaceId) {
+    return """
+    [
+      {
+        "name": "Parrilla del Puerto",
+        "address": "Av. Corrientes 1234",
+        "latitude": -34.6037,
+        "longitude": -58.3816,
+        "openingHours": "Mo-Su 12:00-23:00",
+        "phone": "+54 11 4444-5555",
+        "website": "https://parrilla.example.com",
+        "category": "RESTAURANT",
+        "externalId": "osm:way/1",
+        "savedPlaceId": %s
+      },
+      {
+        "name": "Bar Sin Datos",
+        "address": null,
+        "latitude": -34.61,
+        "longitude": -58.37,
+        "openingHours": null,
+        "phone": null,
+        "website": null,
+        "category": "BAR",
+        "externalId": "osm:node/2",
+        "savedPlaceId": null
+      },
+      {
+        "name": "Café Sin Coordenadas",
+        "address": "Av. Rivadavia 100",
+        "latitude": null,
+        "longitude": null,
+        "openingHours": null,
+        "phone": null,
+        "website": null,
+        "category": "CAFE",
+        "externalId": "osm:node/3",
+        "savedPlaceId": null
+      }
+    ]
+    """.formatted(savedPlaceId);
   }
 
   private boolean hasAllBorders(String url) {

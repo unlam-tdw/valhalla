@@ -190,8 +190,20 @@ public class MapPoi { // NOPMD — intentional: 15 fields vs maxfields=10; the e
     return address;
   }
 
+  public Double getLatitude() {
+    return latitude;
+  }
+
+  public Double getLongitude() {
+    return longitude;
+  }
+
   public PlaceCategory getCategory() {
     return category;
+  }
+
+  public String getOpeningHours() {
+    return openingHours;
   }
 
   public String getPhone() {

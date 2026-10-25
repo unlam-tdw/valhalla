@@ -8,7 +8,10 @@ import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.place.PlaceService;
 import com.valhalla.domain.planplace.PlanPlaceRepository;
 import com.valhalla.presentation.place.EditPlaceRequest;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +64,25 @@ public class PlaceServiceImpl implements PlaceService {
   @Transactional(readOnly = true)
   public List<Place> searchPlaces(String query, PlaceCategory category) {
     return placeRepository.findByCategoryAndNameContainingIgnoreCase(category, query);
+  }
+
+  /** Una sola consulta por pantalla del importador, en vez de una por punto visible. */
+  @Override
+  @Transactional(readOnly = true)
+  public Map<String, UUID> savedPlaceIds(Collection<String> externalIds) {
+    List<String> identities = externalIds
+      .stream()
+      .filter(identity -> identity != null && !identity.isBlank())
+      .toList();
+    if (identities.isEmpty()) {
+      return Map.of();
+    }
+    // LinkedHashMap: conserva el orden en que la base devuelve las filas, que es el de la consulta.
+    Map<String, UUID> saved = new LinkedHashMap<>();
+    for (Place place : placeRepository.findByExternalIdIn(identities)) {
+      saved.put(place.getExternalId(), place.getId());
+    }
+    return saved;
   }
 
   @Override

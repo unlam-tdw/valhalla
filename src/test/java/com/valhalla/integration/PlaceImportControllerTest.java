@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,6 +37,7 @@ import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.place.PoiStatus;
 import com.valhalla.infrastructure.place.PoiIngestService;
+import com.valhalla.presentation.place.PoiView;
 import com.valhalla.presentation.shared.LoginRedirects;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -142,12 +144,22 @@ public class PlaceImportControllerTest {
   public void shouldServeTheStoredPoisWithoutTouchingOverpass() throws Exception {
     mapPoiRepository.saveAll(List.of(storedPoi("way", 1L, "amenity", "restaurant")));
 
-    List<OsmPoi> pois = poisFrom(
+    List<PoiView> pois = poisFrom(
       get("/admin/places/import/pois?amenity=restaurant" + VISIBLE_PARAMS)
     );
 
     assertThat(pois, hasSize(1));
-    assertThat(pois.getFirst(), is(FIXTURE_POI));
+    assertThat(pois.getFirst().name(), is(FIXTURE_POI.name()));
+    assertThat(pois.getFirst().address(), is(FIXTURE_POI.address()));
+    assertThat(pois.getFirst().latitude(), is(FIXTURE_POI.latitude()));
+    assertThat(pois.getFirst().longitude(), is(FIXTURE_POI.longitude()));
+    assertThat(pois.getFirst().openingHours(), is(FIXTURE_POI.openingHours()));
+    assertThat(pois.getFirst().externalId(), is("osm:way/1"));
+    assertThat(
+      "el punto todavia no es un lugar guardado",
+      pois.getFirst().savedPlaceId(),
+      is(nullValue())
+    );
     verifyNoInteractions(this.overpassClient);
   }
 
@@ -171,11 +183,62 @@ public class PlaceImportControllerTest {
     given(this.overpassClient.findPois("amenity", "restaurant", zona))
       .willReturn(List.of(FIXTURE_POI));
 
-    List<OsmPoi> pois = poisFrom(
+    List<PoiView> pois = poisFrom(
       get("/admin/places/import/refresh?amenity=restaurant&south=-35&west=-59&north=-34&east=-58")
     );
 
     assertThat(pois, hasSize(1));
+  }
+
+  /** El marcador se pinta por categoria y el alta reusa la identidad: los dos viajan por punto. */
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldServeTheCategoryAndTheIdentityOfEachPoi() throws Exception {
+    mapPoiRepository.saveAll(
+      List.of(storedPoi("way", 1L, "amenity", "restaurant"), storedPoiWithoutOsmId())
+    );
+
+    JsonNode pois = envelopeFrom(
+      get("/admin/places/import/pois?amenity=restaurant" + VISIBLE_PARAMS)
+    )
+      .path("pois");
+
+    assertThat(pois.size(), is(2));
+    assertThat(poiWithExternalId(pois, "osm:way/1").path("category").asText(), is("RESTAURANT"));
+    assertThat(poiWithExternalId(pois, "osm:way/1").path("externalId").asText(), is("osm:way/1"));
+    assertThat(
+      "sin id de OSM no hay identidad que mandar al alta",
+      poiWithoutExternalId(pois).path("externalId").isNull(),
+      is(true)
+    );
+  }
+
+  /**
+   * El punto que ya es un lugar guardado se marca con su id, y solo ese. La suite es transaccional,
+   * asi que la fila no se escapa al baseline de 12 lugares de las demas suites.
+   */
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldFlagThePoiThatIsAlreadyAPlace() throws Exception {
+    Place saved = new Place();
+    saved.setName("Parrilla del Puerto");
+    saved.setCategory(PlaceCategory.RESTAURANT);
+    saved.setExternalId("osm:node/9001");
+    placeRepository.save(saved);
+    mapPoiRepository.saveAll(
+      List.of(
+        storedPoi("node", 9001L, "amenity", "restaurant"),
+        storedPoi("way", 1L, "amenity", "restaurant")
+      )
+    );
+
+    List<PoiView> pois = poisFrom(
+      get("/admin/places/import/pois?amenity=restaurant" + VISIBLE_PARAMS)
+    );
+
+    assertThat(pois, hasSize(2));
+    assertThat(savedPlaceIdOf(pois, "osm:node/9001"), is(saved.getId()));
+    assertThat(savedPlaceIdOf(pois, "osm:way/1"), is(nullValue()));
   }
 
   // --- ingesta desde el boton ---
@@ -479,10 +542,39 @@ public class PlaceImportControllerTest {
     return new ObjectMapper().readTree(body);
   }
 
-  private List<OsmPoi> poisFrom(MockHttpServletRequestBuilder request) throws Exception {
+  private List<PoiView> poisFrom(MockHttpServletRequestBuilder request) throws Exception {
     return Arrays.asList(
-      new ObjectMapper().readValue(envelopeFrom(request).path("pois").toString(), OsmPoi[].class)
+      new ObjectMapper().readValue(envelopeFrom(request).path("pois").toString(), PoiView[].class)
     );
+  }
+
+  /** El punto con esa identidad, o un fallo explicito si el sobre no lo trae. */
+  private JsonNode poiWithExternalId(JsonNode pois, String externalId) {
+    for (JsonNode poi : pois) {
+      if (externalId.equals(poi.path("externalId").asText())) {
+        return poi;
+      }
+    }
+    throw new AssertionError("el sobre no trae el POI " + externalId);
+  }
+
+  /** El unico punto que no viaja con identidad OSM. */
+  private JsonNode poiWithoutExternalId(JsonNode pois) {
+    for (JsonNode poi : pois) {
+      if (poi.path("externalId").isNull()) {
+        return poi;
+      }
+    }
+    throw new AssertionError("el sobre no trae un POI sin identidad OSM");
+  }
+
+  private UUID savedPlaceIdOf(List<PoiView> pois, String externalId) {
+    return pois
+      .stream()
+      .filter(poi -> externalId.equals(poi.externalId()))
+      .findFirst()
+      .orElseThrow()
+      .savedPlaceId();
   }
 
   /** Una fila ya guardada, con los mismos datos del fixture para poder comparar por equals. */
@@ -501,6 +593,29 @@ public class PlaceImportControllerTest {
       id
     );
     return MapPoi.from(poi, PlaceCategory.fromOsm(tagKey, tagValue), tagKey, tagValue);
+  }
+
+  /** Fila sin id de OSM: su clave cae al fallback, asi que no tiene identidad que ofrecer. */
+  private static MapPoi storedPoiWithoutOsmId() {
+    OsmPoi poi = new OsmPoi(
+      "Kiosco del Puerto",
+      null,
+      FIXTURE_POI.latitude(),
+      FIXTURE_POI.longitude(),
+      null,
+      null,
+      null,
+      "amenity",
+      "restaurant",
+      null,
+      null
+    );
+    return MapPoi.from(
+      poi,
+      PlaceCategory.fromOsm("amenity", "restaurant"),
+      "amenity",
+      "restaurant"
+    );
   }
 
   private JsonNode jsonOf(String body) throws Exception {

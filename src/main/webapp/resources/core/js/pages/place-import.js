@@ -1,5 +1,6 @@
 /**
- * The OSM importer: map viewport, predefined queries and the point list. Extracted from
+ * The OSM importer: map viewport, predefined queries, the point list and the preview panel that
+ * opens over the map instead of navigating to the alta. Extracted from
  * WEB-INF/templates/pages/admin/place-import.html (docs/guide-js.md R4).
  *
  * `Vue` and `L` are globals from the vendored classic scripts, which run before this
@@ -10,6 +11,7 @@
  * admin presiona el boton, porque es el unico que habla con Overpass.
  */
 import { apiFetch } from '../lib/api.js';
+import { categoryColor } from '../lib/category-colors.js';
 import { el } from '../lib/dom.js';
 
 const CABA = (window.PLACE_IMPORT_SEED || {}).cabaBounds ?? null;
@@ -53,6 +55,9 @@ createApp({
     const loaded = ref(false);
     /* ISO-8601 de la ultima carga de esta zona y este tipo, o null si nunca se cargo. */
     const fetchedAt = ref(null);
+    /* El punto elegido en el mapa o en la lista: abre la vista previa sobre el mapa en vez de
+       navegar. null = no hay panel abierto. */
+    const selectedPoi = ref(null);
     /* Reloj propio: el "hace X" tiene que envejecer aunque nadie toque la pagina. */
     const now = ref(Date.now());
     let map = null;
@@ -148,10 +153,10 @@ createApp({
     );
 
     /* Identidad de la fila, la misma que guarda el backend en source_key: dos POIs homonimos en
-       esquinas distintas son dos filas y el v-for no puede confundirlas. */
-    const keyOf = (poi) => poi.osmType && poi.osmId
-      ? poi.osmType + '/' + poi.osmId
-      : poi.name + '@' + poi.latitude + ',' + poi.longitude;
+       esquinas distintas son dos filas y el v-for no puede confundirlas. Un POI sin identidad de
+       OSM cae en la clave de respaldo (nombre@lat,lon). */
+    const keyOf = (poi) => poi.externalId ||
+      poi.name + '@' + poi.latitude + ',' + poi.longitude;
 
     /* El alta espera los mismos params que arma el marker. encodeURIComponent en cada valor:
        los nombres de OSM traen acentos, comas y parentesis. */
@@ -159,12 +164,10 @@ createApp({
       const param = (name, value) => value === null || value === undefined || value === ''
         ? ''
         : '&' + name + '=' + encodeURIComponent(value);
-      /* Solo tipo e id de OSM son identidad estable. La clave de respaldo (nombre@lat,lon) no
-         sirve como identidad de un lugar: un nombre editado o un punto movido la cambiarian. */
-      const externalId = poi.osmType && poi.osmId
-        ? 'osm:' + poi.osmType + '/' + poi.osmId
-        : null;
-      return '/admin/places/new?category=' + encodeURIComponent(selected.value.category) +
+      /* La categoria del punto manda (es la que se guardo en la fila); el tipo elegido en el
+         selector es solo el respaldo de un punto que no la trae. */
+      return '/admin/places/new?category=' +
+        encodeURIComponent(poi.category || selected.value.category) +
         param('name', poi.name) +
         param('address', poi.address) +
         param('latitude', poi.latitude) +
@@ -172,22 +175,36 @@ createApp({
         param('openingHours', poi.openingHours) +
         param('phone', poi.phone) +
         param('website', poi.website) +
-        param('externalId', externalId);
+        param('externalId', poi.externalId);
     };
 
-    /* Sin hex nuevo: el color sale de los tokens de marca, igual que los markers de /explore. */
-    const brandColor = () => {
-      const tokens = getComputedStyle(document.documentElement);
-      return tokens.getPropertyValue('--primary').trim() ||
-        tokens.getPropertyValue('--black').trim();
+    /* El punto elegido, ya sea desde el mapa o desde la lista: las dos vias abren el panel. */
+    const selectPoi = (poi) => {
+      selectedPoi.value = poi;
     };
+
+    const closePreview = () => {
+      selectedPoi.value = null;
+    };
+
+    /* El panel muestra todo lo que el alta va a recibir, con un guion donde OSM no trajo nada. */
+    const orDash = (value) =>
+      value === null || value === undefined || value === '' ? '—' : value;
+
+    const coordinatesOf = (poi) =>
+      poi.latitude === null || poi.latitude === undefined ||
+        poi.longitude === null || poi.longitude === undefined
+        ? '—'
+        : poi.latitude + ', ' + poi.longitude;
 
     const drawMarkers = () => {
       markers.forEach((marker) => map.removeLayer(marker));
       markers = filtered.value
         .filter((poi) => poi.latitude !== null && poi.longitude !== null)
         .map((poi) => {
-          const color = brandColor();
+          /* El mismo token por categoria que usa /explore: un punto del importador se lee igual
+             que el del mapa publico. */
+          const color = categoryColor(poi.category);
           const marker = L.circleMarker([poi.latitude, poi.longitude], {
             radius: 9,
             color: color,
@@ -199,7 +216,7 @@ createApp({
              the label is a node, not markup. */
           marker.bindPopup(el('strong', { text: poi.name }));
           marker.on('click', () => {
-            window.location.href = formUrl(poi);
+            selectPoi(poi);
           });
           return marker;
         });
@@ -207,6 +224,12 @@ createApp({
 
     /* Los markers se redibujan solos cuando cambia la lista filtrada. */
     watch(filtered, drawMarkers);
+
+    /* Si el elegido dejo de estar en la lista (filtro, carga nueva, cambio de tipo) el panel se
+       cierra: no puede quedar mostrando un punto que ya no esta. */
+    watch(filtered, () => {
+      if (selectedPoi.value && !filtered.value.includes(selectedPoi.value)) closePreview();
+    });
 
     /* Un solo camino para los dos endpoints: cambia la URL y el texto del error, no el contrato
        (sobre {pois, fetchedAt}) ni el manejo de la carrera entre pedidos. */
@@ -306,7 +329,13 @@ createApp({
       canLoad,
       keyOf,
       refreshZone,
-      formUrl
+      formUrl,
+      selectedPoi,
+      selectPoi,
+      closePreview,
+      orDash,
+      coordinatesOf,
+      categoryColor
     };
   }
 }).mount('#place-import-app');

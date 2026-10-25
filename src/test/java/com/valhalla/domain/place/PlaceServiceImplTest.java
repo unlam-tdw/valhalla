@@ -17,7 +17,9 @@ import com.valhalla.domain.exception.PlaceNotFoundException;
 import com.valhalla.domain.planplace.PlanPlaceRepository;
 import com.valhalla.infrastructure.place.PlaceServiceImpl;
 import com.valhalla.presentation.place.EditPlaceRequest;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -248,6 +250,47 @@ public class PlaceServiceImplTest {
     );
 
     assertThrows(PlaceNotFoundException.class, () -> placeService.update(MISSING_ID, request));
+  }
+
+  @Test
+  public void shouldReturnNoSavedPlaceWhenTheListIsEmpty() {
+    Map<String, UUID> saved = placeService.savedPlaceIds(List.of());
+
+    assertThat(saved.isEmpty(), is(true));
+    verify(placeRepositoryMock, never()).findByExternalIdIn(any());
+  }
+
+  @Test
+  public void shouldIgnoreBlankIdentities() {
+    Map<String, UUID> saved = placeService.savedPlaceIds(Arrays.asList("", "  ", null));
+
+    assertThat(saved.isEmpty(), is(true));
+    verify(placeRepositoryMock, never()).findByExternalIdIn(any());
+  }
+
+  @Test
+  public void shouldMapTheSavedPlacesByIdentity() {
+    Place first = place("Cafe Tortoni", PlaceCategory.CAFE);
+    first.setId(PLACE_ID);
+    first.setExternalId("osm:node/1");
+    Place second = place("Parrilla Don Julio", PlaceCategory.RESTAURANT);
+    second.setId(OTHER_PLACE_ID);
+    second.setExternalId("osm:way/2");
+    when(placeRepositoryMock.findByExternalIdIn(List.of("osm:node/1", "osm:way/2", "osm:node/404")))
+      .thenReturn(List.of(first, second));
+
+    Map<String, UUID> saved = placeService.savedPlaceIds(
+      List.of("osm:node/1", "osm:way/2", "osm:node/404")
+    );
+
+    assertThat(saved.size(), is(2));
+    assertThat(saved.get("osm:node/1"), is(PLACE_ID));
+    assertThat(saved.get("osm:way/2"), is(OTHER_PLACE_ID));
+    assertThat(
+      "una identidad sin lugar no aparece en el mapa",
+      saved.containsKey("osm:node/404"),
+      is(false)
+    );
   }
 
   @Test
