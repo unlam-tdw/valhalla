@@ -25,25 +25,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
   <!-- Modo oscuro: el tema se resuelve acá, en línea y antes de cualquier stylesheet, para que
-       la primera pintura ya salga con el modo elegido y no haya destello claro. La decisión
-       vive en localStorage bajo la clave "planit-theme": si el usuario ya eligió una modo, esa
-       elección gana sobre la preferencia del sistema; si nunca eligió, sigue al sistema. Escribe
-       dos atributos con el mismo valor: data-theme es el que encienden los overrides de
-       brand.css, y data-bs-theme es la misma llave en la sintaxis que lee Bootstrap (solo
-       pages/plans/detail.html carga Bootstrap). El click del toggle del navbar se atiende por
-       delegación de eventos: el botón se renderiza después y así el script no se repite en el
-       body. Claves de icono y overrides viven en brand.css y components/navbar.html. -->
+       la primera pintura ya salga con el modo elegido y no haya destello claro. La precedencia
+       es preferencia del usuario > localStorage > sistema:
+       - [PROF+THEME] autenticado: el servidor emite <meta name="theme-preference"> con su
+         themePreference (CurrentUserControllerAdvice.userThemePreference), así la elección
+         viaja entre dispositivos sin depender del storage del browser.
+       - [THEME] anónimo (sin meta): la decisión vive en localStorage bajo la clave
+         "planit-theme"; si nunca eligió, sigue al sistema.
+       Escribe dos atributos con el mismo valor: data-theme es el que encienden los overrides
+       de brand.css, y data-bs-theme es la misma llave en la sintaxis que lee Bootstrap (solo
+       pages/plans/detail.html carga Bootstrap). El click del toggle del navbar anónimo se
+       atiende por delegación de eventos: el botón se renderiza después y así el script no se
+       repite en el body. Claves de icono y overrides viven en brand.css y
+       components/navbar.html. -->
+  <meta name="theme-preference" th:if="${userThemePreference != null}"
+    th:content="${userThemePreference}">
   <script>
     (function () {
       let stored = null;
       try { stored = localStorage.getItem("planit-theme"); } catch (e) { /* sin storage */ }
-      const dark = stored === "dark" ||
-        (stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      const meta = document.querySelector('meta[name="theme-preference"]');
+      const preferred = meta ? meta.getAttribute("content") : null;
+      let initial;
+      if (preferred === "dark" || preferred === "light") {
+        initial = preferred;
+      } else if (stored === "dark" || stored === "light") {
+        initial = stored;
+      } else {
+        initial = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
       const apply = function (mode) {
         document.documentElement.setAttribute("data-theme", mode);
         document.documentElement.setAttribute("data-bs-theme", mode);
       };
-      apply(dark ? "dark" : "light");
+      apply(initial);
       document.addEventListener("click", function (event) {
         const toggle = event.target.closest && event.target.closest("[data-theme-toggle]");
         if (!toggle) return;
