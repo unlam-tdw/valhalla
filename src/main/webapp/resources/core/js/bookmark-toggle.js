@@ -55,6 +55,13 @@ async function toggle(button) {
   if (!planId) return;
 
   const removing = button.dataset.bookmarked === 'true';
+
+  // Optimista: el estado se pinta antes de la respuesta. El boton queda bloqueado para que un
+  // doble click no dispare dos POST/DELETE contradictorios.
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  paint(button, !removing);
+
   try {
     const response = await apiFetch(`/api/plans/${planId}/bookmarks`, {
       method: removing ? 'DELETE' : 'POST'
@@ -62,9 +69,11 @@ async function toggle(button) {
     if (response.status !== 204) {
       throw new ApiError(`La operación falló (${response.status}).`, response.status);
     }
-    paint(button, !removing);
   } catch (error) {
     console.error('No se pudo actualizar Guardados:', error);
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
   }
 }
 

@@ -21,7 +21,7 @@
     <button type="submit" data-bookmark-toggle="true"
       th:attr="data-plan-id=${planId}, data-bookmarked=${bookmarked}, aria-pressed=${bookmarked}, aria-label=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}, title=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}"
       th:classappend="${bookmarked} ? 'text-primary' : 'text-gray-600 hover:text-primary'"
-      class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
+      class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary disabled:cursor-not-allowed disabled:opacity-50">
       <!-- Relleno: ya esta guardado. Los dos iconos viajan siempre para que el JS pueda
            intercambiarlos sin reconstruir el boton. -->
       <svg data-bookmark-icon="filled" class="h-5 w-5"
