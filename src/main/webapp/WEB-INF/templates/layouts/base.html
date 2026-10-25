@@ -237,23 +237,50 @@
     html {
       visibility: hidden;
     }
+
+    /* [FLASH] Vue renders its templates in the browser: until each root calls mount(), the
+       v-if/v-for directives and the {{ }} bindings are inert HTML and would be painted as-is
+       (raw placeholders, hidden-by-v-if blocks and modals). display:none instead of
+       visibility keeps those nodes out of layout, so they cannot flash. Vue removes the
+       attribute from the root as soon as mount() returns.
+
+       The 3 s fallback below strips any v-cloak left over, so a page whose script never ran
+       ends up showing its raw template (what it does today) instead of a permanently blank
+       region. */
+    [v-cloak] {
+      display: none !important;
+    }
   </style>
   <script th:src="@{/js/tailwind-browser.js}" defer></script>
   <script th:src="@{/js/vue.global.prod.js}"></script>
   <script defer>
     (function () {
-      const reveal = function () {
+      /* Reveal when Tailwind has injected its generated stylesheet, not when a <style> is
+         "big enough": the @theme source block above is already ~3 KB and used to satisfy the
+         old length test, revealing the page ~15 ms in, while the compiler was still running.
+         The generated sheet is the only head <style> carrying the "! tailwindcss vX.Y.Z"
+         banner (resources/core/js/tailwind-browser.js). */
+      const stylesReady = function () {
         const styles = document.querySelectorAll("head style");
         for (let i = 0; i < styles.length; i++) {
-          if (styles[i].textContent.length > 2000) {
-            document.documentElement.style.visibility = "visible";
-            return;
-          }
+          if (styles[i].textContent.indexOf("tailwindcss v") !== -1) return true;
         }
+        return false;
+      };
+
+      const show = function () {
+        const pending = document.querySelectorAll("[v-cloak]");
+        for (let i = 0; i < pending.length; i++) pending[i].removeAttribute("v-cloak");
+        document.documentElement.style.visibility = "visible";
+      };
+
+      const reveal = function () {
+        if (stylesReady()) { show(); return; }
         setTimeout(reveal, 15);
       };
+
       setTimeout(reveal, 15);
-      setTimeout(function () { document.documentElement.style.visibility = "visible"; }, 3000);
+      setTimeout(show, 3000);
     })();
   </script>
   <script th:if="${devReloadToken != null}" th:inline="javascript" defer>
