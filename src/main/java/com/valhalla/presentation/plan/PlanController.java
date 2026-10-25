@@ -130,6 +130,9 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    // [SCH] El JS compara la fecha de cada parada contra esta para no repetir el Día 1 en cada
+    // una: sin la fecha del plan, la lista no puede saber cuál es la jornada de referencia.
+    model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }
@@ -541,6 +544,12 @@ public class PlanController {
     view.put("address", place.getAddress());
     view.put("latitude", place.getLatitude());
     view.put("longitude", place.getLongitude());
+    // [SCH] El detalle dibuja el rango con la duración y distingue lo fijado a mano de lo
+    // derivado con el pin; el modo del tramo viaja para el seed de la parada.
+    view.put("durationMinutes", entry.getDurationMinutes());
+    TransportMode mode = entry.getTransportModeToNext();
+    view.put("transportModeToNext", mode == null ? null : mode.name());
+    view.put("timePinned", entry.isTimePinned());
     return view;
   }
 }

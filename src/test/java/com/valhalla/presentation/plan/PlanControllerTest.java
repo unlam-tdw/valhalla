@@ -262,7 +262,14 @@ public class PlanControllerTest {
     // then
     assertThat(view.getViewName(), is(DETAIL_VIEW));
     assertThat(view.getModel().get("plan"), is(sameInstance(plan)));
+    // [SCH] Sin fecha de plan no hay jornada de referencia para el JS que agrupa por día.
+    assertThat(view.getModel().get("planDateIso"), is(nullValue()));
     verify(this.planServiceMock, times(1)).getParticipatingPlan(PLAN_ID, OWNER_EMAIL);
+
+    // La fecha viaja como ISO porque el JS compara strings, no fechas.
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    view = this.controller.showPlan(PLAN_ID, this.authentication);
+    assertThat(view.getModel().get("planDateIso"), is(equalTo("2026-12-31")));
   }
 
   // --- [MARK] toggle de Guardados en el detalle y en la vista publica ---
@@ -572,6 +579,11 @@ public class PlanControllerTest {
     PlanPlace entry = new PlanPlace();
     entry.setId(ENTRY_ID);
     entry.setPlace(place);
+    // [SCH] La parada del slice 4: duración, modo del tramo y el pin del horario viajan al
+    // seed para que el detalle dibuje el rango y distinga lo fijado a mano.
+    entry.setDurationMinutes(90);
+    entry.setTransportModeToNext(TransportMode.BUS);
+    entry.setTimePinned(true);
     plan.addPlanPlace(entry);
     plan.setIsPublic(true);
     when(this.planServiceMock.getSharedPlan(PLAN_ID)).thenReturn(plan);
@@ -586,6 +598,9 @@ public class PlanControllerTest {
     assertThat(stop.get("entryId"), is(ENTRY_ID.toString()));
     assertThat(stop.get("latitude"), is(equalTo(Double.valueOf(-34.8222))));
     assertThat(stop.get("longitude"), is(equalTo(Double.valueOf(-58.5358))));
+    assertThat(stop.get("durationMinutes"), is(equalTo(90)));
+    assertThat(stop.get("transportModeToNext"), is(equalTo("BUS")));
+    assertThat(stop.get("timePinned"), is(true));
   }
 
   // --- GET /for-you: el feed se mudo a ForYouController (/for-you, con y sin sesion) ---

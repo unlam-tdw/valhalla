@@ -66,6 +66,13 @@
         .stop-remove:hover { background: var(--bs-light); }
         .stop-title:focus-visible, .stop-details:focus-visible, .stop-remove:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 4px; }
         .itinerary-empty { padding: 28px 18px; margin-top: 20px; text-align: center; background: var(--bs-light); border-radius: 16px; color: var(--bs-secondary-color); }
+        /* [SCH] Un plan de varios días se lee por jornadas: la separación entre grupos y el
+           encabezado en mayúsculas chico marcan el corte sin competir con el título del panel. */
+        .itinerary-day + .itinerary-day { margin-top: 16px; }
+        .itinerary-day-heading { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color); margin: 0 0 8px; }
+        /* [SCH] El pin distingue la hora elegida a mano de la derivada; el color de marca lo
+           separa de la categoría, que también es un chip. */
+        .stop-pinned { display: inline-flex; align-items: center; gap: 4px; color: var(--bs-primary); font-size: .72rem; font-weight: 700; }
         @media (max-width: 575px) {
             #plan-app { padding-left: 16px !important; padding-right: 16px !important; }
             #plan-app > .d-flex:first-child { flex-wrap: wrap; gap: 12px; }
@@ -338,59 +345,70 @@
                     <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
                     <span class="small">Los lugares del plan aparecer&aacute;n ac&aacute;.</span>
                 </div>
-                <ol class="itinerary-list">
-                    <li v-for="(item, index) in planPlaces"
-                        :key="item.entryId || index"
-                        class="place-item"
-                        th:attr="draggable=${canEditPlan}"
-                        @dragstart="onDragStart(index)"
-                        @dragover.prevent
-                        @drop="onDrop(index)">
-                        <!-- [DIS] AC-12: handle decorativo en el borde izquierdo de la card,
-                             solo con permiso de edicion. El arrastre real sigue mandado en el
-                             <li> draggable: place-item y sus selectores no cambian. -->
-                        <span th:if="${canEditPlan}" class="drag-handle" aria-hidden="true">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="9" cy="12" r="1" />
-                                <circle cx="9" cy="5" r="1" />
-                                <circle cx="9" cy="19" r="1" />
-                                <circle cx="15" cy="12" r="1" />
-                                <circle cx="15" cy="5" r="1" />
-                                <circle cx="15" cy="19" r="1" />
-                            </svg>
-                        </span>
-                        <span class="itinerary-step">{{ index + 1 }}</span>
-                        <!-- [DIS] AC-01: clase doble — .place-card aporta el chrome compartido
-                             con el landing; .itinerary-stop conserva las reglas propias del
-                             detalle (fondo --bs-body-bg, ajuste mobile, reduced-motion). -->
-                        <div class="itinerary-stop place-card">
-                            <div class="stop-content">
-                                <div class="stop-heading">
-                                    <button type="button" class="stop-title" @click="showPlace(item)">{{ item.name }}</button>
-                                    <span class="stop-category"><span v-html="categoryIconHtml(item.category, 14)"></span>{{ getCategoryLabel(item.category) }}</span>
+                <div v-for="group in dayGroups" :key="group.key" class="itinerary-day">
+                    <h6 v-if="dayCount > 1" class="itinerary-day-heading">{{ group.label }}</h6>
+                    <ol class="itinerary-list">
+                        <li v-for="stop in group.stops"
+                            :key="stop.item.entryId || stop.index"
+                            class="place-item"
+                            th:attr="draggable=${canEditPlan}"
+                            @dragstart="onDragStart(stop.index)"
+                            @dragover.prevent
+                            @drop="onDrop(stop.index)">
+                            <!-- [DIS] AC-12: handle decorativo en el borde izquierdo de la card,
+                                 solo con permiso de edicion. El arrastre real sigue mandado en el
+                                 <li> draggable: place-item y sus selectores no cambian. -->
+                            <span th:if="${canEditPlan}" class="drag-handle" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="9" cy="12" r="1" />
+                                    <circle cx="9" cy="5" r="1" />
+                                    <circle cx="9" cy="19" r="1" />
+                                    <circle cx="15" cy="12" r="1" />
+                                    <circle cx="15" cy="5" r="1" />
+                                    <circle cx="15" cy="19" r="1" />
+                                </svg>
+                            </span>
+                            <!-- La numeración es global (no por día): es la misma que usan los
+                                 marcadores del mapa. -->
+                            <span class="itinerary-step">{{ stop.index + 1 }}</span>
+                            <!-- [DIS] AC-01: clase doble — .place-card aporta el chrome compartido
+                                 con el landing; .itinerary-stop conserva las reglas propias del
+                                 detalle (fondo --bs-body-bg, ajuste mobile, reduced-motion). -->
+                            <div class="itinerary-stop place-card">
+                                <div class="stop-content">
+                                    <div class="stop-heading">
+                                        <button type="button" class="stop-title" @click="showPlace(stop.item)">{{ stop.item.name }}</button>
+                                        <span class="stop-category"><span v-html="categoryIconHtml(stop.item.category, 14)"></span>{{ getCategoryLabel(stop.item.category) }}</span>
+                                        <span v-if="stop.item.timePinned" class="stop-pinned" title="Horario fijado a mano">
+                                            <span v-html="iconHtml('pin', 12)"></span>Fijado
+                                        </span>
+                                    </div>
+                                    <div class="stop-schedule">
+                                        <span v-if="stop.timeRange"><span class="me-1" v-html="iconHtml('clock', 14)"></span>{{ stop.timeRange }}</span>
+                                        <span v-if="stop.durationLabel"><span class="me-1" v-html="iconHtml('hourglass', 14)"></span>{{ stop.durationLabel }}</span>
+                                        <!-- La fecha solo aparece cuando la parada cae fuera de la
+                                             jornada del plan: repetir el Día 1 en cada parada sobra. -->
+                                        <span v-if="stop.dateLabel"><span class="me-1" v-html="iconHtml('calendar', 14)"></span>{{ stop.dateLabel }}</span>
+                                        <span v-if="!stop.timeRange">Horario por definir</span>
+                                    </div>
+                                    <p v-if="stop.item.description" class="stop-description">{{ stop.item.description }}</p>
+                                    <!-- [MAPS] Como llegar en la lista del itinerario, ademas del mapa:
+                                         mismo link que la ficha y el popup (direccion de texto). -->
+                                    <a v-if="stop.item.address" class="stop-directions" :href="directionsUrl(stop.item)"
+                                        target="_blank" rel="noopener">
+                                        <span class="me-1" v-html="iconHtml('navigation', 14)"></span>C&oacute;mo llegar
+                                    </a>
                                 </div>
-                                <div class="stop-schedule">
-                                    <span v-if="item.visitDate"><span class="me-1" v-html="iconHtml('calendar', 14)"></span>{{ formatVisitDate(item.visitDate) }}</span>
-                                    <span v-if="item.visitTime"><span class="me-1" v-html="iconHtml('clock', 14)"></span>{{ item.visitTime.slice(0, 5) }}</span>
-                                    <span v-if="!item.visitDate && !item.visitTime">Horario por definir</span>
+                                <div class="stop-actions">
+                                    <button type="button" class="stop-details" @click="showPlace(stop.item)">Ver m&aacute;s</button>
+                                    <button th:if="${canEditPlan}" @click="removePlace(stop.index)" type="button" class="stop-remove" :disabled="saving">
+                                        <span class="me-1" v-html="iconHtml('trash-2', 14)"></span>Eliminar
+                                    </button>
                                 </div>
-                                <p v-if="item.description" class="stop-description">{{ item.description }}</p>
-                                <!-- [MAPS] Como llegar en la lista del itinerario, ademas del mapa:
-                                     mismo link que la ficha y el popup (direccion de texto). -->
-                                <a v-if="item.address" class="stop-directions" :href="directionsUrl(item)"
-                                    target="_blank" rel="noopener">
-                                    <span class="me-1" v-html="iconHtml('navigation', 14)"></span>C&oacute;mo llegar
-                                </a>
                             </div>
-                            <div class="stop-actions">
-                                <button type="button" class="stop-details" @click="showPlace(item)">Ver m&aacute;s</button>
-                                <button th:if="${canEditPlan}" @click="removePlace(index)" type="button" class="stop-remove" :disabled="saving">
-                                    <span class="me-1" v-html="iconHtml('trash-2', 14)"></span>Eliminar
-                                </button>
-                            </div>
-                        </div>
-                    </li>
-                </ol>
+                        </li>
+                    </ol>
+                </div>
             </section>
         </div>
 
@@ -523,12 +541,30 @@
 
                     <div class="mb-3">
                         <label class="form-label text-muted small">Fecha</label>
-                        <input type="date" th:field="*{eventDate}" class="form-control" />
+                        <input type="date" th:field="*{eventDate}" class="form-control" required />
                     </div>
 
                     <div class="mb-3">
                         <label for="eventTime" class="form-label text-muted small">Hora</label>
                         <input type="time" th:field="*{eventTime}" class="form-control" />
+                    </div>
+
+                    <!-- [SCH] La ventana del día y el modo del plan son los que usa el planificador
+                         para derivar el horario: sin ellos acá, el dueño no puede corregir por qué
+                         una parada se fue al día siguiente o cuánto tarda cada tramo. -->
+                    <div class="mb-3">
+                        <label for="dayEndTime" class="form-label text-muted small">Fin del día</label>
+                        <input type="time" th:field="*{dayEndTime}" class="form-control" step="300" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="transportMode" class="form-label text-muted small">Cómo se trasladan</label>
+                        <select th:field="*{transportMode}" class="form-select">
+                            <option value="WALK">A pie</option>
+                            <option value="BIKE">Bicicleta</option>
+                            <option value="BUS">Colectivo</option>
+                            <option value="CAR">Auto</option>
+                        </select>
                     </div>
 
                     <!-- [DIS] AC-10: switch estilo iOS con la paleta del sitio y los dos
@@ -544,13 +580,9 @@
                         </label>
                     </div>
 
-                    <div v-for="(item, index) in planPlaces" :key="index">
-                        <input type="hidden" :name="'places[' + index + '].placeId'" :value="item.id" />
-                        <input type="hidden" :name="'places[' + index + '].description'" :value="item.description || ''" />
-                        <input type="hidden" :name="'places[' + index + '].visitDate'" :value="item.visitDate || ''" />
-                        <input type="hidden" :name="'places[' + index + '].visitTime'" :value="item.visitTime || ''" />
-                        <input type="hidden" :name="'places[' + index + '].sortOrder'" :value="index + 1" />
-                    </div>
+                    <!-- Las paradas se editan por el REST del itinerario (agregar, quitar,
+                         reordenar, horario): este form ya no manda filas places[], así que no
+                         lleva los inputs hidden que las representaban. -->
 
                     <div class="d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary px-4 fw-bold d-inline-flex align-items-center gap-2" :disabled="saving"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>Guardar cambios</button>
@@ -581,26 +613,40 @@
                 <dt>Categoría</dt><dd>{{ selectedEntry.category || 'Sin categoría' }}</dd>
                 <dt>Descripción del lugar</dt><dd>{{ selectedEntry.placeDescription || 'Sin descripción' }}</dd>
                 <dt>Descripción de la visita</dt><dd>{{ selectedEntry.description || 'Sin descripción' }}</dd>
-                <dt>Fecha de visita</dt><dd>{{ selectedEntry.visitDate || 'Sin fecha' }}</dd>
-                <dt>Hora de visita</dt><dd>{{ selectedEntry.visitTime || 'Sin hora' }}</dd>
+                <!-- [SCH] El horario se lee como rango y la duración como texto: el ISO crudo de
+                     fecha y hora no le dice nada a nadie y ya vive en los campos del editor. -->
+                <dt>Horario de visita</dt><dd>{{ selectedEntry.timeRange || 'Sin horario' }}</dd>
+                <dt>Duración</dt><dd>{{ selectedEntry.durationLabel || 'Sin duración' }}</dd>
+                <dt>Día</dt><dd>{{ selectedEntry.dateLabel || 'Sin día' }}</dd>
                 <dt>Posición en el itinerario</dt><dd>{{ selectedEntry.sortOrder }}</dd>
             </dl>
-            <div th:if="${isPlanAdministrator}" class="visit-editor">
+            <!-- [SCH] AC-15: el editor toca el horario igual que el dueño; el gate es canEditPlan,
+                 no isPlanAdministrator. -->
+            <div th:if="${canEditPlan}" class="visit-editor">
                 <p class="visit-editor-heading">Editar horario de la visita</p>
                 <div class="row g-2">
-                    <div class="col-6">
-                        <label class="form-label small text-muted mb-1" :for="'visit-date-' + selectedEntry.id">Fecha</label>
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted mb-1" :for="'visit-duration-' + selectedEntry.id">Duración (min)</label>
+                        <input type="number" min="5" step="5" class="form-control form-control-sm" :id="'visit-duration-' + selectedEntry.id"
+                            :value="selectedEntry.durationMinutes || ''" placeholder="Según el lugar"
+                            @change="updateEntry(selectedEntry, 'durationMinutes', $event.target.value)">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted mb-1" :for="'visit-date-' + selectedEntry.id">Día</label>
                         <input type="date" class="form-control form-control-sm" :id="'visit-date-' + selectedEntry.id"
                             :value="selectedEntry.visitDate || ''"
-                            @change="updateDateTime(selectedEntry, 'visitDate', $event.target.value)">
+                            @change="updateEntry(selectedEntry, 'visitDate', $event.target.value)">
                     </div>
-                    <div class="col-6">
+                    <div class="col-md-4">
                         <label class="form-label small text-muted mb-1" :for="'visit-time-' + selectedEntry.id">Hora</label>
                         <input type="time" class="form-control form-control-sm" :id="'visit-time-' + selectedEntry.id"
                             :value="selectedEntry.visitTime || ''"
-                            @change="updateDateTime(selectedEntry, 'visitTime', $event.target.value)">
+                            @change="updateEntry(selectedEntry, 'visitTime', $event.target.value)">
                     </div>
                 </div>
+                <!-- AC-06/AC-07 sin botones nuevos: el texto explica que fijar corre la cadena y
+                     que vaciar los dos campos devuelve la parada al cálculo automático. -->
+                <p class="form-text small mt-2 mb-0">Fijar el día o la hora recalcula las paradas siguientes. Si vaciás los dos, el horario vuelve a calcularse solo.</p>
             </div>
         </template>
     </dialog>
@@ -613,7 +659,7 @@
          asi window.lucide ya existe cuando el modulo arma sus iconos. -->
     <script th:src="@{/js/lucide.min.js}"></script>
 
-    <!-- The module cannot read Thymeleaf, so the page hands it exactly these four values.
+    <!-- The module cannot read Thymeleaf, so the page hands it exactly these five values.
          `th:inline` is the accepted literal form (docs/guide-js.md R3): the two lists are
          object graphs, not strings a data-* attribute could carry. -->
     <script th:inline="javascript">
@@ -621,7 +667,8 @@
         itineraryUrl: /*[[@{/api/plans/{id}/places(id=${plan.id})}]]*/ '',
         catalogUrl: /*[[@{/api/places}]]*/ '',
         allPlaces: /*[[${allPlaces}]]*/ [],
-        itineraryPlaces: /*[[${itineraryPlaces}]]*/ []
+        itineraryPlaces: /*[[${itineraryPlaces}]]*/ [],
+        planDate: /*[[${planDateIso}]]*/ ''
       };
     </script>
     <script type="module" th:src="@{/js/pages/plans-detail.js}"></script>

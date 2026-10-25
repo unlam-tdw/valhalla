@@ -8,6 +8,7 @@
  */
 import { apiFetch } from '../lib/api.js';
 import { el } from '../lib/dom.js';
+import { formatClock, formatDuration } from '../lib/plan-schedule.js';
 import {
     buildMarker,
     categoryIconHtml,
@@ -30,6 +31,12 @@ const parsePlace = (p) => {
         description: p.description,
         visitDate: p.visitDate,
         visitTime: p.visitTime,
+        // [SCH] El detalle dibuja el rango con la duración y marca con el pin lo que el usuario
+        // fijó a mano. El catálogo (/api/places) manda un Place y no trae ninguno de los tres:
+        // quedan neutros para que una parada del catálogo no herede un horario que no tiene.
+        durationMinutes: p.durationMinutes ?? null,
+        transportModeToNext: p.transportModeToNext || '',
+        timePinned: p.timePinned === true,
         id: target.id,
         name: target.name || 'Sin nombre',
         category: target.category || 'DEFAULT',
@@ -46,6 +53,9 @@ createApp({
     setup() {
         const allPlaces = ref((seed.allPlaces || []).map(parsePlace).filter(p => p && p.id));
         const planPlaces = ref((seed.itineraryPlaces || []).map(parsePlace).filter(p => p && p.id));
+        // [SCH] Fecha de la jornada inicial: una parada que cae en ella no repite la fecha en la
+        // lista, y las que se corren a otro día sí la muestran.
+        const planDate = ref(seed.planDate || '');
 
         const selectedPlaceId = ref(null);
         const selectedEntry = ref(null);
@@ -78,10 +88,88 @@ createApp({
             }
         };
 
+        /* El servidor recalcula el plan entero después de cada cambio de horario, de un reorden o
+           de una baja: copiar solo los cuatro campos del horario sobre las paradas ya presentes
+           evita reemplazar el array y perder el orden optimista de la UI. */
+        const refreshSchedule = async () => {
+            const entries = await itineraryRequest();
+            entries.forEach((entry) => {
+                const item = planPlaces.value.find(p => p.entryId === entry.id);
+                if (!item) return;
+                item.visitDate = entry.visitDate;
+                item.visitTime = entry.visitTime;
+                item.durationMinutes = entry.durationMinutes;
+                item.timePinned = entry.timePinned;
+            });
+        };
+
         const formatVisitDate = (value) => {
             const [year, month, day] = value.split('-');
             return `${day}/${month}/${year}`;
         };
+
+        /** `dd/mm` para el encabezado del día, igual que el creador. */
+        const shortDate = (isoDate) => isoDate.slice(8, 10) + '/' + isoDate.slice(5, 7);
+
+        /** Minutos del día de un `HH:mm`; `null` cuando el valor no es una hora. */
+        const clockMinutes = (value) => {
+            if (!value) return null;
+            const [hours, minutes] = value.split(':').map(Number);
+            return hours * 60 + minutes;
+        };
+
+        /** Minutos del día en que termina la visita; `null` sin hora o sin duración. */
+        const endMinutes = (entry) => {
+            const start = clockMinutes(entry.visitTime);
+            if (start === null || !entry.durationMinutes) return null;
+            return start + entry.durationMinutes;
+        };
+
+        /* Lo que la parada muestra de horario: rango, duración y fecha, ya formateados. La ficha
+           del lugar y la lista usan la misma cuenta, así que la comparten. */
+        const describeStop = (item) => {
+            const start = clockMinutes(item.visitTime);
+            const end = endMinutes(item);
+            return {
+                // Sin duración no hay fin que calcular, pero la hora de inicio sí existe:
+                // mostrarla vale más que declarar el horario "por definir".
+                timeRange: start === null
+                    ? ''
+                    : end !== null
+                        ? formatClock(start) + ' – ' + formatClock(end)
+                        : formatClock(start),
+                durationLabel: item.durationMinutes ? formatDuration(item.durationMinutes) : '',
+                dateLabel: item.visitDate && item.visitDate !== planDate.value
+                    ? formatVisitDate(item.visitDate)
+                    : ''
+            };
+        };
+
+        /* Las paradas agrupadas por la fecha que les tocó, en el orden del itinerario. La
+           numeración de cada parada es global (la misma que los marcadores del mapa), por eso el
+           índice viaja desde el array completo y no desde el grupo. */
+        const dayGroups = computed(() => {
+            const groups = [];
+            planPlaces.value.forEach((item, index) => {
+                const date = item.visitDate || null;
+                let group = groups[groups.length - 1];
+                if (!group || group.date !== date) {
+                    group = {
+                        // La posición desambigua: un pin puede volver a una fecha ya usada un
+                        // grupo antes (1 → 2 → 1) y Vue necesita claves únicas dentro del v-for.
+                        key: 'day-' + groups.length + (date || ''),
+                        date,
+                        label: 'Día ' + (groups.length + 1) + (date ? ' · ' + shortDate(date) : ''),
+                        stops: []
+                    };
+                    groups.push(group);
+                }
+                group.stops.push({ index, item, ...describeStop(item) });
+            });
+            return groups;
+        });
+
+        const dayCount = computed(() => dayGroups.value.length);
 
         const getCategoryLabel = (category) => {
             const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
@@ -215,21 +303,37 @@ createApp({
             requestError.value = '';
             try {
                 const entries = await itineraryRequest();
-                selectedEntry.value = entries.find(entry => entry.id === item.entryId);
-                if (!selectedEntry.value) throw new Error('Este lugar ya no pertenece al plan. Actualiza la página.');
+                const entry = entries.find(candidate => candidate.id === item.entryId);
+                if (!entry) throw new Error('Este lugar ya no pertenece al plan. Actualiza la página.');
+                // La ficha muestra el horario ya formateado: el rango, la duración y el día se
+                // calculan acá, igual que en la lista, y no en el template.
+                selectedEntry.value = { ...entry, ...describeStop(entry) };
                 placeDialog.value.showModal();
             } catch (error) { requestError.value = error.message; }
         };
 
-        const updateDateTime = async (entry, field, value) => {
+        /* El PUT reemplaza los cuatro campos del horario, así que el payload viaja completo: el
+           campo editado y los otros tres tal como están. Los dos de fecha y hora solo se repiten
+           si la parada está fijada a mano o si se está editando justamente uno de ellos; si no,
+           van en null para que cambiar solo la duración no convierta una parada derivada en una
+           fijada. */
+        const updateEntry = async (entry, field, value) => {
             if (saving.value || !entry) return;
             saving.value = true;
             requestError.value = '';
-            // El PUT reemplaza fecha y hora juntas, así que se manda el par completo: el campo
-            // cambiado y el otro tal como estaba (si no, cambiar uno borra el otro).
+            const editsSchedule = field === 'visitDate' || field === 'visitTime';
+            const keepsSchedule = entry.timePinned || editsSchedule;
             const payload = {
-                visitDate: field === 'visitDate' ? (value || null) : (entry.visitDate || null),
-                visitTime: field === 'visitTime' ? (value || null) : (entry.visitTime || null)
+                durationMinutes: field === 'durationMinutes'
+                    ? (value === '' ? null : Number(value))
+                    : (entry.durationMinutes ?? null),
+                transportModeToNext: entry.transportModeToNext || null,
+                visitDate: field === 'visitDate'
+                    ? (value || null)
+                    : (keepsSchedule ? (entry.visitDate || null) : null),
+                visitTime: field === 'visitTime'
+                    ? (value || null)
+                    : (keepsSchedule ? (entry.visitTime || null) : null)
             };
             try {
                 const updated = await itineraryRequest('/' + entry.id, {
@@ -237,13 +341,11 @@ createApp({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                entry.visitDate = updated.visitDate;
-                entry.visitTime = updated.visitTime;
-                const item = planPlaces.value.find(p => p.entryId === entry.id);
-                if (item) {
-                    item.visitDate = updated.visitDate;
-                    item.visitTime = updated.visitTime;
-                }
+                Object.assign(entry, updated);
+                // Fijar una parada corre las siguientes: sin este refresco la lista muestra las
+                // horas viejas hasta recargar la página.
+                await refreshSchedule();
+                Object.assign(entry, describeStop(entry));
             } catch (error) { requestError.value = error.message; }
             finally { saving.value = false; }
         };
@@ -257,7 +359,16 @@ createApp({
                 if (placeObj) {
                     const entry = await itineraryRequest('?placeId=' + placeObj.id, { method: 'POST' });
                     const addedId = placeObj.id;
-                    planPlaces.value.push({ ...placeObj, entryId: entry.id, description: entry.description, visitDate: entry.visitDate, visitTime: entry.visitTime });
+                    planPlaces.value.push({
+                        ...placeObj,
+                        entryId: entry.id,
+                        description: entry.description,
+                        visitDate: entry.visitDate,
+                        visitTime: entry.visitTime,
+                        durationMinutes: entry.durationMinutes,
+                        timePinned: entry.timePinned,
+                        transportModeToNext: entry.transportModeToNext || ''
+                    });
                     selectedPlaceId.value = null;
                     renderMarkers(addedId);
                 }
@@ -276,6 +387,9 @@ createApp({
                 await itineraryRequest('/' + planPlaces.value[index].entryId, { method: 'DELETE' });
                 planPlaces.value.splice(index, 1);
                 renderMarkers();
+                // El servidor recalcula el plan sin la parada borrada: las que quedan cambian de
+                // hora y el refresco las trae.
+                await refreshSchedule();
             } catch (error) { requestError.value = error.message; }
             finally { saving.value = false; }
         };
@@ -294,10 +408,18 @@ createApp({
                 planPlaces.value.splice(dropIndex, 0, movedItem);
                 draggedIndex = null;
                 renderMarkers();
+                let reordered = false;
                 try {
                     await itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(planPlaces.value.map(item => item.entryId)) });
+                    reordered = true;
                 } catch (error) { planPlaces.value = previous; renderMarkers(); requestError.value = error.message; }
                 finally { saving.value = false; }
+                // [SCH] Reordenar vuelve a derivar el horario: el refresco trae las horas nuevas y
+                // deja intacto el orden optimista que ya está pintado. Va fuera del try del
+                // reorder para que un fallo acá no revierta un orden que el servidor sí guardó.
+                if (reordered) {
+                    try { await refreshSchedule(); } catch (error) { requestError.value = error.message; }
+                }
             }
         };
 
@@ -316,8 +438,8 @@ createApp({
 
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
-            placeDialog, availablePlaces, formatVisitDate, directionsUrl,
-            getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateDateTime, addPlace,
+            placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
+            getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
             removePlace, onDragStart, onDrop
         };
     }
