@@ -205,16 +205,45 @@ html[data-theme="dark"] .place-card {
   z-index: 0;
 }
 
-/* [DIS] Revisión visual — modo día: borde gris en las superficies blancas. En oscuro las
-   capas se separan por tono (card vs superficie terciaria), pero en claro todo era blanco
-   sobre blanco (cards con border-0 + tiles .bg-light sin borde) y la vista se saturaba sin
-   leer los bloques. El borde repite en claro la separación que el tono ya da en oscuro, con
-   el mismo gris de borde de Bootstrap. Solo aplica al tema claro: en oscuro no se toca nada. */
+/* [DIS] Revisión visual (2026-10-25) — sistema de bordes en modo día, en TODAS las vistas.
+   En oscuro las capas se separan por tono y todo se lee; en claro era blanco sobre blanco:
+   cards con border-0, tiles .bg-light, inputs, tablas y las cajas blancas con sombra del
+   catálogo, home, admin y auth sin ninguna separación. Dos llaves, solo tema claro (cada
+   utilidad ya tiene su traducción propia en la capa html[data-theme="dark"], que no se
+   toca):
+   1) el token --bs-border-color sube de #dee2e6 a #adb5bd: todo lo que pinte Bootstrap
+      (cards, inputs, list-group, tablas, tiles, panel del itinerario) sale con un gris
+      visible en cualquier vista.
+   2) las utilidades faint de Tailwind (.border-gray-200 / .border-gray-300) pasan al
+      mismo gris con su hover un paso más oscuro como antes, y las cajas blancas con
+      sombra que no traían borde (.bg-white.shadow*) reciben 1px solid. Las <section>
+      blancas del landing quedan fuera a propósito: no traen borde ni sombra. */
+html:not([data-bs-theme="dark"]) {
+  --bs-border-color: #adb5bd;
+}
+
 html:not([data-bs-theme="dark"]) .card {
   border: 1px solid var(--bs-border-color) !important;
 }
 
 html:not([data-bs-theme="dark"]) .bg-light {
+  border: 1px solid var(--bs-border-color);
+}
+
+html:not([data-bs-theme="dark"]) .border-gray-200,
+html:not([data-bs-theme="dark"]) .border-gray-300 {
+  border-color: var(--bs-border-color);
+}
+
+html:not([data-bs-theme="dark"]) .hover\:border-gray-300:hover {
+  border-color: #6b7280;
+}
+
+html:not([data-bs-theme="dark"]) .bg-white.shadow,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-sm,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-md,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-lg,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-xl {
   border: 1px solid var(--bs-border-color);
 }
 

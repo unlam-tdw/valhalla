@@ -201,21 +201,15 @@
             .itinerary-stop:hover { transform: none; }
         }
 
-        /* [DIS] AC-14: banda visual atras del titulo. Color SOLIDO de marca (--primary): el
-           cover estirado en una franja fina y ancha dejaba rebanadas duras de la ilustracion
-           (colores "cortados"), y el degradado no las disimulaba. Un solido de tokens de marca
-           con el titulo en blanco es limpio e intencional a cualquier ancho. Sin backend. */
-        /* [DIS] AC-14 (tal como lo pide el ticket): banner con imagen por defecto detrás del
-           título. cover-3.svg con overlay de tokens encima para que el título blanco mantenga
-           contraste. Recorte anclado al 65%: cae dentro de la columnata del museo (sin el
-           hueco claro del techo ni la barra navy cortando la franja, que la usuaria leyó
-           como rebanada de color) y el min-height evita la tira fina donde la ilustración
-           no se alcanza a leer. */
+        /* [DIS] AC-14 (decisión final de revisión, 2026-10-25): banda de color SOLIDO de
+           marca (--primary) detrás del título. El ticket pedía imagen por defecto en este
+           slot: se implementó (cover-3.svg + overlay de tokens, recorte anclado al 65%) y
+           en la revisión la usuaria la descartó —"la barra no se ve bien"— pidiendo color
+           sólido. El min-height conserva la presencia de la franja y el título en blanco
+           con sombra de texto mantiene el contraste a cualquier ancho y en ambos temas.
+           La imagen decorativa queda para la card [IMG]. Sin backend. */
         .plan-header {
-            background-image: linear-gradient(rgb(17 24 39 / 0.55), rgb(17 24 39 / 0.7)),
-                url("/images/plans/cover-3.svg");
-            background-size: cover;
-            background-position: center 65%;
+            background-color: var(--primary);
             min-height: 96px;
             border-radius: 0.5rem;
         }
