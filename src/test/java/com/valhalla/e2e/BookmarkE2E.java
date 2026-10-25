@@ -43,7 +43,8 @@ public class BookmarkE2E extends E2eBase {
     // --- guardar desde la card del feed: el icono de contorno pasa a relleno
     page.navigate(plans.baseUrl() + "/for-you");
     Locator card = feedCard();
-    card.locator("[data-bookmarked='false']").click();
+    Locator feedToggle = card.locator("[data-bookmark-toggle]");
+    clickAndAwaitBookmark(feedToggle);
     page.waitForSelector("article [data-bookmarked='true']");
 
     // --- el modal del navbar lleva al ancla del perfil propio
@@ -92,7 +93,7 @@ public class BookmarkE2E extends E2eBase {
     Locator toggle = card.locator("[data-bookmark-toggle]");
 
     page.evaluate("window.__markNoReload = true");
-    toggle.click();
+    clickAndAwaitBookmark(toggle);
     assertThat(toggle).hasAttribute("data-bookmarked", "true");
     assertThat(toggle).hasAttribute("aria-pressed", "true");
     assertThat(toggle.locator("[data-bookmark-icon='filled']")).isVisible();
@@ -109,7 +110,7 @@ public class BookmarkE2E extends E2eBase {
 
     page.onDialog(dialog -> dialog.accept());
     page.evaluate("window.__markNoReload = true");
-    toggle.click();
+    clickAndAwaitBookmark(toggle);
     assertThat(toggle).hasAttribute("data-bookmarked", "false");
     assertThat(toggle).hasAttribute("aria-pressed", "false");
     assertThat(toggle.locator("[data-bookmark-icon='outline']")).isVisible();
@@ -124,7 +125,7 @@ public class BookmarkE2E extends E2eBase {
     Locator publicToggle = page.locator("[data-bookmark-toggle]");
     assertThat(publicToggle).isVisible();
     page.evaluate("window.__markNoReload = true");
-    publicToggle.click();
+    clickAndAwaitBookmark(publicToggle);
     assertThat(publicToggle).hasAttribute("data-bookmarked", "true");
     assertTrue(
       Boolean.TRUE.equals(page.evaluate("window.__markNoReload === true")),
@@ -132,7 +133,7 @@ public class BookmarkE2E extends E2eBase {
     );
 
     // Deja la base como la encontro: el reset tambien limpia, pero el flujo cierra completo.
-    publicToggle.click();
+    clickAndAwaitBookmark(publicToggle);
     assertThat(publicToggle).hasAttribute("data-bookmarked", "false");
   }
 
@@ -159,7 +160,7 @@ public class BookmarkE2E extends E2eBase {
       }
     );
 
-    toggle.click();
+    clickAndAwaitBookmark(toggle);
 
     assertThat(page.locator("#bookmark-alert")).isVisible();
     assertThat(page.locator("#bookmark-alert")).containsText("No se pudo actualizar Guardados.");
@@ -182,7 +183,7 @@ public class BookmarkE2E extends E2eBase {
     Locator toggle = exploreCard().locator("[data-bookmark-toggle]");
 
     page.evaluate("window.__markNoReload = true");
-    toggle.click();
+    clickAndAwaitBookmark(toggle);
     assertThat(toggle).hasAttribute("data-bookmarked", "true");
     assertThat(toggle).hasAttribute("aria-pressed", "true");
     assertThat(toggle.locator("[data-bookmark-icon='filled']")).isVisible();
@@ -197,7 +198,7 @@ public class BookmarkE2E extends E2eBase {
 
     page.onDialog(dialog -> dialog.accept());
     page.evaluate("window.__markNoReload = true");
-    toggle.click();
+    clickAndAwaitBookmark(toggle);
     assertThat(toggle).hasAttribute("data-bookmarked", "false");
     assertTrue(
       Boolean.TRUE.equals(page.evaluate("window.__markNoReload === true")),
@@ -218,7 +219,7 @@ public class BookmarkE2E extends E2eBase {
       }
     );
 
-    toggle.click();
+    clickAndAwaitBookmark(toggle);
 
     Locator alert = page.locator("#explore-app [role='alert']");
     assertThat(alert).isVisible();
@@ -227,6 +228,14 @@ public class BookmarkE2E extends E2eBase {
     assertThat(toggle.locator("[data-bookmark-icon='outline']")).isVisible();
     assertThat(toggle).isEnabled();
     assertTrue(attempts.get() > 0, "el sidebar tiene que pegarle a la API");
+  }
+
+  /**
+   * Dispara el click y espera la respuesta de la API. Sin esta espera, el estado optimista deja
+   * pasar la asercion y una recarga o navegacion inmediata aborta el request en vuelo.
+   */
+  private void clickAndAwaitBookmark(Locator toggle) {
+    page.waitForResponse("**/api/plans/*/bookmarks", toggle::click);
   }
 
   /** El admin crea el plan publico con un lugar y devuelve el id del original. */
