@@ -5,6 +5,7 @@ import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
 import com.valhalla.domain.plan.PlanScheduleCalculator;
+import com.valhalla.domain.plan.PlanScheduler;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.infrastructure.PublicPlanDataSeeder;
 import java.util.List;
@@ -22,6 +23,10 @@ import org.springframework.stereotype.Component;
  * sembrado base a mano ({@link PublicPlanDataSeeder#ensureSeeded()}) porque el orden de los
  * listeners no esta garantizado. Sobre una base vacia no hace nada; el sembrado del demo solo
  * ocurre con la llave puesta, y este backfill no la necesita para completar lo que ya exista.
+ *
+ * <p>[SCH] La derivacion del horario no vive aca: la unica copia de la regla esta en
+ * {@link PlanScheduler}, que tambien usan el alta y la edicion. Este backfill solo elige que planes
+ * necesitan la pasada y persiste el resultado.
  *
  * <p>[SCH] Descarta las horas viejas en vez de respetarlas (decision D-7): la base es contenido de
  * demo, y mezclar horas tipeadas a mano con las que calcula el planificador deja itinerarios
@@ -97,6 +102,9 @@ public class PlanScheduleBackfill implements ApplicationListener<ContextRefreshe
    * Segunda pasada: planes con paradas sin duracion. Las horas se recalculan enteras, tambien las
    * de las paradas que ya tenian una.
    *
+   * <p>[SCH] La derivacion vive en {@link PlanScheduler}: esta pasada solo decide que planes
+   * entran y persiste el resultado.
+   *
    * @return cuantos planes se recalcularon
    */
   private int backfillPlanSchedules() {
@@ -105,8 +113,7 @@ public class PlanScheduleBackfill implements ApplicationListener<ContextRefreshe
       if (!needsSchedule(plan)) {
         continue;
       }
-      fillDurations(plan);
-      applySchedule(plan);
+      PlanScheduler.apply(plan);
       planRepository.save(plan);
       updated++;
     }
@@ -120,61 +127,6 @@ public class PlanScheduleBackfill implements ApplicationListener<ContextRefreshe
       !stops.isEmpty() &&
       plan.getEventDate() != null &&
       stops.stream().anyMatch(stop -> stop.getDurationMinutes() == null)
-    );
-  }
-
-  /** Completa solo las duraciones nulas: la del lugar si la tiene, si no la de la categoria. */
-  private void fillDurations(Plan plan) {
-    for (PlanPlace stop : plan.getPlanPlaces()) {
-      if (stop.getDurationMinutes() != null) {
-        continue;
-      }
-      Place place = stop.getPlace();
-      stop.setDurationMinutes(
-        PlanScheduleCalculator.effectiveDuration(
-          null,
-          place.getDefaultDurationMinutes(),
-          place.getCategory()
-        )
-      );
-    }
-  }
-
-  /**
-   * Recalcula el horario del plan entero. Sin hora de inicio la calculadora devuelve una lista
-   * vacia: en ese caso las duraciones quedan completas y las horas viejas intactas, en vez de
-   * quedar a medio escribir.
-   */
-  private void applySchedule(Plan plan) {
-    List<PlanPlace> stops = plan.getPlanPlaces();
-    List<PlanScheduleCalculator.Slot> slots = PlanScheduleCalculator.schedule(
-      plan.getEventDate(),
-      plan.getEventTime(),
-      plan.getDayEndTime(),
-      plan.getTransportMode(),
-      stops.stream().map(this::toStop).toList()
-    );
-    if (slots.size() != stops.size()) {
-      return;
-    }
-    for (int index = 0; index < slots.size(); index++) {
-      stops.get(index).setVisitDate(slots.get(index).date());
-      stops.get(index).setVisitTime(slots.get(index).start());
-    }
-  }
-
-  /** Una parada sin pines: el backfill no conoce horas fijadas por el usuario. */
-  private PlanScheduleCalculator.Stop toStop(PlanPlace stop) {
-    Place place = stop.getPlace();
-    return new PlanScheduleCalculator.Stop(
-      null,
-      null,
-      stop.getDurationMinutes(),
-      place.getDefaultDurationMinutes(),
-      place.getCategory(),
-      place.getLatitude(),
-      place.getLongitude(),
-      stop.getTransportModeToNext()
     );
   }
 }

@@ -25,6 +25,7 @@ import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceService;
 import com.valhalla.domain.rating.PlanRatingService;
@@ -627,6 +628,9 @@ public class PlanControllerTest {
     assertThat(captor.getValue().getDescription(), is(equalTo("Un viaje largo")));
     assertThat(captor.getValue().getEventDate(), is(equalTo(LocalDate.of(2026, 12, 31))));
     assertThat(captor.getValue().getIsPublic(), is(true));
+    // [SCH] El form no manda ventana ni modo: el plan nace con los defaults del planificador.
+    assertThat(captor.getValue().getDayEndTime(), is(equalTo(LocalTime.of(23, 0))));
+    assertThat(captor.getValue().getTransportMode(), is(TransportMode.WALK));
     // The form is not the owner of id, shortCode or administrator, so the DTO must carry none.
     assertThat(captor.getValue().getId(), is(nullValue()));
     assertThat(captor.getValue().getShortCode(), is(nullValue()));
@@ -638,18 +642,15 @@ public class PlanControllerTest {
 
   @Test
   public void T_PLN_067_createPlan_mapeaLosLugaresEnOrdenYSaltaLasFilasVacias() {
-    // given
-    PlanRequest form = new PlanRequest("Viaje", null, null, false);
+    // given: el orden del form es el del itinerario, y cada fila trae su modo de traslado
+    PlanRequest form = new PlanRequest("Viaje", null, LocalDate.of(2026, 12, 1), false);
+    form.setDayEndTime(LocalTime.of(21, 0));
+    form.setTransportMode(TransportMode.CAR);
     form.setPlaces(
       List.of(
-        new PlanPlaceRequest(
-          OTHER_PLACE_ID,
-          "primero",
-          LocalDate.of(2026, 12, 1),
-          LocalTime.of(9, 30)
-        ),
-        new PlanPlaceRequest(null, null, null, null),
-        new PlanPlaceRequest(OTHER_PLACE_ID, "otra vez", null, null)
+        new PlanPlaceRequest(OTHER_PLACE_ID, "primero", TransportMode.BIKE),
+        new PlanPlaceRequest(null, null, null),
+        new PlanPlaceRequest(OTHER_PLACE_ID, "otra vez", null)
       )
     );
     ArgumentCaptor<Plan> captor = ArgumentCaptor.forClass(Plan.class);
@@ -665,11 +666,16 @@ public class PlanControllerTest {
     assertThat(entries.get(0).getPlace().getId(), is(OTHER_PLACE_ID));
     assertThat(entries.get(0).getSortOrder(), is(1));
     assertThat(entries.get(0).getDescription(), is(equalTo("primero")));
-    assertThat(entries.get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
-    assertThat(entries.get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
+    assertThat(entries.get(0).getTransportModeToNext(), is(TransportMode.BIKE));
+    // [SCH] D-7: la fila ya no acepta fecha ni hora; el horario lo deriva el servicio.
+    assertThat(entries.get(0).getVisitDate(), is(nullValue()));
+    assertThat(entries.get(0).getVisitTime(), is(nullValue()));
     assertThat(entries.get(1).getPlace().getId(), is(OTHER_PLACE_ID));
     assertThat(entries.get(1).getSortOrder(), is(2));
     assertThat(entries.get(1).getPlan(), is(sameInstance(captor.getValue())));
+    // el form sí manda la ventana y el modo: viajan tal cual al plan
+    assertThat(captor.getValue().getDayEndTime(), is(equalTo(LocalTime.of(21, 0))));
+    assertThat(captor.getValue().getTransportMode(), is(TransportMode.CAR));
   }
 
   // --- PUT /plans/{id} ---

@@ -9,6 +9,7 @@ import com.valhalla.domain.plan.PlanJoinRequest;
 import com.valhalla.domain.plan.PlanParticipantCount;
 import com.valhalla.domain.plan.PlanPermission;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.plan.PlanScheduler;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.rating.PlanRatingRepository;
@@ -174,6 +175,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     plan.setAdministrator(owner);
     // Always generated: the share code is the backend's, the form never asks for it.
     plan.setShortCode(generateUniqueShortCode());
+    // [SCH] El horario se deriva con los lugares ya resueltos: la calculadora necesita categoria y
+    // coordenadas reales para estimar duraciones y traslados.
+    PlanScheduler.apply(plan);
     return planRepository.save(plan);
   }
 
@@ -419,6 +423,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   public Plan updatePlan(UUID id, Plan changes, String ownerEmail) {
     Plan existing = getEditablePlan(id, ownerEmail);
     existing.updateFrom(changes);
+    // [SCH] Cambiar la fecha, la hora de inicio, el fin de dia o el modo recalcula el itinerario
+    // entero: el horario es una funcion de esa configuracion, no un dato independiente.
+    PlanScheduler.apply(existing);
     return planRepository.save(existing);
   }
 

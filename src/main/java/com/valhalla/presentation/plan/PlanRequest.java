@@ -1,6 +1,8 @@
 package com.valhalla.presentation.plan;
 
+import com.valhalla.domain.plan.TransportMode;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -14,11 +16,20 @@ public class PlanRequest {
 
   private String description;
 
+  // [SCH] La fecha es la base del itinerario: sin ella no hay jornada donde ubicar las paradas, asi
+  // que el plan no se puede crear.
+  @NotNull(message = "Plan date is required")
   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
   private LocalDate eventDate;
 
   @DateTimeFormat(pattern = "HH:mm")
   private LocalTime eventTime;
+
+  // [SCH] Ventana de cada jornada y modo de traslado con los que el planificador arma el horario.
+  @DateTimeFormat(pattern = "HH:mm")
+  private LocalTime dayEndTime;
+
+  private TransportMode transportMode;
 
   private Boolean isPublic;
 
@@ -75,6 +86,22 @@ public class PlanRequest {
 
   public void setEventTime(LocalTime eventTime) {
     this.eventTime = eventTime;
+  }
+
+  public LocalTime getDayEndTime() {
+    return dayEndTime;
+  }
+
+  public void setDayEndTime(LocalTime dayEndTime) {
+    this.dayEndTime = dayEndTime;
+  }
+
+  public TransportMode getTransportMode() {
+    return transportMode;
+  }
+
+  public void setTransportMode(TransportMode transportMode) {
+    this.transportMode = transportMode;
   }
 
   public Boolean getIsPublic() {

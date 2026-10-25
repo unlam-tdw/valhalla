@@ -1,35 +1,29 @@
 package com.valhalla.presentation.plan;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import com.valhalla.domain.plan.TransportMode;
 import java.util.UUID;
-import org.springframework.format.annotation.DateTimeFormat;
 
-/** One itinerary row of the create-plan form, bound from {@code places[i].*}. */
+/**
+ * One itinerary row of the create-plan form, bound from {@code places[i].*}.
+ *
+ * <p>[SCH] La fila no lleva fecha ni hora: el servidor deriva el horario entero (D-7). Aceptarlas
+ * aca volveria a abrir la puerta a itinerarios mixtos, con paradas tipeadas a mano mezcladas con las
+ * calculadas.
+ */
 public class PlanPlaceRequest {
 
   private UUID placeId;
 
   private String description;
 
-  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-  private LocalDate visitDate;
-
-  @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
-  private LocalTime visitTime;
+  private TransportMode transportModeToNext;
 
   public PlanPlaceRequest() {}
 
-  public PlanPlaceRequest(
-    UUID placeId,
-    String description,
-    LocalDate visitDate,
-    LocalTime visitTime
-  ) {
+  public PlanPlaceRequest(UUID placeId, String description, TransportMode transportModeToNext) {
     this.placeId = placeId;
     this.description = description;
-    this.visitDate = visitDate;
-    this.visitTime = visitTime;
+    this.transportModeToNext = transportModeToNext;
   }
 
   public UUID getPlaceId() {
@@ -48,19 +42,11 @@ public class PlanPlaceRequest {
     this.description = description;
   }
 
-  public LocalDate getVisitDate() {
-    return visitDate;
+  public TransportMode getTransportModeToNext() {
+    return transportModeToNext;
   }
 
-  public void setVisitDate(LocalDate visitDate) {
-    this.visitDate = visitDate;
-  }
-
-  public LocalTime getVisitTime() {
-    return visitTime;
-  }
-
-  public void setVisitTime(LocalTime visitTime) {
-    this.visitTime = visitTime;
+  public void setTransportModeToNext(TransportMode transportModeToNext) {
+    this.transportModeToNext = transportModeToNext;
   }
 }
