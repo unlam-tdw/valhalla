@@ -279,7 +279,7 @@ public class MobileLayoutE2E extends E2eBase {
     assertThat(
       "items del navbar de escritorio",
       web.getNavbarItems(),
-      contains("PlanIt", "Para vos", "Explore", "Plans", "A", "Cambiar tema")
+      contains("PlanIt", "Para vos", "Explore", "Plans", "A")
     );
   }
 

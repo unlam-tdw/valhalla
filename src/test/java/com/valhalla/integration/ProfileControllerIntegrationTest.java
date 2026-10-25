@@ -669,6 +669,35 @@ public class ProfileControllerIntegrationTest {
       userRepository.findById(selfId).orElseThrow().getThemePreference(),
       is(equalTo("dark"))
     );
+
+    // I-21: la render siguiente resuelve el modo server-side, sin esperar al JS.
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("name=\"theme-preference\" content=\"dark\"")));
+  }
+
+  // --- [PROF+THEME] I-19: el modal autenticado rinde la entrada Tema activa ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void authenticatedProfileRendersTheThemeEntryInTheMenu() throws Exception {
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("id=\"menu-theme\"")))
+      .andExpect(content().string(containsString("action=\"/profile/theme\"")))
+      .andExpect(content().string(containsString("theme-label-light")))
+      .andExpect(content().string(not(containsString("type=\"button\" data-theme-toggle"))));
+  }
+
+  // --- [PROF+THEME] I-20: el anónimo conserva el toggle standalone y no tiene modal ---
+
+  @Test
+  public void anonymousProfileKeepsTheNavbarToggleAndRendersNoMenu() throws Exception {
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("type=\"button\" data-theme-toggle")))
+      .andExpect(content().string(not(containsString("id=\"menu-theme\""))))
+      .andExpect(content().string(not(containsString("name=\"theme-preference\" content="))));
   }
 
   @Test

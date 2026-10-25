@@ -23,6 +23,7 @@ public class GlobalExceptionHandler {
 
   private static final Logger LOGGER = Logger.getLogger(GlobalExceptionHandler.class.getName());
   private static final String ERROR_KEY = "error";
+  private static final String ERROR_VIEW = "pages/error";
 
   @ExceptionHandler(UserAlreadyExists.class)
   public ModelAndView handleUserAlreadyExists() {
@@ -64,14 +65,14 @@ public class GlobalExceptionHandler {
   public ModelAndView handleNotFound() {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "Page not found");
-    return new ModelAndView("pages/error", model, HttpStatus.NOT_FOUND);
+    return new ModelAndView(ERROR_VIEW, model, HttpStatus.NOT_FOUND);
   }
 
   @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
   public ModelAndView handleMethodNotAllowed() {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "Method not allowed");
-    return new ModelAndView("pages/error", model, HttpStatus.METHOD_NOT_ALLOWED);
+    return new ModelAndView(ERROR_VIEW, model, HttpStatus.METHOD_NOT_ALLOWED);
   }
 
   /**
@@ -83,7 +84,7 @@ public class GlobalExceptionHandler {
   public ModelAndView handleResponseStatus(ResponseStatusException ex) {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, ex.getReason() == null ? "Request rejected" : ex.getReason());
-    return new ModelAndView("pages/error", model, ex.getStatusCode());
+    return new ModelAndView(ERROR_VIEW, model, ex.getStatusCode());
   }
 
   @ExceptionHandler(Exception.class)
@@ -91,6 +92,6 @@ public class GlobalExceptionHandler {
     LOGGER.log(Level.SEVERE, "Unhandled error", ex);
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "An unexpected error occurred");
-    return new ModelAndView("pages/error", model, HttpStatus.INTERNAL_SERVER_ERROR);
+    return new ModelAndView(ERROR_VIEW, model, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }

@@ -18,9 +18,11 @@ import org.junit.jupiter.api.Test;
 /**
  * Modo oscuro, por archivo. El comportamiento en browser —repintado, persistencia en
  * localStorage, ícono que cambia— lo cubre ThemeModeE2E; esto clava las piezas estructurales
- * que ese E2E solo ve funcionando: el script temprano del head, el botón en las dos ramas del
- * navbar y la capa oscura en el stylesheet de tokens. Lee los templates porque la garantía es
- * sobre lo que el markup declara, igual que en BrandTokensTest.
+ * que ese E2E solo ve funcionando: el script temprano del head (con la precedencia
+ * preferencia > localStorage > sistema de [PROF+THEME]), el toggle standalone que sobrevive
+ * solo en la rama anónima del navbar, la entrada "Tema" del modal autenticado y la capa oscura
+ * en el stylesheet de tokens. Lee los templates porque la garantía es sobre lo que el markup
+ * declara, igual que en BrandTokensTest.
  */
 public class ThemeModeTest {
 
@@ -28,6 +30,7 @@ public class ThemeModeTest {
 
   private static final Path BASE = TEMPLATES.resolve("layouts/base.html");
   private static final Path NAVBAR = TEMPLATES.resolve("components/navbar.html");
+  private static final Path MENU = TEMPLATES.resolve("components/navbar-menu.html");
   private static final Path LANDING = TEMPLATES.resolve("pages/landing.html");
   private static final Path DETAIL = TEMPLATES.resolve("pages/plans/detail.html");
   private static final Path TOKENS = Paths.get(
@@ -69,25 +72,77 @@ public class ThemeModeTest {
     );
   }
 
-  // El toggle se duplica en las dos ramas del menú como todo el resto del navbar (el nav es
-  // flex de dos hijos). El E2E pinnea el conjunto visible de items; esto clava que ninguna
-  // rama se quede sin botón ni sin su label accesible.
+  // [PROF+THEME] La sesión autenticada movió el control al modal, así que el toggle standalone
+  // sobrevive solo en la rama anónima. El E2E pinnea el conjunto visible de items de cada rama;
+  // esto clava que la rama anónima no se quede sin botón ni sin su label accesible y que la
+  // autenticada no lo duplique.
   @Test
-  void theNavbarCarriesTheToggleInBothBranches() throws IOException {
+  void theNavbarKeepsTheStandaloneToggleOnlyForAnonymousVisitors() throws IOException {
     String navbar = read(NAVBAR);
 
     assertThat(
-      "las dos ramas declaran el botón",
+      "solo la rama anónima declara el botón",
       occurrences(navbar, "type=\"button\" data-theme-toggle"),
-      is(2)
+      is(1)
     );
     assertThat(
-      "con el label accesible en cada rama",
+      "con su label accesible",
       occurrences(navbar, "<span class=\"sr-only\">Cambiar tema</span>"),
-      is(2)
+      is(1)
     );
-    assertThat("los dos íconos viajan siempre", occurrences(navbar, "theme-icon-moon"), is(2));
-    assertThat(occurrences(navbar, "theme-icon-sun"), is(2));
+    assertThat("los dos íconos viajan siempre", occurrences(navbar, "theme-icon-moon"), is(1));
+    assertThat(occurrences(navbar, "theme-icon-sun"), is(1));
+    // La primera (y única) rama anónima abre antes del botón que queda: el toggle está dentro
+    // de su markup y no en el de la autenticada.
+    assertThat(
+      "y el botón que queda es el de la rama anónima",
+      navbar.substring(navbar.indexOf("sec:authorize=\"!isAuthenticated()\"")),
+      containsString("class=\"theme-toggle")
+    );
+  }
+
+  // [PROF+THEME] El item "Tema" del modal autenticado es una acción (form POST), no un link:
+  // el navegador la ejecuta sin JS y el controller valida el valor y el redirect.
+  @Test
+  void theAuthenticatedMenuCarriesTheActiveThemeEntry() throws IOException {
+    String menu = read(MENU);
+
+    assertThat(occurrences(menu, "id=\"menu-theme\""), is(1));
+    assertThat(menu, containsString("th:action=\"@{/profile/theme}\""));
+    assertThat(menu, containsString("method=\"POST\""));
+    assertThat("el valor del tema viaja en el form", menu, containsString("name=\"theme\""));
+    assertThat("y el redirect de vuelta al origen", menu, containsString("name=\"redirect\""));
+    assertThat("con CSRF", menu, containsString("th:name=\"${_csrf.parameterName}\""));
+    assertThat("el indicador dice el modo vigente", menu, containsString("theme-label-light"));
+    assertThat(menu, containsString("theme-label-dark"));
+    assertThat(
+      "el toggle mobile duplicado ya no está en el modal",
+      occurrences(menu, "data-theme-toggle"),
+      is(0)
+    );
+  }
+
+  // [PROF+THEME] La preferencia del usuario viaja en un meta que el script temprano lee antes
+  // que localStorage: el modo elegido en otro dispositivo gana sobre el storage de este.
+  @Test
+  void theHeadReadsTheServerPreferenceBeforeLocalStorage() throws IOException {
+    String base = read(BASE);
+
+    int meta = base.indexOf("name=\"theme-preference\"");
+    int script = base.indexOf("localStorage.getItem(\"planit-theme\")");
+
+    assertThat("el head emite el meta de preferencia", meta, greaterThan(0));
+    assertThat("y el script lo lee después de declararlo", meta, lessThan(script));
+    assertThat(
+      "la preferencia gana sobre localStorage",
+      base,
+      containsString("if (preferred === \"dark\" || preferred === \"light\")")
+    );
+    assertThat(
+      "y localStorage gana sobre el sistema",
+      base,
+      containsString("} else if (stored === \"dark\" || stored === \"light\") {")
+    );
   }
 
   // La capa oscura se declara una sola vez y en el stylesheet de tokens: una página que
@@ -134,6 +189,17 @@ public class ThemeModeTest {
     );
     // El toggle no sincroniza íconos desde JS: los dos viajan en el botón y los muestra el modo.
     assertThat(tokens, containsString(".theme-icon-sun { display: none; }"));
+    // [PROF+THEME] Mismo patrón para el indicador Claro/Oscuro del modal: el badge vigente lo
+    // decide el modo, no JS.
+    assertThat(tokens, containsString(".theme-label-dark { display: none; }"));
+    assertThat(
+      tokens,
+      containsString("html[data-theme=\"dark\"] .theme-label-light { display: none; }")
+    );
+    assertThat(
+      tokens,
+      containsString("html[data-theme=\"dark\"] .theme-label-dark { display: inline; }")
+    );
     // El color por defecto del texto: el preflight de Tailwind no declara ninguno, así que lo
     // sin clase text-* hereda el negro del navegador. Tiene que vivir en el bloque de tokens
     // oscuros (no en una utilidad) para cubrir exactamente ese caso.
