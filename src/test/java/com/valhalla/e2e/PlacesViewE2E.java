@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 
 import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.valhalla.e2e.views.WebPage;
 import java.util.List;
@@ -188,6 +189,102 @@ public class PlacesViewE2E extends E2eBase {
       ),
       is(true)
     );
+  }
+
+  /**
+   * [FLASH] Regresion del primer paint de /explore. El template de Vue viaja en el HTML del
+   * servidor: hasta que places-list.js monta, los v-if y los {{ }} son HTML inerte. Antes del fix
+   * se veian el banner de error, el aside con "{{selectedPlace.name}}", el modal "Agregar a plan"
+   * y el logo a su tamano intrínseco (1366 px).
+   *
+   * <p>Se retrasan el compilador de Tailwind y el modulo que monta Vue para que la ventana en la
+   * que el template esta crudo sea ancha y no dependa de la velocidad de la maquina. Un sampler
+   * en rAF anota, frame por frame, cualquier elemento visible que delate el bug; con el codigo
+   * viejo los tres chequeos fallan, con el fix el root queda oculto por v-cloak y el logo mide
+   * 48 px desde el atributo width/height.
+   */
+  @Test
+  void shouldNotPaintTheRawTemplateOrAnOversizedLogoOnFirstPaint() {
+    page.route(
+      "**/js/tailwind-browser.js",
+      route -> {
+        pause(300);
+        route.resume();
+      }
+    );
+    page.route(
+      "**/js/pages/places-list.js",
+      route -> {
+        pause(300);
+        route.resume();
+      }
+    );
+
+    page.addInitScript(
+      """
+      (function () {
+        if (window.__firstPaint) return;
+        var state = { frames: 0, violations: [], sawMountedRoot: false };
+        window.__firstPaint = state;
+        var visible = function (element) {
+          if (!element) return false;
+          var style = getComputedStyle(element);
+          if (style.display === "none" || style.visibility === "hidden") return false;
+          var box = element.getBoundingClientRect();
+          return box.width > 0 && box.height > 0;
+        };
+        var flag = function (message) {
+          if (state.violations.length < 5) state.violations.push(message);
+        };
+        var sample = function () {
+          state.frames += 1;
+          var root = document.getElementById("explore-app");
+          if (root) {
+            if (root.hasAttribute("data-v-app")) state.sawMountedRoot = true;
+            if (visible(root)) {
+              if (root.textContent.indexOf("{{") !== -1) flag("raw Vue template visible");
+              if (visible(root.querySelector("[role='alert']"))) flag("error banner visible");
+              if (visible(root.querySelector("[role='dialog']"))) flag("add-to-plan modal visible");
+            }
+          }
+          var logo = document.querySelector("nav img[alt='Logo']");
+          if (visible(logo) && logo.getBoundingClientRect().width > 48.5) {
+            flag("logo painted at " + Math.round(logo.getBoundingClientRect().width) + " px");
+          }
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      })();
+      """
+    );
+
+    page.reload(new Page.ReloadOptions().setWaitUntil(WaitUntilState.COMMIT));
+    page.waitForSelector("#explore-app[data-v-app]");
+    page.waitForFunction("() => !document.querySelector('#explore-app[v-cloak]')");
+
+    @SuppressWarnings("unchecked")
+    List<String> violations = (List<String>) page.evaluate("() => window.__firstPaint.violations");
+    assertThat("first paint violations: " + violations, violations.isEmpty(), is(true));
+    // Que no pase por vacio: el sampler tiene que haber visto frames y el mount.
+    assertThat(
+      "frames sampled",
+      ((Number) page.evaluate("() => window.__firstPaint.frames")).intValue(),
+      is(greaterThan(5))
+    );
+    assertThat(
+      "sampler saw the mounted root",
+      (Boolean) page.evaluate("() => window.__firstPaint.sawMountedRoot"),
+      is(true)
+    );
+  }
+
+  private static void pause(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(e);
+    }
   }
 
   private void clickCard(String placeName) {
