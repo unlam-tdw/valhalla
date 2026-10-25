@@ -13,6 +13,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -71,6 +72,18 @@ public class GlobalExceptionHandler {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "Method not allowed");
     return new ModelAndView("pages/error", model, HttpStatus.METHOD_NOT_ALLOWED);
+  }
+
+  /**
+   * Un error de la capa web con status explicito (por ejemplo el {@code 400} de un POST con un
+   * valor invalido) conserva su status. Sin este handler el catch-all de abajo lo degrada a 500 y
+   * el cliente no puede distinguir un pedido mal formado de una falla del servidor.
+   */
+  @ExceptionHandler(ResponseStatusException.class)
+  public ModelAndView handleResponseStatus(ResponseStatusException ex) {
+    Map<String, Object> model = new ModelMap();
+    model.put(ERROR_KEY, ex.getReason() == null ? "Request rejected" : ex.getReason());
+    return new ModelAndView("pages/error", model, ex.getStatusCode());
   }
 
   @ExceptionHandler(Exception.class)

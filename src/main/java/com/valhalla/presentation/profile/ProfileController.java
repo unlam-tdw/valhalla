@@ -10,6 +10,7 @@ import com.valhalla.domain.user.UserService;
 import com.valhalla.presentation.bookmark.BookmarkCards;
 import com.valhalla.presentation.plan.PlanFeedCards;
 import com.valhalla.presentation.shared.AvatarUrlPolicy;
+import com.valhalla.presentation.shared.LoginRedirects;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +28,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 
 /**
@@ -198,6 +201,30 @@ public class ProfileController {
       return new ModelAndView(VIEW_CHANGE_PASSWORD);
     }
     return new ModelAndView(REDIRECT_PROFILE + me.getId() + "?passwordChanged=true");
+  }
+
+  /**
+   * [PROF+THEME] POST del item "Tema" del modal (I-21). El usuario de la escritura sale de la
+   * sesion, el valor se valida antes de tocar la DB (400 sin escribir) y el redirect vuelve a la
+   * pagina de origen solo si es una ruta interna segura (open redirect cerrado). En {@code
+   * /admin/**} el advice no expone {@code currentUrl}, asi que el fallback es la landing del rol:
+   * un admin no pierde el area al cambiar de tema.
+   */
+  @PostMapping("/theme")
+  public String updateTheme(
+    @RequestParam("theme") String theme,
+    @RequestParam(value = "redirect", required = false) String redirect,
+    Authentication authentication
+  ) {
+    User me = sessionUser(authentication);
+    if (!User.isValidTheme(theme)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tema invalido");
+    }
+    userService.updateThemePreference(me.getId(), theme);
+    String target = LoginRedirects.isSafeInternalPath(redirect)
+      ? redirect
+      : LoginRedirects.landingFor(authentication);
+    return "redirect:" + target;
   }
 
   /** Usuario en sesion. En autenticado real el principal es {@code UserDetails} y su nombre es
