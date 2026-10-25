@@ -486,8 +486,10 @@
                             <span class="text-muted small" th:text="${email}">usuario@ejemplo.com</span>
                         </div>
                         <span th:if="${plan.isAdministrator(email)}" class="badge bg-primary flex-shrink-0">Due&ntilde;o</span>
-                        <span th:if="${!canEditPlan and !plan.isAdministrator(email)}" class="badge bg-secondary flex-shrink-0" th:text="${plan.isEditor(email) ? 'Editor' : 'Participante'}">Participante</span>
-                        <form th:if="${canEditPlan and !plan.isAdministrator(email)}" th:action="@{/plans/{id}/participants/role(id=${plan.id})}" method="POST" class="d-flex align-items-center gap-2 flex-shrink-0 mb-0">
+                        <!-- El dueño es el único que reasigna roles existentes; los editores ven el
+                             rol como badge (siguen pudiendo invitar y proponer Editor). -->
+                        <span th:if="${!isPlanAdministrator and !plan.isAdministrator(email)}" class="badge bg-secondary flex-shrink-0" th:text="${plan.isEditor(email) ? 'Editor' : 'Participante'}">Participante</span>
+                        <form th:if="${isPlanAdministrator and !plan.isAdministrator(email)}" th:action="@{/plans/{id}/participants/role(id=${plan.id})}" method="POST" class="d-flex align-items-center gap-2 flex-shrink-0 mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
                             <select name="role" class="form-select form-select-sm w-auto" aria-label="Rol del participante">
