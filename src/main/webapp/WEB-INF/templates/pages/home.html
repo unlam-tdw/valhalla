@@ -13,7 +13,7 @@
       You are signed in as <span class="font-medium text-gray-900" sec:authentication="name">email</span>
     </p>
 
-    <div id="session-clock-app" th:attr="data-login-time=${loginTime}"
+    <div id="session-clock-app" v-cloak th:attr="data-login-time=${loginTime}"
       class="rounded-lg bg-white px-4 py-3 text-sm text-gray-700 shadow-md">
       Signed in for <span class="font-medium text-gray-900">{{ elapsed }}</span>
     </div>
