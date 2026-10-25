@@ -32,8 +32,15 @@
         .place-item[draggable="true"] { cursor: grab; }
         .place-item[draggable="true"]:active { cursor: grabbing; }
         .itinerary-step { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-secondary-bg); color: var(--bs-body-color); font-weight: 700; z-index: 1; }
-        .itinerary-stop { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--bs-border-color); border-radius: 8px; background: var(--bs-body-bg); transition: transform .18s, box-shadow .18s; }
-        .itinerary-stop:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,.06); }
+        /* [DIS] AC-01: la cara visual (borde, radius, padding, superficie, hover, transicion)
+             vive en .place-card de brand.css y la card la comparte con el landing; aca queda
+             solo el layout propio del detalle (la card crece dentro de .place-item). El
+             fondo que re-colorea Bootstrap, mobile y reduced-motion van en el bloque de
+             style de abajo, despues del link de brand.css. */
+        .itinerary-stop { flex: 1; }
+        /* [DIS] AC-12: handle de arrastre decorativo en el borde izquierdo de la card; el
+             drag real lo manda el <li> draggable (place-item y sus selectores no cambian). */
+        .drag-handle { flex: 0 0 auto; display: inline-flex; align-self: center; color: var(--gray); opacity: 0.8; }
         .stop-content { flex: 1; min-width: 0; }
         .stop-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
         .place-item:last-child { padding-bottom: 0; }
@@ -42,16 +49,20 @@
         .stop-title { display: block; border: 0; padding: 0; margin: 0; background: none; color: var(--bs-body-color); font-size: 1rem; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
         .stop-title:hover { color: var(--bs-secondary); }
         .stop-schedule { display: flex; flex-wrap: wrap; gap: 12px; color: var(--bs-secondary-color); font-size: .82rem; }
+        /* [DIS] Todo par icono+texto del itinerario queda a la misma altura (icono al lado, no
+           encima): inline-flex + center fuerza el SVG inline contra el texto sin depender del
+           baseline. Aplica a Cómo llegar, Eliminar y los datos de fecha/hora. */
+        .stop-schedule > span { display: inline-flex; align-items: center; }
         .visit-editor { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--bs-border-color); }
         .visit-editor-heading { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color); margin-bottom: 8px; }
         .stop-description { color: var(--bs-secondary-color); font-size: .85rem; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .stop-directions { display: inline-block; margin-top: 6px; color: var(--bs-primary); font-size: .85rem; font-weight: 600; text-decoration: none; }
+        .stop-directions { display: inline-flex; align-items: center; margin-top: 6px; color: var(--bs-primary); font-size: .85rem; font-weight: 600; text-decoration: none; }
         .stop-directions:hover { text-decoration: underline; }
         .stop-directions:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 2px; }
         .stop-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
         .stop-details { border: 1px solid var(--bs-secondary); border-radius: 6px; background: var(--bs-secondary); color: white; padding: 5px 10px; font-size: .8rem; font-weight: 600; }
         .stop-details:hover { background: #5c636a; }
-        .stop-remove { border: 0; border-radius: 20px; background: transparent; color: var(--bs-danger); padding: 5px 6px; font-size: .8rem; }
+        .stop-remove { display: inline-flex; align-items: center; border: 0; border-radius: 20px; background: transparent; color: var(--bs-danger); padding: 5px 6px; font-size: .8rem; }
         .stop-remove:hover { background: var(--bs-light); }
         .stop-title:focus-visible, .stop-details:focus-visible, .stop-remove:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 4px; }
         .itinerary-empty { padding: 28px 18px; margin-top: 20px; text-align: center; background: var(--bs-light); border-radius: 16px; color: var(--bs-secondary-color); }
@@ -68,12 +79,9 @@
             main.container-fluid { padding-left: 12px !important; padding-right: 12px !important; }
             .itinerary-panel { padding: 14px; }
             .place-item { gap: 8px; }
-            .itinerary-stop { padding: 8px; gap: 8px; flex-wrap: wrap; }
             .stop-content { flex: 1 1 100%; }
             .stop-actions { flex: 1 1 100%; flex-direction: row; justify-content: flex-start; gap: 6px; }
         }
-        @media (prefers-reduced-motion: reduce) { .itinerary-stop { transition: none; } .itinerary-stop:hover { transform: none; } }
-
         .custom-div-icon {
             background: transparent !important;
             border: none !important;
@@ -166,34 +174,106 @@
         [data-bs-theme="dark"] .stop-category,
         [data-bs-theme="dark"] .itinerary-empty,
         [data-bs-theme="dark"] .stop-remove:hover { background: var(--bs-tertiary-bg); }
+        /* [DIS] Los tiles del resumen (.bg-light) usan --bs-light, que Bootstrap NO redefine en
+           dark: queda #f8f9fa (mancha blanca) y el texto hereda --bs-body-color (#adb5bd), gris
+           sobre blanco = ilegible ("letras apagadas"). Pintamos .bg-light con --bs-tertiary-bg en
+           dark (solo lo usa el resumen) para que el tile sea superficie oscura y el texto claro
+           respire. El !important pisa a la utilidad .bg-light de Bootstrap. */
+        [data-bs-theme="dark"] .bg-light { background-color: var(--bs-tertiary-bg) !important; }
+
+        /* ===================== [DIS] 17-DIS =====================
+           Van en el bloque de despues de headContent: tiene que pisar a brand.css (su <link>
+           entra por headContent, mas arriba) el fondo que re-colorea Bootstrap, el ajuste
+           mobile de 22-MOBILE y el reduced-motion. */
+
+        /* [DIS] AC-01: el fondo de la card lo manda --bs-body-bg (blanco en claro, #212529 en
+           oscuro, igual que el panel donde vive) — la pieza que clava ThemeModeTest. */
+        .itinerary-stop { background: var(--bs-body-bg); }
+
+        /* [DIS] AC-01/22-MOBILE: ajuste angosto de la parada, despues del link de tokens para
+           que el padding/gap compartido no lo tape. */
+        @media (max-width: 575px) {
+            .itinerary-stop { padding: 8px; gap: 8px; flex-wrap: wrap; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .itinerary-stop { transition: none; }
+            .itinerary-stop:hover { transform: none; }
+        }
+
+        /* [DIS] AC-14 (decisión final de revisión, 2026-10-25): banda de color SOLIDO de
+           marca (--primary) detrás del título. El ticket pedía imagen por defecto en este
+           slot: se implementó (cover-3.svg + overlay de tokens, recorte anclado al 65%) y
+           en la revisión la usuaria la descartó —"la barra no se ve bien"— pidiendo color
+           sólido. El min-height conserva la presencia de la franja y el título en blanco
+           con sombra de texto mantiene el contraste a cualquier ancho y en ambos temas.
+           La imagen decorativa queda para la card [IMG]. Sin backend. */
+        .plan-header {
+            background-color: var(--primary);
+            min-height: 96px;
+            border-radius: 0.5rem;
+        }
+
+        .plan-header h2 {
+            color: var(--white);
+            text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+        }
+
+        /* [DIS] AC-10: switch con la paleta (knob blanco saliendo de --primary, inactivo de
+           los grises) y el estado a la vista: el span que dice Privado/Publico es uno solo,
+           el que corresponde al estado del input (:has puro, sin JS). */
+        .visibility-state {
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--bs-secondary-bg);
+            color: var(--primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        html:has(#isPublic:not(:checked)) .visibility-state--public,
+        html:has(#isPublic:checked) .visibility-state--private { display: none; }
+
+        #isPublic { background-color: var(--gray); border-color: var(--gray); }
+
+        #isPublic:checked { background-color: var(--primary); border-color: var(--primary); }
     </style>
 </head>
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
-<main class="container-fluid px-5">
+<!-- [DIS] AC-11: pb-5 para que la ultima seccion no pegue con el borde inferior. -->
+<main class="container-fluid px-5 pb-5">
     <div id="plan-app">
-    <div class="d-flex justify-content-between align-items-center gap-3 mb-4 mt-4">
-        <h2 class="fw-bold m-0" th:text="${plan.name}">Nombre del plan</h2>
-        <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
-        <div th:if="${canBookmark}" class="flex-shrink-0">
-            <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
+    <!-- [DIS] AC-08/AC-14: una sola fila de cabecera. La banda con imagen por defecto
+         acompana al titulo (overlay de tokens de marca para que el texto respire) y las
+         acciones quedan agrupadas a la derecha, con gap visible entre todos los botones.
+         AC-13: Clonar plan solo para participantes que no administran — el plan recien
+         clonado lo tiene el clonador como admin, asi que su propia copia no lo muestra. -->
+    <div class="d-flex align-items-stretch gap-3 mb-4 mt-4 flex-wrap">
+        <div class="plan-header flex-grow-1 d-flex align-items-center px-3 py-2 rounded">
+            <h2 class="fw-bold m-0" th:text="${plan.name}">Nombre del plan</h2>
         </div>
-    </div>
-
-    <div class="d-flex justify-content-end mb-4">
-        <a th:if="${isPlanAdministrator}" th:href="@{/plans/{id}/settings(id=${plan.id})}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>Configuración del plan</a>
-        <form th:if="${isPlanAdministrator}" th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-            <button type="submit" class="btn btn-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>Eliminar plan</button>
-        </form>
-        <form th:if="${isPlanParticipant == true and isPlanAdministrator != true}" th:action="@{/plans/{id}/leave(id=${plan.id})}" method="POST">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-            <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>Salir del plan</button>
-        </form>
-        <form th:action="@{/plans/{id}/clone(id=${plan.id})}" method="POST">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-            <button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>Clonar plan</button>
-        </form>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
+            <div th:if="${canBookmark}" class="flex-shrink-0">
+                <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
+            </div>
+            <a th:if="${isPlanAdministrator}" th:href="@{/plans/{id}/settings(id=${plan.id})}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>Configuración del plan</a>
+            <form th:if="${isPlanAdministrator}" th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <button type="submit" class="btn btn-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>Eliminar plan</button>
+            </form>
+            <form th:if="${isPlanParticipant == true and isPlanAdministrator != true}" th:action="@{/plans/{id}/leave(id=${plan.id})}" method="POST">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>Salir del plan</button>
+            </form>
+            <form th:if="${isPlanParticipant == true and isPlanAdministrator != true}" th:action="@{/plans/{id}/clone(id=${plan.id})}" method="POST">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>Clonar plan</button>
+            </form>
+        </div>
     </div>
 
     <div class="row g-4">
@@ -266,8 +346,24 @@
                         @dragstart="onDragStart(index)"
                         @dragover.prevent
                         @drop="onDrop(index)">
+                        <!-- [DIS] AC-12: handle decorativo en el borde izquierdo de la card,
+                             solo con permiso de edicion. El arrastre real sigue mandado en el
+                             <li> draggable: place-item y sus selectores no cambian. -->
+                        <span th:if="${canEditPlan}" class="drag-handle" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="9" cy="12" r="1" />
+                                <circle cx="9" cy="5" r="1" />
+                                <circle cx="9" cy="19" r="1" />
+                                <circle cx="15" cy="12" r="1" />
+                                <circle cx="15" cy="5" r="1" />
+                                <circle cx="15" cy="19" r="1" />
+                            </svg>
+                        </span>
                         <span class="itinerary-step">{{ index + 1 }}</span>
-                        <div class="itinerary-stop">
+                        <!-- [DIS] AC-01: clase doble — .place-card aporta el chrome compartido
+                             con el landing; .itinerary-stop conserva las reglas propias del
+                             detalle (fondo --bs-body-bg, ajuste mobile, reduced-motion). -->
+                        <div class="itinerary-stop place-card">
                             <div class="stop-content">
                                 <div class="stop-heading">
                                     <button type="button" class="stop-title" @click="showPlace(item)">{{ item.name }}</button>
@@ -300,37 +396,53 @@
 
         <div class="col-md-5">
             <div id="plan-summary" class="card border-0 shadow-sm p-4 mb-4">
+                <!-- [DIS] AC-09: el fondo gris vive en un div interno, no en la columna.
+                      bg-light sobre la col pisaba el padding del gutter (.p-3 es !important)
+                      y los tiles grises se tocaban horizontalmente; ahora el gutter de
+                      Bootstrap (16px en ambos ejes) queda a la vista entre tiles. -->
                 <div class="row g-3">
-                    <div class="col-12 bg-light p-3 rounded">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">DESCRIPCI&Oacute;N</small>
-                        <p id="plan-description" class="mb-0 text-break" style="white-space: pre-wrap;"
-                           th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
+                    <div class="col-12">
+                        <div class="bg-light p-3 rounded h-100">
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">DESCRIPCI&Oacute;N</small>
+                            <p id="plan-description" class="mb-0 text-break" style="white-space: pre-wrap;"
+                               th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
+                        </div>
                     </div>
-                    <div class="col-6 bg-light p-3 rounded">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">FECHA</small>
-                        <span th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'yyyy-MM-dd') : 'Sin fecha'}">2026-10-16</span>
+                    <div class="col-6">
+                        <div class="bg-light p-3 rounded h-100">
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">FECHA</small>
+                            <span th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'yyyy-MM-dd') : 'Sin fecha'}">2026-10-16</span>
+                        </div>
                     </div>
-                    <div class="col-6 bg-light p-3 rounded">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">HORA</small>
-                        <span th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
+                    <div class="col-6">
+                        <div class="bg-light p-3 rounded h-100">
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">HORA</small>
+                            <span th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
+                        </div>
                     </div>
-                    <div class="col-6 bg-light p-3 rounded">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">VISIBILIDAD</small>
-                        <span th:text="${plan.isPublic != null && plan.isPublic ? 'Público' : 'Privado'}">Privado</span>
+                    <div class="col-6">
+                        <div class="bg-light p-3 rounded h-100">
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">VISIBILIDAD</small>
+                            <span th:text="${plan.isPublic != null && plan.isPublic ? 'Público' : 'Privado'}">Privado</span>
+                        </div>
                     </div>
-                    <div class="col-6 bg-light p-3 rounded">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">ADMINISTRADOR</small>
-                        <!-- [PROF] AC-22/PROF-014: el email del admin deja de ser la etiqueta; aca
-                             se ve el nombre y linkea al perfil publico (es un usuario real). -->
-                        <a th:if="${plan.administrator != null}"
-                          th:href="@{/profile/{id}(id=${plan.administrator.id})}"
-                          th:text="${#strings.trim((plan.administrator.firstName == null ? '' : plan.administrator.firstName) + ' ' + (plan.administrator.lastName == null ? '' : plan.administrator.lastName))}"
-                          class="text-decoration-none text-decoration-underline-hover">Administrador</a>
-                        <span th:if="${plan.administrator == null}">Sin administrador</span>
+                    <div class="col-6">
+                        <div class="bg-light p-3 rounded h-100">
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">ADMINISTRADOR</small>
+                            <!-- [PROF] AC-22/PROF-014: el email del admin deja de ser la etiqueta; aca
+                                 se ve el nombre y linkea al perfil publico (es un usuario real). -->
+                            <a th:if="${plan.administrator != null}"
+                              th:href="@{/profile/{id}(id=${plan.administrator.id})}"
+                              th:text="${#strings.trim((plan.administrator.firstName == null ? '' : plan.administrator.firstName) + ' ' + (plan.administrator.lastName == null ? '' : plan.administrator.lastName))}"
+                              class="text-decoration-none text-decoration-underline-hover">Administrador</a>
+                            <span th:if="${plan.administrator == null}">Sin administrador</span>
+                        </div>
                     </div>
-                    <div class="col-6 bg-light p-3 rounded">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">CÓDIGO</small>
-                        <span th:text="${plan.shortCode}">BD0F615A</span>
+                    <div class="col-6">
+                        <div class="bg-light p-3 rounded h-100">
+                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">CÓDIGO</small>
+                            <span th:text="${plan.shortCode}">BD0F615A</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -419,9 +531,15 @@
                         <input type="time" th:field="*{eventTime}" class="form-control" />
                     </div>
 
-                    <div class="form-check mb-4">
-                        <input class="form-check-input" type="checkbox" id="isPublic" th:field="*{isPublic}" />
-                        <label class="form-check-label text-secondary small" for="isPublic">
+                    <!-- [DIS] AC-10: switch estilo iOS con la paleta del sitio y los dos
+                         estados a la vista. El estado lo decide el CSS (:has, sin JS): segun
+                         el input se renderiza el span Privado o el Publico. aria-hidden porque
+                         el estado real lo anuncia el propio checkbox. -->
+                    <div class="visibility-row mb-4 d-flex flex-wrap align-items-center gap-2">
+                        <span class="visibility-state visibility-state--private" aria-hidden="true">Privado</span>
+                        <input class="form-check-input form-switch" type="checkbox" id="isPublic" th:field="*{isPublic}" />
+                        <span class="visibility-state visibility-state--public" aria-hidden="true">Público</span>
+                        <label class="form-check-label text-secondary small ms-1" for="isPublic">
                             Hacer público este plan
                         </label>
                     </div>

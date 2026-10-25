@@ -44,7 +44,7 @@
         <a th:href="@{/profile/{id}(id=${administratorId})}" class="text-blue-600 hover:underline"
           th:text="${administratorName}"></a>
       </span>
-      <span class="text-gray-300" th:if="${!#strings.isEmpty(administratorName)}"
+      <span class="text-gray-500" th:if="${!#strings.isEmpty(administratorName)}"
         aria-hidden="true">·</span>
       <span>
         <strong th:text="${participantCount == 1} ? '1 participante' : ${participantCount + ' participantes'}">0 participantes</strong>

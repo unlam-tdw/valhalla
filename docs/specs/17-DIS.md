@@ -53,7 +53,7 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-11 | La página de edición muestra padding inferior suficiente: al scrollear hasta el final, la última sección no toca el borde inferior de la ventana |
 | AC-12 | Cada card de lugar del itinerario muestra un ícono de drag & drop (handle) en su borde izquierdo cuando el usuario puede editar el plan; sin permiso de edición el ícono no aparece |
 | AC-13 | El botón "Clonar plan" solo se muestra a participantes que no son administradores: un plan recién clonado (donde el clonador quedó como administrador) no vuelve a mostrar el botón |
-| AC-14 | La cabecera del plan lleva un banner con imagen por defecto detrás del título, sin taparlo ni solaparse con el contenido; subir/cambiar/quitar la imagen queda fuera de esta spec (card [IMG] aparte) |
+| AC-14 | La cabecera del plan lleva una banda de color de marca sólido detrás del título, sin taparlo ni solaparse con el contenido; subir/cambiar/quitar una imagen decorativa queda fuera de esta spec (card [IMG] aparte). *Ajustado en revisión visual: el ticket pedía imagen por defecto, se implementó y probó, y la usuaria la descartó pidiendo color sólido* |
 
 ## Escenarios de Test
 
@@ -79,7 +79,7 @@ de sesión; sigue sin tocar backend).
 | V-11 | Scrolleando al final de `/plans/{id}`, la última sección deja padding visible respecto al borde inferior de la ventana | AC-11 |
 | V-12 | Handle de drag visible en el borde izquierdo de cada card de lugar con `canEditPlan`; invisible para un usuario sin permiso de edición | AC-12 |
 | V-13 | Como ADMINISTRADOR del plan no se ve "Clonar plan"; como participante no-admin sí; tras clonar un plan público, la página del clon (redirect) tampoco lo muestra | AC-13 |
-| V-14 | Banner con imagen por defecto detrás del título del plan; el título mantiene contraste y no se solapa con el contenido | AC-14 |
+| V-14 | Banda de color sólido de marca detrás del título del plan (en 320, 390 y desktop, light y dark); el título en blanco mantiene contraste y no se solapa con el contenido | AC-14 |
 
 Los tres estados de sesión (anónimo, USER, ADMIN) en dos anchos (375px y 1280px).
 
@@ -149,10 +149,12 @@ El cierre de la card es el gate completo en verde con los counts escritos en el 
   participantes no-administradores). Tras clonar un plan público el clonador queda como
   administrador del clon, así que la edit page del clon ya no lo ofrece: se rompe el loop
   "clonar el clon" sin campos nuevos ni tracking. Sin backend ni migraciones.
-- **Banner de imagen: slot hoy, contenido después (AC-14).** La cabecerá del plan lleva una
-  banda con imagen por defecto detrás del título (overlay con los tokens de marca para que el
-  texto respire). Subir/cambiar/quitar la imagen exige un campo `image` en Plan, migración y
-  storage: eso es otra card ([IMG]) y no entra aquí; el AC deja el slot listo.
+- **Banda sólida del header, imagen fuera (AC-14).** La cabecera del plan lleva una banda
+  de color de marca sólido detrás del título. El ticket pedía una imagen por defecto en ese
+  slot; se implementó (cover genérico + overlay de tokens) y en la revisión visual la
+  usuaria la descartó —"la barra no se ve bien"— pidiendo color sólido. Subir/cambiar/quitar
+  una imagen decorativa exige un campo `image` en Plan, migración y storage: eso es otra
+  card ([IMG]) y no entra aquí; el AC deja el slot listo.
 - **Interacciones con [MOBILE] (ya en main).** La spec se escribió antes del merge de 22-MOBILE
   y desde entonces conviven reglas que tocan los mismos lugares:
   - **AC-06 / sticky:** `/explore` es mapa full-screen y su detalle de lugar es una card
@@ -257,6 +259,82 @@ Re-tracear la P del logo con la familia elegida (font-to-path offline) y reempla
 del glyph en `resources/images/logo.svg`. Los círculos decorativos y los colores quedan como
 están: solo cambia el glyph de la letra.
 
+## Notas de implementación (hallazgos)
+
+Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anotado arriba.
+
+- **AC-04/AC-05: la raíz NO era el bundle, era el `return` con reduced-motion.** La nota de
+  diseño de arriba diagnóstica el tag "Público" como un icono `users` ausente del bundle y
+  proponía regenerarlo. En la práctica el bundle vendorizado está completo: los 12
+  `data-lucide` del landing se reemplazan (12/12 SVG dibujados, 0 avisos en consola). La causa
+  real era que el IIFE de reveal de la landing hace `return` temprano bajo
+  `prefers-reduced-motion` (muestra todo sin animar), y ese `return` saltaba el
+  `createIcons()`: con reduced-motion activo todos los `<i>` quedaban vacíos. El fix es un
+  `<script>` propio que llama a `lucide.createIcons()` antes y aparte de ese IIFE (no depende
+  del observer ni de `reveal-ready`). No hizo falta regenerar el bundle.
+- **La card de lugar: un fragmento para el landing, la misma clase para el detalle.** El
+  itinerario del hero consume `components/place-card.html` (raíz `<li th:fragment>`); el
+  hero lo itera con `th:block th:each>` por afuera, porque `th:each` y `th:replace` en el
+  mismo elemento rompen (el contexto del fragmento queda `null`). El detalle no puede invocar
+  un fragmento de Thymeleaf dentro de su `<li>` que clona `v-for` de Vue, así que usa la
+  **clase doble** `.itinerary-stop.place-card`: `.place-card` (brand.css) aporta el chrome
+  compartido y `.itinerary-stop` conserva las reglas propias del detalle (fondo
+  `--bs-body-bg` que re-colorea el modo oscuro y que clava `ThemeModeTest`, ajuste mobile y
+  reduced-motion), en un bloque `<style>` posterior al `<link>` de brand.css para ganar la
+  cascada.
+- **La P del logo se re-trazó con Java2D, sin dependencias.** `Font.createFont` +
+  `GlyphVector.getOutline` sobre `BreeSerif-Regular.ttf` (la serif de brand.css), escalado
+  uniforme por altura de mayúscula y alineado al baseline y al centro-x del vector anterior.
+  La salida es un `<path>` estático: el SVG no introduce ninguna fuente en tiempo de
+  ejecución.
+- **AC-14: banda sólida de marca (decisión final de revisión, 2026-10-25).** El ticket pedía
+  banner con imagen por defecto; se implementó (`cover-3.svg` + overlay de tokens, recorte
+  anclado al 65% sobre la columnata) y se probó en la revisión, pero la usuaria lo descartó
+  —"la barra no se ve bien"— y pidió color sólido. Implementación final en `detail.html`:
+  `background-color: var(--primary)` con `min-height: 96px` y el título en blanco encima
+  (sombra de texto: contraste garantizado a cualquier ancho y en ambos temas). La imagen
+  decorativa queda para la card [IMG]. Verificado con Playwright en 320/390/1280 ×
+  claro/oscuro: título legible y sin solapes.
+- **Revisión visual posterior: tres ajustes sobre lo implementado.** La revisión de la
+  usuaria en 320×752 / 390×844 y desktop levantó tres defectos, corregidos sin tocar
+  markup ni tests:
+  - **Tiles del resumen ilegibles en oscuro.** `.bg-light` usa `--bs-light`, que Bootstrap
+    no redefine en dark: quedaba mancha blanca (#f8f9fa) y el texto hereda
+    `--bs-body-color` (#adb5bd), gris sobre blanco. Fix en `detail.html`:
+    `[data-bs-theme="dark"] .bg-light { background-color: var(--bs-tertiary-bg) !important }`
+    (solo el resumen usa `.bg-light` en el sitio).
+  - **Iconos del itinerario por encima del texto.** Los pares icono+texto ("Cómo llegar",
+    "Eliminar", fecha/hora) dependían del baseline del SVG inline y se desalineaban.
+    Fix: `inline-flex; align-items: center` en `.stop-directions`, `.stop-remove` y
+    `.stop-schedule > span`.
+- **El mapa Leaflet tapaba el nav sticky al hacer scroll (hallazgo de la revisión).**
+  `.leaflet-container` venía con `z-index: auto`: no creaba stacking context, y sus
+  paneles (z-index 400–800, marcadores custom hasta 1000) escapaban al contexto raíz y se
+  dibujaban por encima del nav (`sticky z-50`) al scrollear el detalle del plan. Fix
+  global en `brand.css`: `.leaflet-container { position: relative; z-index: 0; }`, que
+  convierte al mapa en su propio stacking context y contiene los paneles dentro de él.
+  Cubre el detalle y `/explore` sin tocar el `leaflet.css` vendorizado. Diagnosticado con
+  Playwright sobre la app corriendo (`elementFromPoint` dentro de la banda del nav devolvía
+  un marcador del mapa; tras el fix devuelve el nav).
+- **Revisión visual: separación en modo día, en TODAS las vistas (2026-10-25).** La
+  saturación —blanco sobre blanco sin distinguir fondo, cards, tiles e inputs— no era solo
+  del detalle: aparece en landing, catálogo público, home, admin, perfil y auth. Fix global
+  en `brand.css`, solo tema claro, en dos llaves:
+  1. `html:not([data-bs-theme="dark"]) { --bs-border-color: #adb5bd }`: redifinir el token
+     hace que todo lo que pinta Bootstrap (cards, inputs, list-group, tablas, tiles
+     `.bg-light`, panel del itinerario) salga con un gris visible en lugar de `#dee2e6`,
+     en cualquier vista; `.card` además recupera el ancho pisando el `border-0`.
+  2. las utilidades faint de Tailwind se suben al mismo gris (`.border-gray-200` /
+     `.border-gray-300`, con `hover:border-gray-300` un paso más oscuro como antes) y las
+     cajas blancas con sombra que no traían borde (`.bg-white.shadow*`: catálogo, home,
+     admin, auth, perfil) reciben `1px solid`. Las `<section>` blancas del landing quedan
+     fuera a propósito: no traen borde ni sombra.
+  Además los textos/meta que "no se notaban" pasan de `gray-300/400` a `gray-500`: los
+  números 01/02/03 del landing, el nombre del administrador en la vista pública del plan,
+  el rol del perfil y los meta-íconos del catálogo de lugares. En oscuro no se toca nada.
+  Medido en 320: el borde no altera el layout de los tiles (el wrap de labels a 320 es
+  preexistente —`word-wrap: break-word` de `.card` en Bootstrap—).
+
 ## Archivos a crear/modificar
 
 | Archivo | Accion |
@@ -264,7 +342,7 @@ están: solo cambia el glyph de la letra.
 | `templates/components/place-card.html` | Crear (fragmento de card de lugar compartido) |
 | `resources/css/brand.css` | Actualizar (`.place-card`, `.btn-cta`, indicador del FAQ, estilos del switch de visibilidad y del banner del plan para AC-08..AC-14) |
 | `templates/pages/landing.html` | Actualizar (hero usa el fragmento, CTAs con `.btn-cta`, FAQ con indicador CSS, sin `<style>` de card propio en el hero) |
-| `templates/pages/plans/detail.html` | Actualizar (AC-01: `.itinerary-stop` pasa a consumir `.place-card`; AC-08: header título+botones en una fila con `gap`; AC-09: gutter del summary; AC-10: switch de visibilidad; AC-11: padding inferior; AC-12: handle de drag en cada card; AC-13: condición de "Clonar plan"; AC-14: banner con imagen por defecto) |
+| `templates/pages/plans/detail.html` | Actualizar (AC-01: `.itinerary-stop` pasa a consumir `.place-card`; AC-08: header título+botones en una fila con `gap`; AC-09: gutter del summary; AC-10: switch de visibilidad; AC-11: padding inferior; AC-12: handle de drag en cada card; AC-13: condición de "Clonar plan"; AC-14: banda sólida con imagen decorativa fuera) |
 | `templates/components/navbar.html` | Actualizar (sticky; botones con `.btn-cta`) |
 | `resources/core/js/lucide.min.js` | Actualizar (regenerar con los iconos faltantes, si se elige el camino (a)) |
 | `resources/images/logo.svg` | Actualizar (P re-traceada) |
