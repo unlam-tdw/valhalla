@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -16,7 +17,9 @@ import com.valhalla.domain.exception.PlaceNotFoundException;
 import com.valhalla.domain.planplace.PlanPlaceRepository;
 import com.valhalla.infrastructure.place.PlaceServiceImpl;
 import com.valhalla.presentation.place.EditPlaceRequest;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -179,6 +182,58 @@ public class PlaceServiceImplTest {
   }
 
   @Test
+  public void shouldUpdateTheExistingPlaceWhenTheExternalIdIsAlreadyStored() {
+    Place existing = place("Nombre Viejo", PlaceCategory.CAFE);
+    existing.setExternalId("osm:node/1");
+    when(placeRepositoryMock.findByExternalId("osm:node/1")).thenReturn(Optional.of(existing));
+
+    Place result = placeService.create(requestWith("Nombre Nuevo", "osm:node/1"));
+
+    assertThat("el alta reusa la fila del POI", result, is(sameInstance(existing)));
+    assertThat(result.getName(), is(equalTo("Nombre Nuevo")));
+    assertThat(result.getExternalId(), is(equalTo("osm:node/1")));
+    verify(placeRepositoryMock).save(existing);
+  }
+
+  @Test
+  public void shouldCreateANewPlaceWhenTheExternalIdIsUnknown() {
+    when(placeRepositoryMock.findByExternalId("osm:node/2")).thenReturn(Optional.empty());
+
+    Place result = placeService.create(requestWith("Lugar Importado", "osm:node/2"));
+
+    assertThat(result.getExternalId(), is(equalTo("osm:node/2")));
+    assertThat(result.getName(), is(equalTo("Lugar Importado")));
+    verify(placeRepositoryMock).save(result);
+  }
+
+  @Test
+  public void shouldNotLookUpByIdentityWhenTheFormBringsNoExternalId() {
+    Place result = placeService.create(requestWith("Lugar Manual", null));
+
+    verify(placeRepositoryMock, never()).findByExternalId(any());
+    assertThat(result.getExternalId(), is(nullValue()));
+    verify(placeRepositoryMock).save(result);
+  }
+
+  @Test
+  public void shouldKeepTheExternalIdWhenAnUpdateDoesNotBringOne() {
+    Place existing = place("Importado", PlaceCategory.BAR);
+    existing.setId(OTHER_PLACE_ID);
+    existing.setExternalId("osm:node/3");
+    when(placeRepositoryMock.findById(OTHER_PLACE_ID)).thenReturn(Optional.of(existing));
+
+    Place result = placeService.update(OTHER_PLACE_ID, requestWith("Renombrado", null));
+
+    assertThat(result.getName(), is(equalTo("Renombrado")));
+    assertThat(
+      "editar sin identidad no borra la del POI",
+      result.getExternalId(),
+      is("osm:node/3")
+    );
+    verify(placeRepositoryMock).save(existing);
+  }
+
+  @Test
   public void shouldThrowPlaceNotFoundWhenUpdatingAMissingId() {
     when(placeRepositoryMock.findById(MISSING_ID)).thenReturn(Optional.empty());
     EditPlaceRequest request = new EditPlaceRequest(
@@ -195,6 +250,47 @@ public class PlaceServiceImplTest {
     );
 
     assertThrows(PlaceNotFoundException.class, () -> placeService.update(MISSING_ID, request));
+  }
+
+  @Test
+  public void shouldReturnNoSavedPlaceWhenTheListIsEmpty() {
+    Map<String, UUID> saved = placeService.savedPlaceIds(List.of());
+
+    assertThat(saved.isEmpty(), is(true));
+    verify(placeRepositoryMock, never()).findByExternalIdIn(any());
+  }
+
+  @Test
+  public void shouldIgnoreBlankIdentities() {
+    Map<String, UUID> saved = placeService.savedPlaceIds(Arrays.asList("", "  ", null));
+
+    assertThat(saved.isEmpty(), is(true));
+    verify(placeRepositoryMock, never()).findByExternalIdIn(any());
+  }
+
+  @Test
+  public void shouldMapTheSavedPlacesByIdentity() {
+    Place first = place("Cafe Tortoni", PlaceCategory.CAFE);
+    first.setId(PLACE_ID);
+    first.setExternalId("osm:node/1");
+    Place second = place("Parrilla Don Julio", PlaceCategory.RESTAURANT);
+    second.setId(OTHER_PLACE_ID);
+    second.setExternalId("osm:way/2");
+    when(placeRepositoryMock.findByExternalIdIn(List.of("osm:node/1", "osm:way/2", "osm:node/404")))
+      .thenReturn(List.of(first, second));
+
+    Map<String, UUID> saved = placeService.savedPlaceIds(
+      List.of("osm:node/1", "osm:way/2", "osm:node/404")
+    );
+
+    assertThat(saved.size(), is(2));
+    assertThat(saved.get("osm:node/1"), is(PLACE_ID));
+    assertThat(saved.get("osm:way/2"), is(OTHER_PLACE_ID));
+    assertThat(
+      "una identidad sin lugar no aparece en el mapa",
+      saved.containsKey("osm:node/404"),
+      is(false)
+    );
   }
 
   @Test
@@ -222,5 +318,14 @@ public class PlaceServiceImplTest {
     place.setName(name);
     place.setCategory(category);
     return place;
+  }
+
+  /** Alta o edicion minima: el constructor de 10 argumentos no lleva la identidad de origen. */
+  private EditPlaceRequest requestWith(String name, String externalId) {
+    EditPlaceRequest request = new EditPlaceRequest();
+    request.setName(name);
+    request.setCategory(PlaceCategory.CAFE);
+    request.setExternalId(externalId);
+    return request;
   }
 }

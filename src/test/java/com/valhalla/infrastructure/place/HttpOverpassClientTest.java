@@ -22,7 +22,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -116,6 +115,8 @@ public class HttpOverpassClientTest {
     assertThat(poi.website(), is("https://parrilla.example.com"));
     assertThat(poi.osmKey(), is("amenity"));
     assertThat(poi.osmValue(), is("restaurant"));
+    assertThat(poi.osmType(), is("way"));
+    assertThat(poi.osmId(), is(1L));
   }
 
   // --- U-11 ---
@@ -194,6 +195,20 @@ public class HttpOverpassClientTest {
     assertThat(poi.website(), is(nullValue()));
   }
 
+  @Test
+  public void shouldTolerateAnElementWithoutIdentity() {
+    String body =
+      """
+      {"elements":[{"tags":{"name":"Sin id","amenity":"cafe"}}]}
+      """;
+
+    OsmPoi poi = HttpOverpassClient.parsePois(body).getFirst();
+
+    assertThat(poi.osmType(), is(nullValue()));
+    assertThat(poi.osmId(), is(nullValue()));
+    assertThat(poi.name(), is("Sin id"));
+  }
+
   // --- query: allowlist y escape ---
 
   @Test
@@ -263,13 +278,7 @@ public class HttpOverpassClientTest {
   public void shouldRetryOnceAfterRateLimitAndReturnTheParsedPois() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     stubSend(httpClient, response(429, ""), response(200, FIXTURE));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 0L, 0L);
 
     List<OsmPoi> pois = overpass.findPois("amenity", "restaurant", BOX);
 
@@ -281,13 +290,7 @@ public class HttpOverpassClientTest {
   public void shouldRetryOnceWhenOverpassIsAtCapacity() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     stubSend(httpClient, response(502, ""), response(200, FIXTURE));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 0L, 0L);
 
     List<OsmPoi> pois = overpass.findPois("amenity", "restaurant", BOX);
 
@@ -300,13 +303,7 @@ public class HttpOverpassClientTest {
   public void shouldStopRetryingAfterTwoAttempts() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     stubSend(httpClient, response(502, ""), response(503, ""));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 0L, 0L);
 
     IllegalStateException error = assertThrows(
       IllegalStateException.class,
@@ -322,73 +319,9 @@ public class HttpOverpassClientTest {
   public void shouldRetryWhenOverpassTimesOut() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     stubSend(httpClient, response(504, ""), response(200, FIXTURE));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 0L, 0L);
 
     assertThat(overpass.findPois("amenity", "restaurant", BOX), hasSize(2));
-    verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-  }
-
-  /** Una consulta cuesta ~30 s: la segunda vez que se pide la misma categoria sale del cache. */
-  @Test
-  public void shouldServeASecondCallFromTheCache() throws Exception {
-    HttpClient httpClient = mock(HttpClient.class);
-    stubSend(httpClient, response(200, FIXTURE));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
-
-    List<OsmPoi> first = overpass.findPois("amenity", "restaurant", BOX);
-    List<OsmPoi> second = overpass.findPois(" amenity ", "RESTAURANT", BOX);
-
-    assertThat(first, hasSize(2));
-    assertThat(second, is(first));
-    verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-  }
-
-  /** El cache es por caja: la misma categoria en otra zona es otra consulta. */
-  @Test
-  public void shouldNotShareTheCacheBetweenBoxes() throws Exception {
-    HttpClient httpClient = mock(HttpClient.class);
-    stubSend(httpClient, response(200, FIXTURE), response(200, SPARSE_FIXTURE));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
-
-    assertThat(overpass.findPois("amenity", "restaurant", BOX), hasSize(2));
-    BoundingBox anotherNeighbourhood = new BoundingBox(-34.7, -58.5, -34.65, -58.45);
-    assertThat(overpass.findPois("amenity", "restaurant", anotherNeighbourhood), hasSize(1));
-    verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-  }
-
-  /** El cache vence: con TTL 0 la segunda llamada vuelve a consultar (y a fallar si el stub no alcanza). */
-  @Test
-  public void shouldNotServeAnExpiredCacheEntry() throws Exception {
-    HttpClient httpClient = mock(HttpClient.class);
-    stubSend(httpClient, response(200, FIXTURE), response(200, SPARSE_FIXTURE));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ZERO
-    );
-
-    assertThat(overpass.findPois("amenity", "restaurant", BOX), hasSize(2));
-    assertThat(overpass.findPois("amenity", "restaurant", BOX), hasSize(1));
     verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
   }
 
@@ -396,13 +329,7 @@ public class HttpOverpassClientTest {
   public void shouldThrowWhenOverpassAnswersSomethingOtherThanOk() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     stubSend(httpClient, response(500, "upstream boom"));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 0L, 0L);
 
     IllegalStateException error = assertThrows(
       IllegalStateException.class,
@@ -417,13 +344,7 @@ public class HttpOverpassClientTest {
   public void shouldWrapAnUnreachableOverpass() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     doThrow(new IOException("connection reset")).when(httpClient).send(any(), any());
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 0L, 0L);
 
     IllegalStateException error = assertThrows(
       IllegalStateException.class,
@@ -437,13 +358,7 @@ public class HttpOverpassClientTest {
   public void shouldKeepTheInterruptFlagWhenTheRequestIsInterrupted() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     doThrow(new InterruptedException()).when(httpClient).send(any(), any());
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      0L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 0L, 0L);
 
     try {
       IllegalStateException error = assertThrows(
@@ -466,13 +381,7 @@ public class HttpOverpassClientTest {
   public void shouldFailTheRetryWhenTheWaitIsInterrupted() throws Exception {
     HttpClient httpClient = mock(HttpClient.class);
     stubSend(httpClient, response(429, ""));
-    HttpOverpassClient overpass = new HttpOverpassClient(
-      ENDPOINT,
-      httpClient,
-      1L,
-      0L,
-      Duration.ofMinutes(10)
-    );
+    HttpOverpassClient overpass = new HttpOverpassClient(ENDPOINT, httpClient, 1L, 0L);
 
     Thread.currentThread().interrupt();
     try {

@@ -14,7 +14,7 @@ import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "places")
-public class Place { // NOPMD — intentional: 11 fields vs maxfields=10; the 3 extra (openingHours, phone, website) are optional OSM-imported columns, one getter/setter pair each, no behaviour.
+public class Place { // NOPMD — intencional: 12 campos vs maxfields=10; los 4 extra (openingHours, phone, website, externalId) son columnas opcionales del importador de OSM, un getter/setter cada una, sin comportamiento.
 
   @Id
   @UuidGenerator(algorithm = UuidVersion7Generator.class)
@@ -52,6 +52,12 @@ public class Place { // NOPMD — intentional: 11 fields vs maxfields=10; the 3 
   private String phone;
 
   private String website;
+
+  // Identidad del POI de origen tal como la arma el importador ("osm:<tipo>/<id>"). Con ella el
+  // alta reconoce el mismo punto elegido dos veces; en un lugar hecho a mano queda null. Unique:
+  // una fila por POI importado.
+  @Column(name = "external_id", unique = true, length = 255)
+  private String externalId;
 
   public UUID getId() {
     return id;
@@ -139,5 +145,13 @@ public class Place { // NOPMD — intentional: 11 fields vs maxfields=10; the 3 
 
   public void setWebsite(String website) {
     this.website = website;
+  }
+
+  public String getExternalId() {
+    return externalId;
+  }
+
+  public void setExternalId(String externalId) {
+    this.externalId = externalId;
   }
 }

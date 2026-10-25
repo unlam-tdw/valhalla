@@ -6,16 +6,32 @@
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
   <main class="flex-1 flex items-center justify-center p-4">
+    <!-- Leaflet vendorizado (1.9.4), igual que el importador: nunca un CDN. -->
+    <link rel="stylesheet" th:href="@{/css/leaflet.css}" />
+
     <div id="place-form-app" class="w-full max-w-2xl rounded-lg bg-white p-8 shadow-md"
       th:attr="data-name=${placeForm.name},data-category=${placeForm.category},data-description=${placeForm.description},data-address=${placeForm.address},data-image-url=${placeForm.imageUrl},data-latitude=${placeForm.latitude},data-longitude=${placeForm.longitude},data-opening-hours=${placeForm.openingHours},data-phone=${placeForm.phone},data-website=${placeForm.website},data-error=${error}">
       <h3 class="mb-2 text-2xl font-semibold text-gray-900"
         th:text="${isEdit} ? 'Edit Place' : 'New Place'">Form Title</h3>
       <hr class="mb-6 border-gray-200">
 
+      <!-- El punto que llego del importador ya es un lugar del catalogo: se avisa antes de que el
+           admin cargue un duplicado, y el link lleva al que existe. -->
+      <div th:if="${savedPlaceId}" id="place-already-saved"
+        class="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p>Este punto ya está guardado en el catálogo.</p>
+        <a th:href="@{/admin/places/{id}/edit(id=${savedPlaceId})}"
+          class="mt-1 inline-block font-medium underline">
+          Ver el lugar guardado
+        </a>
+      </div>
+
       <form ref="form" @submit.prevent="submit"
         th:action="${isEdit} ? @{/admin/places/{id}(id=${placeId})} : @{/admin/places}"
         method="POST">
         <input th:if="${isEdit}" type="hidden" name="_method" value="PUT" />
+        <!-- Identidad del POI de origen (osm:<tipo>/<id>): el POST la reenvia para no duplicar el lugar. -->
+        <input type="hidden" name="externalId" th:value="${placeForm.externalId}" />
 
         <div class="mt-4">
           <label for="name" class="mb-1 block text-sm font-medium text-gray-700">Name</label>
@@ -66,6 +82,9 @@
           </div>
         </div>
 
+        <!-- El punto se elige en el mapa o se tipea arriba: el mapa solo escribe lat/long. -->
+        <div id="place-map" class="mt-4 h-56 w-full rounded-md border border-gray-300"></div>
+
         <div class="mt-4">
           <label for="openingHours" class="mb-1 block text-sm font-medium text-gray-700">Opening Hours</label>
           <input v-model="openingHours" id="openingHours" name="openingHours" type="text"
@@ -101,8 +120,11 @@
       </form>
     </div>
 
+    <!-- Leaflet vendorizado (1.9.4): mismo motivo que la hoja de estilos. -->
+    <script th:src="@{/js/leaflet.js}"></script>
+
     <script>
-      const { createApp, ref } = Vue;
+      const { createApp, ref, onMounted } = Vue;
 
       createApp({
         setup() {
@@ -111,10 +133,49 @@
           const loading = ref(false);
           const form = ref(null);
           const submit = () => { loading.value = true; form.value.submit(); };
+          const latitude = field('latitude');
+          const longitude = field('longitude');
+
+          // De una sola direccion: el mapa escribe lat/long; tipearlas no mueve el marcador.
+          onMounted(() => {
+            const seeded = latitude.value !== '' && longitude.value !== '' &&
+              Number.isFinite(Number(latitude.value)) && Number.isFinite(Number(longitude.value));
+            const start = seeded ? L.latLng(Number(latitude.value), Number(longitude.value)) : null;
+            const map = L.map('place-map', {
+              center: start || [-34.6037, -58.3816],
+              zoom: start ? 16 : 13
+            });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            let marker = null;
+            const dropPin = (position) => {
+              if (marker) {
+                marker.setLatLng(position);
+                return;
+              }
+              marker = L.marker(position, { draggable: true }).addTo(map);
+              marker.on('dragend', () => movePin(marker.getLatLng()));
+            };
+            const movePin = (position) => {
+              latitude.value = position.lat.toFixed(6);
+              longitude.value = position.lng.toFixed(6);
+              dropPin(position);
+            };
+            // El pin del pre-llenado se planta sin tocar los inputs: el valor tipeado o el query
+            // param se muestran tal cual llegaron.
+            if (start) dropPin(start);
+            map.on('click', (event) => movePin(event.latlng));
+            /* El compilador de Tailwind corre diferido: sin esto el mapa se crea midiendo 0 y
+               queda centrado fuera de lugar (la misma razon que en /explore y el importador). */
+            new ResizeObserver(() => map.invalidateSize()).observe(map.getContainer());
+            requestAnimationFrame(() => map.invalidateSize());
+          });
+
           return {
             name: field('name'), category: field('category'), description: field('description'),
-            address: field('address'), imageUrl: field('imageUrl'), latitude: field('latitude'),
-            longitude: field('longitude'), openingHours: field('openingHours'),
+            address: field('address'), imageUrl: field('imageUrl'), latitude,
+            longitude, openingHours: field('openingHours'),
             phone: field('phone'), website: field('website'), error: field('error'),
             loading, form, submit
           };

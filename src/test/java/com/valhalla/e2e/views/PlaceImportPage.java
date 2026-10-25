@@ -41,19 +41,34 @@ public class PlaceImportPage extends WebPage {
   }
 
   public String hintText() {
-    return this.getElementText("#load-hint").trim();
+    return this.getElementText("#zone-never-loaded").trim();
   }
 
-  public boolean hasStaleNotice() {
-    return page.locator("#stale-area").count() > 0;
+  /** Lo que el boton va a hacer: la primera vez trae, despues actualiza la zona. */
+  public String buttonLabel() {
+    return this.getElementText("#load-pois").trim();
   }
 
-  public void waitForStaleNotice() {
-    page.waitForSelector("#stale-area");
+  /** Aviso de que la zona (y el tipo) que se mira nunca se cargo. */
+  public void waitForNeverLoadedNotice() {
+    page.waitForSelector("#zone-never-loaded");
   }
 
-  public void waitForStaleNoticeGone() {
-    page.waitForFunction("() => !document.querySelector('#stale-area')");
+  public boolean hasNeverLoadedNotice() {
+    return page.locator("#zone-never-loaded").count() > 0;
+  }
+
+  /** Frescura de lo guardado: solo aparece cuando la zona ya se cargo alguna vez. */
+  public void waitForFreshnessNotice() {
+    page.waitForSelector("#zone-freshness");
+  }
+
+  public boolean hasFreshnessNotice() {
+    return page.locator("#zone-freshness").count() > 0;
+  }
+
+  public String freshnessText() {
+    return this.getElementText("#zone-freshness").trim();
   }
 
   public void waitForError() {
@@ -86,6 +101,80 @@ public class PlaceImportPage extends WebPage {
       .locator("#place-import-app > aside ul li a")
       .filter(new Locator.FilterOptions().setHasText(name))
       .click();
+  }
+
+  /** El click en un marker del mapa: abre el mismo panel que la fila, sin navegar. */
+  public void clickFirstMarker() {
+    page.locator("#map path.leaflet-interactive").first().click();
+  }
+
+  /** El panel de vista previa, superpuesto al mapa. */
+  public void waitForPreview() {
+    page.waitForSelector("#poi-preview");
+  }
+
+  public boolean hasPreview() {
+    return page.locator("#poi-preview").count() > 0;
+  }
+
+  public String previewName() {
+    return this.getElementText("#poi-preview h2").trim();
+  }
+
+  /** Todo el texto del panel, con los espacios colapsados para comparar por contenido. */
+  public String previewText() {
+    return this.getElementText("#poi-preview").replaceAll("\\s+", " ").trim();
+  }
+
+  public String previewAddress() {
+    return this.getElementText("#poi-preview-address").trim();
+  }
+
+  public String previewHours() {
+    return this.getElementText("#poi-preview-hours").trim();
+  }
+
+  public String previewPhone() {
+    return this.getElementText("#poi-preview-phone").trim();
+  }
+
+  public String previewWebsite() {
+    return this.getElementText("#poi-preview-website").trim();
+  }
+
+  public String previewCoordinates() {
+    return this.getElementText("#poi-preview-coordinates").trim();
+  }
+
+  /** Color ya resuelto del punto de categoria: el mismo token que pinta el marker. */
+  public String previewCategoryColor() {
+    return page
+      .locator("#poi-preview-category-dot")
+      .evaluate("el => getComputedStyle(el).backgroundColor")
+      .toString();
+  }
+
+  /** Las filas que ya son un lugar del catalogo. */
+  public int savedBadgeCount() {
+    return page.locator("#place-import-app > aside ul li [data-saved-badge]").count();
+  }
+
+  public boolean hasCreateAction() {
+    return page.locator("#poi-create").count() > 0;
+  }
+
+  public void clickCreateFromPreview() {
+    this.clickElement("#poi-create");
+  }
+
+  /** Href del link al lugar ya guardado, tal como lo escribio la vista. */
+  public String savedPlaceHref() {
+    return page.locator("#poi-saved-link").getAttribute("href");
+  }
+
+  public void closePreview() {
+    this.clickElement("#poi-preview-close");
+    page.waitForFunction("() => !document.querySelector('#poi-preview')");
   }
 
   /** Filtro local por nombre: escribe en el input y Vue re-renderiza la lista. */

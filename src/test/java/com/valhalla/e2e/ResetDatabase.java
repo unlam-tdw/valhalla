@@ -30,6 +30,10 @@ public class ResetDatabase {
       // arranca antes que cualquier test, asi que un DELETE aca dejaria la base de E2E sin
       // dataset para siempre. El ABM E2E limpia el lugar que crea (E-06); el seed queda intacto.
       "DELETE FROM plans",
+      // [POI] Lo guardado desde Overpass: el importador lo pinta desde aca, asi que un residuo de
+      // otro test cambiaria la lista que el E2E espera. No hay FK: el orden es libre.
+      "DELETE FROM poi",
+      "DELETE FROM poi_zone",
       // [FOLLOW] La relacion follower/followed apunta a users: sin este DELETE, borrar users
       // falla por FK en cuanto un E2E dejo una relacion (el test siguiente moriria en el reset,
       // no en el flujo).
@@ -57,6 +61,46 @@ public class ResetDatabase {
       // Swallowing this left the suite green against a dirty database: a foreign key added by a
       // later task makes DELETE FROM users throw, and every test then ran on stale rows.
       throw new IllegalStateException("Could not reset the E2E database: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Deja un POI ya guardado, sin pasar por Overpass. Con eso el E2E puede probar lo que de verdad
+   * cambió: la vista pinta desde la base al entrar y al recargar, sin una sola consulta.
+   *
+   * <p>{@code source_key} es la misma identidad que arma {@code MapPoi.sourceKeyOf}
+   * ({@code osm:<type>/<id>}), y el id es fijo porque desde [UUID] la PK no la genera la base.
+   */
+  public static void seedPoi(
+    String name,
+    double latitude,
+    double longitude,
+    String tagKey,
+    String tagValue
+  ) {
+    requireE2eDatabase();
+    String sql =
+      "INSERT INTO poi(id, source_key, osm_type, osm_id, tag_key, tag_value, name, latitude," +
+      " longitude, category, status) VALUES('0192f0a1-0000-7000-8000-0000000000bb'," +
+      " 'osm:node/9001', 'node', 9001, '" +
+      tagKey +
+      "', '" +
+      tagValue +
+      "', '" +
+      name.replace("'", "''") +
+      "', " +
+      latitude +
+      ", " +
+      longitude +
+      ", 'RESTAURANT', 'ACTIVE') ON CONFLICT (id) DO NOTHING";
+
+    try (
+      Connection connection = openConnection();
+      Statement statement = connection.createStatement()
+    ) {
+      statement.execute(sql);
+    } catch (SQLException e) {
+      throw new IllegalStateException("Could not seed the E2E POI: " + e.getMessage(), e);
     }
   }
 

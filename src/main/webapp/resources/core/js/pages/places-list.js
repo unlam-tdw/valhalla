@@ -6,6 +6,7 @@
  * runs before this module: modules are deferred, so all three exist when this file runs.
  */
 import { apiFetch } from '../lib/api.js';
+import { categoryColor } from '../lib/category-colors.js';
 import { el } from '../lib/dom.js';
 import {
   buildMarker,
@@ -49,33 +50,6 @@ createApp({
     let mapResizeObserver = null;
     let markers = [];
     const markersByPlaceId = new Map();
-
-    /* Tokens de categoría declarados una sola vez, en layouts/base :: head.
-       Se leen del :root computado, así que ningún hex vive acá y el mapa
-       del marker y el del panel comparten la misma fuente. */
-    const CATEGORY_TOKEN_BY_ENUM = {
-      'RESTAURANT': '--category-restaurant',
-      'BAR': '--category-bar',
-      'CAFE': '--category-cafe',
-      'MUSEUM': '--category-museum',
-      'PARK': '--category-park',
-      'SHOPPING': '--category-shopping',
-      'NIGHTLIFE': '--category-nightlife',
-      'CULTURE': '--category-culture',
-      'SPORT': '--category-sport',
-      'OTHER': '--category-other'
-    };
-    const OTHER_COLOR_TOKEN = '--category-other';
-
-    const categoryColor = (category) => {
-      const rootStyle = getComputedStyle(document.documentElement);
-      const token = CATEGORY_TOKEN_BY_ENUM[category] || OTHER_COLOR_TOKEN;
-      // trim() importa: getPropertyValue devuelve el valor crudo del token,
-      // con espacios alrededor en varios navegadores. El fallback también sale
-      // de un token, para que ningún hex quede literal acá.
-      return rootStyle.getPropertyValue(token).trim()
-        || rootStyle.getPropertyValue(OTHER_COLOR_TOKEN).trim();
-    };
 
     const filteredPlaces = computed(() => {
       return places.value.filter(place => {
