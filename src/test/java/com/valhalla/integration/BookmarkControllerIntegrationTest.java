@@ -43,7 +43,7 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.filter.HiddenHttpMethodFilter;
 
 /**
- * [MARK] Integration coverage of "Guardados" (docs/specs/20-MARK.md, I-01..I-13): the MVC and REST
+ * [MARK] Integration coverage of "Guardados" (docs/specs/20-MARK.md, I-01..I-14): the MVC and REST
  * endpoints against a real database, the snapshot that survives the plan, the three card states and
  * the surfaces that show the toggle.
  *
@@ -358,6 +358,27 @@ public class BookmarkControllerIntegrationTest {
     this.mockMvc.perform(post("/api/plans/" + privatePlanId + "/bookmarks").with(csrf()))
       .andExpect(status().isNotFound())
       .andExpect(content().string(containsString("Not found")));
+  }
+
+  // --- I-14: el toggle conserva el form POST para cuando no hay JavaScript ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void I14_theToggleKeepsTheFormFallbackWithoutJavaScript() throws Exception {
+    UUID planId = givenPublicPlan(PLAN_NAME, 1);
+
+    String feed = html("/for-you", "pages/plans/public-list");
+    assertThat(feed, containsString("action=\"/bookmarks/" + planId + "\""));
+    assertThat(feed, containsString("method=\"post\""));
+    assertThat(feed, containsString("name=\"returnTo\""));
+    assertThat(feed, containsString("name=\"_csrf\""));
+    assertThat(feed, containsString("type=\"submit\""));
+    assertThat(feed, containsString("data-plan-id=\"" + planId + "\""));
+
+    this.planBookmarkService.save(planId, SELF_EMAIL);
+    String saved = html("/for-you", "pages/plans/public-list");
+    assertThat(saved, containsString("action=\"/bookmarks/" + planId + "/remove\""));
+    assertThat(saved, containsString("data-bookmark-remove=\"true\""));
   }
 
   // --- helpers ---
