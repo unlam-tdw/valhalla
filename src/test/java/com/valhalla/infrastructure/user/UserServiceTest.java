@@ -457,4 +457,31 @@ public class UserServiceTest {
     assertThat(this.userService.getByEmail("session@test.com"), is(equalTo(user)));
     assertThrows(UserNotFoundException.class, () -> this.userService.getByEmail("nope@test.com"));
   }
+
+  // --- [PROF+THEME] U-13 ---
+
+  @Test
+  public void shouldPersistTheThemePreferenceForAnExistingUser() {
+    UUID id = USER_ID;
+    User user = new User();
+    user.setId(id);
+    when(this.userRepositoryMock.findById(id)).thenReturn(Optional.of(user));
+
+    this.userService.updateThemePreference(id, "dark");
+
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(this.userRepositoryMock, times(1)).update(captor.capture());
+    assertThat(captor.getValue().getThemePreference(), is("dark"));
+  }
+
+  @Test
+  public void shouldFailWhenUpdatingTheThemeOfAMissingUser() {
+    UUID id = MISSING_ID;
+    when(this.userRepositoryMock.findById(id)).thenReturn(Optional.empty());
+
+    assertThrows(
+      UserNotFoundException.class,
+      () -> this.userService.updateThemePreference(id, "dark")
+    );
+  }
 }
