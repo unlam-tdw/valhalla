@@ -205,6 +205,19 @@ html[data-theme="dark"] .place-card {
   z-index: 0;
 }
 
+/* [DIS] Revisión visual — modo día: borde gris en las superficies blancas. En oscuro las
+   capas se separan por tono (card vs superficie terciaria), pero en claro todo era blanco
+   sobre blanco (cards con border-0 + tiles .bg-light sin borde) y la vista se saturaba sin
+   leer los bloques. El borde repite en claro la separación que el tono ya da en oscuro, con
+   el mismo gris de borde de Bootstrap. Solo aplica al tema claro: en oscuro no se toca nada. */
+html:not([data-bs-theme="dark"]) .card {
+  border: 1px solid var(--bs-border-color) !important;
+}
+
+html:not([data-bs-theme="dark"]) .bg-light {
+  border: 1px solid var(--bs-border-color);
+}
+
 /* --- Boton CTA (AC-02): el mismo estilo para el "Crear mi plan gratis" del hero del
  * landing, el de la seccion final y los botones primarios del navbar. Antes era una
  * lista de utilidades de Tailwind pegada string por string en 4 lugares del landing (y
