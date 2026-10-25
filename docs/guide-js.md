@@ -278,6 +278,7 @@ src/main/webapp/resources/core/js/
   lib/dom.js               el()                                          [shipped]
   lib/places-map.js        buildMarker(), directionsLink(), categoryIcon*() [shipped]
   lib/category-colors.js   categoryColor(): token de color por categoría  [shipped]
+  lib/plan-schedule.js     preview del horario: espeja la calculadora del servidor para el creador de planes [shipped]
   <vendored>.js            vue.global.prod.js, tailwind-browser.js, lucide.min.js, leaflet.js
 ```
 
