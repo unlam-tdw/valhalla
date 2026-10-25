@@ -6,6 +6,7 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,7 @@ public class PlaceAdminController {
   private static final String ATTR_PLACE_ID = "placeId";
   private static final String ATTR_IS_EDIT = "isEdit";
   private static final String ATTR_CATEGORIES = "categories";
+  private static final String ATTR_SAVED_PLACE_ID = "savedPlaceId";
   private static final String ATTR_ERROR = "error";
   private static final String ERROR_INVALID_DATA = "Invalid place data";
   private static final String ERROR_PLACE_IN_USE =
@@ -62,9 +64,12 @@ public class PlaceAdminController {
   @GetMapping("/new")
   public ModelAndView showNewPlaceForm(@RequestParam Map<String, String> params) {
     Map<String, Object> model = new ModelMap();
-    model.put(ATTR_PLACE_FORM, formFromQuery(params));
+    EditPlaceRequest form = formFromQuery(params);
+    model.put(ATTR_PLACE_FORM, form);
     model.put(ATTR_IS_EDIT, false);
     model.put(ATTR_CATEGORIES, PlaceCategory.values());
+    // El form avisa si el POI que se eligio en el importador ya es un lugar guardado.
+    model.put(ATTR_SAVED_PLACE_ID, savedPlaceIdFor(form.getExternalId()));
     return new ModelAndView(VIEW_PLACE_FORM, model);
   }
 
@@ -94,6 +99,7 @@ public class PlaceAdminController {
     form.setImageUrl(place.getImageUrl());
     form.setLatitude(place.getLatitude());
     form.setLongitude(place.getLongitude());
+    form.setExternalId(place.getExternalId());
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLACE_FORM, form);
     model.put(ATTR_PLACE_ID, id);
@@ -142,9 +148,23 @@ public class PlaceAdminController {
     form.setWebsite(params.get("website"));
     form.setLatitude(numberOrNull(params.get("latitude")));
     form.setLongitude(numberOrNull(params.get("longitude")));
+    // Identidad del POI de origen: el alta la reenvia en el POST para no duplicar el lugar.
+    form.setExternalId(params.get("externalId"));
     // AC-06: una categoria sin mapping (o desconocida) arranca en OTHER; el admin la cambia.
     form.setCategory(PlaceCategory.fromCode(params.get("category")).orElse(PlaceCategory.OTHER));
     return form;
+  }
+
+  /**
+   * Id del lugar que ya representa a ese POI, o {@code null} si todavia no se guardo (o si el alta
+   * llego sin identidad, que es el caso del alta manual).
+   */
+  private UUID savedPlaceIdFor(String externalId) {
+    if (externalId == null || externalId.isBlank()) {
+      return null;
+    }
+    String identity = externalId.trim();
+    return placeService.savedPlaceIds(List.of(identity)).get(identity);
   }
 
   private Double numberOrNull(String value) {

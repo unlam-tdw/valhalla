@@ -8,10 +8,14 @@ import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.place.PlaceService;
 import com.valhalla.domain.planplace.PlanPlaceRepository;
 import com.valhalla.presentation.place.EditPlaceRequest;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +36,7 @@ public class PlaceServiceImpl implements PlaceService {
   }
 
   @Override
+  @Cacheable("places")
   @Transactional(readOnly = true)
   public List<Place> getAllPlaces() {
     return placeRepository.findAll();
@@ -61,9 +66,29 @@ public class PlaceServiceImpl implements PlaceService {
     return placeRepository.findByCategoryAndNameContainingIgnoreCase(category, query);
   }
 
+  /** Una sola consulta por pantalla del importador, en vez de una por punto visible. */
+  @Override
+  @Transactional(readOnly = true)
+  public Map<String, UUID> savedPlaceIds(Collection<String> externalIds) {
+    List<String> identities = externalIds
+      .stream()
+      .filter(identity -> identity != null && !identity.isBlank())
+      .toList();
+    if (identities.isEmpty()) {
+      return Map.of();
+    }
+    // LinkedHashMap: conserva el orden en que la base devuelve las filas, que es el de la consulta.
+    Map<String, UUID> saved = new LinkedHashMap<>();
+    for (Place place : placeRepository.findByExternalIdIn(identities)) {
+      saved.put(place.getExternalId(), place.getId());
+    }
+    return saved;
+  }
+
   @Override
   public Place create(EditPlaceRequest request) {
-    Place place = new Place();
+    // Elegir el mismo POI de origen dos veces no crea dos filas: se reusa la que ya lo representa.
+    Place place = existingFor(request.getExternalId()).orElseGet(Place::new);
     applyRequest(place, request);
     placeRepository.save(place);
     return place;
@@ -91,6 +116,17 @@ public class PlaceServiceImpl implements PlaceService {
     placeRepository.deleteById(id);
   }
 
+  /**
+   * Fila que ya representa al POI de origen, si el request trae identidad. Un alta manual llega
+   * sin identidad: ahi no se consulta nada, porque no hay nada que buscar.
+   */
+  private Optional<Place> existingFor(String externalId) {
+    if (externalId == null || externalId.isBlank()) {
+      return Optional.empty();
+    }
+    return placeRepository.findByExternalId(externalId.trim());
+  }
+
   private void applyRequest(Place place, EditPlaceRequest request) {
     place.setName(request.getName());
     place.setDescription(request.getDescription());
@@ -102,6 +138,12 @@ public class PlaceServiceImpl implements PlaceService {
     place.setOpeningHours(request.getOpeningHours());
     place.setPhone(request.getPhone());
     place.setWebsite(request.getWebsite());
+    // Compartido por alta y edicion a proposito: un POST manipulado con el hidden vacio no puede
+    // borrar la identidad de un lugar ya importado.
+    String externalId = request.getExternalId();
+    if (externalId != null && !externalId.isBlank()) {
+      place.setExternalId(externalId.trim());
+    }
   }
 
   private String blankToNull(String value) {

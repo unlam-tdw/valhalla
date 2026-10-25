@@ -1,6 +1,7 @@
 package com.valhalla.integration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasProperty;
@@ -306,6 +307,101 @@ public class PlaceAdminControllerTest {
     assertThat(fromApi.getImageUrl(), is(nullValue()));
   }
 
+  // --- slice B: la identidad del POI de origen evita el alta duplicada ---
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldNotCreateASecondPlaceWhenTheSamePoiIsImportedTwice() throws Exception {
+    this.mockMvc.perform(
+        post("/admin/places")
+          .with(csrf())
+          .param("name", "Cafe Importado")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/9001")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/places"));
+
+    this.mockMvc.perform(
+        post("/admin/places")
+          .with(csrf())
+          .param("name", "Cafe Importado Renombrado")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/9001")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/places"));
+
+    Place stored = placeRepository.findByExternalId("osm:node/9001").orElseThrow();
+    assertThat(stored.getName(), is("Cafe Importado Renombrado"));
+    assertThat("el segundo envio actualiza la misma fila", placeRepository.count(), is(13L));
+    assertThat(namesOf(placesFrom(get("/api/places"))), not(hasItem("Cafe Importado")));
+    assertThat(namesOf(placesFrom(get("/api/places"))), hasItem("Cafe Importado Renombrado"));
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldPrefillTheExternalIdFromTheImporterLink() throws Exception {
+    String html =
+      this.mockMvc.perform(
+          get("/admin/places/new")
+            .param("externalId", "osm:node/9001")
+            .param("name", "Cafe Importado")
+            .param("category", "CAFE")
+        )
+        .andExpect(status().isOk())
+        .andExpect(view().name("pages/admin/place-form"))
+        .andExpect(model().attribute("placeForm", hasProperty("externalId", is("osm:node/9001"))))
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(inputValue(html, "externalId"), is("osm:node/9001"));
+  }
+
+  // --- aviso de "ya guardado" al abrir el alta desde el importador ---
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldWarnThatThePoiIsAlreadySavedWhenTheFormOpensWithAKnownExternalId()
+    throws Exception {
+    Place saved = givenSavedPoi("Cafe Importado", "osm:node/9001");
+
+    this.mockMvc.perform(
+        get("/admin/places/new")
+          .param("name", "Cafe Importado")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/9001")
+      )
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/admin/place-form"))
+      .andExpect(model().attribute("savedPlaceId", saved.getId()))
+      .andExpect(
+        model()
+          .attribute(
+            "placeForm",
+            allOf(
+              hasProperty("name", is("Cafe Importado")),
+              hasProperty("category", is(PlaceCategory.CAFE)),
+              hasProperty("externalId", is("osm:node/9001"))
+            )
+          )
+      );
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void shouldNotFlagASavedPlaceForANewIdentity() throws Exception {
+    this.mockMvc.perform(
+        get("/admin/places/new")
+          .param("name", "Cafe Nuevo")
+          .param("category", "CAFE")
+          .param("externalId", "osm:node/404")
+      )
+      .andExpect(status().isOk())
+      .andExpect(model().attribute("savedPlaceId", is(nullValue())));
+  }
+
   // --- cobertura del camino "id inexistente" en GET /{id}/edit ---
 
   @Test
@@ -323,6 +419,15 @@ public class PlaceAdminControllerTest {
     request.setName(name);
     request.setCategory(category);
     request.setImageUrl(imageUrl);
+    return placeService.create(request);
+  }
+
+  /** Un lugar que ya representa a un POI de OSM, para el aviso de "ya guardado". */
+  private Place givenSavedPoi(String name, String externalId) {
+    EditPlaceRequest request = new EditPlaceRequest();
+    request.setName(name);
+    request.setCategory(PlaceCategory.CAFE);
+    request.setExternalId(externalId);
     return placeService.create(request);
   }
 
@@ -362,6 +467,13 @@ public class PlaceAdminControllerTest {
     Matcher matcher = Pattern.compile(name + "=\"([^\"]*)\"").matcher(html);
     assertThat("attribute " + name + " is rendered", matcher.find(), is(true));
     return HtmlUtils.htmlUnescape(matcher.group(1));
+  }
+
+  /** El value del input cuyo {@code name} es el pedido, sin depender del orden de atributos. */
+  private String inputValue(String html, String fieldName) {
+    Matcher tag = Pattern.compile("<input[^>]*name=\"" + fieldName + "\"[^>]*>").matcher(html);
+    assertThat("input " + fieldName + " is rendered", tag.find(), is(true));
+    return attributeValue(tag.group(), "value");
   }
 
   /** GET a la API y parsea el array de lugares con Jackson (mismo seam que PlaceRestControllerTest). */
