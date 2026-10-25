@@ -179,6 +179,23 @@ public class Plan {
     ensureSchedule().setTime(eventTime);
   }
 
+  @DateTimeFormat(pattern = "HH:mm")
+  public LocalTime getDayEndTime() {
+    return schedule == null ? null : schedule.getDayEndTime();
+  }
+
+  public void setDayEndTime(LocalTime dayEndTime) {
+    ensureSchedule().setDayEndTime(dayEndTime);
+  }
+
+  public TransportMode getTransportMode() {
+    return schedule == null ? null : schedule.getTransportMode();
+  }
+
+  public void setTransportMode(TransportMode transportMode) {
+    ensureSchedule().setTransportMode(transportMode);
+  }
+
   private PlanSchedule ensureSchedule() {
     if (schedule == null) {
       schedule = new PlanSchedule();
@@ -220,6 +237,8 @@ public class Plan {
     this.description = changes.getDescription();
     setEventDate(changes.getEventDate());
     setEventTime(changes.getEventTime());
+    setDayEndTime(changes.getDayEndTime());
+    setTransportMode(changes.getTransportMode());
     this.isPublic = changes.getIsPublic();
   }
 }

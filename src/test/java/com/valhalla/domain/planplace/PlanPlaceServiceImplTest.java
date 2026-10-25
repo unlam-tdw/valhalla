@@ -181,4 +181,13 @@ class PlanPlaceServiceImplTest {
     assertSame(plan, entry.getPlan());
     assertSame(place, entry.getPlace());
   }
+
+  @Test
+  void entityAccessorsPreserveVisitOverrides() {
+    entry.setDurationMinutes(45);
+    entry.setTransportModeToNext(TransportMode.CAR);
+
+    assertEquals(45, entry.getDurationMinutes());
+    assertEquals(TransportMode.CAR, entry.getTransportModeToNext());
+  }
 }

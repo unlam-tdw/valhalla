@@ -14,7 +14,7 @@ import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "places")
-public class Place { // NOPMD — intencional: 12 campos vs maxfields=10; los 4 extra (openingHours, phone, website, externalId) son columnas opcionales del importador de OSM, un getter/setter cada una, sin comportamiento.
+public class Place { // NOPMD — intencional: 13 campos vs maxfields=10; los 5 extra (openingHours, phone, website, externalId, defaultDurationMinutes) son columnas opcionales, un getter/setter cada una, sin comportamiento.
 
   @Id
   @UuidGenerator(algorithm = UuidVersion7Generator.class)
@@ -35,6 +35,11 @@ public class Place { // NOPMD — intencional: 12 campos vs maxfields=10; los 4 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private PlaceCategory category;
+
+  // [SCH] Duracion tipica de la visita, en minutos. El planificador la usa cuando la parada del
+  // itinerario no define una duracion propia.
+  @Column(name = "default_duration_minutes")
+  private Integer defaultDurationMinutes;
 
   private String address;
 
@@ -89,6 +94,14 @@ public class Place { // NOPMD — intencional: 12 campos vs maxfields=10; los 4 
 
   public void setCategory(PlaceCategory category) {
     this.category = category;
+  }
+
+  public Integer getDefaultDurationMinutes() {
+    return defaultDurationMinutes;
+  }
+
+  public void setDefaultDurationMinutes(Integer defaultDurationMinutes) {
+    this.defaultDurationMinutes = defaultDurationMinutes;
   }
 
   public String getAddress() {

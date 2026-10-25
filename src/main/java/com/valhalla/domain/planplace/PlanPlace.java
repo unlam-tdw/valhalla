@@ -2,9 +2,12 @@ package com.valhalla.domain.planplace;
 
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.plan.UuidVersion7Generator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -39,6 +42,15 @@ public class PlanPlace {
 
   @Column(name = "visit_time")
   private LocalTime visitTime;
+
+  // [SCH] Override de la duracion de la visita y del modo del tramo hacia la parada siguiente. Nulos
+  // = el planificador usa la duracion del lugar y el modo por defecto del plan.
+  @Column(name = "duration_minutes")
+  private Integer durationMinutes;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "transport_mode_to_next")
+  private TransportMode transportModeToNext;
 
   @Column(name = "sort_order")
   private Integer sortOrder = 0;
@@ -89,6 +101,22 @@ public class PlanPlace {
 
   public void setVisitTime(LocalTime visitTime) {
     this.visitTime = visitTime;
+  }
+
+  public Integer getDurationMinutes() {
+    return durationMinutes;
+  }
+
+  public void setDurationMinutes(Integer durationMinutes) {
+    this.durationMinutes = durationMinutes;
+  }
+
+  public TransportMode getTransportModeToNext() {
+    return transportModeToNext;
+  }
+
+  public void setTransportModeToNext(TransportMode transportModeToNext) {
+    this.transportModeToNext = transportModeToNext;
   }
 
   public Integer getSortOrder() {
