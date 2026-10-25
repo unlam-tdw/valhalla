@@ -49,7 +49,7 @@ autor lo borre o lo vuelva privado, sin exponer el original.
 | AC-16 | Borrar un usuario desde el ABM admin borra sus guardados sin violar FKs |
 | AC-17 | La entrada "Guardados" del modal del navbar es un link activo a `/profile#bookmarks`, sin badge "Pronto" |
 | AC-18 | El email del usuario sale siempre de la sesion, nunca del formulario; todo POST exige CSRF |
-| AC-19 | El estado de guardado se resuelve por request en el modelo: los toggles funcionan como form POST sin JavaScript, salvo el sidebar de `/explore`, que se renderiza con Vue y usa el endpoint REST |
+| AC-19 | El toggle de Guardados es optimista en todas las superficies: pinta el estado antes de la respuesta, bloquea el boton mientras vuela y revierte con un aviso si la API falla. Las vistas server-rendered conservan el form POST como fallback sin JavaScript; el sidebar de `/explore` usa el endpoint REST |
 
 ## Escenarios de Test
 
@@ -103,6 +103,7 @@ autor lo borre o lo vuelva privado, sin exponer el original.
 | I-11 | El modal del navbar renderiza "Guardados" como link a `/profile#bookmarks` | AC-17 |
 | I-12 | Las cards de `/for-you` y la vista publica muestran el icono relleno o de contorno segun el estado | AC-02, AC-19 |
 | I-13 | `POST /api/plans/{id}/bookmarks` y `DELETE` responden 204 y reflejan el estado en `/api/plans/public` | AC-19 |
+| I-14 | El toggle server-rendered conserva el form POST como fallback sin JavaScript: `action`, `method`, `returnTo` y CSRF siguen en el markup | AC-19 |
 
 ### Tests de Seguridad (`integration/BookmarkSecurityTest.java`)
 
@@ -120,6 +121,9 @@ autor lo borre o lo vuelva privado, sin exponer el original.
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
 | E-01 | `BookmarkE2E` | Login USER → guardar un plan publico desde una card de `/for-you` → el icono queda relleno → abrir el modal y "Guardados" → la card aparece en `#bookmarks` → "Clonar plan" → caer en el detalle de la copia → volver y "Quitar" con confirmacion | AC-01, AC-02, AC-07, AC-08, AC-13, AC-17 |
+| E-02 | `BookmarkE2E` | Guardar y quitar desde `/for-you` y desde la vista publica sin recarga; el icono cambia en el lugar y el estado persiste al recargar | AC-01, AC-02, AC-06, AC-19 |
+| E-03 | `BookmarkE2E` | La API responde 500 al guardar: el icono vuelve al contorno y el toast global explica el fallo | AC-19 |
+| E-04 | `BookmarkE2E` | El sidebar de `/explore` guarda, quita y revierte un 500 sin recarga, con el banner de la vista | AC-19 |
 
 ## Notas / decisiones de diseno
 
@@ -138,6 +142,14 @@ autor lo borre o lo vuelva privado, sin exponer el original.
 - **Un solo guardado por usuario y plan**, garantizado por la unique `(user_id, plan_id)`.
 - **Confirmacion al quitar.** Se usa `confirm()` nativo en el submit del form (y antes del fetch en
   `/explore`). Sin JS el form sigue funcionando, solo no pregunta.
+- **Optimista con rollback.** El icono, `aria-pressed` y el texto accesible cambian antes de la
+  respuesta; el boton queda `disabled`/`aria-busy` mientras vuela. Si la API falla, se vuelve al
+  estado anterior. Las vistas server-rendered muestran el error en `#bookmark-alert` (toast global
+  con `role="alert"`); `/explore` usa su banner. Un 404 dice que el plan ya no esta disponible y un
+  401 muestra la sesion vencida antes de redirigir al login.
+- **El form sigue siendo el fallback.** El modulo `bookmark-toggle.js` intercepta el submit, pero
+  `components/bookmark-button.html` conserva `action`, `method="post"`, `returnTo` y el token CSRF.
+  Sin JavaScript el navegador guarda o quita con una recarga normal.
 - **Sin contador publico.** La cantidad de guardados no se muestra: es una accion privada y un
   numero publico agrega presion social sin aportar al producto. Si se quisiera, va en card aparte.
 - **Fuera de alcance:** paginacion, carpetas/etiquetas/notas, notificaciones de planes guardados,
@@ -199,19 +211,24 @@ public class PlanBookmark {
 | `/bookmarks/{planId}` | POST | Guardar (form, `returnTo`) |
 | `/bookmarks/{planId}/remove` | POST | Quitar (form, `returnTo`, con `confirm()`) |
 | `/bookmarks/{planId}/clone` | POST | Clonar desde Guardados |
-| `/api/plans/{planId}/bookmarks` | POST / DELETE | Toggle del sidebar de `/explore` (204) |
+| `/api/plans/{planId}/bookmarks` | POST / DELETE | Toggle optimista de las vistas server-rendered y del sidebar de `/explore` (204) |
 
 `returnTo` se valida con `LoginRedirects.isSafeInternalPath`; default `/plans/{planId}/public`.
 
 ### 4. UI
 
-- `components/bookmark-button.html`: fragmento `toggle(planId, bookmarked, returnTo)` con el icono
-  relleno/contorno, `aria-pressed` y `title`.
+- `components/bookmark-button.html`: fragmento `toggle(planId, bookmarked, returnTo)` con los dos
+  iconos (relleno/contorno), `data-plan-id`, `aria-pressed` y `title`. El form POST es el fallback
+  sin JavaScript.
+- `resources/core/js/bookmark-toggle.js`: intercepta ese submit, usa `POST/DELETE
+  /api/plans/{id}/bookmarks`, pinta el estado antes de la respuesta, bloquea el boton, revierte y
+  escribe el error en `#bookmark-alert`.
+- `layouts/base.html`: monta el toast global `#bookmark-alert` y el modulo.
 - `pages/plans/detail.html`, `pages/plans/public.html`, `pages/plans/public-list.html`,
   `pages/profile/view.html`: montan el fragmento.
 - `pages/profile/edit.html`: la seccion `#bookmarks` deja de ser placeholder y lista las cards.
-- `pages/places/list.html` (Vue): boton arriba a la derecha de cada card + fetch con los metas
-  `_csrf` que ya expone `layouts/base.html`.
+- `pages/places/list.html` (Vue): boton arriba a la derecha de cada card con `bookmarking`,
+  `:disabled` y rollback; usa el endpoint REST.
 - `components/navbar-menu.html`: "Guardados" pasa de `<span aria-disabled>` a `<a>`.
 
 ## Archivos a crear/modificar
@@ -238,6 +255,10 @@ public class PlanBookmark {
 | `presentation/plan/PlanRestController.java` | Actualizar (`bookmarked` en el JSON) |
 | `presentation/profile/ProfileController.java` | Actualizar (guardados del perfil) |
 | `components/bookmark-button.html` | Crear |
+| `resources/core/js/bookmark-toggle.js` | Crear |
+| `resources/core/js/lib/api.js` | Actualizar (fallback de CSRF al input oculto) |
+| `resources/core/js/pages/places-list.js` | Actualizar (toggle optimista) |
+| `layouts/base.html` | Actualizar (`#bookmark-alert` y el modulo) |
 | `components/navbar-menu.html` | Actualizar |
 | `pages/plans/detail.html` | Actualizar |
 | `pages/plans/public.html` | Actualizar |
@@ -248,10 +269,10 @@ public class PlanBookmark {
 | `CONTEXT.md` | Actualizar (glosario) |
 | `infrastructure/bookmark/PlanBookmarkServiceImplTest.java` | Crear (U-01..U-19) |
 | `presentation/bookmark/BookmarkControllerTest.java` | Crear (U-20..U-23) |
-| `integration/BookmarkControllerIntegrationTest.java` | Crear (I-01..I-13) |
+| `integration/BookmarkControllerIntegrationTest.java` | Crear (I-01..I-14) |
 | `integration/BookmarkSecurityTest.java` | Crear (S-01..S-06) |
 | `presentation/plan/ForYouControllerTest.java` | Actualizar (clave `bookmarked`) |
 | `presentation/plan/PlanRestControllerTest.java` | Actualizar (clave `bookmarked`) |
 | `infrastructure/user/UserServiceTest.java` | Actualizar (borrado en cascada) |
-| `e2e/BookmarkE2E.java` | Crear (E-01) |
+| `e2e/BookmarkE2E.java` | Crear (E-01..E-04) |
 | `e2e/ProfileViewE2E.java` | Actualizar (Guardados ya navega) |

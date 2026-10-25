@@ -136,8 +136,9 @@ Gate: **JS02**.
 ### R6 -- One request helper
 
 `/js/lib/api.js` is the only place that writes `fetch`. It adds the CSRF header from the
-`_csrf` metas, turns an expired session into a sentence instead of a JSON parse error, and
-raises one error type that carries the status:
+`_csrf` metas (or from the hidden `_csrf` input when the page does not have the metas), turns
+an expired session into a sentence instead of a JSON parse error, and raises one error type
+that carries the status:
 
 ```js
 export class ApiError extends Error { /* message, status */ }
@@ -151,6 +152,10 @@ throws `ApiError` in two cases:
   with the login page and **status 200**, which is what used to reach the user as a parse
   error;
 - `!response.ok`, with the API's `message` when the body has one, or the status otherwise.
+
+The public plan view inherits `headContent` without the CSRF metas, so `csrfToken()` falls back
+to the hidden `_csrf` input its bookmark form already carries. That is what lets
+`bookmark-toggle.js` use the API there without duplicating the token in `<head>`.
 
 A failed request -- network, abort -- is **not** wrapped. `apiFetch` awaits `fetch()`
 directly, so an `AbortError` arrives with its own name and a caller that cancels on purpose
@@ -227,6 +232,10 @@ A module with no error surface of its own does not invent one: it dispatches a `
 and the host page renders it. `add-to-plan.js` emits `plan-error`; `pages/places-list.js`
 feeds that into the same banner as its own failures.
 
+The server-rendered bookmark toggle uses the global toast `#bookmark-alert` that
+`layouts/base.html` mounts once. `bookmark-toggle.js` writes the sentence there and rolls the
+optimistic icon back; `/explore` keeps its own banner because Vue already owns that surface.
+
 Every `await` on a request sits inside a `try`, and the loading flag is cleared in the
 `catch` as well: a spinner that never stops is a worse failure than the original error.
 
@@ -274,6 +283,7 @@ src/main/webapp/resources/core/js/
   pages/plans-detail.js    one plan's map, itinerary and catalogue        [shipped]
   pages/place-import.js    the OSM importer                              [shipped]
   pages/plans-public.js    the read-only public plan map                 [shipped]
+  bookmark-toggle.js       server-rendered bookmark toggle + rollback    [shipped]
   lib/api.js               csrfToken(), apiFetch(), ApiError             [shipped]
   lib/dom.js               el()                                          [shipped]
   lib/places-map.js        buildMarker(), directionsLink(), categoryIcon*() [shipped]
@@ -281,8 +291,9 @@ src/main/webapp/resources/core/js/
   <vendored>.js            vue.global.prod.js, tailwind-browser.js, lucide.min.js, leaflet.js
 ```
 
-`lib/api.js`, `lib/dom.js`, `lib/places-map.js` and `lib/category-colors.js` are live, and the four
-extracted views import from them. Nothing under `WEB-INF/templates` builds a node by hand any more:
+`lib/api.js`, `lib/dom.js`, `lib/places-map.js` and `lib/category-colors.js` are live; the four
+extracted views import from them, and `bookmark-toggle.js` imports `lib/api.js`. Nothing under
+`WEB-INF/templates` builds a node by hand any more:
 `document.createElement` appears once in the tree, inside `el()`. A classic script cannot
 `import`, so `lib/` is only usable from a module.
 
