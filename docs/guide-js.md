@@ -277,13 +277,19 @@ src/main/webapp/resources/core/js/
   lib/api.js               csrfToken(), apiFetch(), ApiError             [shipped]
   lib/dom.js               el()                                          [shipped]
   lib/places-map.js        buildMarker(), directionsLink(), categoryIcon*() [shipped]
+  lib/category-colors.js   categoryColor(): token de color por categoría  [shipped]
   <vendored>.js            vue.global.prod.js, tailwind-browser.js, lucide.min.js, leaflet.js
 ```
 
-`lib/api.js`, `lib/dom.js` and `lib/places-map.js` are live, and the four extracted views
-import from them. Nothing under `WEB-INF/templates` builds a node by hand any more:
+`lib/api.js`, `lib/dom.js`, `lib/places-map.js` and `lib/category-colors.js` are live, and the four
+extracted views import from them. Nothing under `WEB-INF/templates` builds a node by hand any more:
 `document.createElement` appears once in the tree, inside `el()`. A classic script cannot
 `import`, so `lib/` is only usable from a module.
+
+`lib/category-colors.js` is the single reader of the category tokens: it maps each `PlaceCategory`
+to its `--category-*` custom property (declared in `brand.css`) and resolves it with
+`getComputedStyle` at runtime, so no view carries a hex. Both maps import it — `places-list.js` for
+the marker badges and `place-import.js` for the importer's circle markers.
 
 `lib/places-map.js` is the answer to "how is a place drawn on a map", and it replaced three
 hand-built copies of the same `L.divIcon` + `L.marker` pair and three copies of the
