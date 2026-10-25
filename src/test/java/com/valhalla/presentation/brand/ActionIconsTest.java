@@ -148,6 +148,9 @@ public class ActionIconsTest {
     assertThat(read(BOOKMARK), containsString("data-bookmark-icon=\"outline\""));
     assertThat(read(NAVBAR_MENU), containsString("aria-hidden=\"true\""));
     assertThat(read(EXPLORER), containsString(":aria-label="));
+    assertThat(read(EXPLORER), containsString("data-bookmark-icon=\"filled\""));
+    assertThat(read(EXPLORER), containsString("data-bookmark-icon=\"outline\""));
+    assertThat(read(EXPLORER), containsString(":disabled=\"plan.bookmarking === true\""));
   }
 
   /** U-04 (AC-04): "Por {autor}" en una sola línea, con elipsis visual y nombre completo en title. */

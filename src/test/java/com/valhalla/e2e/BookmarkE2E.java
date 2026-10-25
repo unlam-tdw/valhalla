@@ -171,6 +171,73 @@ public class BookmarkE2E extends E2eBase {
     assertTrue(attempts.get() > 0, "el toggle tiene que pegarle a la API");
   }
 
+  /** [MARK] El sidebar de /explore comparte el toggle optimista y su propio banner de error. */
+  @Test
+  void E04_theExploreSidebarSavesRemovesAndRollsBackWithoutReloading() {
+    givenAnAdminOwnsAPublicPlan();
+    signUpANormalUser();
+
+    PlansPage plans = new PlansPage(page);
+    plans.navigateToExplore();
+    Locator toggle = exploreCard().locator("[data-bookmark-toggle]");
+
+    page.evaluate("window.__markNoReload = true");
+    toggle.click();
+    assertThat(toggle).hasAttribute("data-bookmarked", "true");
+    assertThat(toggle).hasAttribute("aria-pressed", "true");
+    assertThat(toggle.locator("[data-bookmark-icon='filled']")).isVisible();
+    assertTrue(
+      Boolean.TRUE.equals(page.evaluate("window.__markNoReload === true")),
+      "guardar desde /explore no debe recargar"
+    );
+
+    page.reload();
+    toggle = exploreCard().locator("[data-bookmark-toggle]");
+    assertThat(toggle).hasAttribute("data-bookmarked", "true");
+
+    page.onDialog(dialog -> dialog.accept());
+    page.evaluate("window.__markNoReload = true");
+    toggle.click();
+    assertThat(toggle).hasAttribute("data-bookmarked", "false");
+    assertTrue(
+      Boolean.TRUE.equals(page.evaluate("window.__markNoReload === true")),
+      "quitar desde /explore no debe recargar"
+    );
+
+    AtomicInteger attempts = new AtomicInteger();
+    page.route(
+      "**/api/plans/*/bookmarks",
+      route -> {
+        attempts.incrementAndGet();
+        route.fulfill(
+          new Route.FulfillOptions()
+            .setStatus(500)
+            .setContentType("application/json")
+            .setBody("{\"message\":\"fallo simulado\"}")
+        );
+      }
+    );
+
+    toggle.click();
+
+    Locator alert = page.locator("#explore-app [role='alert']");
+    assertThat(alert).isVisible();
+    assertThat(alert).containsText("No se pudo actualizar Guardados.");
+    assertThat(toggle).hasAttribute("data-bookmarked", "false");
+    assertThat(toggle.locator("[data-bookmark-icon='outline']")).isVisible();
+    assertThat(toggle).isEnabled();
+    assertTrue(attempts.get() > 0, "el sidebar tiene que pegarle a la API");
+  }
+
+  /** El admin crea el plan publico con un lugar y devuelve el id del original. */
+  private Locator exploreCard() {
+    Locator card = page
+      .locator("#plans-aside li")
+      .filter(new Locator.FilterOptions().setHasText(PLAN_NAME));
+    assertThat(card).hasCount(1);
+    return card;
+  }
+
   /** La card del plan sembrado en el feed. */
   private Locator feedCard() {
     Locator card = page
