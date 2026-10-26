@@ -18,7 +18,12 @@ public class ResetDatabase {
 
     String bcryptHash = new BCryptPasswordEncoder().encode("password");
     String[] statements = {
+      // [MARK] Los guardados referencian users: si un E2E deja uno, el DELETE FROM users de este
+      // reset muere por FK. Las paradas van primero porque referencian plan_bookmarks.
+      "DELETE FROM plan_bookmark_places",
+      "DELETE FROM plan_bookmarks",
       "DELETE FROM plan_join_requests",
+      "DELETE FROM plan_banned_users",
       "DELETE FROM plan_invitations",
       "DELETE FROM plan_editors",
       "DELETE FROM plan_participants",

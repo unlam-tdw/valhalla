@@ -46,7 +46,7 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-04 | Las cards de la sección "Un plan que se arma una vez y no se vuelve a discutir" del landing muestran sus íconos (clock, link, map-pin, calendar): ningún círculo de ícono queda vacío |
 | AC-05 | El tag "Público" de la sección "Un sábado en Recoleta" del hero del landing renderiza su ícono |
 | AC-06 | El navbar superior queda fijo durante el scroll (sticky) en landing y app, sin tapar contenido ni perder accesibilidad (el skip-link sigue siendo alcanzable al navegar con teclado) |
-| AC-07 | La letra P del logo (`resources/images/logo.svg`) se traza con una tipografía cercana a la usada en el resto del sitio (la serif de `brand.css` o la sans de la app), de modo que el logo no se lea como tipografía ajena |
+| AC-07 | La letra P del logo (`resources/images/logo.svg`) se traza con una tipografía cercana a la usada en el resto del sitio (la serif de `brand.css` o la sans de la app), de modo que el logo no se lea como tipografía ajena. *Revertido en revisión: se implementó (re-trace con Bree Serif) y en la revisión final la usuaria prefirió el vector original, así que el logo vuelve al anterior* |
 | AC-08 | En la página de edición de un plan (`/plans/{id}`), el título del plan y los botones de acción (Eliminar plan / Salir del plan / Clonar plan) comparten la misma fila: título a la izquierda, botones a la derecha, con separación visible entre botones |
 | AC-09 | Los tiles del resumen del plan (DESCRIPCIÓN, FECHA, HORA, VISIBILIDAD, ADMINISTRADOR, CÓDIGO) muestran separación entre sí (vertical y horizontal); ningún tile toca al siguiente |
 | AC-10 | La visibilidad del plan en "Editar plan" se maneja con un switch estilo iOS con la paleta de la marca, que muestra el estado actual (Privado/Público) con un label claro al lado |
@@ -258,6 +258,12 @@ Cero JS. Con `prefers-reduced-motion` no cambia nada (sticky no anima).
 Re-tracear la P del logo con la familia elegida (font-to-path offline) y reemplazar los `<path>`
 del glyph en `resources/images/logo.svg`. Los círculos decorativos y los colores quedan como
 están: solo cambia el glyph de la letra.
+
+**Cierre: revertido a pedido de la usuaria (2026-10-25).** El re-trace se implementó
+(`81c8396`: P trazada desde `BreeSerif-Regular.ttf` con Java2D offline, sin dependencias ni
+CDN), pero en la revisión final la usuaria prefirió el vector original. El archivo vuelve a
+su versión previa a `81c8396` y el AC queda cerrado **sin cambio visual**: el logo es idéntico
+al de antes de la card.
 
 ## Notas de implementación (hallazgos)
 

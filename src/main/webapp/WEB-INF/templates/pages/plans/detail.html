@@ -18,6 +18,8 @@
     <link rel="stylesheet" th:href="@{/css/leaflet.css}" />
 
     <style>
+        [v-cloak] { display: none; }
+        #banned-participants::backdrop { background: rgb(0 0 0 / 0.35); }
         #map {
             height: 480px;
             width: 100%;
@@ -245,7 +247,7 @@
 
 <!-- [DIS] AC-11: pb-5 para que la ultima seccion no pegue con el borde inferior. -->
 <main class="container-fluid px-5 pb-5">
-    <div id="plan-app">
+    <div id="plan-app" v-cloak>
     <!-- [DIS] AC-08/AC-14: una sola fila de cabecera. La banda con imagen por defecto
          acompana al titulo (overlay de tokens de marca para que el texto respire) y las
          acciones quedan agrupadas a la derecha, con gap visible entre todos los botones.
@@ -273,6 +275,14 @@
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>Clonar plan</button>
             </form>
+        <div th:if="${canEditPlan}" class="position-relative" @focusout="closePlanOptions" @keydown.esc.prevent="planOptionsOpen = false; planOptionsButton.focus()">
+            <button ref="planOptionsButton" type="button" class="btn btn-outline-secondary" @click="planOptionsOpen = !planOptionsOpen" :aria-expanded="planOptionsOpen" aria-controls="plan-options-menu">
+                <span class="me-1" v-html="iconHtml('ellipsis', 16)"></span> M&aacute;s opciones
+            </button>
+            <div v-cloak v-show="planOptionsOpen" id="plan-options-menu" class="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-2">
+                <button type="button" class="dropdown-item" aria-haspopup="dialog" aria-controls="banned-participants" @click="planOptionsOpen = false; bannedParticipantsDialog.showModal()">Ver miembros baneados</button>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -499,7 +509,12 @@
                         <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/remove(id=${plan.id})}" method="POST" class="mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Eliminar del plan a ' + email}">Eliminar del plan</button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Expulsar del plan a ' + email}" title="Puede volver a unirse al plan">Expulsar</button>
+                        </form>
+                        <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/ban(id=${plan.id})}" method="POST" class="mb-0">
+                            <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                            <input type="hidden" name="participantEmail" th:value="${email}" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Banear del plan a ' + email}" title="No podr&aacute; volver a unirse al plan">Banear</button>
                         </form>
                     </li>
                 </ol>
@@ -560,6 +575,29 @@
         </div>
     </div>
     <p v-if="requestError" class="alert alert-danger mt-3" role="alert">{{ requestError }}</p>
+    <dialog th:if="${canEditPlan}" id="banned-participants" ref="bannedParticipantsDialog" aria-labelledby="banned-participants-title" @close="planOptionsButton.focus()" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%; max-height: 80dvh; overflow-y: auto; margin: auto;">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <h4 id="banned-participants-title" class="m-0">Miembros baneados <span class="badge bg-secondary" th:text="${bannedParticipants == null ? 0 : #lists.size(bannedParticipants)}">0</span></h4>
+            <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar miembros baneados" @click="bannedParticipantsDialog.close()"></button>
+        </div>
+        <p th:if="${bannedParticipants == null or #lists.isEmpty(bannedParticipants)}" class="text-muted small mt-3 mb-0">No hay usuarios baneados en este plan.</p>
+        <div th:unless="${bannedParticipants == null or #lists.isEmpty(bannedParticipants)}" class="mt-3">
+            <p class="text-muted small">Al quitar el baneo, la persona podrá volver a unirse. No recuperará su participación ni su rol anterior automáticamente.</p>
+            <ul class="list-group list-group-flush">
+                <li th:each="participant : ${bannedParticipants}" class="list-group-item d-flex flex-wrap align-items-center gap-2 px-0">
+                    <div class="flex-grow-1 text-break" style="min-width: 0;">
+                        <strong class="d-block" th:text="${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">Nombre completo</strong>
+                        <span class="text-muted small" th:text="${participant.email}">usuario@ejemplo.com</span>
+                    </div>
+                    <form th:action="@{/plans/{id}/participants/unban(id=${plan.id})}" method="POST" class="mb-0">
+                        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                        <input type="hidden" name="participantEmail" th:value="${participant.email}" />
+                        <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap" th:aria-label="${'Quitar baneo a ' + participant.email}">Quitar baneo</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </dialog>
     <dialog ref="placeDialog" aria-labelledby="place-detail-title" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%;">
         <template v-if="selectedEntry">
             <div class="d-flex justify-content-between align-items-center mb-3">

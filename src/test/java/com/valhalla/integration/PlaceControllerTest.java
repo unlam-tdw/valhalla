@@ -1,6 +1,7 @@
 package com.valhalla.integration;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -90,5 +91,26 @@ public class PlaceControllerTest {
       Paths.get("src", "main", "webapp", "resources", "core", "js", "lib", "places-map.js")
     );
     assertTrue(module.contains("maps/dir/?api=1"), "el helper arma el link de directions");
+  }
+
+  /**
+   * [FLASH] El template de Vue viaja crudo en el HTML: sin v-cloak el navegador pinta el banner de
+   * error, los {{selectedPlace.*}} y el modal hasta que places-list.js monta. El atributo no sirve
+   * sin la regla del layout, y el logo necesita sus dimensiones para no pintarse a 1366 px cuando
+   * el CSS compilado todavia no llego.
+   */
+  @Test
+  @WithMockUser
+  public void shouldServeTheFirstPaintContractOnTheExplorePage() throws Exception {
+    mockMvc
+      .perform(get("/explore"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("id=\"explore-app\" v-cloak")))
+      .andExpect(content().string(containsString("[v-cloak]")))
+      .andExpect(content().string(containsString("display: none !important;")))
+      .andExpect(content().string(containsString("width=\"48\" height=\"48\"")))
+      // El reveal no puede volver al umbral por longitud: el bloque @theme lo satisfacia antes
+      // de que Tailwind compilara.
+      .andExpect(content().string(not(containsString("textContent.length > 2000"))));
   }
 }

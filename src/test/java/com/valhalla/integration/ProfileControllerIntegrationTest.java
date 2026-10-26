@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,8 +38,8 @@ import org.springframework.web.filter.HiddenHttpMethodFilter;
 
 /**
  * [PROF] Superficie de perfil: atajo /profile, doble vista por id, edicion self-service, cambio
- * de contrasena, avatar y sus reglas. Escenarios docs/specs/11-PROF.md (los de tema quedan en
- * PROF-010/011, gated al merge de [THEME], y no estan aca).
+ * de contrasena, avatar y sus reglas. Escenarios docs/specs/11-PROF.md. [PROF+THEME] suma el POST
+ * de tema (I-21, S-07) con la persistencia en {@code themePreference}.
  *
  * <p>Los usuarios viven en DB real (HSQLDB): {@code @WithMockUser} solo trae el email, el
  * controller lo cruza por {@code UserService.getByEmail}, asi que el usuario de sesion se crea
@@ -648,5 +649,107 @@ public class ProfileControllerIntegrationTest {
       .andExpect(view().name("pages/profile/change-password"))
       .andExpect(model().attributeExists("changePasswordForm"))
       .andExpect(content().string(containsString("Cambiar contrasena")));
+  }
+
+  // --- [PROF+THEME] I-21: el item Tema persiste la preferencia y vuelve al origen ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void themePostPersistsThePreferenceAndReturnsToTheOrigin() throws Exception {
+    this.mockMvc.perform(
+        post("/profile/theme")
+          .with(csrf())
+          .param("theme", "dark")
+          .param("redirect", "/profile/" + selfId)
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/profile/" + selfId));
+
+    assertThat(
+      userRepository.findById(selfId).orElseThrow().getThemePreference(),
+      is(equalTo("dark"))
+    );
+
+    // I-21: la render siguiente resuelve el modo server-side, sin esperar al JS.
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("name=\"theme-preference\" content=\"dark\"")));
+  }
+
+  // --- [PROF+THEME] I-19: el modal autenticado rinde la entrada Tema activa ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void authenticatedProfileRendersTheThemeEntryInTheMenu() throws Exception {
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("id=\"menu-theme\"")))
+      .andExpect(content().string(containsString("action=\"/profile/theme\"")))
+      .andExpect(content().string(containsString("theme-label-light")))
+      .andExpect(content().string(not(containsString("type=\"button\" data-theme-toggle"))));
+  }
+
+  // --- [PROF+THEME] I-20: el anónimo conserva el toggle standalone y no tiene modal ---
+
+  @Test
+  public void anonymousProfileKeepsTheNavbarToggleAndRendersNoMenu() throws Exception {
+    this.mockMvc.perform(get("/profile/" + selfId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("type=\"button\" data-theme-toggle")))
+      .andExpect(content().string(not(containsString("id=\"menu-theme\""))))
+      .andExpect(content().string(not(containsString("name=\"theme-preference\" content="))));
+  }
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void themePostRejectsAValueOutsideLightAndDarkWithoutWriting() throws Exception {
+    this.mockMvc.perform(post("/profile/theme").with(csrf()).param("theme", "sepia"))
+      .andExpect(status().isBadRequest());
+
+    assertThat(userRepository.findById(selfId).orElseThrow().getThemePreference(), is(nullValue()));
+  }
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void themePostIgnoresAnExternalRedirectAndLandsOnTheRoleHome() throws Exception {
+    this.mockMvc.perform(
+        post("/profile/theme")
+          .with(csrf())
+          .param("theme", "light")
+          .param("redirect", "https://evil.example/steal")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/for-you"));
+
+    assertThat(
+      userRepository.findById(selfId).orElseThrow().getThemePreference(),
+      is(equalTo("light"))
+    );
+  }
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL, roles = { "ADMIN" })
+  public void themePostWithoutAVisiblePathLandsOnTheAdminHome() throws Exception {
+    this.mockMvc.perform(post("/profile/theme").with(csrf()).param("theme", "dark"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/home"));
+  }
+
+  // --- S-07: el POST de tema exige CSRF ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void themePostWithoutCsrfIsRejected() throws Exception {
+    this.mockMvc.perform(post("/profile/theme").param("theme", "dark"))
+      .andExpect(status().isForbidden());
+
+    assertThat(userRepository.findById(selfId).orElseThrow().getThemePreference(), is(nullValue()));
+  }
+
+  @Test
+  public void themePostRequiresASession() throws Exception {
+    this.mockMvc.perform(post("/profile/theme").with(csrf()).param("theme", "dark"))
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrlPattern("**/auth/login*"));
   }
 }
