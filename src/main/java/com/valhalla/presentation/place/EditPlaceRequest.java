@@ -1,10 +1,11 @@
 package com.valhalla.presentation.place;
 
 import com.valhalla.domain.place.PlaceCategory;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public class EditPlaceRequest { // NOPMD — intencional: 11 campos vs maxfields=10; es el espejo del form del ABM, un getter/setter por campo y sin comportamiento.
+public class EditPlaceRequest { // NOPMD — intencional: 12 campos vs maxfields=10; es el espejo del form del ABM, un getter/setter por campo y sin comportamiento.
 
   @NotBlank(message = "Name is required")
   private String name;
@@ -30,6 +31,12 @@ public class EditPlaceRequest { // NOPMD — intencional: 11 campos vs maxfields
 
   // Identidad del POI de origen cuando el alta viene del importador; null en un alta manual.
   private String externalId;
+
+  // [SCH] Duracion tipica de la visita, en minutos. Vacio (null) = "segun categoria": es lo que el
+  // planificador resuelve con PlanScheduleCalculator cuando la parada no trae duracion propia.
+  // El piso de 5 minutos repite el min="5" del input; no hay techo, el form usa step="5".
+  @Min(value = 5, message = "Duration must be at least 5 minutes")
+  private Integer defaultDurationMinutes;
 
   public EditPlaceRequest() {}
 
@@ -143,5 +150,13 @@ public class EditPlaceRequest { // NOPMD — intencional: 11 campos vs maxfields
 
   public void setExternalId(String externalId) {
     this.externalId = externalId;
+  }
+
+  public Integer getDefaultDurationMinutes() {
+    return defaultDurationMinutes;
+  }
+
+  public void setDefaultDurationMinutes(Integer defaultDurationMinutes) {
+    this.defaultDurationMinutes = defaultDurationMinutes;
   }
 }

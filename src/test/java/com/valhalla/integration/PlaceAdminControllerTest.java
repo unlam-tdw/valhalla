@@ -307,6 +307,86 @@ public class PlaceAdminControllerTest {
     assertThat(fromApi.getImageUrl(), is(nullValue()));
   }
 
+  // --- [SCH] duracion tipica del lugar en el ABM ---
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void guardarLaDuracionTipicaQueTraeElFormulario() throws Exception {
+    this.mockMvc.perform(
+        post("/admin/places")
+          .with(csrf())
+          .param("name", "Cafe Con Duracion")
+          .param("category", "CAFE")
+          .param("defaultDurationMinutes", "30")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/places"));
+
+    assertThat(placeByName("Cafe Con Duracion").getDefaultDurationMinutes(), is(30));
+  }
+
+  /** El campo vacio significa "segun categoria": no puede quedar en 0. */
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void dejarEnNullLaDuracionTipicaCuandoElCampoLlegaVacio() throws Exception {
+    Place place = givenPlace("Lugar Sin Duracion", PlaceCategory.MUSEUM, null);
+
+    this.mockMvc.perform(
+        post("/admin/places/" + place.getId())
+          .with(csrf())
+          .param("_method", "PUT")
+          .param("name", "Lugar Sin Duracion")
+          .param("category", "MUSEUM")
+          .param("defaultDurationMinutes", "")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/admin/places"));
+
+    assertThat(
+      placeRepository.findById(place.getId()).orElseThrow().getDefaultDurationMinutes(),
+      is(nullValue())
+    );
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void prellenarLaDuracionTipicaAlEditarElLugar() throws Exception {
+    EditPlaceRequest request = new EditPlaceRequest();
+    request.setName("Lugar Con Duracion");
+    request.setCategory(PlaceCategory.RESTAURANT);
+    request.setDefaultDurationMinutes(75);
+    Place place = placeService.create(request);
+
+    String html =
+      this.mockMvc.perform(get("/admin/places/" + place.getId() + "/edit"))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("placeForm", hasProperty("defaultDurationMinutes", is(75))))
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(attributeValue(html, "data-default-duration-minutes"), is("75"));
+    assertThat(html, containsString("name=\"defaultDurationMinutes\""));
+  }
+
+  /** El mismo piso que declara el input (min="5"); el vacio sigue siendo valido. */
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void rechazarUnaDuracionTipicaMenorA5Minutos() throws Exception {
+    this.mockMvc.perform(
+        post("/admin/places")
+          .with(csrf())
+          .param("name", "Duracion Minuscula")
+          .param("category", "CAFE")
+          .param("defaultDurationMinutes", "3")
+      )
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/admin/place-form"))
+      .andExpect(model().attribute("error", "Invalid place data"));
+
+    assertThat(placeRepository.count(), is((long) SEEDED_TOTAL));
+  }
+
   // --- slice B: la identidad del POI de origen evita el alta duplicada ---
 
   @Test
