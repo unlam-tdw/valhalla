@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,5 +76,38 @@ public class UserProfileTest {
   public void updateProfileNormalizesABlankAvatarUrlToNull() {
     user.updateProfile("Ada", "Lovelace", "   ");
     assertThat(user.getAvatarUrl(), is(nullValue()));
+  }
+
+  // --- U-12: preferencia de tema ---
+
+  @Test
+  public void setThemePreferenceNormalizesTheTwoValidThemes() {
+    user.setThemePreference("DARK");
+    assertThat(user.getThemePreference(), is("dark"));
+
+    user.setThemePreference(" light ");
+    assertThat(user.getThemePreference(), is("light"));
+
+    assertThat(User.isValidTheme("light"), is(true));
+    assertThat(User.isValidTheme("DARK"), is(true));
+    assertThat(User.isValidTheme("sepia"), is(false));
+    assertThat(User.isValidTheme(null), is(false));
+  }
+
+  @Test
+  public void setThemePreferenceClearsThePreferenceWithBlankOrNull() {
+    user.setThemePreference("dark");
+    user.setThemePreference("   ");
+    assertThat(user.getThemePreference(), is(nullValue()));
+
+    user.setThemePreference("dark");
+    user.setThemePreference(null);
+    assertThat(user.getThemePreference(), is(nullValue()));
+  }
+
+  @Test
+  public void setThemePreferenceRejectsAValueOutsideTheTwoThemes() {
+    assertThrows(IllegalArgumentException.class, () -> user.setThemePreference("sepia"));
+    assertThat(user.getThemePreference(), is(nullValue()));
   }
 }

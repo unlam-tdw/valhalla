@@ -72,6 +72,14 @@ public class ProfileViewE2E extends E2eBase {
     assertEquals(1, bookmarksLink.count());
     assertTrue(bookmarksLink.getAttribute("href").endsWith("/profile#bookmarks"));
 
+    // [PROF+THEME] AC-17/AC-21: Tema es una accion activa (form POST), no un "Pronto" ni un
+    // toggle standalone en el navbar. El indicador arranca en el modo vigente (Claro).
+    assertEquals(0, page.locator("body > nav button[data-theme-toggle]").count());
+    assertEquals(1, page.locator("#navbar-menu #menu-theme").count());
+    assertTrue(page.locator("#menu-theme-form").getAttribute("action").endsWith("/profile/theme"));
+    assertTrue(page.locator("#menu-theme .theme-label-light").isVisible());
+    assertFalse(page.locator("#menu-theme .theme-label-dark").isVisible());
+
     // El menú sigue abierto y la URL intacta: nada navegó.
     assertTrue(page.locator("#navbar-menu:not([hidden])").count() == 1);
     assertFalse(page.url().contains("/profile"));
@@ -231,6 +239,44 @@ public class ProfileViewE2E extends E2eBase {
       page.locator("#avatar-preview-img").getAttribute("src")
     );
     assertFalse(page.locator("#avatar-preview-initial").isVisible());
+  }
+
+  // --- E-05 ([PROF+THEME] AC-21): el tema elegido en el modal persiste en el usuario ---
+
+  @Test
+  void themeChosenInTheMenuPersistsOnTheUserInAFreshBrowserContext() {
+    // Arranca en claro: el admin seed no tiene preferencia y el contexto pide colorScheme light.
+    waitUntilTheThemeIsApplied();
+    assertEquals("light", page.locator("html").getAttribute("data-theme"));
+
+    page.locator("#navbar-avatar").click();
+    page.waitForSelector("#navbar-menu:not([hidden])");
+    assertTrue(page.locator("#menu-theme .theme-label-light").isVisible());
+    assertFalse(page.locator("#menu-theme .theme-label-dark").isVisible());
+
+    // El submit del form hace el POST y vuelve al origen con la preferencia ya guardada.
+    page.locator("#menu-theme").click();
+    page.waitForFunction("() => document.documentElement.getAttribute('data-theme') === 'dark'");
+    assertEquals("dark", page.locator("html").getAttribute("data-theme"));
+    assertEquals("dark", page.locator("html").getAttribute("data-bs-theme"));
+
+    // El indicador ahora dice Oscuro: el estado viene del server, no del DOM anterior.
+    page.locator("#navbar-avatar").click();
+    page.waitForSelector("#navbar-menu:not([hidden])");
+    assertFalse(page.locator("#menu-theme .theme-label-light").isVisible());
+    assertTrue(page.locator("#menu-theme .theme-label-dark").isVisible());
+
+    // Contexto nuevo = otro dispositivo: sin localStorage ni sesion. Al loguearse, el meta
+    // que emite el servidor devuelve el modo oscuro sin depender del storage local.
+    newContext();
+    signInAsAdmin();
+    waitUntilTheThemeIsApplied();
+    assertEquals("dark", page.locator("html").getAttribute("data-theme"));
+  }
+
+  /** El atributo lo escribe el script temprano del head: existe antes de cualquier stylesheet. */
+  private void waitUntilTheThemeIsApplied() {
+    page.waitForFunction("() => document.documentElement.hasAttribute('data-theme')");
   }
 
   /** URL del perfil propio resolviendo el atajo /profile que redirige a /profile/{id}. */

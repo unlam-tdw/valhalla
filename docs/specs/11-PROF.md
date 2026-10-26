@@ -15,6 +15,11 @@
 > `#follow` y los contadores de seguidores/seguidos son reales en `view.html` y `edit.html`, y la
 > entrada "Siguiendo" del modal navega a `/profile#follow`. Los AC de esta spec no cambian; donde
 > decían "placeholder" ahora aplica lo que provee `[FOLLOW]`.
+> **v2.6 (2026-10-25, card `[PROF+THEME]`):** el modal es de la sesión autenticada. La entrada
+> "Tema" entra activa ahí, con indicador del modo actual ("Claro"/"Oscuro"), y el toggle
+> standalone desaparece **solo** de la rama autenticada del navbar. La sesión anónima conserva su
+> toggle de [THEME] tal cual (sin modal, sin backend). El tema del autenticado se resuelve
+> server-side por un `<meta name="theme-preference">` que lee el script temprano de `base.html`.
 
 ## Objetivo
 
@@ -34,11 +39,11 @@ Esta spec tiene dos superficies:
 2. **Vista pública del perfil de otro usuario** (`/profile/{id}` ajeno): read-only, sin datos
    privados (email/rol), con los planes públicos del dueño.
 
-Además, el menú del navbar pasa a ser la caja de entrada del sitio: **modal global** con variantes
-por sesión (autenticado: perfil, cambio de contraseña, Guardados/Siguiendo "pronto", Tema, Log
-Out rojo; anónimo: login/register, Tema) y la **preferencia de tema** persiste por usuario:
-localStorage para anónimos (mecanismo de [THEME]), `themePreference` en el usuario para
-autenticados.
+Además, el menú del navbar pasa a ser la caja de entrada del sitio: **modal de la sesión
+autenticada** (perfil, cambio de contraseña, Guardados/Siguiendo, Tema, Log Out rojo) y la
+**preferencia de tema** persiste por usuario: localStorage para anónimos (mecanismo de [THEME],
+que conservan su toggle standalone en el navbar), `themePreference` en el usuario para
+autenticados. **v2.6:** el anónimo no tiene modal.
 
 `GET /profile` redirige al propio `/profile/{id}`: la URL canónica siempre lleva el id, así que el
 perfil es compartible desde la barra de direcciones sin ningún botón extra — el link abre la vista
@@ -55,10 +60,10 @@ futuro.
   default: sin sesión redirige a `/auth/login`.
 - No hay infraestructura de upload en el proyecto (cero `MultipartFile`): el avatar es **URL-based**
   (patrón `Place.imageUrl`), no archivo subido. El upload real será su propia card a futuro.
-- `[THEME]` vive en rama propia (`origin/THEME+Correciones-de-Explore`): persiste la elección en
-  `localStorage["planit-theme"]` y deja un toggle standalone (`button[data-theme-toggle]`) en cada
-  bloque del navbar (autenticado y anónimo). No bloquea el modal (PROF-009), pero sí la entrada
-  "Tema" del modal y la persistencia server-side (PROF-010/011), que entran una vez mergeado.
+- `[THEME]` ya está mergeado en `main` (`1aaa6a2`): persiste la elección en
+  `localStorage["planit-theme"]` y dejó un toggle standalone (`button[data-theme-toggle]`) en cada
+  bloque del navbar. **v2.6:** el toggle sobrevive solo en la rama anónima; la entrada "Tema" del
+  modal autenticado y la persistencia server-side son esta card (`[PROF+THEME]`).
 - `[MARK]` y `[FOLLOW]` no son bloqueantes: sus secciones entran como placeholders no
   interactivos y se activan en las cards de cada feature. **Actualizado en v2.5:** `[FOLLOW]` ya
   los activó — `#follow`, sus dos listas y los contadores de seguidores/seguidos son reales, y la
@@ -85,11 +90,11 @@ futuro.
 | AC-14 | `GET /profile/{id}` sobre el PROPIO id muestra la superficie de edición del propio perfil (form de nombres/avatar, email read-only, rol, link a cambio de contraseña) |
 | AC-15 | La vista pública lista los planes **públicos** del dueño; los privados no aparecen |
 | AC-16 | `avatarUrl` es opcional: con valor se renderiza la imagen; vacío cae al avatar de iniciales (patrón actual). El navbar (trigger del modal, `#navbar-avatar`) y el header del modal lo reflejan al vuelo — el avatar se guarda y la render siguiente ya muestra la imagen, sin JS ni cache |
-| AC-17 | El navbar abre un **menú modal** en ambas sesiones. Autenticado (trigger: avatar, `<button>`): Ver perfil, Cambiar contraseña, Guardados (pronto), Siguiendo (pronto), Tema (activa) y Cerrar sesión (activa, roja) con la ruta correcta por rol (`/admin/logout` para ADMIN, `/auth/logout` para USER). Anónimo (trigger: botón de menú que reemplaza al toggle standalone): Iniciar sesión, Registrarse, Tema (activa) |
+| AC-17 | El navbar abre un **menú modal** en la sesión autenticada (trigger: avatar, `<button>`): Ver perfil, Cambiar contraseña, Guardados, Siguiendo, Tema (activa, con indicador Claro/Oscuro) y Cerrar sesión (activa, roja) con la ruta correcta por rol (`/admin/logout` para ADMIN, `/auth/logout` para USER). **v2.6:** la sesión anónima no abre modal: conserva el toggle standalone del navbar (`button[data-theme-toggle]`) que dejó [THEME] |
 | AC-18 | Las entradas "pronto" (Guardados, Siguiendo) se renderizan deshabilitadas con etiqueta "Pronto", sin `<a>`/`<button>` navegables — no navegan hasta que su feature (MARK/FOLLOW) aterrice |
 | AC-19 | El perfil propio contiene secciones placeholder no interactivas dentro de la página: Guardados (`#bookmarks`) y Seguidores (`#follow`) — ancladas y listas para activar. La sección Tema (`#theme`) se retiró en v2.4: el tema vive solo en el modal del navbar |
 | AC-20 | `GET /profile/{id}` con id inexistente → 404 |
-| AC-21 | La preferencia de tema persiste por usuario: anónimo en `localStorage["planit-theme"]` (mecanismo de [THEME]); autenticado sobre el usuario (`themePreference`) y se recupera al loguearse en cualquier dispositivo. El toggle provisional standalone del navbar desaparece cuando la entrada "Tema" del modal entra (PROF-010) |
+| AC-21 | La preferencia de tema persiste por usuario: anónimo en `localStorage["planit-theme"]` (mecanismo de [THEME], toggle standalone del navbar, sin backend); autenticado sobre el usuario (`themePreference` vía `POST /profile/theme`) y se recupera al loguearse en cualquier dispositivo. **v2.6:** el toggle standalone desaparece solo de la rama autenticada; la entrada "Tema" del modal muestra el modo actual ("Claro"/"Oscuro") y el tema se resuelve server-side por un `<meta name="theme-preference">` leído por el script temprano de `base.html` (preferencia > localStorage > sistema) |
 | AC-22 | Todo nombre de usuario en vistas de planes es un link a `/profile/{id}`: autor en la lista pública (`public-list.html`) y la ficha pública (`public.html`); en el detalle interno (`detail.html`) el administrador deja de mostrarse por email y pasa a nombre + link, y los participantes también son clickeables. Las vistas admin no cambian |
 | AC-23 | El registro acepta un avatar opcional: picker de los 3 defaults + URL propia; sin elección el usuario entra con el avatar de iniciales |
 | AC-24 | El perfil de edición permite elegir avatar: botón editar sobre el avatar actual abre el picker (3 avatars incluidos + URL propia); vacío = iniciales |
@@ -111,7 +116,7 @@ infra de upload).
 | U-04 | `User.changePassword()` no guarda la contraseña en claro | AC-09 |
 | U-05 | `updateProfile()` guarda `avatarUrl` cuando viene con valor | AC-16 |
 | U-06 | `updateProfile()` con `avatarUrl` vacío la deja en null (fallback iniciales) | AC-16 |
-| U-12 | `User.setThemePreference()` acepta los valores válidos y es null-safe (null → el front cae a localStorage/sistema) | AC-21 |
+| U-12 | `User.setThemePreference()` normaliza a minúsculas, acepta `light`/`dark`, blank/null → null y rechaza valores inválidos; `isValidTheme()` los distingue | AC-21 |
 
 ### Tests Unitarios (`infrastructure/user/UserServiceTest.java`)
 
@@ -146,9 +151,9 @@ infra de upload).
 | I-16 | `POST /profile` con `avatarUrl` válido → el usuario lo guarda | AC-16 |
 | I-17 | `POST /profile` con `avatarUrl` vacío → null; el perfil cae al fallback de iniciales | AC-16 |
 | I-18 | El perfil PROPIO renderiza las secciones placeholder con sus anclas (`#bookmarks`, `#follow`) y sin la sección Tema (v2.4: `#theme` ya no existe en la vista) | AC-19 |
-| I-19 | El navbar renderiza el modal con sus entradas y sus estados (activas / pronto) | AC-17, AC-18 |
-| I-20 | `GET` anónimo del navbar: el modal muestra Iniciar sesión, Registrarse y Tema — y ninguna entrada del perfil | AC-17 |
-| I-21 | `POST /profile/theme` del usuario autenticado persiste `themePreference` | AC-21 |
+| I-19 | El modal autenticado renderiza la entrada "Tema" activa (form a `/profile/theme`, indicador Claro/Oscuro) junto al resto de las entradas | AC-17, AC-21 |
+| I-20 | `GET` anónimo: el navbar conserva el toggle standalone (`data-theme-toggle`) y no renderiza el modal | AC-17, AC-21 |
+| I-21 | `POST /profile/theme` del usuario autenticado persiste `themePreference`; la render siguiente emite `<meta name="theme-preference">` con ese valor; un `theme` inválido responde 400 sin escribir y un `redirect` externo cae al destino interno | AC-21 |
 | I-22 | La lista pública muestra el autor como link a `/profile/{id}` con el id correcto | AC-22 |
 | I-23 | La ficha pública muestra el administrador como link a `/profile/{id}` | AC-22 |
 | I-24 | `GET /plans/{id}` interno muestra el administrador por nombre, no por email, y liga a su `/profile/{id}` | AC-22 |
@@ -179,7 +184,7 @@ infra de upload).
 | E-02 | `ProfileViewE2E` | Login → cambiar contraseña con la actual incorrecta → error; con la correcta → logout → login con la nueva | AC-07, AC-08, AC-09 |
 | E-03 | `ProfileViewE2E` | Login (USER) → click avatar → modal con sus entradas e iconos; "Guardados"/"Siguiendo" disabled y NO navegan; "Ver perfil" lleva a `/profile/{id}`; Log Out (rojo) cierra sesión | AC-17, AC-18 |
 | E-04 | `ProfileViewE2E` | Login → completar avatar URL → el avatar se renderiza; dejarlo vacío → vuelve el avatar de iniciales | AC-16 |
-| E-05 | `ProfileViewE2E` | Anónimo: cambiar tema desde el modal → persiste tras reload (localStorage). Login: cambiar tema → logout → login en otra página → la preferencia sobrevive (`themePreference`) | AC-21 |
+| E-05 | `ProfileViewE2E` | Login → modal → "Tema" (Oscuro) → la página repinta → logout → login en otra página → la preferencia sobrevive (`themePreference`). Anónimo: el toggle del navbar persiste tras reload (localStorage), cubierto por `ThemeModeE2E` | AC-21 |
 | E-06 | `ProfileViewE2E` | Login → editar avatar → elegir uno default → se renderiza en navbar y perfil; elegir "URL propia" → se renderiza; vacío → vuelve el avatar de iniciales | AC-24, AC-16 |
 
 > Nota E2E: los helpers del navbar cuentan `body > nav a, body > nav button`. El avatar pasa de
@@ -246,17 +251,21 @@ infra de upload).
   de ser placeholder — `[FOLLOW]` lo provee con contadores y las dos listas (seguidores/seguidos)
   en `edit.html` y `view.html`; Guardados (`#bookmarks`) sigue siendo el placeholder de `[MARK]`.
   La sección Tema (`#theme`) se retiró de la vista en v2.4 (vive solo en el modal).
-- **El toggle de tema entra al modal escalonado y persiste por sesión.** Etapa 1 (PROF-009): el
-  modal sin entrada de tema, el toggle provisorio de [THEME] sigue de pie. Etapa 2 (PROF-010, tras
-  el merge de [THEME]): la entrada "Tema" entra al modal para las dos sesiones, y el toggle
-  standalone del navbar desaparece. Persistencia: anónimos siguen en
-  `localStorage["planit-theme"]` (mecanismo de [THEME], sin backend); autenticados persisten en
-  su usuario (`themePreference` en `User`, columna nueva — sin capa de migración en el proyecto:
-  JPA auto-DDL + reset de schema si hace falta, avisando en la card como pide la convención) y
-  esa preferencia gana sobre el localStorage al renderizar (la página pintaría con la preferencia
-  del usuario antes de la primera animación de carga, resolviendo el `data-theme` server-side con
-  fallback al valor previo guardado). Con `themePreference` vacía, el autenticado cae al
-  localStorage/sistema, como hoy.
+- **El tema se resuelve escalonado y persiste por sesión.** Etapa 1 (PROF-009): el modal sin
+  entrada de tema, el toggle provisorio de [THEME] de pie. Etapa 2 (PROF-010/011, card
+  `[PROF+THEME]`, tras el merge de [THEME]): la entrada "Tema" entra **activa al modal
+  autenticado**, con el mismo diseño que el resto de los ítems y un indicador del modo actual
+  ("Claro"/"Oscuro"), y el toggle standalone desaparece **solo** de esa rama del navbar. La
+  sesión anónima conserva su toggle de [THEME] tal cual (icon-only, `localStorage["planit-theme"]`,
+  sin modal ni backend). Persistencia: autenticados en `themePreference` del `User` (columna
+  nullable nueva; JPA auto-DDL la agrega, se avisa en la card como pide la convención) vía
+  `POST /profile/theme`; anónimos en `localStorage`. El valor del autenticado gana sobre el
+  localStorage al renderizar: `CurrentUserControllerAdvice` expone `userThemePreference`,
+  `headContent` lo emite como `<meta name="theme-preference">` y el script temprano lo lee antes
+  de la primera pintura (preferencia > localStorage > sistema), sin destello. Con
+  `themePreference` vacía, el autenticado cae al localStorage/sistema, como hoy. El POST vuelve a
+  la página de origen con `redirect` saneado (`LoginRedirects.isSafeInternalPath`) y, cuando no
+  hay path visible (p. ej. `/admin/**`), a la landing del rol.
 - **El gate de JaCoCo no deja margen.** La regla de `pom.xml` pone
   `com.valhalla.domain.*` **y** `com.valhalla.presentation.*` al **100%** de LINE COVEREDRATIO a
   nivel `PACKAGE`. `User` está excluida por nombre PERO los métodos nuevos que se agreguen sí
@@ -298,13 +307,14 @@ public void changePassword(String newRawPassword, PasswordEncoder encoder) {
 File: `src/main/java/com/valhalla/infrastructure/user/UserService.java` (interfaz en
 `domain/user/UserService.java`, impl en `infrastructure/user/UserServiceImpl.java`)
 
-- `updateProfile(Long id, String firstName, String lastName, String avatarUrl)` — busca,
+- `updateProfile(UUID id, String firstName, String lastName, String avatarUrl)` — busca,
   actualiza y guarda; devuelve la sesión inválida si el usuario no existe.
-- `changePassword(Long id, String currentRaw, String newRaw)` — busca, compara con
+- `changePassword(UUID id, String currentRaw, String newRaw)` — busca, compara con
   `passwordEncoder.matches(currentRaw, user.getPassword())`; si no coincide, devuelve error **sin
   escribir**; si coincide, `user.changePassword(newRaw, passwordEncoder)` y `save`.
-- `updateThemePreference(Long id, String pref)` (PROF-011) — busca, setea `themePreference` y
-  guarda; solo valores del enum del tema.
+- `updateThemePreference(UUID id, String pref)` (PROF-011) — busca, setea `themePreference` con
+  `User.setThemePreference` (normaliza, null-safe, rechaza valores fuera de `light`/`dark`) y
+  guarda. El controller valida con `User.isValidTheme` antes de llamar y responde 400 si no.
 
 El encoder es el mismo bean inyectado que usa `LoginService`. `UserService.rotatePassword(id)` se
 queda como está: lo usan el panel admin y la recuperación de [AUT].
@@ -326,9 +336,9 @@ public class ProfileController {
         return "redirect:/profile/" + me.getId();
     }
 
-    @GetMapping("/{id:\\d+}")
-    public ModelAndView view(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails me) {
-        User owner = userService.getById(id); // empty -> 404 (AC-20)
+    @GetMapping("/{id}")
+    public ModelAndView view(@PathVariable UUID id, @AuthenticationPrincipal AppUserDetails me) {
+        User owner = userService.findById(id); // empty -> 404 (AC-20)
         boolean self = owner.getId().equals(me.getId());
         if (self) return editView(owner);                       // AC-01/AC-14
         return publicView(owner, planQueryService.publicPlansOf(owner)); // AC-13/AC-15
@@ -353,10 +363,18 @@ public class ProfileController {
                                  BindingResult bindingResult) { ... } // igual a v1
 
     @PostMapping("/theme")                   // PROF-011, POST desde el modal (CSRF + sesión)
-    public String setTheme(@AuthenticationPrincipal AppUserDetails me,
-                           @RequestParam("theme") String theme) {
+    public String setTheme(Authentication authentication,
+                           @RequestParam("theme") String theme,
+                           @RequestParam(value = "redirect", required = false) String redirect) {
+        User me = sessionUser(authentication);
+        if (!User.isValidTheme(theme)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
         userService.updateThemePreference(me.getId(), theme);
-        return "redirect:" + currentPath;    // volver a donde estaba el usuario
+        String target = LoginRedirects.isSafeInternalPath(redirect)
+            ? redirect
+            : LoginRedirects.landingFor(authentication);
+        return "redirect:" + target;         // volver a donde estaba el usuario
     }
 }
 ```
@@ -368,7 +386,7 @@ public class ProfileController {
   `profileName`, `profileAvatarUrl`, `followerCount`, `followingCount`, `followers`, `following`,
   `isFollowing` y `profilePlans`. **v2.5:** `[FOLLOW]` reemplazó el contador placeholder por los
   conteos reales de seguidores/seguidos y agregó las dos listas de `#follow`.
-- El mapeo `/{id:\\d+}` evita colisiones con los sub-paths existentes (`/profile/change-password`,
+- El mapeo `/{id}` (UUID) no colisiona con los sub-paths existentes (`/profile/change-password`,
   `/profile/theme`).
 
 ### 4. Templates
@@ -377,8 +395,10 @@ public class ProfileController {
 |---------|-----------|
 | `templates/pages/profile/edit.html` | Superficie propia: form de `firstName`/`lastName`/`avatarUrl` con `th:action="@{/profile}"` + CSRF, email read-only, rol, link a `/profile/change-password`, aviso `?updated=true`, `th:errors`. Debajo, secciones con anclas: Guardados (`id="bookmarks"`, placeholder de `[MARK]`) y Seguidores/Seguidos (`id="follow"`, real desde v2.5 con `[FOLLOW]`: contadores y las dos listas) — la sección Tema (`id="theme"`) se retiró en v2.4 |
 | `templates/pages/profile/view.html` | Vista pública: header (avatar/iniciales + nombre + contadores reales de seguidores/seguidos desde v2.5), sección `#follow` con las dos listas, grilla/lista de `profilePlans` reutilizando los patrones de `plans/public-list.html` |
-| `templates/components/navbar.html` | El avatar pasa de `<span>` a `<button>` que abre el modal (autenticado); el anónimo gana un `<button>` de menú como trigger. El botón renderiza el `avatarUrl` vigente (`userAvatarUrl`, resuelto en cada request por `CurrentUserControllerAdvice`) o cae a la inicial: guardar el perfil actualiza el navbar en el render del redirect. Modal con dos variantes: autenticado — header (avatar/iniciales + nombre), Ver perfil → `/profile/{id}`, Cambiar contraseña, Guardados **deshabilitado con badge "Pronto"**, Siguiendo como link a `/profile#follow` (v2.5, `[FOLLOW]`), Tema (PROF-010, tras merge de [THEME]), Cerrar sesión (roja) con ruta por rol + CSRF; anónimo — Iniciar sesión, Registrarse, Tema. El toggle standalone de [THEME] desaparece de ambos bloques cuando la entrada "Tema" entra (PROF-010). Cierre con Esc/click afuera, `aria-expanded` |
-| `templates/layouts/base.html` | PROF-011: `data-theme` server-side para autenticados (la `themePreference` del usuario gana sobre `localStorage["planit-theme"]`; null → localStorage/sistema como hoy). Sin flash de tema incorrecto |
+| `templates/components/navbar.html` | El avatar pasa de `<span>` a `<button>` que abre el modal (autenticado). El botón renderiza el `avatarUrl` vigente (`userAvatarUrl`, resuelto en cada request por `CurrentUserControllerAdvice`) o cae a la inicial. **v2.6:** el toggle standalone de [THEME] se retira de la rama autenticada; la rama anónima lo conserva intacto |
+| `templates/components/navbar-menu.html` | El modal: variante autenticada con header, Ver perfil, Cambiar contraseña, Guardados, Siguiendo, **Tema** (activo: form a `/profile/theme` con CSRF, ícono sol/luna e indicador Claro/Oscuro) y Cerrar sesión (roja) con ruta por rol + CSRF. Cierre con Esc/click afuera, `aria-expanded` |
+| `templates/layouts/base.html` | PROF-011: `<meta name="theme-preference">` con la preferencia del autenticado; el script temprano la prioriza sobre `localStorage["planit-theme"]` y el sistema, sin flash |
+| `resources/css/brand.css` | Reglas `.theme-label-light` / `.theme-label-dark` junto a las de `.theme-icon-*`: el indicador del modal sigue al `data-theme` sin JS |
 | `templates/components/avatar-picker.html` | Partial compartido del picker: el avatar actual (o iniciales), botón "editar" que abre la grilla de los 3 defaults + campo "URL propia". Reusado en `register.html` y `profile/edit.html` |
 | `templates/pages/auth/user/register.html` | Agrega el partial del picker (campo opcional) — el form ya colecta nombre/apellido, no re-diseña el alta |
 | `templates/pages/plans/public-list.html` | "Por {administratorName}" como link a `/profile/{administratorId}` |
@@ -401,7 +421,7 @@ salir en null (I-10).
 
 | Archivo | Accion |
 |---------|--------|
-| `domain/user/User.java` | Actualizar (`avatarUrl`, `updateProfile`, `changePassword`) |
+| `domain/user/User.java` | Actualizar (`avatarUrl`, `updateProfile`, `changePassword`, `themePreference` + `setThemePreference`/`isValidTheme`) |
 | `domain/user/UserService.java` | Actualizar (interface: `updateProfile` con avatar, `updateThemePreference`) |
 | `infrastructure/user/UserServiceImpl.java` | Actualizar (persistencia de `avatarUrl` y `themePreference`) |
 | `presentation/profile/ProfileController.java` | Crear (`/profile` redirect, `/{id}` dual, `POST /profile`, change-password) |
@@ -410,11 +430,13 @@ salir en null (I-10).
 | `templates/pages/profile/edit.html` | Crear (superficie propia + placeholders) |
 | `templates/pages/profile/view.html` | Crear (vista pública + planes públicos) |
 | `templates/pages/profile/change-password.html` | Crear |
-| `templates/components/navbar.html` | Actualizar (avatar → button + menú modal de dos variantes) |
-| `templates/layouts/base.html` | Actualizar (PROF-011: resolución server-side de `data-theme` para autenticados) |
+| `templates/components/navbar.html` | Actualizar (avatar → button + baja del toggle standalone autenticado; la rama anónima queda igual) |
+| `templates/components/navbar-menu.html` | Actualizar (entrada Tema activa con form a `/profile/theme` e indicador Claro/Oscuro) |
+| `templates/layouts/base.html` | Actualizar (PROF-011: `<meta name="theme-preference">` + precedencia en el script temprano) |
+| `resources/css/brand.css` | Actualizar (`.theme-label-light` / `.theme-label-dark`) |
 | `templates/components/avatar-picker.html` | Crear (partial del picker, reusado en registro y perfil) |
 | `templates/pages/auth/user/register.html` + su form/controller | Actualizar (campo opcional `avatarUrl` con validación AC-25) |
 | `resources/images/avatars/avatar-1..3.svg` | Crear (avatars default de marca) |
 | `templates/pages/plans/{public-list,public,detail}.html` | Actualizar (links a `/profile/{id}`; detail: email → nombre) |
 | DTOs de plan (cards/view) con `administratorName` | Actualizar (exponer `administratorId` para armar los links) |
-| helpers E2E de navbar | Actualizar (conteo `nav a, nav button` con el avatar y el trigger anónimo ahora buttons) |
+| helpers E2E de navbar | Actualizar (`getNavbarItems()` del autenticado sin "Cambiar tema"; el anónimo lo conserva) |

@@ -118,6 +118,45 @@ public class CurrentUserControllerAdviceTest {
     Mockito.verifyNoInteractions(userService);
   }
 
+  // --- userThemePreference: el modo elegido viaja server-side al head ---
+
+  @Test
+  public void shouldExposeTheThemePreferenceOfTheSignedInUser() {
+    User user = Mockito.mock(User.class);
+    when(user.getThemePreference()).thenReturn("dark");
+    when(userService.getByEmail(EMAIL)).thenReturn(user);
+
+    assertThat(advice.userThemePreference(appUser("Ana", "Perez")), is("dark"));
+  }
+
+  @Test
+  public void shouldFallBackToNullWhenTheUserHasNoStoredPreference() {
+    User user = Mockito.mock(User.class);
+    when(user.getThemePreference()).thenReturn(null);
+    when(userService.getByEmail(EMAIL)).thenReturn(user);
+
+    assertThat(advice.userThemePreference(appUser("Ana", "Perez")), is(nullValue()));
+  }
+
+  @Test
+  public void shouldFallBackToNullForTheThemeWhenThePrincipalIsSynthetic() {
+    when(userService.getByEmail(EMAIL)).thenThrow(new UserNotFoundException());
+
+    assertThat(advice.userThemePreference(appUser("Ana", "Perez")), is(nullValue()));
+  }
+
+  @Test
+  public void shouldNotConsultTheUserTableForTheThemeWithoutASession() {
+    assertThat(advice.userThemePreference(null), is(nullValue()));
+    assertThat(
+      advice.userThemePreference(
+        new AnonymousAuthenticationToken("key", "anonymousUser", roles("ROLE_ANONYMOUS"))
+      ),
+      is(nullValue())
+    );
+    Mockito.verifyNoInteractions(userService);
+  }
+
   // --- showAdminNav ---
 
   @Test

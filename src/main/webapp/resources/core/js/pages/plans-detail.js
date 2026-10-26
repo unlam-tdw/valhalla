@@ -52,6 +52,14 @@ createApp({
         const requestError = ref('');
         const saving = ref(false);
         const placeDialog = ref(null);
+        const planOptionsOpen = ref(false);
+        const planOptionsButton = ref(null);
+        const bannedParticipantsDialog = ref(null);
+        const closePlanOptions = (event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+                planOptionsOpen.value = false;
+            }
+        };
 
         // Leaflet owns these three and the template never reads them, so they are not refs.
         let map = null;
@@ -316,6 +324,7 @@ createApp({
 
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
+            planOptionsOpen, planOptionsButton, bannedParticipantsDialog, closePlanOptions,
             placeDialog, availablePlaces, formatVisitDate, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateDateTime, addPlace,
             removePlace, onDragStart, onDrop
