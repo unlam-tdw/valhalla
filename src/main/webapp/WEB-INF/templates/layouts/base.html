@@ -268,19 +268,28 @@
         return false;
       };
 
-      const show = function () {
-        const pending = document.querySelectorAll("[v-cloak]");
-        for (let i = 0; i < pending.length; i++) pending[i].removeAttribute("v-cloak");
+      /* Lifting the shield says nothing about Vue: it only means the CSS is there. v-cloak must
+         survive this path and be cleared by mount(), or the raw template is painted in the gap
+         between the reveal and the mount (the bug this was supposed to fix). */
+      const reveal = function () {
         document.documentElement.style.visibility = "visible";
       };
 
-      const reveal = function () {
-        if (stylesReady()) { show(); return; }
-        setTimeout(reveal, 15);
+      /* Escape hatch, 3 s: either Tailwind never compiled or the view's script never mounted.
+         Showing a raw template beats a blank page. */
+      const fallback = function () {
+        const pending = document.querySelectorAll("[v-cloak]");
+        for (let i = 0; i < pending.length; i++) pending[i].removeAttribute("v-cloak");
+        reveal();
       };
 
-      setTimeout(reveal, 15);
-      setTimeout(show, 3000);
+      const waitForStyles = function () {
+        if (stylesReady()) { reveal(); return; }
+        setTimeout(waitForStyles, 15);
+      };
+
+      setTimeout(waitForStyles, 15);
+      setTimeout(fallback, 3000);
     })();
   </script>
   <script th:if="${devReloadToken != null}" th:inline="javascript" defer>
