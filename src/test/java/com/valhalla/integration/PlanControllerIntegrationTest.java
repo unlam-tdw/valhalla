@@ -2172,6 +2172,7 @@ public class PlanControllerIntegrationTest {
     // El editor solo puede eliminar al participante común: ni al dueño, ni a sí mismo, ni a otro
     // editor. El aria-label ya no distingue por email, así que el conteo es la señal.
     assertThat(occurrences(html, "Eliminar del plan a Test User"), is(1));
+    assertThat(occurrences(html, "Banear del plan a Test User"), is(1));
     assertThat(
       html,
       containsString("name=\"participantEmail\" value=\"" + guest.getEmail() + "\"")

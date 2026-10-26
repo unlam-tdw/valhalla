@@ -36,13 +36,19 @@ public class MobileLayoutE2E extends E2eBase {
 
   /**
    * Tailwind compila en el browser (sin build step): hasta que inyecta el CSS las clases no tienen
-   * efecto y medir ahora daria basura. Es el mismo umbral del reveal de layouts/base.
+   * efecto y medir ahora daria basura. La senal es el stylesheet generado, el unico &lt;style&gt; del
+   * head que lleva el banner "! tailwindcss v"; el bloque @theme del layout no lo tiene, asi que
+   * el umbral viejo por longitud se satisfacia antes del reveal real (ver layouts/base.html).
+   *
+   * <p>Tambien espera a que el shield haya levantado: el reveal corre en un poll de 15 ms y
+   * visibility:hidden no cambia el layout, pero un isVisible() prematuro si daria false.
    */
   private void awaitStyles() {
     page.waitForFunction(
       "() => { const styles = document.querySelectorAll('head style');" +
-      " for (const s of styles) { if (s.textContent.length > 2000) return true; }" +
-      " return false; }"
+      " let ready = false;" +
+      " for (const s of styles) { if (s.textContent.includes('tailwindcss v')) { ready = true; break; } }" +
+      " return ready && getComputedStyle(document.documentElement).visibility === 'visible'; }"
     );
   }
 
@@ -279,7 +285,7 @@ public class MobileLayoutE2E extends E2eBase {
     assertThat(
       "items del navbar de escritorio",
       web.getNavbarItems(),
-      contains("PlanIt", "Para vos", "Explore", "Plans", "A", "Cambiar tema")
+      contains("PlanIt", "Para vos", "Explore", "Plans", "A")
     );
   }
 

@@ -3,9 +3,9 @@
 > Trello: https://trello.com/c/XhCwVzj7/24-dis-estandarizar-dise%C3%B1os-a-lo-largo-del-sitio
 > **Estimacion:** 2 pts Fibonacci
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
-> **Estado (2026-10-22):** rama `task-17-DIS` sincronizada con `main` (ya incluye [MOBILE]) y
-> con el fix de contraste en modo oscuro (`fix(dis)`, commit `1e8f5f1`). Implementacion
-> pendiente.
+> **Estado (2026-10-25):** rama `task-17-DIS` sincronizada con `main` (merge `42e9b0d`, ya
+> incluye [MOBILE] y el merge de baneo) e implementación completa (AC-01..AC-18). Gate en
+> verde: 927 unit+integration, 78 E2E. Pendiente: revisión visual y merge del PR #48.
 
 ## Objetivo
 
@@ -31,7 +31,10 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
   por el `@theme` de `layouts/base :: head`.
 - Íconos: librería vendorizada en `resources/core/js/lucide.min.js`, servida en `/js/**`
   (`BaseWebConfig.addResourceHandlers`). No hay CDN; un icono que no está en el bundle no se dibuja.
-- No toca backend ni DB: no hay tests U/I/S nuevos, ni migraciones, ni reset de esquema.
+- No toca backend ni DB: no hay tests de unitarios ni de integración nuevos, ni migraciones, ni
+  reset de esquema. *Ampliación AC-15..AC-18 (card deuda de UI): sí hay 2 métodos E2E nuevos, pero
+  dentro de la clase existente `PlanPlaceDetailE2E` y pedidos por la card; ninguna clase de test
+  nueva.*
 - [MOBILE] mergeada en main: el responsive ≤575 px, el explorador full-screen y el guard de
   `panBy` ya viven en el sitio; los items que tocan esas zonas conviven con esas decisiones
   (ver "Interacciones con [MOBILE]" en Notas).
@@ -46,7 +49,7 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-04 | Las cards de la sección "Un plan que se arma una vez y no se vuelve a discutir" del landing muestran sus íconos (clock, link, map-pin, calendar): ningún círculo de ícono queda vacío |
 | AC-05 | El tag "Público" de la sección "Un sábado en Recoleta" del hero del landing renderiza su ícono |
 | AC-06 | El navbar superior queda fijo durante el scroll (sticky) en landing y app, sin tapar contenido ni perder accesibilidad (el skip-link sigue siendo alcanzable al navegar con teclado) |
-| AC-07 | La letra P del logo (`resources/images/logo.svg`) se traza con una tipografía cercana a la usada en el resto del sitio (la serif de `brand.css` o la sans de la app), de modo que el logo no se lea como tipografía ajena |
+| AC-07 | La letra P del logo (`resources/images/logo.svg`) se traza con una tipografía cercana a la usada en el resto del sitio (la serif de `brand.css` o la sans de la app), de modo que el logo no se lea como tipografía ajena. *Revertido en revisión: se implementó (re-trace con Bree Serif) y en la revisión final la usuaria prefirió el vector original, así que el logo vuelve al anterior* |
 | AC-08 | En la página de edición de un plan (`/plans/{id}`), el título del plan y los botones de acción (Eliminar plan / Salir del plan / Clonar plan) comparten la misma fila: título a la izquierda, botones a la derecha, con separación visible entre botones |
 | AC-09 | Los tiles del resumen del plan (DESCRIPCIÓN, FECHA, HORA, VISIBILIDAD, ADMINISTRADOR, CÓDIGO) muestran separación entre sí (vertical y horizontal); ningún tile toca al siguiente |
 | AC-10 | La visibilidad del plan en "Editar plan" se maneja con un switch estilo iOS con la paleta de la marca, que muestra el estado actual (Privado/Público) con un label claro al lado |
@@ -54,13 +57,19 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-12 | Cada card de lugar del itinerario muestra un ícono de drag & drop (handle) en su borde izquierdo cuando el usuario puede editar el plan; sin permiso de edición el ícono no aparece |
 | AC-13 | El botón "Clonar plan" solo se muestra a participantes que no son administradores: un plan recién clonado (donde el clonador quedó como administrador) no vuelve a mostrar el botón |
 | AC-14 | La cabecera del plan lleva una banda de color de marca sólido detrás del título, sin taparlo ni solaparse con el contenido; subir/cambiar/quitar una imagen decorativa queda fuera de esta spec (card [IMG] aparte). *Ajustado en revisión visual: el ticket pedía imagen por defecto, se implementó y probó, y la usuaria la descartó pidiendo color sólido* |
+| AC-15 | En `/plans/{id}` el navbar compartido luce como en el resto del sitio pese al reboot de Bootstrap de esa página: avatar redondo, avatar con la serif de la marca, wordmark en `text-xl`, fondo de token y el gap real de `gap-4` (1rem, no el 1.5rem de `.gap-4` de Bootstrap); y el menú móvil `#navbar-menu` (hermano del `<nav>`) con los mismos links, espaciados y radius que en el resto del sitio |
+| AC-16 | El modal "Ver más" del detalle del plan es una ficha con jerarquía: título + chip de categoría arriba, y un bloque por dato (dirección, cómo llegar, descripción del lugar, descripción de la visita, fecha/hora y posición) con icono en el `dt` y su valor en el `dd` |
+| AC-17 | El editor de fecha/hora del modal se muestra a quien puede editar el plan (administrador o editor) y no aparece para el resto |
+| AC-18 | El diálogo del detalle declara `aria-labelledby` apuntando a su título, recibe el foco al abrirse y se cierra con Escape |
 
 ## Escenarios de Test
 
 Es una spec de diseño: no hay lógica nueva, así que no hay clases de test U/I/S nuevas. La
 verificación es por inspección visual más la puerta completa (excepción: el AC-13 introduce una
 condición de template — quién ve "Clonar plan" — verificada por inspección con los tres estados
-de sesión; sigue sin tocar backend).
+de sesión; y los AC-15..AC-18 suman dos métodos en la clase E2E existente `PlanPlaceDetailE2E`,
+los items [T-DIS-B01] y [T-DIS-B02] de la card, listados más abajo). Ni backend ni clases de
+test nuevas: esos dos tests son la verificación automatizada de AC-15..AC-18.
 
 ### Checks visuales (V-XX, manuales o asistidos por los E2E existentes)
 
@@ -80,15 +89,32 @@ de sesión; sigue sin tocar backend).
 | V-12 | Handle de drag visible en el borde izquierdo de cada card de lugar con `canEditPlan`; invisible para un usuario sin permiso de edición | AC-12 |
 | V-13 | Como ADMINISTRADOR del plan no se ve "Clonar plan"; como participante no-admin sí; tras clonar un plan público, la página del clon (redirect) tampoco lo muestra | AC-13 |
 | V-14 | Banda de color sólido de marca detrás del título del plan (en 320, 390 y desktop, light y dark); el título en blanco mantiene contraste y no se solapa con el contenido | AC-14 |
+| V-15 | `/plans/{id}` contra `/for-you` con `getComputedStyle`: avatar con radius > 1000px y serif de la marca, fondo del nav `rgb(17, 24, 39)`, gap del menú 16px, wordmark 20px; a 390px, `#navbar-menu` con links grises sin subrayado, padding 16px y logout con radius 6px | AC-15 |
+| V-16 | Modal "Ver más": título + chip `cat-*`, 6 bloques con ícono (dirección, cómo llegar, descripciones, fecha/hora y posición), "Sin fecha"/"Sin hora" cuando no hay datos y la posición al final del `dl` | AC-16 |
+| V-17 | Como administrador (o editor) el modal muestra los inputs de fecha y hora; como participante sin permiso no aparecen | AC-17 |
+| V-18 | El diálogo abierto tiene `aria-labelledby="place-detail-title"`, `document.activeElement` queda dentro del diálogo y Escape lo cierra | AC-18 |
 
 Los tres estados de sesión (anónimo, USER, ADMIN) en dos anchos (375px y 1280px).
 
-### E2E (sin casos nuevos)
+### E2E
+
+Dos tests nuevos en `e2e/PlanPlaceDetailE2E`, sobre el arranque existente (crea un plan con una
+visita y abre el detalle):
+
+- `keepsTheSharedNavbarOnThePlanDetailPage` → AC-15: lee con `getComputedStyle` el avatar
+  (radius, font-family), el fondo del nav, el gap del menú desktop y el tamaño del wordmark.
+- `showsTheStopDetailsAsAStructuredFichaAndClosesWithEscape` → AC-16, AC-17 y AC-18: chip de
+  categoría, un icono por `dt`, los valores de la ficha, el editor de fecha/hora visible para el
+  administrador del arrange, el foco dentro del diálogo al abrir y el cierre con Escape.
 
 La suite E2E existente (`e2e/`), en particular la del landing (`LandingPage`), debe seguir en
 verde sin cambios: los templates que los page objects ya tocan no cambian selects ni textos de los
 helpers. Si un selector de test se rompe por el markup nuevo, se actualiza el page object, no el
 test.
+
+> Los selectores de los dos tests nuevos se anclan por `aria-labelledby=place-detail-title`, no
+> por `document.querySelector('dialog')`: desde el merge de `main` hay otro `<dialog>`
+> (`banned-participants`) antes en el DOM del detalle y el selector genérico lo agarra a él.
 
 ### Puerta
 
@@ -259,6 +285,12 @@ Re-tracear la P del logo con la familia elegida (font-to-path offline) y reempla
 del glyph en `resources/images/logo.svg`. Los círculos decorativos y los colores quedan como
 están: solo cambia el glyph de la letra.
 
+**Cierre: revertido a pedido de la usuaria (2026-10-25).** El re-trace se implementó
+(`81c8396`: P trazada desde `BreeSerif-Regular.ttf` con Java2D offline, sin dependencias ni
+CDN), pero en la revisión final la usuaria prefirió el vector original. El archivo vuelve a
+su versión previa a `81c8396` y el AC queda cerrado **sin cambio visual**: el logo es idéntico
+al de antes de la card.
+
 ## Notas de implementación (hallazgos)
 
 Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anotado arriba.
@@ -335,6 +367,42 @@ Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anot
   Medido en 320: el borde no altera el layout de los tiles (el wrap de labels a 320 es
   preexistente —`word-wrap: break-word` de `.card` en Bootstrap—).
 
+- **AC-15: el reboot de Bootstrap pisa el navbar compartido, no Tailwind.** `/plans/{id}`
+  carga Bootstrap en su propio `<head>` y encima de las utilidades de `layouts/base`, así que
+  en esa vista el avatar salía rectangular (`nav button { border-radius: 0.375rem }` le ganaba
+  a `.rounded-full` por vivir sin capa), el wordmark quedaba en `1rem` y los botones perdían
+  la serif. El fix son pines de utilidad, no de elemento: `.rounded-full`, `.rounded-md`,
+  `.navbar-brand`, `.font-serif` y `.gap-4 { 1rem }` (el valor de Tailwind, no el `1.5rem` de
+  `.gap-4` de Bootstrap). `#navbar-menu` vive como hermano del `<nav>` en `layouts/base`, así
+  que queda fuera de esos pines y recibe los suyos.
+- **AC-15 (oscuro): Bootstrap `.bg-white` con `!important` blanqueaba el menú.** El remapeo
+  `html[data-theme="dark"] .bg-white { var(--dark-card) }` de `brand.css` no lleva
+  `!important`, así que en `/plans/{id}` —única vista que carga Bootstrap— el menú quedaba con
+  fondo `rgb(255, 255, 255)` donde el resto del sitio lo pinta `rgb(31, 41, 55)` (medido contra
+  `/for-you` con la sonda de reglas ganadoras). El detalle repite el valor de brand con
+  `!important`: en claro los dos pintan blanco (sin cambio visible) y el pin también cubre el
+  `.bg-white` del toast del layout.
+- **AC-15: dos diffs descartados por no tener efecto visual.** El `box-shadow` del nav difiere
+  porque las capas de ring de Tailwind son transparentes (la pintura es idéntica) y el radius
+  del avatar se pinnea a `9999px` en vez de `calc(infinity * 1px)` (ambos dejan el avatar
+  totalmente redondo a 36px; `9999px` es más compatible). Los diffs de `color` heredado que
+  quedan en contenedores del menú no pintan texto visible: todos los textos llevan su propia
+  utilidad de color.
+- **AC-16/AC-17: la ficha se estila en el `<style>` del detalle, no en `brand.css`.** Los
+  bloques usan variables `--bs-*` para que Bootstrap re-coloree en modo oscuro como el resto de
+  la página, y el chip de categoría reutiliza los `.cat-*` que ya define el mapa. El editor de
+  horario va con `th:if="${canEditPlan}"`, la misma condición que el resto de la edición del
+  itinerario (administrador **o** editor): no es un permiso nuevo, es la misma llave del AC-12.
+- **AC-18: `nextTick` antes de `showModal()`.** El `<template v-if>` de la ficha se monta en el
+  siguiente flush de Vue: abrir el diálogo sin esperarlo dejaba `aria-labelledby` apuntando a un
+  título que todavía no existía y el foco caía fuera. Con `await nextTick()` el título ya está
+  montado cuando entra el `showModal`, y el `tabindex="-1"` del `<dialog>` hace el resto.
+- **El merge de `main` agregó un segundo `<dialog>` al detalle.** El dropdown "Más opciones" y
+  el diálogo de baneados (`#banned-participants`) entraron desde la card de baneo y quedaron
+  **antes** en el DOM: cualquier test que diga `document.querySelector('dialog')` sobre esa
+  página agarra el de baneados. Los dos tests nuevos se anclan por
+  `aria-labelledby=place-detail-title`, que solo el diálogo del detalle declara.
+
 ## Archivos a crear/modificar
 
 | Archivo | Accion |
@@ -342,12 +410,15 @@ Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anot
 | `templates/components/place-card.html` | Crear (fragmento de card de lugar compartido) |
 | `resources/css/brand.css` | Actualizar (`.place-card`, `.btn-cta`, indicador del FAQ, estilos del switch de visibilidad y del banner del plan para AC-08..AC-14) |
 | `templates/pages/landing.html` | Actualizar (hero usa el fragmento, CTAs con `.btn-cta`, FAQ con indicador CSS, sin `<style>` de card propio en el hero) |
-| `templates/pages/plans/detail.html` | Actualizar (AC-01: `.itinerary-stop` pasa a consumir `.place-card`; AC-08: header título+botones en una fila con `gap`; AC-09: gutter del summary; AC-10: switch de visibilidad; AC-11: padding inferior; AC-12: handle de drag en cada card; AC-13: condición de "Clonar plan"; AC-14: banda sólida con imagen decorativa fuera) |
+| `templates/pages/plans/detail.html` | Actualizar (AC-01: `.itinerary-stop` pasa a consumir `.place-card`; AC-08: header título+botones en una fila con `gap`; AC-09: gutter del summary; AC-10: switch de visibilidad; AC-11: padding inferior; AC-12: handle de drag en cada card; AC-13: condición de "Clonar plan"; AC-14: banda sólida con imagen decorativa fuera; AC-15: pines de utilidad del navbar; AC-16: ficha del modal; AC-17: editor con `canEditPlan`; AC-18: `aria-labelledby` + `tabindex`) |
 | `templates/components/navbar.html` | Actualizar (sticky; botones con `.btn-cta`) |
 | `resources/core/js/lucide.min.js` | Actualizar (regenerar con los iconos faltantes, si se elige el camino (a)) |
 | `resources/images/logo.svg` | Actualizar (P re-traceada) |
+| `resources/core/js/pages/plans-detail.js` | Actualizar (AC-18: `await nextTick()` antes de `showModal`) |
+| `test/java/com/valhalla/e2e/PlanPlaceDetailE2E.java` | Actualizar (2 tests E2E: AC-15 por uno, AC-16/17/18 por el otro) |
 
-No se tocan: controladores, servicios, repos, SecurityConfig, datos de semilla, tests de
-cualquier capa. La única expresión no-puramente-visual de la ronda AC-08..AC-14 es la
-condición del AC-13 en el template; los íconos que sobran (handle de drag) salen del set
-de íconos ya cargado en la página.
+No se tocan: controladores, servicios, repos, SecurityConfig, datos de semilla, ni ningún test
+de unitario, de integración o de seguridad. La única expresión no-puramente-visual de la ronda
+AC-08..AC-14 es la condición del AC-13 en el template; los íconos que sobran (handle de drag)
+salen del set de íconos ya cargado en la página. En AC-15..AC-18 tampoco hay backend: lo único
+que no es markup/estilo es el `nextTick` de Vue y los dos tests E2E.

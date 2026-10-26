@@ -25,25 +25,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
   <!-- Modo oscuro: el tema se resuelve acá, en línea y antes de cualquier stylesheet, para que
-       la primera pintura ya salga con el modo elegido y no haya destello claro. La decisión
-       vive en localStorage bajo la clave "planit-theme": si el usuario ya eligió una modo, esa
-       elección gana sobre la preferencia del sistema; si nunca eligió, sigue al sistema. Escribe
-       dos atributos con el mismo valor: data-theme es el que encienden los overrides de
-       brand.css, y data-bs-theme es la misma llave en la sintaxis que lee Bootstrap (solo
-       pages/plans/detail.html carga Bootstrap). El click del toggle del navbar se atiende por
-       delegación de eventos: el botón se renderiza después y así el script no se repite en el
-       body. Claves de icono y overrides viven en brand.css y components/navbar.html. -->
+       la primera pintura ya salga con el modo elegido y no haya destello claro. La precedencia
+       es preferencia del usuario > localStorage > sistema:
+       - [PROF+THEME] autenticado: el servidor emite <meta name="theme-preference"> con su
+         themePreference (CurrentUserControllerAdvice.userThemePreference), así la elección
+         viaja entre dispositivos sin depender del storage del browser.
+       - [THEME] anónimo (sin meta): la decisión vive en localStorage bajo la clave
+         "planit-theme"; si nunca eligió, sigue al sistema.
+       Escribe dos atributos con el mismo valor: data-theme es el que encienden los overrides
+       de brand.css, y data-bs-theme es la misma llave en la sintaxis que lee Bootstrap (solo
+       pages/plans/detail.html carga Bootstrap). El click del toggle del navbar anónimo se
+       atiende por delegación de eventos: el botón se renderiza después y así el script no se
+       repite en el body. Claves de icono y overrides viven en brand.css y
+       components/navbar.html. -->
+  <meta name="theme-preference" th:if="${userThemePreference != null}"
+    th:content="${userThemePreference}">
   <script>
     (function () {
       let stored = null;
       try { stored = localStorage.getItem("planit-theme"); } catch (e) { /* sin storage */ }
-      const dark = stored === "dark" ||
-        (stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      const meta = document.querySelector('meta[name="theme-preference"]');
+      const preferred = meta ? meta.getAttribute("content") : null;
+      let initial;
+      if (preferred === "dark" || preferred === "light") {
+        initial = preferred;
+      } else if (stored === "dark" || stored === "light") {
+        initial = stored;
+      } else {
+        initial = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
       const apply = function (mode) {
         document.documentElement.setAttribute("data-theme", mode);
         document.documentElement.setAttribute("data-bs-theme", mode);
       };
-      apply(dark ? "dark" : "light");
+      apply(initial);
       document.addEventListener("click", function (event) {
         const toggle = event.target.closest && event.target.closest("[data-theme-toggle]");
         if (!toggle) return;
@@ -222,23 +237,59 @@
     html {
       visibility: hidden;
     }
+
+    /* [FLASH] Vue renders its templates in the browser: until each root calls mount(), the
+       v-if/v-for directives and the {{ }} bindings are inert HTML and would be painted as-is
+       (raw placeholders, hidden-by-v-if blocks and modals). display:none instead of
+       visibility keeps those nodes out of layout, so they cannot flash. Vue removes the
+       attribute from the root as soon as mount() returns.
+
+       The 3 s fallback below strips any v-cloak left over, so a page whose script never ran
+       ends up showing its raw template (what it does today) instead of a permanently blank
+       region. */
+    [v-cloak] {
+      display: none !important;
+    }
   </style>
   <script th:src="@{/js/tailwind-browser.js}" defer></script>
   <script th:src="@{/js/vue.global.prod.js}"></script>
   <script defer>
     (function () {
-      const reveal = function () {
+      /* Reveal when Tailwind has injected its generated stylesheet, not when a <style> is
+         "big enough": the @theme source block above is already ~3 KB and used to satisfy the
+         old length test, revealing the page ~15 ms in, while the compiler was still running.
+         The generated sheet is the only head <style> carrying the "! tailwindcss vX.Y.Z"
+         banner (resources/core/js/tailwind-browser.js). */
+      const stylesReady = function () {
         const styles = document.querySelectorAll("head style");
         for (let i = 0; i < styles.length; i++) {
-          if (styles[i].textContent.length > 2000) {
-            document.documentElement.style.visibility = "visible";
-            return;
-          }
+          if (styles[i].textContent.indexOf("tailwindcss v") !== -1) return true;
         }
-        setTimeout(reveal, 15);
+        return false;
       };
-      setTimeout(reveal, 15);
-      setTimeout(function () { document.documentElement.style.visibility = "visible"; }, 3000);
+
+      /* Lifting the shield says nothing about Vue: it only means the CSS is there. v-cloak must
+         survive this path and be cleared by mount(), or the raw template is painted in the gap
+         between the reveal and the mount (the bug this was supposed to fix). */
+      const reveal = function () {
+        document.documentElement.style.visibility = "visible";
+      };
+
+      /* Escape hatch, 3 s: either Tailwind never compiled or the view's script never mounted.
+         Showing a raw template beats a blank page. */
+      const fallback = function () {
+        const pending = document.querySelectorAll("[v-cloak]");
+        for (let i = 0; i < pending.length; i++) pending[i].removeAttribute("v-cloak");
+        reveal();
+      };
+
+      const waitForStyles = function () {
+        if (stylesReady()) { reveal(); return; }
+        setTimeout(waitForStyles, 15);
+      };
+
+      setTimeout(waitForStyles, 15);
+      setTimeout(fallback, 3000);
     })();
   </script>
   <script th:if="${devReloadToken != null}" th:inline="javascript" defer>

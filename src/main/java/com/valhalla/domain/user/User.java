@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.Locale;
 import java.util.UUID;
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,6 +13,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Entity
 @Table(name = "users")
 public class User {
+
+  /** [PROF+THEME] Los dos valores que entiende el CSS en {@code data-theme}. */
+  public static final String THEME_LIGHT = "light";
+
+  public static final String THEME_DARK = "dark";
 
   @Id
   @UuidGenerator(algorithm = UuidVersion7Generator.class)
@@ -31,6 +37,12 @@ public class User {
   private String avatarUrl;
   private String role;
   private Boolean active = false;
+  /**
+   * [PROF+THEME] Preferencia de tema del usuario: {@code "light"}, {@code "dark"} o null (sin
+   * preferencia: el front cae a localStorage/sistema). La columna guarda exactamente el valor que
+   * el script temprano escribe en {@code data-theme}, por eso no se usa un enum con mayusculas.
+   */
+  private String themePreference;
 
   public UUID getId() {
     return id;
@@ -100,6 +112,31 @@ public class User {
     this.avatarUrl = avatarUrl;
   }
 
+  public String getThemePreference() {
+    return themePreference;
+  }
+
+  /**
+   * [PROF+THEME] Null-safe: blank/null limpian la preferencia (el front cae a localStorage/sistema)
+   * y los valores validos se guardan normalizados en minusculas, que es lo que lee {@code
+   * data-theme}. Un valor fuera de {@link #THEME_LIGHT}/{@link #THEME_DARK} es un error de
+   * programacion: el controller lo filtra antes con {@link #isValidTheme(String)}.
+   */
+  public void setThemePreference(String themePreference) {
+    String normalized = normalizeTheme(themePreference);
+    if (normalized != null && !isValidTheme(normalized)) {
+      throw new IllegalArgumentException("Tema invalido: " + themePreference);
+    }
+    this.themePreference = normalized;
+  }
+
+  /** [PROF+THEME] Los unicos valores que el modal puede postear (case-insensitive). */
+  public static boolean isValidTheme(String themePreference) {
+    return (
+      THEME_LIGHT.equalsIgnoreCase(themePreference) || THEME_DARK.equalsIgnoreCase(themePreference)
+    );
+  }
+
   /**
    * [PROF] Actualiza solo los datos del perfil. Email y role NO se tocan (U-02): son identidad,
    * y el panel admin es quien los edita. El update de {@code UserService} tampoco los recibe, el
@@ -123,5 +160,11 @@ public class User {
 
   private static String normalize(String avatarUrl) {
     return avatarUrl == null || avatarUrl.isBlank() ? null : avatarUrl.trim();
+  }
+
+  private static String normalizeTheme(String themePreference) {
+    return themePreference == null || themePreference.isBlank()
+      ? null
+      : themePreference.trim().toLowerCase(Locale.ROOT);
   }
 }

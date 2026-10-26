@@ -43,7 +43,8 @@ al plan, muestra un mensaje en el detalle sin modificar los participantes ni sus
 
 La lista incluye al dueño una sola vez y muestra el nombre completo, el rol y un link
 al perfil público de cada persona. El correo nunca se muestra como texto: solo viaja
-en los campos ocultos de las acciones autorizadas (cambiar rol, eliminar). Mantiene el
+en los campos ocultos de las acciones autorizadas (cambiar rol, eliminar, banear y
+quitar el baneo). Mantiene el
 orden por correo sin distinguir mayúsculas y minúsculas. Solo quienes pertenecen al plan
 pueden salir; el dueño no puede hacerlo. El dueño ve el formulario de rol para el resto
 de participantes; los editores ven el rol como insignia de solo lectura.

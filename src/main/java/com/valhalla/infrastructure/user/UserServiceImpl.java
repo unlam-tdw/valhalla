@@ -161,4 +161,12 @@ public class UserServiceImpl implements UserService {
     userRepository.update(user);
     return true;
   }
+
+  /** [PROF+THEME] La validacion del valor vive en el agregado y en el controller, no aca. */
+  @Override
+  public void updateThemePreference(UUID id, String themePreference) {
+    User user = findById(id);
+    user.setThemePreference(themePreference);
+    userRepository.update(user);
+  }
 }

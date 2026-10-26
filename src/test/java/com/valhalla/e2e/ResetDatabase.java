@@ -23,6 +23,7 @@ public class ResetDatabase {
       "DELETE FROM plan_bookmark_places",
       "DELETE FROM plan_bookmarks",
       "DELETE FROM plan_join_requests",
+      "DELETE FROM plan_banned_users",
       "DELETE FROM plan_invitations",
       "DELETE FROM plan_editors",
       "DELETE FROM plan_participants",

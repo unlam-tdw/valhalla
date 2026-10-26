@@ -18,7 +18,23 @@ of existing participants or delete the Plan. Leaving the Plan removes the Editor
 
 The owner and Editors can remove Participants from a Plan. Only the owner can remove
 Editors. The owner cannot be removed. Removal revokes participation and the Editor
-role for that Plan without deleting the User's account.
+role for that Plan without deleting the User's account. Expulsion allows joining again.
+A ban persists for that Plan and prevents joining by Short Code or invitation.
+The same removal permissions apply to bans.
+
+A banned User cannot access the Plan detail, public view or itinerary, clone the
+Plan, or regain participation through its Short Code or an invitation. The ban
+overrides public visibility for that authenticated User. My Plans displays a
+persistent, collapsed sidebar notice below invitations with only the Plan name
+and the access restriction; discovery
+feeds exclude Plans that banned the current User. Anonymous visitors can still
+read public Plans.
+
+The owner and Editors can inspect the Plan's banned Users and lift any ban.
+Lifting a ban does not restore participation or the Editor role. The User can
+join again using the Short Code or a new invitation. The banned Users list is
+only exposed to the owner and Editors, in a dialog opened from More options
+beside the clone and delete actions in Plan detail.
 
 **PlanManager**: Embedded component of a Plan that groups its Participants, Editors
 and pending Invitations and Join Requests. It preserves the existing persistence tables and the Plan's
@@ -34,7 +50,7 @@ inviting by email and handling join requests. Internal invitations default to Ed
 other capabilities default to Owner. Sharing and inviting can extend to all Participants;
 handling requests can extend only to Editors. Owner-only sharing disables the private
 landing summary and request form. Only owners and Editors can propose the Editor role.
-Bans are deferred to their separate branch.
+Bans also prevent requesting or accepting access to a private Plan.
 
 ## Categories
 

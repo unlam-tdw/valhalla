@@ -16,7 +16,7 @@ import {
     directionsUrl
 } from '../lib/places-map.js';
 
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, nextTick } = Vue;
 const seed = window.PLAN_DETAIL_SEED || {};
 const itineraryUrl = seed.itineraryUrl || '';
 const catalogUrl = seed.catalogUrl || '';
@@ -52,6 +52,14 @@ createApp({
         const requestError = ref('');
         const saving = ref(false);
         const placeDialog = ref(null);
+        const planOptionsOpen = ref(false);
+        const planOptionsButton = ref(null);
+        const bannedParticipantsDialog = ref(null);
+        const closePlanOptions = (event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+                planOptionsOpen.value = false;
+            }
+        };
 
         // Leaflet owns these three and the template never reads them, so they are not refs.
         let map = null;
@@ -217,6 +225,10 @@ createApp({
                 const entries = await itineraryRequest();
                 selectedEntry.value = entries.find(entry => entry.id === item.entryId);
                 if (!selectedEntry.value) throw new Error('Este lugar ya no pertenece al plan. Actualiza la página.');
+                // [DIS-B04] El <template v-if> se monta en el siguiente flush: esperar el nextTick
+                // antes de showModal hace que el título ya exista cuando el diálogo abre, así
+                // aria-labelledby resuelve en el anuncio y el foco cae dentro del diálogo.
+                await nextTick();
                 placeDialog.value.showModal();
             } catch (error) { requestError.value = error.message; }
         };
@@ -316,6 +328,7 @@ createApp({
 
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
+            planOptionsOpen, planOptionsButton, bannedParticipantsDialog, closePlanOptions,
             placeDialog, availablePlaces, formatVisitDate, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateDateTime, addPlace,
             removePlace, onDragStart, onDrop
