@@ -2048,7 +2048,7 @@ public class PlanControllerIntegrationTest {
       .andExpect(
         org.springframework.test.web.servlet.result.MockMvcResultMatchers
           .content()
-          .string(containsString("Eliminar del plan a " + OTHER_EMAIL))
+          .string(containsString("Expulsar del plan a " + OTHER_EMAIL))
       );
     this.mockMvc.perform(post(removePath).param("participantEmail", OTHER_EMAIL))
       .andExpect(status().isForbidden());
@@ -2091,9 +2091,9 @@ public class PlanControllerIntegrationTest {
         .andReturn()
         .getResponse()
         .getContentAsString();
-    assertThat(html, containsString("Eliminar del plan a guest@test.com"));
-    assertThat(html, not(containsString("Eliminar del plan a editor@test.com")));
-    assertThat(html, not(containsString("Eliminar del plan a " + OTHER_EMAIL)));
+    assertThat(html, containsString("Expulsar del plan a guest@test.com"));
+    assertThat(html, not(containsString("Expulsar del plan a editor@test.com")));
+    assertThat(html, not(containsString("Expulsar del plan a " + OTHER_EMAIL)));
     String removePath = "/plans/" + planId + "/participants/remove";
     for (String email : List.of(
       OWNER_EMAIL,

@@ -1,5 +1,6 @@
 package com.valhalla.infrastructure.plan;
 
+import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserNotFoundException;
 import com.valhalla.domain.place.PlaceRepository;
@@ -53,12 +54,16 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     plan.getParticipants().forEach(user -> user.getEmail());
     plan.getEditors().forEach(user -> user.getEmail());
     plan.getJoinRequests().forEach(request -> request.getRequester().getEmail());
+    plan.getBannedUsers().forEach(user -> user.getEmail());
     return plan;
   }
 
   @Override
   public void requestToJoin(UUID id, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (plan.isBanned(userEmail)) {
+      throw new PlanBannedException();
+    }
     User requester = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
     if (plan.isAdministrator(userEmail) || plan.isParticipant(userEmail)) {
       return;
@@ -92,6 +97,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       .findFirst()
       .orElseThrow(PlanNotFoundException::new);
     User requester = request.getRequester();
+    validateJoinResponse(plan, requester, action);
     if (
       "accept".equals(action) &&
       !plan.isAdministrator(requester.getEmail()) &&
@@ -140,6 +146,12 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     plan.getSettings().setInviteInternal(inviteInternal);
     plan.getSettings().setInviteByEmail(inviteByEmail);
     planRepository.save(plan);
+  }
+
+  private void validateJoinResponse(Plan plan, User requester, String action) {
+    if ("accept".equals(action) && plan.isBanned(requester.getEmail())) {
+      throw new PlanBannedException();
+    }
   }
 
   private void requireRequestManager(Plan plan, String userEmail) {
@@ -193,7 +205,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Override
   @Transactional(readOnly = true)
   public List<Plan> getPublicPlans() {
-    return planRepository.findByIsPublicTrue();
+    List<Plan> plans = planRepository.findByIsPublicTrue();
+    plans.forEach(plan -> plan.getBannedUsers().forEach(user -> user.getEmail()));
+    return plans;
   }
 
   /**
@@ -207,7 +221,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (administratorIds == null || administratorIds.isEmpty()) {
       return List.of();
     }
-    return planRepository.findByIsPublicTrueAndAdministratorIdIn(administratorIds);
+    List<Plan> plans = planRepository.findByIsPublicTrueAndAdministratorIdIn(administratorIds);
+    plans.forEach(plan -> plan.getBannedUsers().forEach(user -> user.getEmail()));
+    return plans;
   }
 
   @Override
@@ -225,6 +241,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Transactional(readOnly = true)
   public Plan getEditablePlan(UUID id, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (plan.isBanned(userEmail)) {
+      throw new PlanBannedException();
+    }
     if (!plan.canEdit(userEmail)) {
       throw new PlanNotFoundException();
     }
@@ -260,6 +279,40 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
 
   @Override
   public void removeParticipant(UUID id, String participantEmail, String userEmail) {
+    moderateParticipant(id, participantEmail, userEmail, false);
+  }
+
+  @Override
+  public void banParticipant(UUID id, String participantEmail, String userEmail) {
+    moderateParticipant(id, participantEmail, userEmail, true);
+  }
+
+  @Override
+  public void unbanParticipant(UUID id, String participantEmail, String userEmail) {
+    Plan plan = getEditablePlan(id, userEmail);
+    if (!plan.getBannedUsers().removeIf(user -> user.getEmail().equals(participantEmail))) {
+      throw new PlanNotFoundException();
+    }
+    planRepository.save(plan);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<BannedParticipant> getBannedParticipants(UUID id, String userEmail) {
+    return getEditablePlan(id, userEmail)
+      .getBannedUsers()
+      .stream()
+      .sorted(java.util.Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
+      .map(user -> new BannedParticipant(user.getEmail(), user.getFirstName(), user.getLastName()))
+      .toList();
+  }
+
+  private void moderateParticipant(
+    UUID id,
+    String participantEmail,
+    String userEmail,
+    boolean ban
+  ) {
     Plan plan = getEditablePlan(id, userEmail);
     if (
       plan.isAdministrator(participantEmail) ||
@@ -267,6 +320,15 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       (plan.isEditor(participantEmail) && !plan.isAdministrator(userEmail))
     ) {
       throw new PlanNotFoundException();
+    }
+    if (ban) {
+      User participant = plan
+        .getParticipants()
+        .stream()
+        .filter(user -> user.getEmail().equals(participantEmail))
+        .findFirst()
+        .orElseThrow(PlanNotFoundException::new);
+      plan.getBannedUsers().add(participant);
     }
     plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
     plan.getParticipants().removeIf(user -> user.getEmail().equals(participantEmail));
@@ -333,6 +395,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   }
 
   private void validateInvitationRecipient(Plan plan, String email) {
+    if (plan.isBanned(email)) {
+      throw new IllegalArgumentException("Esta persona está baneada del plan.");
+    }
     if (plan.isAdministrator(email) || plan.isParticipant(email)) {
       throw new IllegalArgumentException("Esta persona ya forma parte del plan.");
     }
@@ -390,6 +455,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       )
       .findFirst()
       .orElseThrow(PlanNotFoundException::new);
+    if (accept && plan.isBanned(userEmail)) {
+      throw new PlanBannedException();
+    }
     if (accept && !plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       plan.getParticipants().add(invitation.getRecipient());
       plan.getJoinRequests().removeIf(item -> item.getRequester().getEmail().equals(userEmail));
@@ -426,6 +494,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Transactional(readOnly = true)
   public Plan getParticipatingPlan(UUID id, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (plan.isBanned(userEmail)) {
+      throw new PlanBannedException();
+    }
     if (!plan.getIsPublic() && !plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       throw new PlanNotFoundException();
     }
@@ -444,6 +515,16 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
 
   @Override
   @Transactional(readOnly = true)
+  public List<BannedPlan> getBannedPlans(String userEmail) {
+    return planRepository
+      .findByBannedUsersEmail(userEmail)
+      .stream()
+      .map(plan -> new BannedPlan(plan.getName()))
+      .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Plan getPublicPlan(UUID id) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
     if (!plan.getIsPublic()) {
@@ -457,6 +538,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     }
     plan.getPlanPlaces().forEach(entry -> entry.getPlace().getName());
     plan.getParticipants().forEach(user -> user.getEmail());
+    plan.getBannedUsers().forEach(user -> user.getEmail());
     return plan;
   }
 
@@ -479,6 +561,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     Plan plan = planRepository
       .findByShortCode(shortCode.trim().toUpperCase(Locale.ROOT))
       .orElseThrow(PlanNotFoundException::new);
+    if (plan.isBanned(userEmail)) {
+      throw new PlanBannedException();
+    }
     User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
     if (!plan.isAdministrator(userEmail) && !plan.isParticipant(userEmail)) {
       if (plan.getIsPublic()) {
@@ -506,6 +591,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   public Plan clonePlan(UUID id, String clonerEmail) {
     User cloner = userRepository.findByEmail(clonerEmail).orElseThrow(UserNotFoundException::new);
     Plan source = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
+    if (source.isBanned(clonerEmail)) {
+      throw new PlanBannedException();
+    }
     boolean accessible =
       source.getIsPublic() ||
       source.isAdministrator(clonerEmail) ||

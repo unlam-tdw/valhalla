@@ -31,6 +31,12 @@ public interface PlanService {
   Plan getOwnedPlan(UUID id, String ownerEmail);
   Plan getEditablePlan(UUID id, String userEmail);
   void changeParticipantRole(UUID id, String participantEmail, String role, String userEmail);
+  void banParticipant(UUID id, String participantEmail, String userEmail);
+  void unbanParticipant(UUID id, String participantEmail, String userEmail);
+  List<BannedParticipant> getBannedParticipants(UUID id, String userEmail);
+
+  record BannedParticipant(String email, String firstName, String lastName) {}
+
   void removeParticipant(UUID id, String participantEmail, String userEmail);
   void inviteParticipant(UUID id, String participantEmail, String role, String userEmail);
   void inviteParticipant(
@@ -57,6 +63,10 @@ public interface PlanService {
   Plan getParticipatingPlan(UUID id, String userEmail);
   Plan getPublicPlan(UUID id);
   List<Plan> getParticipantPlans(String userEmail);
+  List<BannedPlan> getBannedPlans(String userEmail);
+
+  record BannedPlan(String name) {}
+
   void leavePlan(UUID id, String userEmail);
   Plan joinPlan(String shortCode, String userEmail);
   Plan updatePlan(UUID id, Plan changes, String ownerEmail);

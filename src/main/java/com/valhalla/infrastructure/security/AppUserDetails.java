@@ -1,5 +1,6 @@
 package com.valhalla.infrastructure.security;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -27,7 +28,9 @@ public class AppUserDetails implements UserDetails {
   private final boolean enabled;
   private final String firstName;
   private final String lastName;
-  private final List<GrantedAuthority> authorities;
+
+  @SuppressWarnings("PMD.LooseCoupling")
+  private final ArrayList<GrantedAuthority> authorities;
 
   public AppUserDetails(
     String username,
@@ -42,7 +45,7 @@ public class AppUserDetails implements UserDetails {
     this.enabled = enabled;
     this.firstName = firstName;
     this.lastName = lastName;
-    this.authorities = List.copyOf(authorities);
+    this.authorities = new ArrayList<>(List.copyOf(authorities));
   }
 
   @Override
@@ -62,7 +65,7 @@ public class AppUserDetails implements UserDetails {
 
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
-    return authorities;
+    return List.copyOf(authorities);
   }
 
   @Override

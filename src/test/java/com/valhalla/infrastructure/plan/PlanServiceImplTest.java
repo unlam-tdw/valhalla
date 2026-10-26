@@ -107,6 +107,110 @@ public class PlanServiceImplTest {
       );
   }
 
+  @Test
+  public void expelledParticipantCanRejoinPublicPlan() {
+    Plan plan = invitationPlan(true);
+    User participant = owner(PARTICIPANT_ID, OTHER_EMAIL);
+    plan.getParticipants().add(participant);
+    planService.removeParticipant(PLAN_ID, OTHER_EMAIL, OWNER_EMAIL);
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    when(planRepositoryMock.findByShortCode("ABCDEFGH")).thenReturn(Optional.of(plan));
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(participant));
+    planService.joinPlan("ABCDEFGH", OTHER_EMAIL);
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+    verify(planRepositoryMock, times(2)).save(plan);
+  }
+
+  @Test
+  public void bannedEditorCannotRejoinOrReceiveInvitation() {
+    Plan plan = invitationPlan(true);
+    User participant = owner(PARTICIPANT_ID, OTHER_EMAIL);
+    plan.getParticipants().add(participant);
+    plan.getEditors().add(participant);
+    planService.banParticipant(PLAN_ID, OTHER_EMAIL, OWNER_EMAIL);
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+    assertThat(plan.isBanned(OTHER_EMAIL), is(true));
+    when(planRepositoryMock.findByShortCode("ABCDEFGH")).thenReturn(Optional.of(plan));
+    assertThrows(PlanNotFoundException.class, () -> planService.joinPlan("ABCDEFGH", OTHER_EMAIL));
+    when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(participant));
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> planService.inviteParticipant(PLAN_ID, OTHER_EMAIL, "guest", OWNER_EMAIL)
+    );
+    verify(planRepositoryMock).save(plan);
+  }
+
+  @Test
+  public void editorCannotBanAnotherEditorOrOwner() {
+    Plan plan = invitationPlan(true);
+    User editor = owner(EDITOR_ID, OTHER_EMAIL);
+    User otherEditor = owner(PARTICIPANT_ID, UNKNOWN_EMAIL);
+    plan.getParticipants().addAll(List.of(editor, otherEditor));
+    plan.getEditors().addAll(List.of(editor, otherEditor));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.banParticipant(PLAN_ID, UNKNOWN_EMAIL, OTHER_EMAIL)
+    );
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.banParticipant(PLAN_ID, OWNER_EMAIL, OTHER_EMAIL)
+    );
+    assertThat(plan.getParticipants(), hasSize(2));
+    assertThat(plan.getBannedUsers(), empty());
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void editorCanBanParticipantAndClearsPendingInvitation() {
+    Plan plan = invitationPlan(false);
+    User editor = owner(EDITOR_ID, OTHER_EMAIL);
+    User participant = owner(PARTICIPANT_ID, UNKNOWN_EMAIL);
+    plan.getParticipants().addAll(List.of(editor, participant));
+    plan.getEditors().add(editor);
+    plan.getInvitations().add(new PlanInvitation(plan, participant, editor, "guest"));
+    planService.banParticipant(PLAN_ID, UNKNOWN_EMAIL, OTHER_EMAIL);
+    assertThat(plan.isBanned(UNKNOWN_EMAIL), is(true));
+    assertThat(plan.isParticipant(UNKNOWN_EMAIL), is(false));
+    assertThat(plan.isEditor(OTHER_EMAIL), is(true));
+    assertThat(plan.getInvitations(), empty());
+    verify(planRepositoryMock).save(plan);
+  }
+
+  @Test
+  public void participantCannotBanAnyone() {
+    Plan plan = invitationPlan(true);
+    plan.getParticipants().add(owner(EDITOR_ID, OTHER_EMAIL));
+    plan.getParticipants().add(owner(PARTICIPANT_ID, UNKNOWN_EMAIL));
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.banParticipant(PLAN_ID, UNKNOWN_EMAIL, OTHER_EMAIL)
+    );
+    assertThat(plan.getParticipants(), hasSize(2));
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void bannedRecipientCannotAcceptPendingInvitation() {
+    Plan plan = invitationPlan(false);
+    User recipient = owner(EDITOR_ID, OTHER_EMAIL);
+    PlanInvitation invitation = new PlanInvitation(
+      plan,
+      recipient,
+      plan.getAdministrator(),
+      "editor"
+    );
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "id", INVITATION_ID);
+    plan.getInvitations().add(invitation);
+    plan.getBannedUsers().add(recipient);
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.respondToInvitation(PLAN_ID, INVITATION_ID, true, OTHER_EMAIL)
+    );
+    assertThat(plan.getParticipants(), empty());
+    verify(planRepositoryMock, never()).save(any());
+  }
+
   // --- createPlan ---
 
   @Test
@@ -301,6 +405,37 @@ public class PlanServiceImplTest {
     when(userRepositoryMock.findByEmail(OWNER_EMAIL))
       .thenReturn(Optional.of(plan.getAdministrator()));
     return plan;
+  }
+
+  @Test
+  public void BAN_privatePlanRejectsRequestsFromBannedUsers() {
+    Plan plan = invitationPlan(false);
+    plan.getBannedUsers().add(owner(INVITED_ID, OTHER_EMAIL));
+    assertThrows(
+      com.valhalla.domain.exception.PlanBannedException.class,
+      () -> planService.requestToJoin(PLAN_ID, OTHER_EMAIL)
+    );
+    assertThat(plan.getJoinRequests(), is(empty()));
+    verify(planRepositoryMock, never()).save(any());
+  }
+
+  @Test
+  public void BAN_pendingRequestCannotRestoreBannedParticipationButCanBeRejected() {
+    Plan plan = invitationPlan(false);
+    User requester = owner(INVITED_ID, OTHER_EMAIL);
+    com.valhalla.domain.plan.PlanJoinRequest request = pendingRequest(plan, requester);
+    plan.getBannedUsers().add(requester);
+    assertThrows(
+      com.valhalla.domain.exception.PlanBannedException.class,
+      () -> planService.respondToJoinRequest(PLAN_ID, request.getId(), "accept", OWNER_EMAIL)
+    );
+    assertThat(plan.getParticipants(), is(empty()));
+    assertThat(plan.getJoinRequests(), hasSize(1));
+    verify(planRepositoryMock, never()).save(any());
+    planService.respondToJoinRequest(PLAN_ID, request.getId(), "reject", OWNER_EMAIL);
+    assertThat(plan.getJoinRequests(), is(empty()));
+    assertThat(plan.isBanned(OTHER_EMAIL), is(true));
+    verify(planRepositoryMock).save(plan);
   }
 
   @Test
