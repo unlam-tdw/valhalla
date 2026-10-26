@@ -10,9 +10,13 @@ import static org.hamcrest.Matchers.matchesPattern;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Route;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.valhalla.e2e.views.WebPage;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +25,13 @@ public class PlacesViewE2E extends E2eBase {
 
   /** Seed dataset size (AC-07). Pinned on purpose: a place added or removed must fail here. */
   private static final int TOTAL_PLACES = 12;
+
+  private static final ScheduledExecutorService DELAYER =
+    Executors.newSingleThreadScheduledExecutor(runnable -> {
+      Thread thread = new Thread(runnable, "e2e-route-delay");
+      thread.setDaemon(true);
+      return thread;
+    });
 
   @BeforeEach
   void signInAndOpenPlaces() {
@@ -197,34 +208,36 @@ public class PlacesViewE2E extends E2eBase {
    * se veian el banner de error, el aside con "{{selectedPlace.name}}", el modal "Agregar a plan"
    * y el logo a su tamano intrínseco (1366 px).
    *
-   * <p>Se retrasan el compilador de Tailwind y el modulo que monta Vue para que la ventana en la
-   * que el template esta crudo sea ancha y no dependa de la velocidad de la maquina. Un sampler
-   * en rAF anota, frame por frame, cualquier elemento visible que delate el bug; con el codigo
-   * viejo los tres chequeos fallan, con el fix el root queda oculto por v-cloak y el logo mide
-   * 48 px desde el atributo width/height.
+   * <p>Se retrasa el modulo que monta Vue 1,5 s (con un scheduler aparte: dormir dentro del
+   * handler de la ruta bloquea el dispatcher y terminaria retrasando tambien el CSS) para que la
+   * ventana entre el reveal y el mount sea ancha y no dependa de la velocidad de la maquina. Un
+   * sampler en rAF anota, frame por frame, cualquier elemento visible que delate el bug; con el
+   * codigo viejo falla con "root visible before Vue mounted" y los tres sintomas, con el fix el
+   * root queda oculto por v-cloak y el logo mide 48 px desde el atributo width/height.
    */
   @Test
   void shouldNotPaintTheRawTemplateOrAnOversizedLogoOnFirstPaint() {
-    page.route(
-      "**/js/tailwind-browser.js",
-      route -> {
-        pause(300);
-        route.resume();
-      }
-    );
-    page.route(
-      "**/js/pages/places-list.js",
-      route -> {
-        pause(300);
-        route.resume();
-      }
-    );
+    // Contexto nuevo (cache vacia): el arrange de la clase ya cargo places-list.js, y desde
+    // cache el modulo monta antes de que el CSS compile, escondiendo justo el orden que el bug
+    // necesita. Un contexto limpio reproduce la primera visita.
+    newContext();
+
+    // El orden real es: el CSS compila antes de que el modulo que monta Vue termine de cargar.
+    // El delay del modulo (1,5 s) hace determinista esa ventana: si el reveal del layout
+    // levanta v-cloak, el template crudo queda a la vista cientos de milisegundos.
+    page.route("**/js/tailwind-browser.js", route -> delay(route, 100));
+    page.route("**/js/pages/places-list.js", route -> delay(route, 1500));
 
     page.addInitScript(
       """
       (function () {
         if (window.__firstPaint) return;
-        var state = { frames: 0, violations: [], sawMountedRoot: false };
+        var state = {
+          frames: 0,
+          violations: [],
+          sawMountedRoot: false,
+          revealedBeforeMount: false
+        };
         window.__firstPaint = state;
         var visible = function (element) {
           if (!element) return false;
@@ -239,9 +252,12 @@ public class PlacesViewE2E extends E2eBase {
         var sample = function () {
           state.frames += 1;
           var root = document.getElementById("explore-app");
+          var revealed = getComputedStyle(document.documentElement).visibility === "visible";
           if (root) {
             if (root.hasAttribute("data-v-app")) state.sawMountedRoot = true;
+            else if (revealed) state.revealedBeforeMount = true;
             if (visible(root)) {
+              if (!root.hasAttribute("data-v-app")) flag("root visible before Vue mounted");
               if (root.textContent.indexOf("{{") !== -1) flag("raw Vue template visible");
               if (visible(root.querySelector("[role='alert']"))) flag("error banner visible");
               if (visible(root.querySelector("[role='dialog']"))) flag("add-to-plan modal visible");
@@ -258,7 +274,7 @@ public class PlacesViewE2E extends E2eBase {
       """
     );
 
-    page.reload(new Page.ReloadOptions().setWaitUntil(WaitUntilState.COMMIT));
+    page.navigate(placesUrl(), new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT));
     page.waitForSelector("#explore-app[data-v-app]");
     page.waitForFunction("() => !document.querySelector('#explore-app[v-cloak]')");
 
@@ -276,15 +292,33 @@ public class PlacesViewE2E extends E2eBase {
       (Boolean) page.evaluate("() => window.__firstPaint.sawMountedRoot"),
       is(true)
     );
+    // Anti-vacio: el sampler tiene que haber mirado la ventana donde el bug vive, es decir un
+    // frame con el shield ya levantado y Vue todavia sin montar. Con el fix el root esta cloaked
+    // en esa ventana; con el reveal viejo el root ya era visible y el flag de arriba dispara.
+    assertThat(
+      "sampler caught the reveal-before-mount window",
+      (Boolean) page.evaluate("() => window.__firstPaint.revealedBeforeMount"),
+      is(true)
+    );
   }
 
-  private static void pause(long millis) {
-    try {
-      Thread.sleep(millis);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException(e);
-    }
+  /**
+   * Responde un request con retraso sin bloquear el dispatcher de Playwright: dormir dentro del
+   * handler serializa todos los requests de la pagina, asi que el delay de un modulo tambien
+   * retrasaba el script que compila el CSS y borraba la ventana que este test necesita mirar.
+   */
+  private static void delay(Route route, long millis) {
+    DELAYER.schedule(
+      () -> {
+        try {
+          route.resume();
+        } catch (RuntimeException e) {
+          // La pagina pudo cerrarse mientras el request estaba en cola: no hay nada que reanudar.
+        }
+      },
+      millis,
+      TimeUnit.MILLISECONDS
+    );
   }
 
   private void clickCard(String placeName) {
