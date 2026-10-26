@@ -232,6 +232,23 @@ public class PlanControllerTest {
       .thenReturn(new RatingSummary(PLAN_ID, null, 0L));
   }
 
+  @Test
+  public void BAN_banParticipantUsesSessionAndConfirmsRedirect() {
+    var attributes = new org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap();
+    ModelAndView view = controller.banParticipant(
+      PLAN_ID,
+      "participant@test.com",
+      authentication,
+      attributes
+    );
+    verify(planServiceMock).banParticipant(PLAN_ID, "participant@test.com", OWNER_EMAIL);
+    assertThat(view.getViewName(), is("redirect:/plans/" + PLAN_ID));
+    assertThat(
+      attributes.getFlashAttributes().get("participantSuccess").toString(),
+      containsString("baneada")
+    );
+  }
+
   // --- GET /plans, GET /plans/{id} ---
 
   @Test
