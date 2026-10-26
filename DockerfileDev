@@ -6,7 +6,7 @@ ENV MAVEN_VERSION=3.9.9
 ENV MAVEN_HOME=/opt/maven
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget && \
-    wget -q https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -O /tmp/maven.tar.gz && \
+    wget -q https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.tar.gz -O /tmp/maven.tar.gz && \
     tar -xzf /tmp/maven.tar.gz -C /opt && \
     mv /opt/apache-maven-${MAVEN_VERSION} $MAVEN_HOME && \
     rm /tmp/maven.tar.gz && \
