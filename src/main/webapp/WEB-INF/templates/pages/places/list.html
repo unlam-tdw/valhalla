@@ -33,7 +33,12 @@
          (AC-08). Sin tab activo al cargar, el mapa queda limpio de overlays. Desde md vuelve el
          layout de escritorio (mapa a la izquierda, sidebar junto al borde, paneles siempre
          visibles via md:visible). -->
-    <div id="explore-app" class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
+    <!-- [FLASH] v-cloak: el template es HTML de servidor y Vue lo pinta recien en mount().
+         Sin el atributo se ven crudos el banner de error, el aside de detalle con sus
+         {{selectedPlace.*}} y el modal "Agregar a plan". La regla y el fallback de 3 s viven
+         en layouts/base.html :: headContent. -->
+    <div id="explore-app" v-cloak
+      class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
       <!-- Error surface for the whole view: the 5 request paths below and the add-to-plan
            module all report here instead of opening a browser alert box. role="alert"
            announces it to a screen reader. -->

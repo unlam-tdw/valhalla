@@ -42,8 +42,13 @@ use Vue. Never make Vue the platform , Thymeleaf is the foundation.
 - There is **no build step and no Node**: the vendored
   `@tailwindcss/browser` script (`resources/core/js/tailwind-browser.js`)
   scans the rendered DOM and generates the CSS on the fly.
-- `layouts/base.html` loads it with `defer` and an inline script hides the page
-  until the injected `<style>` is large enough (no unstyled flash).
+- `layouts/base.html` loads it with `defer` and an inline script keeps `html { visibility:
+  hidden }` until the **generated** stylesheet exists. The signal is the `! tailwindcss vX.Y.Z`
+  banner in the `<style>` the compiler appends to `head`; the `@theme` source block in the page
+  is not the generated CSS and says nothing about the utilities being ready. A 3 s fallback
+  reveals the page (and strips leftover `v-cloak`) if the compiler fails.
+- Every Vue root also carries `v-cloak`: Vue templates are server-rendered and would otherwise
+  paint their `v-if` blocks and `{{ }}` placeholders before `mount()`.
 - Write utility classes directly in the Thymeleaf templates.
 - To upgrade, replace the vendored file with a newer build:
   ```shell
