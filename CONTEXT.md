@@ -5,9 +5,9 @@
 | Term | Definition |
 |------|------------|
 | **User** | Registered person. Has email, password, role. Can create plans. |
-| **Place** | A location in Buenos Aires. Has name, description, category, address, coordinates, image. |
-| **Plan** | A curated collection of places with schedule. Owned by a User. Is public or private. |
-| **PlanPlace** | A place within a plan, with visit date, time, and order in the itinerary. |
+| **Place** | A location in Buenos Aires. Has name, description, category, address, coordinates, image, and a typical visit duration (`defaultDurationMinutes`, editable in the place admin form). |
+| **Plan** | A curated collection of places with schedule. Owned by a User. Is public or private. Its schedule is a daily window: Day 1 date, start time, day end time and transport mode (`WALK`/`BIKE`/`BUS`/`CAR`). |
+| **PlanPlace** | A place within a plan, with visit date, time, and order in the itinerary. Order is the source of truth: visit date/time are derived from it (stop duration, else the place's default duration, else its category default, plus the leg to the next stop) and re-derived whenever the itinerary changes, unless the User pins them by hand. |
 | **Plan participant** | Registered User who joins a public Plan using its Short Code, or a private Plan after an accepted join request or invitation. Can read its detail and leave it; cannot edit or delete it unless assigned the Editor role. The administrator owns the Plan and can delete it. |
 | **Rating** | A 1–5 star score a logged-in User gives to a public Plan. One per User per Plan (updatable). Authorship is stored but never shown: only the average and count are public. |
 | **Seguidor / Seguido** | Directed follow relation between two Users: one `follows` row per (follower, followed) pair. It grants no extra visibility — only the followed user's public plans reach the "Siguiendo" feed scope — and it sends no notifications. |
@@ -33,6 +33,13 @@ other capabilities default to Owner. Sharing and inviting can extend to all Part
 handling requests can extend only to Editors. Owner-only sharing disables the private
 landing summary and request form. Only owners and Editors can propose the Editor role.
 Bans are deferred to their separate branch.
+
+**Schedule derivation**: visit date/time stay persisted in `visitDate`/`visitTime` even when
+they are derived, so the public view, the plan listing and cloning read them unchanged.
+`timePinned` marks what the user fixed by hand and breaks the chain of derivation for the
+stops that follow, and the Plan setting `autoSchedule` (default on) turns the automatic
+rescheduling off altogether. When the itinerary runs past the day end time it
+continues on the next day, with no limit on the number of days.
 
 ## Categories
 
@@ -83,7 +90,7 @@ rejection leaves participation unchanged. Both responses remove the pending invi
 | Term | Definition |
 |------|------------|
 | **Short Code** | Unique URL-friendly identifier for sharing plans, 8 characters (e.g., `a1b2c3d4`) |
-| **Itinerary** | Ordered list of places in a plan, with dates and times |
+| **Itinerary** | Ordered list of places in a plan, with dates and times derived from that order and grouped by day in the plan detail |
 | **Feed** | The `/for-you` list of public plans a visitor discovers, in two scopes: "Para vos" (default) and "Siguiendo" (public plans of the authors the viewer follows). Never includes the viewer's own plans |
 | **Popularity** | Feed ordering from ratings and participants (Bayesian score, participants/date/name/id as tiebreaks). Computed, never shown; the card still shows only average and count |
 | **Marker** | Visual pin on the map representing a place |

@@ -2,6 +2,9 @@
 
 > Trello: https://trello.com/c/K7XqvGWZ/9-apl-fe-agregar-lugares-al-plan-frontend
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
+> **Actualización 24-SCH (2026-10-25):** el horario ya no se tipea por parada. El wizard
+> pide la ventana del día (fecha, inicio, fin de día y modo de traslado) y las horas se
+> derivan; el itinerario agrupa por día y la edición vive en el diálogo de la parada.
 
 ## Objetivo
 
@@ -20,13 +23,14 @@ Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral 
 | AC-02 | Se puede agregar el lugar seleccionado a un plan desde el panel lateral, sin salir de `/places` |
 | AC-03 | Al agregar un lugar se muestra feedback visual (redirect o mensaje) |
 | AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
-| AC-05 | Cada lugar del itinerario muestra numero de orden, nombre, categoria, fecha y hora |
-| AC-06 | Se puede editar fecha y hora de visita desde el itinerario |
+| AC-05 | El itinerario agrupa las paradas por día y cada una muestra numero de orden, nombre, categoria y su horario como chip con rango `HH:mm – HH:mm`, duración y fecha (la fecha solo aparece cuando difiere del Día 1) |
+| AC-06 | Se puede editar duración, día y hora de visita desde el diálogo de la parada; fijar el día o la hora recalcula las paradas siguientes y las marca como fijadas a mano |
 | AC-07 | Se puede eliminar un lugar del itinerario con boton X |
 | AC-08 | El mapa muestra markers numerados por cada lugar del itinerario |
 | AC-09 | El mapa dibuja una linea de ruta entre los lugares en orden |
 | AC-10 | El mapa hace fitBounds para mostrar todos los markers |
 | AC-11 | Los forms usan CSRF token para proteger POST/PUT/DELETE |
+| AC-12 | El form de creación de plan pide fecha (Día 1), hora de inicio, fin de día y modo de traslado; no pide hora por parada, el paso de lugares muestra el rango derivado de cada parada |
 
 ## Escenarios de Test
 
@@ -62,10 +66,30 @@ Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral 
 - **CSRF (AC-11)**: APL-BE reduce el ignore list a las lecturas, así que el `POST` desde `/places`
   necesita el token. Un form de Thymeleaf lo trae con `th:name="${_csrf.parameterName}"`; si la
   llamada se hace con `fetch`, el token va en el header que indique `${_csrf.parameterName}`.
+- **El horario no se tipea al crear** (24-SCH): el paso 1 del wizard pide fecha (Día 1), hora de
+  inicio, fin de día y modo de traslado (`WALK`/`BIKE`/`BUS`/`CAR`); el paso 2 muestra por parada
+  el rango derivado y el tramo al siguiente con su selector de modo (opción "Según el plan"). El
+  detalle de la programación vive en la spec 24-SCH (PR #42), no acá.
+- **El itinerario agrupa por día y edita por diálogo**: los chips son de solo lectura (rango,
+  duración, fecha solo si difiere del Día 1 y badge "Fijado" cuando el usuario fijó el horario).
+  La edición de duración/día/hora está en el diálogo de la parada y manda un
+  `PlanPlaceUpdateRequest` completo a `PUT /api/plans/{id}/places/{entryId}`, que recalcula la
+  cadena de horarios.
+- **El form "Editar plan" expone la ventana del día**: además de fecha y hora de inicio tiene
+  `dayEndTime` y `transportMode`, los mismos campos que usa el planificador para derivar el horario.
+- **El ABM de lugares expone la duración típica** (`defaultDurationMinutes`, campo
+  "Duración típica (min)"): es el segundo eslabón de la cascada de duraciones, entre la parada
+  y el default por categoría.
 
 ## Referencia de Implementacion
 
 > Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
+>
+> **El código de ejemplo es anterior a la implementación actual**: el "Add to plan" hoy abre un
+> modal, y desde 24-SCH el itinerario agrupa por día y renderiza chips de solo lectura, con la
+> edición del horario en el diálogo de la parada (`plans-detail.js` → `updateEntry`, que manda los
+> cuatro campos del horario de una vez). El detalle usa Bootstrap con el módulo JS, no el CDN de
+> Vue de abajo.
 
 ### 1. Update the places panel (add "Add to plan" form)
 
@@ -296,3 +320,5 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 |------|--------|
 | `templates/pages/places/list.html` | Update (add "Add to plan" form al panel lateral, con CSRF) |
 | `templates/pages/plans/detail.html` | Update (add Vue.js itinerary with CSRF helpers) |
+| `resources/core/js/pages/places-list.js` | Update (wizard: ventana del día y rango derivado por parada, AC-12) |
+| `resources/core/js/pages/plans-detail.js` | Update (itinerario agrupado por día, chips y PUT completo del horario, AC-05/AC-06) |
