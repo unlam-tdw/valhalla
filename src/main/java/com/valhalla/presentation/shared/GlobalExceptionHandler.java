@@ -1,5 +1,6 @@
 package com.valhalla.presentation.shared;
 
+import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserAlreadyExists;
 import com.valhalla.domain.exception.UserNotFoundException;
@@ -39,6 +40,15 @@ public class GlobalExceptionHandler {
     Map<String, Object> model = new ModelMap();
     model.put(ERROR_KEY, "User not found");
     return new ModelAndView("redirect:/admin/users", model);
+  }
+
+  @ExceptionHandler(PlanBannedException.class)
+  public ModelAndView handlePlanBanned() {
+    return new ModelAndView(
+      ERROR_VIEW,
+      Map.of(ERROR_KEY, "Fuiste baneado de este plan. No podés acceder ni volver a unirte."),
+      HttpStatus.FORBIDDEN
+    );
   }
 
   @ExceptionHandler(PlanNotFoundException.class)
