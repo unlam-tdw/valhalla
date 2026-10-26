@@ -32,7 +32,7 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 - Íconos: librería vendorizada en `resources/core/js/lucide.min.js`, servida en `/js/**`
   (`BaseWebConfig.addResourceHandlers`). No hay CDN; un icono que no está en el bundle no se dibuja.
 - No toca backend ni DB: no hay tests de unitarios ni de integración nuevos, ni migraciones, ni
-  reset de esquema. *Ampliación AC-15/AC-16 (card deuda de UI): sí hay 2 métodos E2E nuevos, pero
+  reset de esquema. *Ampliación AC-15..AC-18 (card deuda de UI): sí hay 2 métodos E2E nuevos, pero
   dentro de la clase existente `PlanPlaceDetailE2E` y pedidos por la card; ninguna clase de test
   nueva.*
 - [MOBILE] mergeada en main: el responsive ≤575 px, el explorador full-screen y el guard de
@@ -57,9 +57,7 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-12 | Cada card de lugar del itinerario muestra un ícono de drag & drop (handle) en su borde izquierdo cuando el usuario puede editar el plan; sin permiso de edición el ícono no aparece |
 | AC-13 | El botón "Clonar plan" solo se muestra a participantes que no son administradores: un plan recién clonado (donde el clonador quedó como administrador) no vuelve a mostrar el botón |
 | AC-14 | La cabecera del plan lleva una banda de color de marca sólido detrás del título, sin taparlo ni solaparse con el contenido; subir/cambiar/quitar una imagen decorativa queda fuera de esta spec (card [IMG] aparte). *Ajustado en revisión visual: el ticket pedía imagen por defecto, se implementó y probó, y la usuaria la descartó pidiendo color sólido* |
-| AC-15 | En `/plans/{id}` el navbar y su menú móvil se ven iguales que en el resto del sitio: avatar redondo con la serif de la marca, fondo y tamaños tomados de los tokens (wordmark en `text-xl`), gap real de `gap-4` en el menú desktop, y links/espaciados/radius iguales en `#navbar-menu`; las utilidades de Tailwind no quedan pisadas por Bootstrap en ninguna de las dos piezas |
-| AC-16 | El modal "Ver más" del detalle es una ficha con jerarquía: título + chip de categoría y bloques con ícono para dirección, cómo llegar, descripciones, fecha/hora y posición; conserva los inputs de fecha/hora para quien puede editar el plan (owner/editor); accesibilidad del diálogo: `aria-labelledby` resuelto al abrir, foco dentro y cierre con Esc |
-| AC-15 | En `/plans/{id}` el navbar compartido luce como en el resto del sitio pese al reboot de Bootstrap de esa página: avatar redondo, avatar con la serif de la marca, wordmark en `text-xl`, fondo de token y el gap real de `gap-4` (1rem, no el 1.5rem de `.gap-4` de Bootstrap) |
+| AC-15 | En `/plans/{id}` el navbar compartido luce como en el resto del sitio pese al reboot de Bootstrap de esa página: avatar redondo, avatar con la serif de la marca, wordmark en `text-xl`, fondo de token y el gap real de `gap-4` (1rem, no el 1.5rem de `.gap-4` de Bootstrap); y el menú móvil `#navbar-menu` (hermano del `<nav>`) con los mismos links, espaciados y radius que en el resto del sitio |
 | AC-16 | El modal "Ver más" del detalle del plan es una ficha con jerarquía: título + chip de categoría arriba, y un bloque por dato (dirección, cómo llegar, descripción del lugar, descripción de la visita, fecha/hora y posición) con icono en el `dt` y su valor en el `dd` |
 | AC-17 | El editor de fecha/hora del modal se muestra a quien puede editar el plan (administrador o editor) y no aparece para el resto |
 | AC-18 | El diálogo del detalle declara `aria-labelledby` apuntando a su título, recibe el foco al abrirse y se cierra con Escape |
@@ -69,9 +67,9 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 Es una spec de diseño: no hay lógica nueva, así que no hay clases de test U/I/S nuevas. La
 verificación es por inspección visual más la puerta completa (excepción: el AC-13 introduce una
 condición de template — quién ve "Clonar plan" — verificada por inspección con los tres estados
-de sesión; y los AC-15/AC-16 suman dos métodos en la clase E2E existente `PlanPlaceDetailE2E`,
-los items [T-DIS-B01] y [T-DIS-B02] de la card. Sigue sin tocar backend ni crearse clases de test). Los AC-15..AC-18 tampoco tocan backend: su verificación son
-los dos tests E2E listados más abajo.
+de sesión; y los AC-15..AC-18 suman dos métodos en la clase E2E existente `PlanPlaceDetailE2E`,
+los items [T-DIS-B01] y [T-DIS-B02] de la card, listados más abajo). Ni backend ni clases de
+test nuevas: esos dos tests son la verificación automatizada de AC-15..AC-18.
 
 ### Checks visuales (V-XX, manuales o asistidos por los E2E existentes)
 
@@ -91,8 +89,8 @@ los dos tests E2E listados más abajo.
 | V-12 | Handle de drag visible en el borde izquierdo de cada card de lugar con `canEditPlan`; invisible para un usuario sin permiso de edición | AC-12 |
 | V-13 | Como ADMINISTRADOR del plan no se ve "Clonar plan"; como participante no-admin sí; tras clonar un plan público, la página del clon (redirect) tampoco lo muestra | AC-13 |
 | V-14 | Banda de color sólido de marca detrás del título del plan (en 320, 390 y desktop, light y dark); el título en blanco mantiene contraste y no se solapa con el contenido | AC-14 |
-| V-15 | En `/plans/{id}`, con `getComputedStyle`: avatar con `border-radius` alto, `font-family` con "Bree Serif", nav con el fondo de token, `gap` de `nav .md:flex` = 16px y wordmark en 20px | AC-15 |
-| V-16 | Modal "Ver más": visible el título, el chip con clase `cat-{categoría}` y un icono en cada `dt` de la ficha; los `dd` traen dirección, horario y posición | AC-16 |
+| V-15 | `/plans/{id}` contra `/for-you` con `getComputedStyle`: avatar con radius > 1000px y serif de la marca, fondo del nav `rgb(17, 24, 39)`, gap del menú 16px, wordmark 20px; a 390px, `#navbar-menu` con links grises sin subrayado, padding 16px y logout con radius 6px | AC-15 |
+| V-16 | Modal "Ver más": título + chip `cat-*`, 6 bloques con ícono (dirección, cómo llegar, descripciones, fecha/hora y posición), "Sin fecha"/"Sin hora" cuando no hay datos y la posición al final del `dl` | AC-16 |
 | V-17 | Como administrador (o editor) el modal muestra los inputs de fecha y hora; como participante sin permiso no aparecen | AC-17 |
 | V-18 | El diálogo abierto tiene `aria-labelledby="place-detail-title"`, `document.activeElement` queda dentro del diálogo y Escape lo cierra | AC-18 |
 
