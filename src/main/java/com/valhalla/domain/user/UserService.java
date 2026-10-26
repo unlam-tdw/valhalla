@@ -23,4 +23,10 @@ public interface UserService {
    * guardó. Id inexistente lanza {@code UserNotFoundException}.
    */
   boolean changePassword(UUID id, String currentRawPassword, String newRawPassword);
+  /**
+   * [PROF+THEME] Guarda la preferencia de tema del usuario (U-13). El controller valida con
+   * {@code User.isValidTheme} antes de llamar; un valor inválido que llegue igual lanza
+   * {@code IllegalArgumentException} desde el agregado, sin escribir.
+   */
+  void updateThemePreference(UUID id, String themePreference);
 }

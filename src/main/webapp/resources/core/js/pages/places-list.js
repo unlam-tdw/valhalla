@@ -194,19 +194,35 @@ createApp({
       }
     };
 
-    /* [MARK] Guardar/quitar desde el sidebar. Vue repinta la card en el lugar: el estado lo
-       confirma el servidor (si el fetch falla, el icono no cambia). El confirm se pregunta
-       solo al quitar, igual que en el fragment server-rendered. */
+    /* [MARK] Guardar/quitar desde el sidebar. Igual que el toggle server-rendered: el estado se
+       pinta antes de la respuesta, el boton queda bloqueado mientras vuela y un fallo lo revierte
+       y muestra el aviso de la vista. El confirm se pregunta solo al quitar. */
     const toggleBookmark = async (plan) => {
+      if (plan.bookmarking) return;
+
       const removing = plan.bookmarked === true;
       if (removing && !window.confirm('¿Quitar este plan de Guardados?')) return;
+
+      const previous = removing;
+      plan.bookmarked = !removing;
+      plan.bookmarking = true;
+      setError('');
+
       try {
-        await apiFetch('/api/plans/' + plan.id + '/bookmarks', {
+        const response = await apiFetch('/api/plans/' + plan.id + '/bookmarks', {
           method: removing ? 'DELETE' : 'POST'
         });
-        plan.bookmarked = !removing;
+        if (response.status !== 204) throw new Error('Unexpected status ' + response.status);
       } catch (error) {
-        setError(failure(error, 'Error al actualizar Guardados.'));
+        plan.bookmarked = previous;
+        setError(error.status === 404
+          ? 'No se pudo guardar: el plan ya no está disponible.'
+          : failure(error, 'No se pudo actualizar Guardados. Intentá de nuevo.'));
+        if (error.status === 401) {
+          window.setTimeout(() => window.location.assign('/auth/login'), 1200);
+        }
+      } finally {
+        plan.bookmarking = false;
       }
     };
 

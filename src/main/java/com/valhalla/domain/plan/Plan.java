@@ -100,6 +100,16 @@ public class Plan {
     return planManager.getEditors();
   }
 
+  public List<User> getBannedUsers() {
+    return planManager.getBannedUsers();
+  }
+
+  public boolean isBanned(String email) {
+    return (
+      email != null && getBannedUsers().stream().anyMatch(user -> email.equals(user.getEmail()))
+    );
+  }
+
   public boolean isEditor(String email) {
     return (
       isParticipant(email) && getEditors().stream().anyMatch(user -> email.equals(user.getEmail()))

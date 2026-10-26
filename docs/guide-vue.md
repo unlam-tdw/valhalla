@@ -18,7 +18,11 @@ Every view follows this structure:
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
   <main class="flex-1 flex flex-col items-center justify-center gap-4 p-4">
-    <!-- Your content here -->
+    <!-- Every Vue root carries v-cloak: the template below is inert HTML until mount()
+         (see rule 9). -->
+    <div id="my-app" v-cloak>
+      <p>{{ message }}</p>
+    </div>
   </main>
 
   <script>
@@ -248,6 +252,13 @@ const submit = () => {
    `[[${variable}]]` inside `<script>`
 7. **`:disabled="loading"`** , user feedback
 8. **`v-if="error"`** , inline error display; never `alert()`
+9. **`v-cloak` on every Vue root** , the markup is served by Thymeleaf and only Vue turns
+   `v-if`/`v-for`/`{{ }}` into DOM, so until `mount()` runs the browser paints them raw: hidden
+   blocks (an error banner, a modal) appear, and placeholders show as `{{place.name}}`.
+   `layouts/base.html` ships the rule (`[v-cloak] { display: none !important }`) and strips any
+   leftover attribute in its 3 s fallback, so a view whose script never runs shows its raw
+   template instead of staying blank. `MobileLayoutE2E.awaitStyles()` and the first-paint E2E in
+   `PlacesViewE2E` cover the contract.
 
 How that JavaScript is written — Composition API, request helper, DOM over markup — is the
 [JavaScript contract](guide-js.md). This guide covers the view structure only.

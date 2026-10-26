@@ -209,14 +209,14 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   private Locator openStopDetails(int index) {
-    Locator dialog = page.locator("dialog");
+    Locator dialog = page.locator("dialog[aria-labelledby='place-detail-title']");
     page.locator(".stop-details").nth(index).click();
     assertThat(dialog).isVisible();
     return dialog;
   }
 
   private void closeStopDetails() {
-    page.locator("dialog .btn-close").click();
+    page.locator("dialog[aria-labelledby='place-detail-title'] .btn-close").click();
   }
 
   /**

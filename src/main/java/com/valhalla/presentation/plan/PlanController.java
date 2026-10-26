@@ -1,6 +1,7 @@
 package com.valhalla.presentation.plan;
 
 import com.valhalla.domain.bookmark.PlanBookmarkService;
+import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanPermission;
@@ -78,6 +79,7 @@ public class PlanController {
   public ModelAndView listPlans(Authentication authentication) {
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLANS, planService.getPlansByUserEmail(authentication.getName()));
+    model.put("bannedPlans", planService.getBannedPlans(authentication.getName()));
     model.put("participantPlans", planService.getParticipantPlans(authentication.getName()));
     model.put("pendingInvitations", planService.getPendingInvitations(authentication.getName()));
     return new ModelAndView(VIEW_PLANS_LIST, model);
@@ -97,6 +99,9 @@ public class PlanController {
     model.put("canEditPlan", plan.canEdit(userEmail));
     model.put("isPlanAdministrator", plan.isAdministrator(userEmail));
     model.put("isPlanParticipant", plan.isParticipant(userEmail));
+    if (plan.canEdit(userEmail)) {
+      model.put("bannedParticipants", planService.getBannedParticipants(id, userEmail));
+    }
     model.put("canInviteInternal", plan.canInviteInternal(userEmail));
     model.put("canInviteByEmail", plan.canInviteByEmail(userEmail));
     model.put("canInvite", plan.canInviteInternal(userEmail) || plan.canInviteByEmail(userEmail));
@@ -145,6 +150,9 @@ public class PlanController {
   @GetMapping("/{id}/public")
   public ModelAndView showPublicPlan(@PathVariable UUID id, Authentication authentication) {
     Plan plan = planService.getSharedPlan(id);
+    if (plan.isBanned(currentEmail(authentication))) {
+      throw new PlanBannedException();
+    }
     if (!plan.getIsPublic()) {
       return showJoinLanding(plan, currentEmail(authentication));
     }
@@ -391,7 +399,37 @@ public class PlanController {
     planService.removeParticipant(id, participantEmail, authentication.getName());
     redirectAttributes.addFlashAttribute(
       "participantSuccess",
-      "La persona fue eliminada del plan."
+      "La persona fue expulsada del plan. Puede volver a unirse."
+    );
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
+  @PostMapping("/{id}/participants/ban")
+  public ModelAndView banParticipant(
+    @PathVariable UUID id,
+    @RequestParam String participantEmail,
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
+  ) {
+    planService.banParticipant(id, participantEmail, authentication.getName());
+    redirectAttributes.addFlashAttribute(
+      "participantSuccess",
+      "La persona fue baneada del plan y no podrá volver a unirse."
+    );
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
+  }
+
+  @PostMapping("/{id}/participants/unban")
+  public ModelAndView unbanParticipant(
+    @PathVariable UUID id,
+    @RequestParam String participantEmail,
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
+  ) {
+    planService.unbanParticipant(id, participantEmail, authentication.getName());
+    redirectAttributes.addFlashAttribute(
+      "participantSuccess",
+      "Se quitó el baneo. La persona puede volver a unirse al plan."
     );
     return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
   }

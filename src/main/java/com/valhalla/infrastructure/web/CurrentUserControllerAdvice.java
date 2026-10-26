@@ -77,6 +77,26 @@ public class CurrentUserControllerAdvice {
   }
 
   /**
+   * [PROF+THEME] Preferencia de tema del usuario con sesion, o null para que el script temprano
+   * caiga a localStorage/sistema. {@code headContent} la emite como {@code <meta
+   * name="theme-preference">} antes de pintar, asi el modo elegido viaja server-side sin flash.
+   *
+   * <p>Defensiva igual que {@link #userAvatarUrl}: sin sesion, token anonimo o principal sintetico
+   * (que no reside en la tabla) devuelven null.
+   */
+  @ModelAttribute("userThemePreference")
+  public String userThemePreference(Principal principal) {
+    if (principal == null || principal instanceof AnonymousAuthenticationToken) {
+      return null;
+    }
+    try {
+      return userService.getByEmail(principal.getName()).getThemePreference();
+    } catch (UserNotFoundException syntheticPrincipal) {
+      return null;
+    }
+  }
+
+  /**
    * Si el navbar debe rendir su variante de admin (marca → /admin/home y link "Users"). Es rol
    * <em>y</em> área: un ADMIN navegando el área de usuario (/explore, /plans, /) ve el navbar de
    * usuario, y la variante admin queda para /admin/**. No es sólo una cuestión estética: el
