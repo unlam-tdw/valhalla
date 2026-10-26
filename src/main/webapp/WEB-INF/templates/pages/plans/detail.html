@@ -429,7 +429,9 @@
                     <div class="col-6">
                         <div class="bg-light p-3 rounded h-100">
                             <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">FECHA</small>
-                            <span th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'yyyy-MM-dd') : 'Sin fecha'}">2026-10-16</span>
+                            <!-- [SCH] dd/mm/yyyy, el mismo formato visible que la vista pública y el
+                                 itinerario; el input del form de edición sigue pidiendo ISO. -->
+                            <span th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'dd/MM/yyyy') : 'Sin fecha'}">01/12/2026</span>
                         </div>
                     </div>
                     <div class="col-6">

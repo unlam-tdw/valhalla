@@ -13,6 +13,7 @@ import com.valhalla.domain.rating.RatingSummary;
 import com.valhalla.domain.user.User;
 import jakarta.validation.Valid;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -50,6 +51,10 @@ public class PlanController {
   // [SCH] Defaults del planificador cuando el form no manda la ventana del dia ni el modo: los
   // mismos que asume un plan viejo sin esas columnas.
   private static final LocalTime DEFAULT_DAY_END = LocalTime.of(23, 0);
+
+  // [SCH] El fin de la visita viaja ya formateado: la vista publica no calcula nada y el formato
+  // es el mismo HH:mm (24 h, cero a la izquierda) que dibuja el detalle del plan.
+  private static final DateTimeFormatter CLOCK_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
   private final PlanService planService;
   private final PlanPlaceService planPlaceService;
@@ -149,6 +154,10 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    // [SCH] El template compara la fecha de cada parada contra esta para mostrarla solo cuando
+    // difiere de la del plan; sin ella la vista publica no sabria cuál es la jornada de
+    // referencia (mismo motivo que el planDateIso de showPlan).
+    model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     // AC-03: "Creado por" en la vista pública; sin nombre de visualización se usa el email.
     model.put("administratorName", displayName(plan.getAdministrator()));
     // [PROF] AC-22: el autor linkea a su perfil público; el id viaja al link del template.
@@ -550,6 +559,16 @@ public class PlanController {
     TransportMode mode = entry.getTransportModeToNext();
     view.put("transportModeToNext", mode == null ? null : mode.name());
     view.put("timePinned", entry.isTimePinned());
+    // [SCH] El fin de la visita se calcula acá y no en el template: la vista pública es
+    // estática (su único JS es el mapa) y sin duración no hay fin que calcular, igual que en
+    // el JS del detalle. LocalTime da la vuelta sobre la medianoche igual que formatClock.
+    LocalTime start = entry.getVisitTime();
+    Integer duration = entry.getDurationMinutes();
+    String timeEnd = null;
+    if (start != null && duration != null && duration > 0) {
+      timeEnd = CLOCK_FORMATTER.format(start.plusMinutes(duration));
+    }
+    view.put("visitTimeEnd", timeEnd);
     return view;
   }
 }

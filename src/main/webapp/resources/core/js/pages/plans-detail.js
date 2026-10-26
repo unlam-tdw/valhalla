@@ -8,7 +8,7 @@
  */
 import { apiFetch } from '../lib/api.js';
 import { el } from '../lib/dom.js';
-import { formatClock, formatDuration } from '../lib/plan-schedule.js';
+import { formatClock, formatDate, formatDuration } from '../lib/plan-schedule.js';
 import {
     buildMarker,
     categoryIconHtml,
@@ -103,11 +103,6 @@ createApp({
             });
         };
 
-        const formatVisitDate = (value) => {
-            const [year, month, day] = value.split('-');
-            return `${day}/${month}/${year}`;
-        };
-
         /** `dd/mm` para el encabezado del día, igual que el creador. */
         const shortDate = (isoDate) => isoDate.slice(8, 10) + '/' + isoDate.slice(5, 7);
 
@@ -140,7 +135,7 @@ createApp({
                         : formatClock(start),
                 durationLabel: item.durationMinutes ? formatDuration(item.durationMinutes) : '',
                 dateLabel: item.visitDate && item.visitDate !== planDate.value
-                    ? formatVisitDate(item.visitDate)
+                    ? formatDate(item.visitDate)
                     : ''
             };
         };

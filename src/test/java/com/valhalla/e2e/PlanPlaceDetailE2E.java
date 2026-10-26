@@ -28,6 +28,9 @@ import org.junit.jupiter.api.Test;
 public class PlanPlaceDetailE2E extends E2eBase {
 
   private static final String EVENT_DATE = "2026-12-01";
+  // [SCH] El tile FECHA del resumen se unificó a dd/mm/yyyy con el resto de la feature; el
+  // input del form de edición sigue value ISO (EVENT_DATE de arriba).
+  private static final String EVENT_DATE_LABEL = "01/12/2026";
   private static final String PLAN_TIME = "20:00";
   private static final String START_TIME = "18:30";
   private static final String PINNED_DATE = "2026-12-02";
@@ -68,7 +71,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(page.locator(".stop-details")).hasCount(1);
     assertThat(page.locator(".stop-schedule").first()).hasText(rangeFrom(START_TIME));
     assertThat(page.locator(".stop-pinned")).hasCount(0);
-    assertThat(page.locator("#plan-summary")).containsText(EVENT_DATE);
+    assertThat(page.locator("#plan-summary")).containsText(EVENT_DATE_LABEL);
     assertThat(page.locator("#plan-summary")).containsText(START_TIME);
     assertThat(page.locator("input[name='eventDate']")).hasValue(EVENT_DATE);
     assertThat(page.locator("input[name='eventTime']")).hasValue(START_TIME);

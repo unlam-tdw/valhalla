@@ -603,6 +603,38 @@ public class PlanControllerTest {
     assertThat(stop.get("timePinned"), is(true));
   }
 
+  @Test
+  public void T_PVP_018_showPublicPlan_exponeElRangoYLaFechaDeReferenciaDeLaParada() {
+    // given: sin fecha de plan y sin hora de parada no hay rango ni jornada de referencia
+    Plan plan = plan(PLAN_ID, "Viaje publico");
+    Place place = new Place();
+    place.setId(PLACE_ID);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    entry.setDurationMinutes(90);
+    plan.addPlanPlace(entry);
+    plan.setIsPublic(true);
+    when(this.planServiceMock.getSharedPlan(PLAN_ID)).thenReturn(plan);
+
+    // when
+    ModelAndView view = this.controller.showPublicPlan(PLAN_ID, this.authentication);
+
+    // then: [SCH] sin hora no hay fin que calcular, y sin fecha el template no tiene con qué
+    // comparar la de la parada
+    Map<?, ?> stop = (Map<?, ?>) ((List<?>) view.getModel().get("itineraryPlaces")).get(0);
+    assertThat(view.getModel().get("planDateIso"), is(nullValue()));
+    assertThat(stop.get("visitTimeEnd"), is(nullValue()));
+
+    // y con las dos la vista pública dibuja el rango y puede ocultar la fecha repetida
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    entry.setVisitTime(LocalTime.of(10, 0));
+    view = this.controller.showPublicPlan(PLAN_ID, this.authentication);
+
+    stop = (Map<?, ?>) ((List<?>) view.getModel().get("itineraryPlaces")).get(0);
+    assertThat(view.getModel().get("planDateIso"), is(equalTo("2026-12-31")));
+    assertThat(stop.get("visitTimeEnd"), is(equalTo("11:30")));
+  }
+
   // --- GET /for-you: el feed se mudo a ForYouController (/for-you, con y sin sesion) ---
 
   // --- POST /plans ---

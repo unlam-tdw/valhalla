@@ -740,7 +740,8 @@ public class PlanControllerIntegrationTest {
         .getContentAsString();
     assertThat(detail, containsString("value=\"2026-12-31\""));
     assertThat(detail, containsString("value=\"18:30\""));
-    assertThat(detail, containsString(">2026-12-31</span>"));
+    // [SCH] El tile FECHA del resumen se unificó a dd/mm/yyyy; el input del form sigue ISO.
+    assertThat(detail, containsString(">31/12/2026</span>"));
     assertThat(detail, containsString(">18:30</span>"));
     assertThat(saved.getAdministrator().getId(), is(equalTo(this.ownerId)));
     assertThat(saved.getAdministrator().getEmail(), is(equalTo(OWNER_EMAIL)));
@@ -1360,7 +1361,8 @@ public class PlanControllerIntegrationTest {
       html.indexOf("<section", html.indexOf("id=\"plan-summary\""))
     );
     assertThat(summary, containsString("Recorrido con amigos"));
-    assertThat(summary, containsString(">2026-12-31</span>"));
+    // [SCH] El tile FECHA muestra dd/mm/yyyy con el resto de la feature.
+    assertThat(summary, containsString(">31/12/2026</span>"));
     assertThat(summary, containsString(">18:30</span>"));
     assertThat(html, containsString("Salir del plan"));
     assertThat(html, not(containsString("Eliminar plan")));

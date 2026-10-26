@@ -11,6 +11,7 @@ import { el } from '../lib/dom.js';
 import {
   effectiveMinutes,
   formatClock,
+  formatDate,
   formatDuration,
   scheduleStops,
   TRANSPORT_LABELS
@@ -509,6 +510,7 @@ createApp({
       categories,
       filteredPlaces,
       capitalize,
+      formatDate,
       categoryColor,
       categoryIcon,
       lucideIcon,

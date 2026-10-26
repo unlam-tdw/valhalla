@@ -264,7 +264,7 @@
               <a :href="'/plans/' + plan.id + '/public'"
                 class="block rounded-lg border border-gray-200 bg-white p-4 pr-12 shadow-sm transition hover:bg-gray-50">
                 <h4 class="text-base font-medium text-gray-900">{{ plan.name }}</h4>
-                <p class="text-xs text-gray-500">{{ plan.eventDate || 'No date' }} &middot; {{ plan.placeCount }} places</p>
+                <p class="text-xs text-gray-500">{{ formatDate(plan.eventDate) || 'No date' }} &middot; {{ plan.placeCount }} places</p>
                 <!-- [CAL] Indicador read-only del agregado (16-CAL.md, AC-10): la version Vue
                      del fragment components/rating :: indicator, con los mismos estilos de
                      base.html. Solo lectura: el voto vive en la vista del plan. Sin
@@ -320,7 +320,7 @@
                 <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ entry.name }}</span>
               </div>
               <p v-if="entry.visitDate || entry.visitTime" class="mt-1 text-xs text-gray-500">
-                {{ entry.visitDate }} {{ entry.visitTime }}</p>
+                {{ formatDate(entry.visitDate) }} {{ entry.visitTime }}</p>
             </li>
           </ol>
           <a :href="'/plans/' + activePlan.id"
@@ -341,7 +341,7 @@
                 class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
                 <option value="" disabled>Selecciona un plan...</option>
                 <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id">
-                  {{ plan.name }} ({{ plan.eventDate || 'Sin fecha' }})
+                  {{ plan.name }} ({{ formatDate(plan.eventDate) || 'Sin fecha' }})
                 </option>
               </select>
               <p v-if="availablePlans.length === 0" class="text-sm text-gray-500">
@@ -465,12 +465,12 @@
                               <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-medium text-white">{{ stop.order }}</span>
                               <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ stop.item.place.name }}</span>
                               <button type="button" @click="moveDraft(stop.index, -1)" :disabled="stop.index === 0"
-                                aria-label="Move up"
+                                aria-label="Mover arriba"
                                 class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&uarr;</button>
                               <button type="button" @click="moveDraft(stop.index, 1)"
-                                :disabled="stop.index === draftPlaces.length - 1" aria-label="Move down"
+                                :disabled="stop.index === draftPlaces.length - 1" aria-label="Mover abajo"
                                 class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&darr;</button>
-                              <button type="button" @click="removeDraft(stop.index)" aria-label="Remove place"
+                              <button type="button" @click="removeDraft(stop.index)" aria-label="Quitar lugar"
                                 class="rounded p-1 text-red-600 hover:bg-red-100">&times;</button>
                             </div>
                             <p class="mt-1 text-xs text-gray-600">

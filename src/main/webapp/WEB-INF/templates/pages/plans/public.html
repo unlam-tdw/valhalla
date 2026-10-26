@@ -156,13 +156,20 @@
               th:text="${stop.category}">CATEGORY</p>
             <p class="text-sm text-gray-600" th:if="${!#strings.isEmpty(stop.description)}"
               th:text="${stop.description}"></p>
-            <p class="text-sm text-gray-500" th:if="${stop.visitDate != null or stop.visitTime != null}">
-              <!--/* Las visitas llegan como texto ISO (placeView); se recortan en vez de parsearlas
-                   porque #temporals no expone parse() en esta version de Thymeleaf. */-->
-              <span th:if="${stop.visitDate != null}"
-                th:text="${#strings.substring(stop.visitDate, 8, 10) + '/' + #strings.substring(stop.visitDate, 5, 7) + '/' + #strings.substring(stop.visitDate, 0, 4)}"></span>
-              <span th:if="${stop.visitTime != null}"
+            <p class="flex flex-wrap gap-x-2 text-sm text-gray-500"
+              th:if="${stop.visitDate != null or stop.visitTime != null}">
+              <!-- [SCH] El horario en el mismo formato que el detalle: rango HH:mm – HH:mm (el
+                   fin sale calculado del modelo, esta vista no tiene JS de itinerario) o la hora
+                   sola cuando falta la duración. La fecha, en dd/mm/yyyy, solo cuando difiere de
+                   la del plan: repetirla en cada parada no aporta nada. Las visitas llegan como
+                   texto ISO (placeView) y se recortan en vez de parsearlas porque #temporals no
+                   expone parse() en esta version de Thymeleaf. -->
+              <span th:if="${stop.visitTimeEnd != null}"
+                th:text="${#strings.substring(stop.visitTime, 0, 5) + ' – ' + stop.visitTimeEnd}"></span>
+              <span th:if="${stop.visitTime != null and stop.visitTimeEnd == null}"
                 th:text="${#strings.substring(stop.visitTime, 0, 5)}"></span>
+              <span th:if="${stop.visitDate != null and stop.visitDate != planDateIso}"
+                th:text="${#strings.substring(stop.visitDate, 8, 10) + '/' + #strings.substring(stop.visitDate, 5, 7) + '/' + #strings.substring(stop.visitDate, 0, 4)}"></span>
             </p>
             <p class="text-sm text-gray-500" th:if="${stop.visitDate == null and stop.visitTime == null}">
               Horario por definir

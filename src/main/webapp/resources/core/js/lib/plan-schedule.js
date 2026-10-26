@@ -29,6 +29,13 @@ export const TRANSPORT_LABELS = {
   CAR: 'Auto'
 };
 
+/** `dd/mm/yyyy` de una fecha ISO `YYYY-MM-DD`; vacío si no hay fecha. */
+export function formatDate(isoDate) {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  return day + '/' + month + '/' + year;
+}
+
 const DEFAULT_DURATION_MINUTES = 60;
 const DEFAULT_DAY_END = '23:00';
 const DEFAULT_MODE = 'WALK';
