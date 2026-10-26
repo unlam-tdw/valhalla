@@ -199,6 +199,13 @@
         #navbar-menu .rounded-md { border-radius: 0.375rem; }
         #navbar-menu .bg-secondary { background-color: var(--secondary) !important; }
         #navbar-menu .text-black { color: var(--black) !important; }
+        /* [DIS-B01] Bootstrap declara .bg-white con !important y le gana al remapeo
+           html[data-theme="dark"] .bg-white de brand.css (sin !important): en esta pagina el
+           menu del navbar quedaba blanco en modo oscuro (rgb(255,255,255) en vez de
+           --dark-card rgb(31,41,55), medido contra /for-you). Se repite el valor de brand con
+           !important para que el remapeo gane en esta pagina; en claro no hace falta (los dos
+           pintan blanco) y tambien cubre los .bg-white del toast del layout. */
+        html[data-theme="dark"] .bg-white { background-color: var(--dark-card) !important; }
         main h2 { font-size: 2rem; }
         main h4 { font-size: 1.5rem; }
         main h5 { font-size: 1.25rem; }

@@ -375,6 +375,19 @@ Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anot
   `.navbar-brand`, `.font-serif` y `.gap-4 { 1rem }` (el valor de Tailwind, no el `1.5rem` de
   `.gap-4` de Bootstrap). `#navbar-menu` vive como hermano del `<nav>` en `layouts/base`, así
   que queda fuera de esos pines y recibe los suyos.
+- **AC-15 (oscuro): Bootstrap `.bg-white` con `!important` blanqueaba el menú.** El remapeo
+  `html[data-theme="dark"] .bg-white { var(--dark-card) }` de `brand.css` no lleva
+  `!important`, así que en `/plans/{id}` —única vista que carga Bootstrap— el menú quedaba con
+  fondo `rgb(255, 255, 255)` donde el resto del sitio lo pinta `rgb(31, 41, 55)` (medido contra
+  `/for-you` con la sonda de reglas ganadoras). El detalle repite el valor de brand con
+  `!important`: en claro los dos pintan blanco (sin cambio visible) y el pin también cubre el
+  `.bg-white` del toast del layout.
+- **AC-15: dos diffs descartados por no tener efecto visual.** El `box-shadow` del nav difiere
+  porque las capas de ring de Tailwind son transparentes (la pintura es idéntica) y el radius
+  del avatar se pinnea a `9999px` en vez de `calc(infinity * 1px)` (ambos dejan el avatar
+  totalmente redondo a 36px; `9999px` es más compatible). Los diffs de `color` heredado que
+  quedan en contenedores del menú no pintan texto visible: todos los textos llevan su propia
+  utilidad de color.
 - **AC-16/AC-17: la ficha se estila en el `<style>` del detalle, no en `brand.css`.** Los
   bloques usan variables `--bs-*` para que Bootstrap re-coloree en modo oscuro como el resto de
   la página, y el chip de categoría reutiliza los `.cat-*` que ya define el mapa. El editor de
