@@ -17,12 +17,17 @@
        se conserva porque es el hook que leen los tests del navbar. -->
   <a class="navbar-brand inline-flex items-center gap-2 py-3 font-serif text-xl font-bold text-secondary hover:text-white"
     th:if="${showAdminNav}" th:href="@{/admin/home}">
-    <img th:src="@{/images/logo.svg}" alt="Logo" class="h-12 w-12 object-contain" />
+    <!-- [FLASH] width/height fijos: logo.svg declara 1366x768 y sin width/height el browser
+         lo pinta a su tamano intrínseco hasta que Tailwind aplica h-12 w-12. Los atributos
+         reservan la caja final desde el primer frame; las clases siguen mandando. -->
+    <img th:src="@{/images/logo.svg}" alt="Logo" width="48" height="48"
+      class="h-12 w-12 object-contain" />
     <span>PlanIt</span>
   </a>
   <a class="navbar-brand inline-flex items-center gap-2 py-3 font-serif text-xl font-bold text-secondary hover:text-white"
     th:unless="${showAdminNav}" th:href="@{/}">
-    <img th:src="@{/images/logo.svg}" alt="Logo" class="h-12 w-12 object-contain" />
+    <img th:src="@{/images/logo.svg}" alt="Logo" width="48" height="48"
+      class="h-12 w-12 object-contain" />
     <span>PlanIt</span>
   </a>
 

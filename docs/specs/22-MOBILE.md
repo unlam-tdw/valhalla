@@ -54,8 +54,9 @@ escritorio.
 ### E2E (`com.valhalla.e2e.MobileLayoutE2E`)
 
 Se corren a **390×844** (iPhone 14) salvo T-MOB-008 (320 px). Helper `awaitStyles()` (espera a
-que Tailwind compile en el browser, umbral >2000 chars igual al reveal de base) para evitar
-carreras al medir boxes.
+que Tailwind compile en el browser — el `<style>` generado, identificado por su banner
+`tailwindcss v`, no cualquier bloque con tamaño — y a que el shield levante) para evitar carreras
+al medir boxes.
 
 - **T-MOB-002 — feed en una columna en phone, tres en desktop** (una sola corrida, ambas
   medidas).

@@ -6,7 +6,7 @@
 <body th:replace="~{layouts/base :: layout(~{::main})}">
 
   <main class="flex-1 flex items-center justify-center p-4">
-    <div id="user-form-app" class="w-full max-w-md rounded-lg bg-white p-8 shadow-md"
+    <div id="user-form-app" v-cloak class="w-full max-w-md rounded-lg bg-white p-8 shadow-md"
       th:attr="data-first-name=${userForm.firstName},data-last-name=${userForm.lastName},data-email=${userForm.email},data-role=${userForm.role},data-error=${error}">
       <h3 class="mb-2 text-2xl font-semibold text-gray-900"
         th:text="${isEdit} ? 'Edit User' : 'New User'">Form Title</h3>
