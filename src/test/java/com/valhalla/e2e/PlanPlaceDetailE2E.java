@@ -14,8 +14,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Browser coverage of a plan's itinerary: a place added together with its visit details has to be
- * displayed, keep those details across reloads, and stay reorderable and removable afterwards.
+ * Browser coverage of a plan's itinerary: a stop created through the wizard shows the schedule
+ * the planner derives from the plan's own date and start time, keeps it across reloads, and
+ * stays reorderable and removable afterwards. The "Ver más" dialog reads the itinerary over REST
+ * and shows the range and the day as text, and pinning a stop goes through the endpoint the app
+ * itself uses.
  *
  * <p>{@link E2eBase} wipes the database before the test, so the seeded admin owns the only plan
  * around and every assertion below is about the plan this test creates. Screenshots land in
@@ -26,8 +29,23 @@ public class PlanPlaceDetailE2E extends E2eBase {
 
   private static final String EVENT_DATE = "2026-12-01";
   private static final String PLAN_TIME = "20:00";
-  private static final String VISIT_TIME = "18:30";
-  private static final String UPDATED_VISIT_TIME = "10:30";
+  private static final String START_TIME = "18:30";
+  private static final String PINNED_DATE = "2026-12-02";
+  private static final String PINNED_DATE_LABEL = "02/12/2026";
+  private static final String PINNED_TIME = "10:30";
+  // Playwright manda el Pattern de Java tal cual a una regex de JavaScript, donde no existen
+  // (?s) ni \Q...\E: por eso el "any" explícito es [\s\S]* en lugar de (?s).*.
+  private static final Pattern RANGE = Pattern.compile(
+    "[\\s\\S]*\\d{2}:\\d{2} – \\d{2}:\\d{2}[\\s\\S]*"
+  );
+
+  /**
+   * El chip del itinerario junta rango y duración en un solo nodo, así que hasText (que compara el
+   * texto completo) necesita el rango completo que arranca en la hora dada.
+   */
+  private static Pattern rangeFrom(String start) {
+    return Pattern.compile("[\\s\\S]*" + start + " – \\d{2}:\\d{2}[\\s\\S]*");
+  }
 
   private PlansPage plans;
   private String planName;
@@ -43,53 +61,61 @@ public class PlanPlaceDetailE2E extends E2eBase {
   void addsPersistsAndDisplaysVisitDetails() {
     createPlanWithAVisit();
 
-    // Creation: the stop and the visit details typed into the create form are on screen right
-    // away, and the plan's own date reached the summary as well. The stop rides on the plan's own
-    // date (the create form does not ask for one any more), so its schedule row carries the time
-    // only and there is no per-stop date left to show.
+    // Creation: the stop and the schedule derived from the create form's date and start time are
+    // on screen right away — the chip carries the full range, the summary carries the same start
+    // time, and nothing is pinned by hand yet (the pin only shows for a hand-picked time).
     assertEquals(planName, plans.getDetailHeading());
     assertThat(page.locator(".stop-details")).hasCount(1);
-    assertEquals(
-      VISIT_TIME,
-      page.locator(".stop-schedule").first().innerText(),
-      "a stop shows its time only; its date is the plan's own"
-    );
+    assertThat(page.locator(".stop-schedule").first()).hasText(rangeFrom(START_TIME));
+    assertThat(page.locator(".stop-pinned")).hasCount(0);
     assertThat(page.locator("#plan-summary")).containsText(EVENT_DATE);
+    assertThat(page.locator("#plan-summary")).containsText(START_TIME);
     assertThat(page.locator("input[name='eventDate']")).hasValue(EVENT_DATE);
+    assertThat(page.locator("input[name='eventTime']")).hasValue(START_TIME);
 
-    // The create form has no time field, so the plan's own time goes through the edit form.
-    assertThat(page.locator("#plan-summary")).containsText("Sin hora");
+    // The start time belongs to the edit form: changing it re-derives the whole chain, so the
+    // summary and the stop's chip have to move together.
     page.locator("input[name='eventTime']").fill(PLAN_TIME);
     page.getByText("Guardar cambios", new Page.GetByTextOptions().setExact(true)).click();
     plans.waitForDetailPath();
     assertThat(page.locator("#plan-summary")).containsText(PLAN_TIME);
+    assertThat(page.locator(".stop-schedule").first()).hasText(rangeFrom(PLAN_TIME));
 
-    // The details dialog fetches the itinerary instead of reading the rendered snapshot.
+    // The details dialog fetches the itinerary instead of reading the rendered snapshot: it
+    // shows the range as text and the stop's position in the itinerary.
     Locator dialog = openStopDetails(0);
-    assertThat(dialog).containsText(VISIT_TIME);
+    assertThat(dialog).containsText("Horario de visita");
+    assertThat(dialog).containsText(PLAN_TIME);
     assertThat(dialog.locator("dd").last()).hasText("1");
     closeStopDetails();
 
     // Nothing above is client state: a reload shows the same stop with the same schedule.
     page.reload();
     assertThat(page.locator(".stop-details")).hasCount(1);
-    assertThat(page.locator(".stop-schedule").first()).containsText(VISIT_TIME);
+    assertThat(page.locator(".stop-schedule").first()).containsText(PLAN_TIME);
 
-    // The detail page has no editor for a visit, so the change goes through the very endpoint the
-    // app calls, and both the dialog and the itinerary have to pick the new values up.
-    updateVisitDetails(EVENT_DATE, UPDATED_VISIT_TIME);
+    // The detail page has no date/time editor, so the change goes through the very endpoint the
+    // app calls. Pinning the stop onto another day moves it out of the plan's own day: the
+    // dialog and the itinerary both pick up the new time and the dd/mm/yyyy day, and the stop is
+    // now marked as pinned instead of derived.
+    updateVisitDetails(PINNED_DATE, PINNED_TIME);
     dialog = openStopDetails(0);
-    assertThat(dialog).containsText(UPDATED_VISIT_TIME);
+    assertThat(dialog).containsText(PINNED_TIME);
+    assertThat(dialog).containsText(PINNED_DATE_LABEL);
     closeStopDetails();
     page.reload();
-    assertThat(page.locator(".stop-schedule").first()).containsText(UPDATED_VISIT_TIME);
+    assertThat(page.locator(".stop-schedule").first()).containsText(PINNED_TIME);
+    assertThat(page.locator(".stop-schedule").first()).containsText(PINNED_DATE_LABEL);
+    assertThat(page.locator(".stop-pinned")).hasCount(1);
 
-    // A second stop added from the page's own form, this time with no visit details at all.
+    // A second stop added from the page's own form carries no schedule of its own: the server
+    // derives one, and the dialog shows the range, the day it landed on and position 2.
     addPlaceToPlan();
     assertThat(page.locator(".stop-details")).hasCount(2);
     dialog = openStopDetails(1);
-    assertThat(dialog).containsText("Sin fecha");
-    assertThat(dialog).containsText("Sin hora");
+    assertThat(dialog).containsText("Horario de visita");
+    assertThat(dialog).containsText(RANGE);
+    assertThat(dialog).containsText(PINNED_DATE_LABEL);
     assertThat(dialog.locator("dd").last()).hasText("2");
     closeStopDetails();
 
@@ -99,10 +125,13 @@ public class PlanPlaceDetailE2E extends E2eBase {
     Locator titles = page.locator(".stop-title");
     String firstName = titles.nth(0).innerText();
     String secondName = titles.nth(1).innerText();
-    Response reorder = page.waitForResponse(
-      "**/reorder",
-      () -> page.locator(".place-item").nth(0).dragTo(page.locator(".place-item").nth(1))
-    );
+    // El nav sticky y el scroll que Playwright hace a mitad del arrastre dejaban el drag sin
+    // drop (el POST /reorder nunca salía): centrando la tarjeta antes, el arrastre no necesita
+    // scrollear y el drop cae en la segunda tarjeta.
+    Locator source = page.locator(".place-item").nth(0);
+    Locator target = page.locator(".place-item").nth(1);
+    source.evaluate("el => el.scrollIntoView({ block: 'center' })", null);
+    Response reorder = page.waitForResponse("**/reorder", () -> source.dragTo(target));
     assertEquals(200, reorder.status(), "the reorder has to be saved by the server");
     assertThat(titles.nth(0)).hasText(secondName);
     assertThat(titles.nth(1)).hasText(firstName);
@@ -153,15 +182,18 @@ public class PlanPlaceDetailE2E extends E2eBase {
       .hasAttribute("href", Pattern.compile(".*google\\.com/maps/dir/\\?api=1&destination=.+"));
   }
 
-  /** The create panel of {@code /explore}, with the visit details the form is able to carry. */
+  /**
+   * The create panel of {@code /explore}. Step 1 owns the plan's date and start time — the stop
+   * does not ask for an hour any more — so the schedule the detail shows comes from these two.
+   */
   private void createPlanWithAVisit() {
     plans.navigateToCreatePlanModal();
     plans.typeName(planName);
     plans.typeDescription("Itinerario con horarios de visita");
     plans.typeEventDate(EVENT_DATE);
+    plans.typeStartTime(START_TIME);
     plans.clickNextStep();
     plans.addFirstDraftPlace();
-    page.locator("#plans-aside ol li input[aria-label='Hora de visita']").fill(VISIT_TIME);
     plans.clickNextStep();
     plans.clickCreate();
     plans.waitForDetailPath();
@@ -185,9 +217,10 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
-   * The only way to change a visit after the plan exists: the detail page renders the visit date
-   * and time read-only, so the change goes to {@code PUT /api/plans/{id}/places}/{@code {entryId}}
-   * with the CSRF token the page carries, the same way the Vue app itself does.
+   * The only way to pin a day or a time after the plan exists: the detail page renders the
+   * schedule read-only, so the change goes to {@code PUT /api/plans/{id}/places}/{@code {entryId}}
+   * with the CSRF token the page carries, the same way the Vue app itself does. Sending a date or
+   * a time pins the stop (the server re-derives the rest of the chain from it).
    */
   private void updateVisitDetails(String isoDate, String time) {
     Object updated = page.evaluate(
