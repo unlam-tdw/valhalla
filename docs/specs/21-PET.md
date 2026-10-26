@@ -5,19 +5,24 @@
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
 > **Nota:** spec renumerada de `16-PET` a `21-PET` al integrarse a `main` (16 ya es [CAL]).
 > **Estado (2026-10-21):** implementada en `task-20-PET`; los bans (AC-05/10/14/15) llegan con `task-19-BAN`.
+> **Cambio (2026-10-25, card #49):** se elimino la configuracion de compartir por link. La
+> visibilidad del plan gobierna el acceso y la landing privada siempre ofrece resumen + solicitud.
 
 ## Objetivo
 
 Un plan privado puede llegar a gente nueva mediante un **link compartible**. El dueño del plan
-configura **quien puede hacer cada cosa** (compartir el link, invitar por la app, invitar por
-email, gestionar solicitudes) con un selector de roles; quien recibe el link ve un **resumen
-sanitizado** del plan y puede **solicitar participacion**; el dueño (y/o los editores, segun
-configuracion) responde cada solicitud con **aceptar / rechazar / banear**.
+configura **quien puede hacer cada cosa** (invitar por la app, invitar por email, gestionar
+solicitudes) con un selector de roles; quien recibe el link ve un **resumen sanitizado** del plan
+y puede **solicitar participacion**; el dueño (y/o los editores, segun configuracion) responde
+cada solicitud con **aceptar / rechazar / banear**.
+
+No hay una configuracion por plan de "compartir por link": **la visibilidad gobierna el acceso**.
+Un plan privado siempre muestra la landing de solicitud a quien tenga el link; un plan publico es
+abierto a cualquiera. Las invitaciones requieren una cuenta registrada.
 
 Es el modelo de los grupos de WhatsApp: un grupo privado (solo se entra si el admin lo permite)
 con permisos configurables por rol. La via actual de entrada de un privado (short code via
-`POST /plans/join`) sigue existiendo; el link compartido de un privado hoy responde "como
-inexistente", y aca pasa a resolver una landing de solicitud.
+`POST /plans/join`) sigue existiendo; el link de un privado resuelve una landing de solicitud.
 
 ## Pre-requisitos
 
@@ -38,8 +43,7 @@ Decisiones (2026-10-17, con equipo):
 2. **Settings = selector de roles por capacidad** (no booleans por rol): una dropdown con
    opciones fijas `OWNER` / `EDITORS` / `PARTICIPANTS` (participantes incluye editores,
    editores incluyen al dueño).
-3. **Defaults**: `shareLink = OWNER` (compartir por link deshabilitado),
-   `handleRequests = OWNER`, `inviteInternal = EDITORS` (comportamiento
+3. **Defaults**: `handleRequests = OWNER`, `inviteInternal = EDITORS` (comportamiento
    actual), `inviteByEmail = OWNER`.
 4. **Configuracion post-creacion**: solo el dueño, en la pagina dedicada
    "Configuracion del plan". En creacion se configuran desde el **paso 3** del wizard de
@@ -47,19 +51,22 @@ Decisiones (2026-10-17, con equipo):
 5. **Invitacion por email**: email **real** (SMTP) solo a usuarios **ya registrados**, con link
    de aceptacion por token. Sin SMTP configurado, el envio cae a un logger de consola
    (dev/tests).
+6. **Link y visibilidad (card #49)**: no hay selector de sharing. Un plan publico es abierto a
+   cualquiera con el link; un privado siempre ofrece resumen + solicitud. `canShareLink` equivale
+   a `canEdit` (dueño o editor).
 
 ## Criterios de Aceptacion
 
 | # | Criterio |
 |---|----------|
-| AC-01 | `Plan` tiene 4 selectores de roles embebidos en `PlanSettings` (`shareLink`, `handleRequests`, `inviteInternal`, `inviteByEmail`); `shareLink = OWNER` significa compartir por link **deshabilitado**; los valores fuera de `OWNER/EDITORS/PARTICIPANTS` (y de `OWNER/EDITORS` para solicitudes) se rechazan |
-| AC-02 | Los planes nuevos nacen con los defaults: sharing link `OWNER` (off), solicitudes `OWNER`, invitar interno `EDITORS`, invitar por email `OWNER` |
-| AC-03 | En la creacion (wizard de `/explore`, paso 3) el dueño elige los 4 selectores y los valores nacen aplicados al plan |
+| AC-01 | `Plan` tiene 3 selectores de roles embebidos en `PlanSettings` (`handleRequests`, `inviteInternal`, `inviteByEmail`); los valores fuera de `OWNER/EDITORS/PARTICIPANTS` (y de `OWNER/EDITORS` para solicitudes) se rechazan. El acceso por link lo define `isPublic`, no un permiso de sharing |
+| AC-02 | Los planes nuevos nacen con los defaults: solicitudes `OWNER`, invitar interno `EDITORS`, invitar por email `OWNER` |
+| AC-03 | En la creacion (wizard de `/explore`, paso 3) el dueño elige los 3 selectores y los valores nacen aplicados al plan |
 | AC-04 | `GET/POST /plans/{id}/settings` (pagina "Configuracion del plan") es **owner-only**: para cualquier otro usuario responde igual que un id inexistente |
-| AC-05 | La pagina de configuracion muestra las 4 dropdowns y la lista de **bans** (con quitar-ban por usuario) |
-| AC-06 | Plan privado + no participante + sharing distinto de `OWNER` + con sesion: `GET /plans/{id}/public` muestra la landing de solicitud con el resumen sanitizado (nombre, descripcion, fecha, placeCount, cover) y **sin** datos privados (dueño, participantes, itinerario, emails) |
+| AC-05 | La pagina de configuracion muestra las 3 dropdowns y la lista de **bans** (con quitar-ban por usuario) |
+| AC-06 | Plan privado + no participante + con sesion: `GET /plans/{id}/public` muestra la landing de solicitud con el resumen sanitizado (nombre, descripcion, fecha, placeCount, cover) y **sin** datos privados (dueño, participantes, itinerario, emails) |
 | AC-07 | Plan privado + sin sesion: la landing redirige a `/auth/login?redirect=/plans/{id}/public`; al volver del login cae en la landing |
-| AC-08 | Plan privado + `shareLink = OWNER`: la landing informa "plan privado, no tenes acceso a la informacion", sin resumen ni form |
+| AC-08 | Plan privado: la landing **siempre** muestra el resumen y el formulario de solicitud; no existe un modo configurable de "sin acceso". La visibilidad del plan es la unica regla de acceso por link (card #49) |
 | AC-09 | Plan privado + ya participante/editor/dueño: la landing redirige al detalle del plan (no ven la landing) |
 | AC-10 | Plan privado + solicitud pendiente: la landing muestra "ya enviaste tu solicitud" y no permite duplicar; un usuario ya banneado ve "no podes unirte a este plan" y tampoco el form |
 | AC-11 | `POST /plans/{id}/join-requests` (boton "Solicitar participacion") crea la solicitud con sesion; sin sesion redirige a login y no crea nada |
@@ -67,7 +74,7 @@ Decisiones (2026-10-17, con equipo):
 | AC-13 | Seccion "Solicitudes" en el detalle: visible para el dueño, y para los editores solo si `handleRequests = EDITORS`; cada solicitud muestra el usuario con link a su perfil y las tres acciones (aceptar/rechazar/banear) |
 | AC-14 | `POST /plans/{id}/join-requests/{requestId}/respond?action=accept|reject|ban`: **accept** agrega al requester como participant y elimina la solicitud; **reject** la elimina sin mas; **ban** la elimina, lo agrega a `bannedUsers` y, si ya participaba o era editor, lo remueve y pierde el rol |
 | AC-15 | Un usuario banneado no puede solicitar de nuevo ni entrar via short code; para quien responde sin permiso (participant ajeno, otro usuario) la respuesta de respond es identica a un id inexistente |
-| AC-16 | El boton "Compartir link" del detalle copia `/plans/{id}/public` y solo lo ve quien cumple `shareLink`: editores si `EDITORS`/`PARTICIPANTS`, participantes solo si `PARTICIPANTS`; con `OWNER` (sharing off) nadie lo ve |
+| AC-16 | El boton "Compartir link" del detalle copia `/plans/{id}/public` y lo ven el dueño y los editores (no los participantes). En un plan publico el link es abierto a cualquiera; en uno privado lleva a la landing de solicitud |
 | AC-17 | `inviteParticipant`: el canal **app** valida `inviteInternal` y el canal **email** valida `inviteByEmail`; ademas del front (form habilitado o no), el service responde como inexistente a quien no cumple |
 | AC-18 | Invitacion con canal email: se genera `token` en la `PlanInvitation` y se envia **email real** al usuario registrado con el link de aceptacion; si no hay SMTP configurado el envio cae a un logger y la invitacion queda igualmente pendiente en la app |
 | AC-19 | `GET /plans/{id}/invitations/{token}/accept` (permitAll, el token es la credencial): sin sesion redirige a login con `redirect` de vuelta; con sesion muestra la confirmacion y el POST (con CSRF) acepta si el logueado es el destinatario y cae en `/plans/{id}`; si el logueado no es el destinatario, error amigable sin aceptar nada |
@@ -80,9 +87,9 @@ Decisiones (2026-10-17, con equipo):
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | `new Plan()` deja los 4 selectores en sus defaults | AC-01, AC-02 |
-| U-02 | reject de valores invalidos en los selectores (p.ej. `"FOO"`) | AC-01 |
-| U-03 | `canShareLink(email)`: dueño exige sharing habilitado, editor cumple con `EDITORS/PARTICIPANTS`, participant solo con `PARTICIPANTS`, ajeno nunca | AC-16 |
+| U-01 | `new Plan()` deja los 3 selectores en sus defaults y recupera nulos heredados | AC-01, AC-02 |
+| U-02 | reject de valores invalidos en los selectores (p.ej. `"FOO"`, o `PARTICIPANTS` en solicitudes) | AC-01 |
+| U-03 | `canShareLink(email)`: dueño y editores siempre; participante y ajeno nunca (no depende de la visibilidad) | AC-16 |
 | U-04 | `canInviteInternal(email)` / `canInviteByEmail(email)` / `canHandleRequests(email)` con cada nivel del selector | AC-17, AC-13 |
 
 ### Tests Unitarios (`infrastructure/plan/PlanServiceImplTest.java`)
@@ -93,7 +100,7 @@ Decisiones (2026-10-17, con equipo):
 | U-06 | `requestToJoin()` duplicado lanza `IllegalArgumentException` (pendiente ya existe) | AC-10 |
 | U-07 | `requestToJoin()` con participant/editor/dueño lanza `IllegalArgumentException` | AC-10 |
 | U-08 | `requestToJoin()` de un banneado lanza `IllegalArgumentException` | AC-10, AC-15 |
-| U-09 | `requestToJoin()` con `shareLink = OWNER` lanza `PlanNotFoundException` | AC-08 |
+| U-09 | `requestToJoin()` en un plan publico lanza `PlanNotFoundException` (se une por short code) | AC-08, AC-12 |
 | U-10 | `respondToJoinRequest(ACCEPT)` deja al requester como participant y saca la solicitud | AC-14 |
 | U-11 | `respondToJoinRequest(REJECT)` deja los roles como estaban y saca la solicitud | AC-14 |
 | U-12 | `respondToJoinRequest(BAN)` agrega el requester a `bannedUsers` y lo remueve de participants/editors | AC-14 |
@@ -104,7 +111,7 @@ Decisiones (2026-10-17, con equipo):
 | U-17 | `inviteParticipant()` canal app con participant permitido por `inviteInternal = PARTICIPANTS` funciona | AC-17 |
 | U-18 | `inviteParticipant()` canal email sin permiso por selector lanza `PlanNotFoundException` | AC-17 |
 | U-19 | invitacion por email genera token unico; dos invitaciones al mismo usuario tienen tokens distintos | AC-19, AC-20 |
-| U-20 | `updateSettings()` guarda los 4 selectores y rechaza valores invalidos | AC-04 |
+| U-20 | `updateSettings()` guarda los 3 selectores y rechaza valores invalidos | AC-04 |
 | U-21 | `updateSettings()` de un editor lanza `PlanNotFoundException` | AC-04 |
 | U-22 | `joinPlan(shortCode)` con usuario banneado lanza `IllegalArgumentException` y no agrega el participante | AC-15 |
 
@@ -113,24 +120,24 @@ Decisiones (2026-10-17, con equipo):
 | # | Test | AC que cubre |
 |---|------|-------------|
 | U-23 | `showPublicPlan()` de un plan privado: `getSharedPlan` devuelve el plan y el controlador usa `showJoinLanding()`; sin sesion redirige a `/auth/login?redirect=...` | AC-07 |
-| U-24 | `showPublicPlan()` con sesion y banneado/pending/can-request renderiza el estado correcto y nunca administratorName/participants en el model | AC-06, AC-08, AC-10 |
+| U-24 | `showPublicPlan()` con sesion: siempre renderiza el resumen; si hay solicitud pendiente muestra el estado y no duplica el form; nunca administratorName/participants en el model | AC-06, AC-08, AC-10 |
 | U-25 | `showPublicPlan()` con participante del privado redirige al detalle | AC-09 |
-| U-26 | `createPlan` mapea los 4 selectores del form al plan nuevo | AC-03 |
+| U-26 | `createPlan` mapea los 3 selectores del form al plan nuevo | AC-03 |
 | U-27 | `respondToJoinRequest()` y `updateSettings()` toman el rol del usuario de la sesion (nunca del form) | AC-04, AC-14, AC-15 |
 
 ### Tests de Integracion (`integration/PlanControllerIntegrationTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| I-01 | `POST /plans` con los 4 selectores del paso 3 crea el plan con esos valores | AC-03 |
-| I-02 | `GET /plans/{id}/settings` como dueño renderiza las dropdowns + bans; para editor/participante/extraño → redirect "Plan not found" | AC-04 |
-| I-03 | `POST /plans/{id}/settings` del dueño cambia los selectores y persisten tras reload | AC-04, AC-05 |
-| I-04 | `GET /plans/{id}/public` (privado, sharing on, sesion de extraño) renderiza la landing con resumen y sin datos privados en el HTML | AC-06 |
+| I-01 | `POST /plans` con los 3 selectores del paso 3 crea el plan con esos valores | AC-03 |
+| I-02 | `GET /plans/{id}/settings` como dueño renderiza las 3 dropdowns + bans; para editor/participante/extraño → redirect "Plan not found" | AC-04 |
+| I-03 | `POST /plans/{id}/settings` del dueño cambia los 3 selectores y persisten tras reload | AC-04, AC-05 |
+| I-04 | `GET /plans/{id}/public` (privado, sesion de extraño) renderiza la landing con resumen y sin datos privados en el HTML | AC-06 |
 | I-05 | La landing sin sesion es 302 a `/auth/login?redirect=...`; despues del login cae en la landing | AC-07 |
 | I-06 | `POST /plans/{id}/join-requests` crea la pendiente; segundo POST no duplica | AC-10, AC-11 |
 | I-07 | Aceptar la solicitud aparece como participant en el detalle; rechazar y banear dejan `plan_banned_users` con el usuario | AC-14 |
 | I-08 | `GET /plans/{id}/invitations/{token}/accept` con sesion del destinatario lo deja como participant y el token queda invalido (segunda vez error) | AC-19, AC-20 |
-| I-09 | `GET /plans/{id}/public` de un plan privado con sharing `OWNER` renderiza "plan privado, no tenes acceso" sin resumen | AC-08 |
+| I-09 | `GET /plans/{id}/settings` y el paso 3 de `/explore` no renderizan `shareLink` ni "Compartir link" | AC-01, AC-16 |
 | I-10 | `GET /plans/{id}/public` de un plan publico sigue renderizando la vista publica sin landing | AC-12 |
 
 ### Tests de Seguridad (`integration/PlanJoinRequestSecurityTest.java`)
@@ -142,30 +149,26 @@ Decisiones (2026-10-17, con equipo):
 | S-03 | `POST /plans/{id}/settings` por un editor → mismo resultado que un id inexistente; los selectores no cambian | AC-04 |
 | S-04 | `POST /plans/{id}/join-requests/{rid}/respond` por un participant/extraño no cambia los roles del plan | AC-15 |
 | S-05 | El link de invitacion por token de A no acepta la invitacion de B (logueado distinto del destinatario) y no consume el token | AC-19, AC-20 |
-| S-06 | La landing con sharing `OWNER` no renderiza el form de solicitud ni el resumen | AC-08 |
+| S-06 | La landing de un plan privado siempre renderiza el resumen y el form de solicitud (no existe modo sharing off) | AC-06, AC-08 |
 
 ### E2E (minimos)
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `PublicPlanJoinRequestE2E` | Dueño habilita sharing en `/plans/{id}/settings` → comparte `/plans/{id}/public` → extraño registrado la abre: ve resumen sanitizado → "Solicitar participacion" → dueño acepta en la seccion Solicitudes del detalle → el solicitante aparece en los participantes del detalle y su solicitud desaparece | AC-06, AC-11, AC-13, AC-14 |
+| E-01 | `PublicPlanJoinRequestE2E` | Dueño crea un plan privado en `/explore` → comparte `/plans/{id}/public` → extraño registrado la abre: ve resumen sanitizado → "Solicitar participacion" → dueño acepta en la seccion Solicitudes del detalle → el solicitante aparece en los participantes del detalle y su solicitud desaparece | AC-06, AC-11, AC-13, AC-14 |
 
 ## Notas / decisiones de diseño
 
-- **`shareLink = OWNER` significa "compartir por link deshabilitado".** Quien recibe un
-  link nunca es el dueño, entonces "solo el dueño" equivale a "nadie lo comparte": la landing
-  responde "plan privado, no tenes acceso" — exactamente lo que pide la card. En ese modo el
-  dueño incorpora gente con invitaciones (internas o por email). Cuando sube el nivel
-  (`EDITORS`/`PARTICIPANTS`), la landing pasa a resumen + "Solicitar participacion". El
-  requisito literal de la card ("si el dueño no eligio que participants/editores compartan el
-  link, la vista informa que el plan es privado y no tienen acceso") queda modelado con un solo
-  selector.
+- **La visibilidad gobierna el acceso por link (card #49).** No existe un selector de sharing:
+  un plan publico es abierto a cualquiera con el link; un plan privado muestra **siempre** la
+  landing de solicitud con resumen sanitizado. El boton "Compartir link" lo ven el dueño y los
+  editores (`canShareLink` == `canEdit`), no los participantes. Las invitaciones (internas o por
+  email) siguen siendo la via para incorporar gente sin pasar por la solicitud.
 - **Privado ≡ inexistente donde el proyecto ya lo hace.** Settings (`GET/POST /settings`),
-  responder solicitudes y `requestToJoin` con sharing off lanzan `PlanNotFoundException` y
-  `GlobalExceptionHandler` responde como ante un id que no existe; no hay 403 ni "no autorizado".
-  La landing es la unica excepcion consciente: para el visitante con un link legitimo se
-  confirma la existencia del plan (que es privado) sin revelar ningun dato del plan — ese es el
-  mensaje pedido por la card PET.
+  responder solicitudes sin permiso y `requestToJoin` en un plan publico lanzan
+  `PlanNotFoundException` y `GlobalExceptionHandler` responde como ante un id que no existe; no
+  hay 403 ni "no autorizado". La landing privada es la excepcion consciente: confirma la
+  existencia del plan y muestra solo el resumen sanitizado, sin datos privados.
 - **`PlanJoinRequest` e invitaciones son tablas hijas de `PlanManager`** (mismo patrón que
   invitations): pendiente unica por plan+requester con `@Version` optimista; las respuestas
   (accept/reject) eliminan el registro. El "ban" no es estado de la solicitud: `bannedUsers`
@@ -209,8 +212,6 @@ File: `src/main/java/com/valhalla/domain/plan/PlanSettings.java` (nueva, `@Embed
 
 ```java
 @Enumerated(EnumType.STRING)
-private PlanPermission shareLink = PlanPermission.OWNER;        // OWNER == compartir link off
-@Enumerated(EnumType.STRING)
 private PlanPermission handleRequests = PlanPermission.OWNER;   // OWNER | EDITORS
 @Enumerated(EnumType.STRING)
 private PlanPermission inviteInternal = PlanPermission.EDITORS;
@@ -219,7 +220,8 @@ private PlanPermission inviteByEmail = PlanPermission.OWNER;
 ```
 
 Los getters devuelven el default cuando la columna es nula (planes heredados). `setHandleRequests`
-rechaza `PARTICIPANTS` y `isSharingEnabled()` es `shareLink != OWNER` (AC-16).
+rechaza `PARTICIPANTS` (AC-13). No hay campo de sharing: la visibilidad (`isPublic`) decide el
+acceso (card #49).
 
 File: `src/main/java/com/valhalla/domain/plan/Plan.java`
 
@@ -228,7 +230,7 @@ File: `src/main/java/com/valhalla/domain/plan/Plan.java`
 private PlanSettings settings = new PlanSettings();
 
 public boolean canShareLink(String email) {
-  return getSettings().getShareLink().allows(this, email);
+  return canEdit(email); // dueño o editor; la visibilidad no cambia quien copia el link
 }
 public boolean canInviteInternal(String email) { ... }
 public boolean canInviteByEmail(String email) { ... }
@@ -238,7 +240,7 @@ public boolean hasPendingJoinRequest(String email) { ... }
 ```
 
 Las capacidades son helpers que delegan en `PlanPermission.allows`; `updateFrom(Plan changes)`
-copia los 4 selectores solo cuando el form los posee (una edicion ordinaria no los resetea).
+copia los 3 selectores solo cuando el form los posee (una edicion ordinaria no los resetea).
 
 ### 2. `PlanJoinRequest` en `PlanManager`
 
@@ -313,7 +315,6 @@ void respondToJoinRequest(UUID id, Long requestId, String action, String userEma
 List<PendingJoinRequest> getPendingJoinRequests(UUID id, String userEmail);
 void updateSettings(
   UUID id,
-  PlanPermission shareLink,
   PlanPermission handleRequests,
   PlanPermission inviteInternal,
   PlanPermission inviteByEmail,
@@ -331,8 +332,8 @@ File: `src/main/java/com/valhalla/infrastructure/plan/PlanServiceImpl.java`
 @Transactional
 public void requestToJoin(UUID id, String userEmail) {
   Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
-  if (!plan.getSettings().isSharingEnabled()) {
-    // AC-08: sharing off, la landing dice "sin acceso"; el POST tiene que ser coherente.
+  if (plan.getIsPublic()) {
+    // Un plan publico se une por short code; la landing es solo para privados.
     throw new PlanNotFoundException();
   }
   validateJoinRequestState(plan, userEmail);
@@ -368,7 +369,7 @@ plan.getJoinRequests().remove(request); // reject solo elimina la solicitud
 La decision `ban` no existe en esta entrega: la agrega `task-19-BAN` junto con `isBanned` en
 `joinPlan(shortCode)` (AC-15).
 
-`updateSettings` aplica los 4 valores si `plan.isAdministrator(ownerEmail)`; sino,
+`updateSettings` aplica los 3 valores si `plan.isAdministrator(ownerEmail)`; sino,
 `PlanNotFoundException` (AC-04). `setHandleRequests` rechaza `PARTICIPANTS` y el enum rechaza
 cualquier valor desconocido.
 
@@ -392,9 +393,8 @@ public ModelAndView showPublicPlan(@PathVariable UUID id, Authentication authent
 ```java
 if (email == null) return redirect("/auth/login?redirect=/plans/" + id + "/public"); // AC-07
 if (plan.isAdministrator(email) || plan.isParticipant(email)) return redirect(detalle); // AC-09
-model.put("sharingEnabled", plan.getSettings().isSharingEnabled());
 model.put("requestPending", plan.hasPendingJoinRequest(email)); // AC-10
-if (sharingEnabled) model.put("summary", new JoinPlanSummary(...)); // AC-06
+model.put("summary", new JoinPlanSummary(...)); // AC-06: siempre, sin modo sharing off
 return new ModelAndView("pages/plans/request", model);
 ```
 
@@ -429,19 +429,18 @@ public ModelAndView showSettings(@PathVariable UUID id, Authentication authentic
 @PostMapping("/{id}/settings")
 public ModelAndView updateSettings(
     @PathVariable UUID id,
-    @RequestParam PlanPermission shareLink,
     @RequestParam PlanPermission handleRequests,
     @RequestParam PlanPermission inviteInternal,
     @RequestParam PlanPermission inviteByEmail,
     Authentication authentication) {
   planService.updateSettings(
-    id, shareLink, handleRequests, inviteInternal, inviteByEmail, authentication.getName()
+    id, handleRequests, inviteInternal, inviteByEmail, authentication.getName()
   );
   return new ModelAndView("redirect:/plans/" + id + "/settings?saved=true");
 }
 ```
 
-`pages/plans/settings.html` (nueva) reusa el fragmento `components/plan-permissions.html`: 4
+`pages/plans/settings.html` (nueva) reusa el fragmento `components/plan-permissions.html`: 3
 `<select>` con las opciones "Solo el dueño / Dueño y editores / Dueño, editores y participantes"
 (solicitudes solo con las dos primeras). La lista de bans con quitar-ban llega con `task-19-BAN`
 (AC-05).
@@ -452,13 +451,13 @@ public ModelAndView updateSettings(
   requester con `th:href="@{/users/{id}(...)}"` al perfil y dos forms POST a
   `/plans/{id}/join-requests/{rid}/respond?action=accept|reject` (la accion `ban` llega con
   `task-19-BAN`).
-- **Boton "Compartir link"** (AC-16): solo si `model["canShareLink"]`; copia
+- **Boton "Compartir link"** (AC-16): solo si `model["canShareLink"]` (dueño o editor); copia
   `/plans/{id}/public` al portapapeles.
 - **Form de invitacion** (AC-17): el input de email y el boton de canal app/email habilitados
   segun `model["canInviteInternal"]` / `model["canInviteByEmail"]`.
 
-Los flags los computa `Plan` (`canShareLink`, `canInviteInternal`, `canInviteByEmail`,
-`canHandleRequests`); el template nunca decide permisos por su cuenta.
+Los flags los computa `Plan` (`canShareLink` = `canEdit`, `canInviteInternal`,
+`canInviteByEmail`, `canHandleRequests`); el template nunca decide permisos por su cuenta.
 
 ### 8. Aceptacion por token + envio por email
 
@@ -514,11 +513,11 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/list.html`
 - `planStep` pasa a 3; el track interno de `w-[200%]` a `w-[300%]`; barra de progreso de 3
   segmentos y label "Paso X de 3" con el paso 3 = "Privacidad".
 - Paso 1 (Datos) y paso 2 (Lugares) sin cambios.
-- Paso 3: los 4 `<select>` con defaults preseleccionados (OWNER / OWNER / EDITORS / OWNER) y
-  una nota corta: "el modo 'solo el dueño' para compartir link deja a las invitaciones como la
-  via de entrada".
+- Paso 3: los 3 `<select>` con defaults preseleccionados (OWNER / EDITORS / OWNER) y una nota
+  corta: "el link de un plan privado siempre permite solicitar participacion; no hay selector de
+  sharing".
 - `onPlanSubmit` ya serializa el form completo: los selects viajan en `POST /plans` con los
-  nombres de los selector; `PlanRequest` agrega un objeto `settings` con los 4 campos y
+  nombres de los selector; `PlanRequest` agrega un objeto `settings` con los 3 campos y
   `createPlan` los aplica al plan nuevo (AC-03).
 - Error server-side: vuelve a `/explore` como hoy (el form resetea; los selects son enum-only y
   su unico error real es un valor corrompido).
@@ -528,7 +527,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/list.html`
 | Archivo | Accion |
 |---------|--------|
 | `domain/plan/PlanPermission.java` | Crear (enum OWNER/EDITORS/PARTICIPANTS + `allows`) |
-| `domain/plan/PlanSettings.java` | Crear (`@Embeddable` con los 4 selectores y sus defaults) |
+| `domain/plan/PlanSettings.java` | Crear (`@Embeddable` con los 3 selectores y sus defaults) |
 | `domain/plan/Plan.java` | Actualizar (`@Embedded PlanSettings`, helpers de capacidad, `hasPendingJoinRequest`) |
 | `domain/plan/PlanInvitation.java` | Actualizar (`token` unico generado al crear) |
 | `domain/plan/PlanJoinRequest.java` | Crear (solicitudes pendientes) |
@@ -539,10 +538,10 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/list.html`
 | `infrastructure/email/EmailConfiguration.java` | Crear (SMTP o fallback, AC-18) |
 | `infrastructure/email/LoggingEmailNotifier.java` | Crear (fallback sin SMTP, AC-18) |
 | `presentation/plan/PlanController.java` | Actualizar (landing, settings, join-requests, accept-by-token) |
-| `presentation/plan/PlanRequest.java` | Actualizar (4 selectores del paso 3) |
+| `presentation/plan/PlanRequest.java` | Actualizar (3 selectores del paso 3) |
 | `config/SecurityConfig.java` | Actualizar (permitAll del GET accept-by-token) |
 | `config/BaseJpaConfig.java` | Actualizar (paquete de entidades de email/plan) |
-| `components/plan-permissions.html` | Crear (4 selectores reusables) |
+| `components/plan-permissions.html` | Crear (3 selectores reusables) |
 | `pages/plans/settings.html` | Crear (AC-04) |
 | `pages/plans/request.html` | Crear (AC-06/08/10) |
 | `pages/plans/accept-invitation.html` | Crear (confirmacion del token) |

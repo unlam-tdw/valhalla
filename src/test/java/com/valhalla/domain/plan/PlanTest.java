@@ -151,25 +151,17 @@ public class PlanTest {
     embedded.setAccessible(true);
     embedded.set(plan, null);
     PlanSettings settings = plan.getSettings();
-    assertThat(settings.getShareLink(), is(PlanPermission.OWNER));
     assertThat(settings.getHandleRequests(), is(PlanPermission.OWNER));
     assertThat(settings.getInviteInternal(), is(PlanPermission.EDITORS));
     assertThat(settings.getInviteByEmail(), is(PlanPermission.OWNER));
-    for (String name : new String[] {
-      "shareLink",
-      "handleRequests",
-      "inviteInternal",
-      "inviteByEmail",
-    }) {
+    for (String name : new String[] { "handleRequests", "inviteInternal", "inviteByEmail" }) {
       Field field = PlanSettings.class.getDeclaredField(name);
       field.setAccessible(true);
       field.set(settings, null);
     }
-    assertThat(settings.getShareLink(), is(PlanPermission.OWNER));
     assertThat(settings.getHandleRequests(), is(PlanPermission.OWNER));
     assertThat(settings.getInviteInternal(), is(PlanPermission.EDITORS));
     assertThat(settings.getInviteByEmail(), is(PlanPermission.OWNER));
-    assertThat(settings.isSharingEnabled(), is(false));
   }
 
   @Test
@@ -178,10 +170,6 @@ public class PlanTest {
     org.junit.jupiter.api.Assertions.assertThrows(
       IllegalArgumentException.class,
       () -> settings.setHandleRequests(PlanPermission.PARTICIPANTS)
-    );
-    org.junit.jupiter.api.Assertions.assertThrows(
-      NullPointerException.class,
-      () -> settings.setShareLink(null)
     );
     org.junit.jupiter.api.Assertions.assertThrows(
       NullPointerException.class,
@@ -208,18 +196,21 @@ public class PlanTest {
     plan.getParticipants().add(participant);
     plan.getEditors().add(editor);
     for (PlanPermission permission : PlanPermission.values()) {
-      plan.getSettings().setShareLink(permission);
       plan.getSettings().setInviteInternal(permission);
       plan.getSettings().setInviteByEmail(permission);
-      assertThat(plan.canShareLink(administrator.getEmail()), is(true));
       assertThat(plan.canInviteInternal(editor.getEmail()), is(permission != PlanPermission.OWNER));
       assertThat(
         plan.canInviteByEmail(participant.getEmail()),
         is(permission == PlanPermission.PARTICIPANTS)
       );
-      assertThat(plan.canShareLink("visitor@test.com"), is(false));
       assertThat(plan.canInviteInternal(null), is(false));
     }
+    // [SEC] El link lo comparten dueño y editores, sin importar la visibilidad del plan.
+    assertThat(plan.canShareLink(administrator.getEmail()), is(true));
+    assertThat(plan.canShareLink(editor.getEmail()), is(true));
+    assertThat(plan.canShareLink(participant.getEmail()), is(false));
+    assertThat(plan.canShareLink("visitor@test.com"), is(false));
+    assertThat(plan.canShareLink(null), is(false));
     plan.getSettings().setHandleRequests(PlanPermission.EDITORS);
     assertThat(plan.canHandleRequests(editor.getEmail()), is(true));
     assertThat(plan.canHandleRequests(participant.getEmail()), is(false));
@@ -229,12 +220,10 @@ public class PlanTest {
 
   @Test
   public void PET_U04_ordinaryEditPreservesPermissions() {
-    plan.getSettings().setShareLink(PlanPermission.PARTICIPANTS);
     plan.getSettings().setInviteInternal(PlanPermission.OWNER);
     plan.getSettings().setInviteByEmail(PlanPermission.EDITORS);
     plan.getSettings().setHandleRequests(PlanPermission.EDITORS);
     plan.updateFrom(new Plan());
-    assertThat(plan.getSettings().getShareLink(), is(PlanPermission.PARTICIPANTS));
     assertThat(plan.getSettings().getInviteInternal(), is(PlanPermission.OWNER));
     assertThat(plan.getSettings().getInviteByEmail(), is(PlanPermission.EDITORS));
     assertThat(plan.getSettings().getHandleRequests(), is(PlanPermission.EDITORS));

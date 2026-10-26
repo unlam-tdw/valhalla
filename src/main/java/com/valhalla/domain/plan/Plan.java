@@ -67,8 +67,12 @@ public class Plan {
     return planManager.getJoinRequests();
   }
 
+  /**
+   * [SEC] El link de un plan lo comparten el dueño y los editores; los participantes no. La
+   * visibilidad (público/privado) decide qué ve quien lo abre, no quién puede copiarlo.
+   */
   public boolean canShareLink(String email) {
-    return getSettings().getShareLink().allows(this, email);
+    return canEdit(email);
   }
 
   public boolean canInviteInternal(String email) {

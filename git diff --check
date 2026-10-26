@@ -1,0 +1,19 @@
+ docs/pet-prototype.md                              |  71 [32m+++++[m[31m------[m
+ docs/specs/03-PLN.md                               |   6 [32m+[m
+ docs/specs/21-PET.md                               | 131 [32m++++++++++[m[31m-----------[m
+ src/main/java/com/valhalla/domain/plan/Plan.java   |   6 [32m+[m[31m-[m
+ .../java/com/valhalla/domain/plan/PlanService.java |   1 [31m-[m
+ .../com/valhalla/domain/plan/PlanSettings.java     |  16 [31m---[m
+ .../infrastructure/DemoInteractionSeeder.java      |  10 [32m+[m[31m-[m
+ .../infrastructure/plan/PlanServiceImpl.java       |   6 [32m+[m[31m-[m
+ .../valhalla/presentation/plan/PlanController.java |  34 [32m++[m[31m----[m
+ .../templates/components/plan-permissions.html     |  10 [32m+[m[31m-[m
+ .../WEB-INF/templates/pages/plans/request.html     |   7 [32m+[m[31m-[m
+ .../java/com/valhalla/domain/plan/PlanTest.java    |  25 [32m++[m[31m--[m
+ .../com/valhalla/e2e/PublicPlanJoinRequestE2E.java |   5 [31m-[m
+ .../infrastructure/DemoInteractionSeederTest.java  |   6 [32m+[m[31m-[m
+ .../infrastructure/plan/PlanServiceImplTest.java   |  18 [32m+[m[31m--[m
+ .../integration/PlanControllerIntegrationTest.java |  14 [32m+[m[31m--[m
+ .../integration/PlanJoinRequestSecurityTest.java   |  37 [32m++++[m[31m--[m
+ .../presentation/plan/PlanControllerTest.java      |  26 [32m++[m[31m--[m
+ 18 files changed, 189 insertions(+), 240 deletions(-)

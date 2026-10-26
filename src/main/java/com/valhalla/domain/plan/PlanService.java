@@ -12,7 +12,6 @@ public interface PlanService {
   List<PendingJoinRequest> getPendingJoinRequests(UUID id, String userEmail);
   void updateSettings(
     UUID id,
-    PlanPermission shareLink,
     PlanPermission handleRequests,
     PlanPermission inviteInternal,
     PlanPermission inviteByEmail,

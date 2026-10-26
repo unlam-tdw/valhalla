@@ -3,14 +3,6 @@
 <body>
 <div th:fragment="selectors(settings, prefix)" class="space-y-4">
   <div>
-    <label for="permission-shareLink" class="block font-semibold">Compartir link</label>
-    <select id="permission-shareLink" th:name="${prefix + 'shareLink'}" class="mt-2 w-full rounded-md border p-2">
-      <option value="OWNER" th:selected="${settings.shareLink.name() == 'OWNER'}">Solo dueño (solicitudes por link deshabilitadas)</option>
-      <option value="EDITORS" th:selected="${settings.shareLink.name() == 'EDITORS'}">Dueño y editores</option>
-      <option value="PARTICIPANTS" th:selected="${settings.shareLink.name() == 'PARTICIPANTS'}">Todos los participantes</option>
-    </select>
-  </div>
-  <div>
     <label for="permission-inviteInternal" class="block font-semibold">Invitar dentro de la app</label>
     <select id="permission-inviteInternal" th:name="${prefix + 'inviteInternal'}" class="mt-2 w-full rounded-md border p-2">
       <option value="OWNER" th:selected="${settings.inviteInternal.name() == 'OWNER'}">Solo dueño</option>
@@ -33,7 +25,7 @@
       <option value="EDITORS" th:selected="${settings.handleRequests.name() == 'EDITORS'}">Dueño y editores</option>
     </select>
   </div>
-  <p class="text-sm text-gray-500">Compartir el link de un plan privado permite ver un resumen y pedir acceso. Las invitaciones requieren una cuenta registrada. Solo el dueño y los editores pueden invitar con rol de editor.</p>
+  <p class="text-sm text-gray-500">En un plan privado, el link permite ver un resumen y pedir acceso. En un plan público, el link es abierto a cualquiera. Las invitaciones requieren una cuenta registrada. Solo el dueño y los editores pueden invitar con rol de editor.</p>
 </div>
 </body>
 </html>

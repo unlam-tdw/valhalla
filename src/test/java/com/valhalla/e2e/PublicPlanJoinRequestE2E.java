@@ -18,11 +18,6 @@ public class PublicPlanJoinRequestE2E extends E2eBase {
     signInAsAdmin();
     PlansPage plans = new PlansPage(page);
     plans.createPlanViaExplore("Encuentro privado PET", "Resumen del encuentro", "2026-12-31");
-    String detailUrl = page.url();
-    page.navigate(detailUrl + "/settings");
-    page.locator("select[name='shareLink']").selectOption("EDITORS");
-    page.locator("main form button[type='submit']").click();
-    page.navigate(detailUrl);
     String sharedUrl = URI
       .create(plans.baseUrl())
       .resolve(page.locator("#plan-share-link").inputValue())

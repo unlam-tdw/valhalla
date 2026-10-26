@@ -89,10 +89,7 @@ public class PlanController {
     model.put("canInviteInternal", plan.canInviteInternal(userEmail));
     model.put("canInviteByEmail", plan.canInviteByEmail(userEmail));
     model.put("canInvite", plan.canInviteInternal(userEmail) || plan.canInviteByEmail(userEmail));
-    model.put(
-      "canShareLink",
-      plan.canShareLink(userEmail) && (plan.getIsPublic() || plan.getSettings().isSharingEnabled())
-    );
+    model.put("canShareLink", plan.canShareLink(userEmail));
     model.put("canHandleRequests", plan.canHandleRequests(userEmail));
     if (plan.canHandleRequests(userEmail)) {
       model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
@@ -177,22 +174,20 @@ public class PlanController {
       return new ModelAndView(REDIRECT_PLAN_DETAIL + id);
     }
     Map<String, Object> model = new ModelMap();
-    boolean sharingEnabled = plan.getSettings().isSharingEnabled();
     model.put("planId", id);
-    model.put("sharingEnabled", sharingEnabled);
     model.put("requestPending", plan.hasPendingJoinRequest(email));
-    if (sharingEnabled) {
-      model.put(
-        "summary",
-        new JoinPlanSummary(
-          plan.getName(),
-          plan.getDescription(),
-          plan.getEventDate(),
-          plan.getPlanPlaces().size(),
-          "/images/plans/cover-" + (Math.floorMod(id.hashCode(), 6) + 1) + ".svg"
-        )
-      );
-    }
+    // [SEC] Un plan privado siempre muestra la landing de solicitud: no hay un permiso de
+    // compartir link por plan que la apague.
+    model.put(
+      "summary",
+      new JoinPlanSummary(
+        plan.getName(),
+        plan.getDescription(),
+        plan.getEventDate(),
+        plan.getPlanPlaces().size(),
+        "/images/plans/cover-" + (Math.floorMod(id.hashCode(), 6) + 1) + ".svg"
+      )
+    );
     return new ModelAndView("pages/plans/request", model);
   }
 
@@ -233,7 +228,6 @@ public class PlanController {
   @PostMapping("/{id}/settings")
   public ModelAndView updateSettings(
     @PathVariable UUID id,
-    @RequestParam PlanPermission shareLink,
     @RequestParam PlanPermission handleRequests,
     @RequestParam PlanPermission inviteInternal,
     @RequestParam PlanPermission inviteByEmail,
@@ -241,7 +235,6 @@ public class PlanController {
   ) {
     planService.updateSettings(
       id,
-      shareLink,
       handleRequests,
       inviteInternal,
       inviteByEmail,
@@ -317,7 +310,6 @@ public class PlanController {
       return new ModelAndView(REDIRECT_EXPLORE);
     }
     Plan draft = toPlanOrderedByVisitTime(planForm);
-    draft.getSettings().setShareLink(planForm.getSettings().getShareLink());
     draft.getSettings().setHandleRequests(planForm.getSettings().getHandleRequests());
     draft.getSettings().setInviteInternal(planForm.getSettings().getInviteInternal());
     draft.getSettings().setInviteByEmail(planForm.getSettings().getInviteByEmail());

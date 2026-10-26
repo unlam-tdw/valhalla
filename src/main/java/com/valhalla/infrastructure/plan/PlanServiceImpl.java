@@ -63,7 +63,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (plan.isAdministrator(userEmail) || plan.isParticipant(userEmail)) {
       return;
     }
-    if (plan.getIsPublic() || !plan.getSettings().isSharingEnabled()) {
+    // [SEC] Un plan privado siempre acepta solicitudes: la visibilidad gobierna el acceso, no
+    // un permiso de "compartir link" por plan. Un plan público se une por short code.
+    if (plan.getIsPublic()) {
       throw new PlanNotFoundException();
     }
     addJoinRequest(plan, requester);
@@ -128,14 +130,12 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Override
   public void updateSettings(
     UUID id,
-    PlanPermission shareLink,
     PlanPermission handleRequests,
     PlanPermission inviteInternal,
     PlanPermission inviteByEmail,
     String userEmail
   ) {
     Plan plan = getOwnedPlan(id, userEmail);
-    plan.getSettings().setShareLink(shareLink);
     plan.getSettings().setHandleRequests(handleRequests);
     plan.getSettings().setInviteInternal(inviteInternal);
     plan.getSettings().setInviteByEmail(inviteByEmail);

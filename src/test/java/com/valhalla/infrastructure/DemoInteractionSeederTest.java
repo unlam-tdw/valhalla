@@ -187,7 +187,6 @@ public class DemoInteractionSeederTest {
     verify(this.planServiceMock, times(1))
       .updateSettings(
         any(UUID.class),
-        eq(PlanPermission.PARTICIPANTS),
         eq(PlanPermission.EDITORS),
         eq(PlanPermission.PARTICIPANTS),
         eq(PlanPermission.OWNER),
@@ -245,7 +244,7 @@ public class DemoInteractionSeederTest {
   }
 
   @Test
-  public void guardaElPlanAntesDeCerrarloYHabilitaElSharingAntesDeLaSolicitud() {
+  public void guardaElPlanAntesDeCerrarloYRecienDespuesPideIngreso() {
     // given
     givenEnabledSeederWithGhosts();
 
@@ -253,7 +252,7 @@ public class DemoInteractionSeederTest {
     this.seeder.onApplicationEvent(null);
 
     // then: el guardado de Sofia y la solicitud de Tomas exigen estados opuestos del plan, asi
-    // que el orden es el contrato: guardar publico, abrir sharing, cerrar, recien ahi pedir.
+    // que el orden es el contrato: guardar publico, cerrar, recien ahi pedir.
     Plan closing = savedPlan(MARKER);
     assertThat(closing.getIsPublic(), is(false));
     InOrder order = inOrder(this.planBookmarkServiceMock, this.planServiceMock);
@@ -262,7 +261,6 @@ public class DemoInteractionSeederTest {
       .verify(this.planServiceMock)
       .updateSettings(
         eq(closing.getId()),
-        eq(PlanPermission.PARTICIPANTS),
         eq(PlanPermission.EDITORS),
         eq(PlanPermission.PARTICIPANTS),
         eq(PlanPermission.OWNER),

@@ -306,7 +306,6 @@ public class PlanServiceImplTest {
   @Test
   public void PET_requestIsIdempotentAndDoesNotGrantAccess() {
     Plan plan = invitationPlan(false);
-    plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
     User requester = owner(INVITED_ID, OTHER_EMAIL);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL)).thenReturn(Optional.of(requester));
     planService.requestToJoin(PLAN_ID, OTHER_EMAIL);
@@ -317,16 +316,10 @@ public class PlanServiceImplTest {
   }
 
   @Test
-  public void PET_disabledSharingAndPublicPlansRejectRequests() {
-    Plan plan = invitationPlan(false);
+  public void PET_publicPlansRejectRequests() {
+    Plan plan = invitationPlan(true);
     when(userRepositoryMock.findByEmail(OTHER_EMAIL))
       .thenReturn(Optional.of(owner(INVITED_ID, OTHER_EMAIL)));
-    assertThrows(
-      PlanNotFoundException.class,
-      () -> planService.requestToJoin(PLAN_ID, OTHER_EMAIL)
-    );
-    plan.setIsPublic(true);
-    plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
     assertThrows(
       PlanNotFoundException.class,
       () -> planService.requestToJoin(PLAN_ID, OTHER_EMAIL)
@@ -408,7 +401,7 @@ public class PlanServiceImplTest {
   }
 
   @Test
-  public void PET_settingsAreOwnerOnlyAndPersistAllPermissions() {
+  public void PET_settingsAreOwnerOnlyAndPersistPermissions() {
     Plan plan = invitationPlan(false);
     com.valhalla.domain.plan.PlanPermission ownerOnly =
       com.valhalla.domain.plan.PlanPermission.OWNER;
@@ -416,11 +409,10 @@ public class PlanServiceImplTest {
       com.valhalla.domain.plan.PlanPermission.EDITORS;
     assertThrows(
       PlanNotFoundException.class,
-      () -> planService.updateSettings(PLAN_ID, editors, editors, ownerOnly, editors, OTHER_EMAIL)
+      () -> planService.updateSettings(PLAN_ID, editors, ownerOnly, editors, OTHER_EMAIL)
     );
     verify(planRepositoryMock, never()).save(any());
-    planService.updateSettings(PLAN_ID, editors, editors, ownerOnly, editors, OWNER_EMAIL);
-    assertThat(plan.getSettings().getShareLink(), is(editors));
+    planService.updateSettings(PLAN_ID, editors, ownerOnly, editors, OWNER_EMAIL);
     assertThat(plan.getSettings().getHandleRequests(), is(editors));
     assertThat(plan.getSettings().getInviteInternal(), is(ownerOnly));
     assertThat(plan.getSettings().getInviteByEmail(), is(editors));
