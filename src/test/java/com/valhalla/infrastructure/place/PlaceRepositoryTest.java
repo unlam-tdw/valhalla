@@ -1,9 +1,12 @@
 package com.valhalla.infrastructure.place;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -12,6 +15,7 @@ import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.integration.JpaIntegrationTest;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,5 +63,53 @@ public class PlaceRepositoryTest {
 
     assertThat(places.size(), is(equalTo(1)));
     assertThat(places.getFirst().getName(), is(equalTo("Parrilla Don Julio")));
+  }
+
+  @Test
+  public void shouldFindAPlaceByItsExternalId() {
+    Place place = new Place();
+    place.setName("Importado de OSM");
+    place.setCategory(PlaceCategory.CAFE);
+    place.setExternalId("osm:node/9001");
+    placeRepository.save(place);
+
+    Optional<Place> found = placeRepository.findByExternalId("osm:node/9001");
+
+    assertThat(found.isPresent(), is(true));
+    assertThat(found.orElseThrow().getName(), is(equalTo("Importado de OSM")));
+  }
+
+  @Test
+  public void shouldReturnEmptyForAnIdentityThatWasNeverImported() {
+    assertThat(placeRepository.findByExternalId("osm:node/404").isPresent(), is(false));
+  }
+
+  @Test
+  public void shouldFindThePlacesOfAGivenSetOfIdentities() {
+    placeRepository.save(imported("Importado Uno", "osm:node/7001"));
+    placeRepository.save(imported("Importado Dos", "osm:way/7002"));
+
+    List<Place> found = placeRepository.findByExternalIdIn(
+      List.of("osm:node/7001", "osm:way/7002", "osm:node/70404")
+    );
+
+    assertThat(found, hasSize(2));
+    assertThat(
+      found.stream().map(Place::getExternalId).toList(),
+      containsInAnyOrder("osm:node/7001", "osm:way/7002")
+    );
+  }
+
+  @Test
+  public void shouldReturnNothingForAnEmptySetOfIdentities() {
+    assertThat(placeRepository.findByExternalIdIn(List.of()), is(empty()));
+  }
+
+  private static Place imported(String name, String externalId) {
+    Place place = new Place();
+    place.setName(name);
+    place.setCategory(PlaceCategory.CAFE);
+    place.setExternalId(externalId);
+    return place;
   }
 }

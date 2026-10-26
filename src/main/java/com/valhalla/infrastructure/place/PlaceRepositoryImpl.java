@@ -3,12 +3,20 @@ package com.valhalla.infrastructure.place;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Cache: la lista de {@code findAll()} se guarda en el servicio, pero se tira aca, en el punto
+ * donde la fila cambia. Invalidar en el servicio dejaria afuera toda escritura que no pase por el
+ * (los seeders y los tests siembran por este puerto), y una lista cacheada sobrevive a la fila que
+ * la origino.
+ */
 @Repository
 public class PlaceRepositoryImpl implements PlaceRepository {
 
@@ -30,6 +38,16 @@ public class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @Override
+  public Optional<Place> findByExternalId(String externalId) {
+    return jpaPlaceRepository.findByExternalId(externalId);
+  }
+
+  @Override
+  public List<Place> findByExternalIdIn(Collection<String> externalIds) {
+    return jpaPlaceRepository.findByExternalIdIn(externalIds);
+  }
+
+  @Override
   public List<Place> findByCategory(PlaceCategory category) {
     return jpaPlaceRepository.findByCategory(category);
   }
@@ -48,11 +66,13 @@ public class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @Override
+  @CacheEvict(cacheNames = "places", allEntries = true)
   public void save(Place place) {
     jpaPlaceRepository.save(place);
   }
 
   @Override
+  @CacheEvict(cacheNames = "places", allEntries = true)
   public void deleteById(UUID id) {
     jpaPlaceRepository.deleteById(id);
   }

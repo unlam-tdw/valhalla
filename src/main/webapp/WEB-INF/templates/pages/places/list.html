@@ -52,7 +52,7 @@
           <!-- Cierra el desplegable (tilda tab-none del grupo de pestañas); solo en mobile,
                donde el panel es una pestaña. En desktop no existe la barra de tabs. -->
           <label for="tab-none" title="Cerrar el panel"
-            class="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 md:hidden">
+            class="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 md:hidden">
             <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round">
               <path d="M18 6 6 18M6 6l12 12" />
@@ -96,6 +96,7 @@
                 <span class="mt-1 self-start text-sm font-medium text-gray-500">View details &rarr;</span>
               </div>
               <img :src="place.imageUrl || '/images/place-placeholder.svg'" :alt="place.name"
+                loading="lazy" decoding="async"
                 class="w-28 shrink-0 self-stretch bg-gray-100 object-cover" />
             </div>
             <button v-if="showCreatePlan || activePlan" type="button" :data-add-to-plan="place.id" :data-place-name="place.name"
@@ -148,14 +149,14 @@
             <dl v-if="selectedPlace.openingHours || selectedPlace.phone || selectedPlace.website || (selectedPlace.latitude && selectedPlace.longitude)"
               class="flex flex-col gap-2 border-t border-gray-100 pt-4 text-sm text-gray-700">
               <div v-if="selectedPlace.openingHours" class="flex gap-2">
-                <span class="mt-0.5 shrink-0 text-gray-400" v-html="lucideIcon('Clock')"></span>
+                <span class="mt-0.5 shrink-0 text-gray-500" v-html="lucideIcon('Clock')"></span>
                 <div>
                   <dt class="sr-only">Hours</dt>
                   <dd class="whitespace-pre-line">{{ selectedPlace.openingHours }}</dd>
                 </div>
               </div>
               <div v-if="selectedPlace.phone" class="flex gap-2">
-                <span class="mt-0.5 shrink-0 text-gray-400" v-html="lucideIcon('Phone')"></span>
+                <span class="mt-0.5 shrink-0 text-gray-500" v-html="lucideIcon('Phone')"></span>
                 <div>
                   <dt class="sr-only">Phone</dt>
                   <dd>
@@ -168,7 +169,7 @@
               </div>
               <!-- v-if por href: una web que no se puede abrir no se muestra como link roto. -->
               <div v-if="websiteHref(selectedPlace.website)" class="flex gap-2">
-                <span class="mt-0.5 shrink-0 text-gray-400" v-html="lucideIcon('Globe')"></span>
+                <span class="mt-0.5 shrink-0 text-gray-500" v-html="lucideIcon('Globe')"></span>
                 <div class="min-w-0">
                   <dt class="sr-only">Website</dt>
                   <dd>
@@ -185,7 +186,7 @@
                    coinciden, asi que el link sigue el texto para no mandar a otra calle. El
                    nombre desambigua direcciones vagas (ej. "Palermo"). -->
               <div v-if="selectedPlace.address" class="flex gap-2">
-                <span class="mt-0.5 shrink-0 text-gray-400" v-html="lucideIcon('Navigation')"></span>
+                <span class="mt-0.5 shrink-0 text-gray-500" v-html="lucideIcon('Navigation')"></span>
                 <div class="min-w-0">
                   <dt class="sr-only">Cómo llegar</dt>
                   <dd>
@@ -218,7 +219,7 @@
             <h2 class="text-xl font-semibold text-gray-900">Plans</h2>
             <!-- Cierra el desplegable (tilda tab-none del grupo de pestañas); solo en mobile. -->
             <label for="tab-none" title="Cerrar el panel"
-              class="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 md:hidden">
+              class="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 md:hidden">
               <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -245,18 +246,21 @@
                    renderiza (sec:authorize, mismo criterio que el resto de CTAs). -->
               <button type="button" sec:authorize="isAuthenticated()"
                 @click.stop.prevent="toggleBookmark(plan)"
+                :disabled="plan.bookmarking === true"
+                :aria-busy="plan.bookmarking ? 'true' : 'false'"
                 :aria-pressed="plan.bookmarked ? 'true' : 'false'"
                 :aria-label="plan.bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'"
                 :title="plan.bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'"
                 :class="plan.bookmarked ? 'text-primary' : 'text-gray-600 hover:text-primary'"
-                class="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+                class="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary disabled:cursor-not-allowed disabled:opacity-50"
                 data-bookmark-toggle="true" :data-bookmarked="plan.bookmarked ? 'true' : 'false'">
-                <svg v-if="plan.bookmarked" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"
-                  aria-hidden="true">
+                <svg v-if="plan.bookmarked" data-bookmark-icon="filled" class="h-4 w-4"
+                  viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
                 </svg>
-                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+                <svg v-else data-bookmark-icon="outline" class="h-4 w-4" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"
+                  aria-hidden="true">
                   <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
                 </svg>
               </button>

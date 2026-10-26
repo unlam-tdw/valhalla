@@ -62,6 +62,20 @@ public class BrandTokensTest {
     "lib",
     "places-map.js"
   );
+  /**
+   * El unico lector de los colores de categoria. Vivía en places-list.js y el importador lo
+   * duplicaba; ahora el mapa publico y el del importador comparten este modulo.
+   */
+  private static final Path CATEGORY_COLORS_JS = Paths.get(
+    "src",
+    "main",
+    "webapp",
+    "resources",
+    "core",
+    "js",
+    "lib",
+    "category-colors.js"
+  );
 
   private static final List<String> CATEGORY_TOKENS = List.of(
     "--category-restaurant",
@@ -200,12 +214,14 @@ public class BrandTokensTest {
   }
 
   // U-04 (AC-03, AC-04): un token por categoria, declarado una sola vez, y ningun hex
-  // suelto en el JS que arma el mapa.
+  // suelto en el lector de colores. El lector es uno solo (lib/category-colors.js): las
+  // vistas lo importan en vez de repetir la tabla.
   @Test
   void categoryColorsLiveInOneTokenPerCategory() throws IOException {
     String tokens = read(TOKENS);
     String places = read(PLACES);
     String placesJs = read(PLACES_JS);
+    String colorsJs = read(CATEGORY_COLORS_JS);
 
     for (String token : CATEGORY_TOKENS) {
       assertThat(
@@ -218,15 +234,57 @@ public class BrandTokensTest {
     // El mapa del marker y el del panel eran dos copias del mismo objeto. Una sola ahora.
     assertThat(placesJs, not(containsString("categoryColors")));
 
-    // Ningun hex de categoria literal en el JS: se lee del :root computado.
-    assertThat(placesJs, containsString("getPropertyValue"));
+    // El color se lee del :root computado: ningun hex de categoria literal en el lector.
+    assertThat(colorsJs, containsString("getPropertyValue"));
+    assertThat(
+      "el lector exporta categoryColor",
+      colorsJs,
+      containsString("export const categoryColor")
+    );
     for (String hex : categoryHexes()) {
+      assertThat(
+        "ningun hex de categoria literal en category-colors.js: " + hex,
+        colorsJs,
+        not(containsString(hex))
+      );
       assertThat(
         "ningun hex de categoria literal en places-list.js: " + hex,
         placesJs,
         not(containsString(hex))
       );
     }
+
+    // Cada valor del enum tiene su token, con los mismos nombres de siempre.
+    for (String[] pair : new String[][] {
+      { "RESTAURANT", "--category-restaurant" },
+      { "BAR", "--category-bar" },
+      { "CAFE", "--category-cafe" },
+      { "MUSEUM", "--category-museum" },
+      { "PARK", "--category-park" },
+      { "SHOPPING", "--category-shopping" },
+      { "NIGHTLIFE", "--category-nightlife" },
+      { "CULTURE", "--category-culture" },
+      { "SPORT", "--category-sport" },
+      { "OTHER", "--category-other" },
+    }) {
+      assertThat(
+        "el enum " + pair[0] + " mapea su token",
+        colorsJs,
+        containsString("'" + pair[0] + "': '" + pair[1] + "'")
+      );
+    }
+
+    // Y places-list.js ya no duplica la tabla: la importa del modulo compartido.
+    assertThat(
+      "places-list.js no repite la tabla de tokens",
+      placesJs,
+      not(containsString("CATEGORY_TOKEN_BY_ENUM"))
+    );
+    assertThat(
+      "places-list.js importa el lector compartido",
+      placesJs,
+      containsString("from '../lib/category-colors.js'")
+    );
   }
 
   // Los iconos de categoría salen de la librería vendorizada, no de SVG escrito a mano.

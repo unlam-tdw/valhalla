@@ -110,11 +110,11 @@
             <!-- Acción única arriba. El enlace de entrada es texto: no compite con el CTA. -->
             <div class="mt-8 flex flex-wrap items-center gap-3">
               <a th:if="${authenticated == false}" th:href="@{/auth/register}"
-                class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                class="btn-cta">
                 Crear mi plan gratis
               </a>
               <a th:if="${authenticated == true}" th:href="@{/explore}"
-                class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                class="btn-cta">
                 Explorar lugares
               </a>
 
@@ -152,16 +152,9 @@
               </div>
 
               <ol class="mt-3 flex flex-col gap-2">
-                <li th:each="stop : ${heroItinerary}"
-                  class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
-                  <span class="font-mono text-sm font-semibold text-primary" th:text="${stop.time}">10:00</span>
-                  <span class="flex-1">
-                    <span class="block text-sm font-semibold text-gray-900" th:text="${stop.place}">Cafe Tortoni</span>
-                    <span class="block text-xs text-gray-500" th:text="${stop.address}">Av. de Mayo 825</span>
-                  </span>
-                  <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-                    th:text="${stop.category}">Café</span>
-                </li>
+                <th:block th:each="stop : ${heroItinerary}">
+                  <th:block th:replace="~{components/place-card :: place-card(${stop})}"></th:block>
+                </th:block>
               </ol>
 
               <p class="mt-3 text-xs text-gray-500">
@@ -272,19 +265,19 @@
 
           <ol class="mt-8 grid gap-4 md:grid-cols-3">
             <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
-              <span class="font-serif text-4xl text-gray-300">01</span>
+              <span class="font-serif text-4xl text-gray-500">01</span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Creás tu cuenta</h3>
               <p class="mt-2 text-sm text-gray-600 text-pretty">Un mail y una contraseña.</p>
             </li>
 
             <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
-              <span class="font-serif text-4xl text-gray-300">02</span>
+              <span class="font-serif text-4xl text-gray-500">02</span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Elegís los lugares</h3>
               <p class="mt-2 text-sm text-gray-600 text-pretty">Buscás en el mapa y armás el itinerario.</p>
             </li>
 
             <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
-              <span class="font-serif text-4xl text-gray-300">03</span>
+              <span class="font-serif text-4xl text-gray-500">03</span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Compartís el link</h3>
               <p class="mt-2 text-sm text-gray-600 text-pretty">El plan queda listo para abrirlo en el celu.</p>
             </li>
@@ -341,9 +334,6 @@
               <summary
                 class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 ¿Necesito crear una cuenta para ver un plan que me compartieron?
-                <i data-lucide="plus"
-                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
-                  aria-hidden="true"></i>
               </summary>
               <p class="mt-3 text-sm text-gray-600 text-pretty">
                 No. El link abre el itinerario sin pedirte nada. Registrarse es para crear y editar
@@ -356,9 +346,6 @@
               <summary
                 class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 ¿PlanIt cuesta algo?
-                <i data-lucide="plus"
-                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
-                  aria-hidden="true"></i>
               </summary>
               <p class="mt-3 text-sm text-gray-600 text-pretty">
                 No. La cuenta y los planes son gratuitos y no pedimos tarjeta.
@@ -370,9 +357,6 @@
               <summary
                 class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 ¿Sirve para una ciudad que no es Buenos Aires?
-                <i data-lucide="plus"
-                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
-                  aria-hidden="true"></i>
               </summary>
               <p class="mt-3 text-sm text-gray-600 text-pretty">
                 Sí. El catálogo arranca con Buenos Aires, pero un plan es un lugar con horario y
@@ -385,9 +369,6 @@
               <summary
                 class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 ¿Quién puede editar un plan?
-                <i data-lucide="plus"
-                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
-                  aria-hidden="true"></i>
               </summary>
               <p class="mt-3 text-sm text-gray-600 text-pretty">
                 Solo vos. El resto ve el itinerario, los horarios y la ruta, pero no lo modifica.
@@ -399,9 +380,6 @@
               <summary
                 class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 ¿Puedo recuperar la contraseña?
-                <i data-lucide="plus"
-                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
-                  aria-hidden="true"></i>
               </summary>
               <p class="mt-3 text-sm text-gray-600 text-pretty">
                 Sí. Lo pedís desde la pantalla de ingreso y PlanIt te muestra una contraseña
@@ -414,9 +392,6 @@
               <summary
                 class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 ¿Funciona desde el celu?
-                <i data-lucide="plus"
-                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
-                  aria-hidden="true"></i>
               </summary>
               <p class="mt-3 text-sm text-gray-600 text-pretty">
                 Sí. La página se adapta al teléfono y el link se abre sin instalar nada.
@@ -428,9 +403,6 @@
               <summary
                 class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 ¿Puedo borrar un plan?
-                <i data-lucide="plus"
-                  class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-open:rotate-45"
-                  aria-hidden="true"></i>
               </summary>
               <p class="mt-3 text-sm text-gray-600 text-pretty">
                 Sí, desde el detalle del plan. La eliminación no se puede deshacer.
@@ -499,11 +471,11 @@
           </p>
           <div class="mt-8">
             <a th:if="${authenticated == false}" th:href="@{/auth/register}"
-              class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              class="btn-cta">
               Crear mi plan gratis
             </a>
             <a th:if="${authenticated == true}" th:href="@{/plans}"
-              class="rounded-lg bg-primary px-3 py-2 text-base font-semibold text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-secondary active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              class="btn-cta">
               Ver mis planes
             </a>
           </div>
@@ -537,8 +509,17 @@
   </footer>
 
   <!-- Librería de iconos vendorizada, la misma que usa /explore: sin CDN y sin dependencia de
-       red en el E2E. Va antes del script de animación porque createIcons necesita window.lucide. -->
+       red en el E2E. Va antes de cualquier script que la consuma. -->
   <script th:src="@{/js/lucide.min.js}"></script>
+
+  <script>
+    /* Los data-lucide se dibujan acá, antes y aparte del reveal [DIS]: el IIFE de animación
+       sale temprano por return con prefers-reduced-motion, y los íconos se quedaban vacíos
+       (AC-04 y AC-05). createIcons no depende del observer ni de la clase reveal-ready. */
+    if (window.lucide && lucide.createIcons) {
+      lucide.createIcons({ attrs: { 'stroke-width': 1.5 } });
+    }
+  </script>
 
   <script>
     /* Sin JavaScript la página se ve entera: los estados iniciales (blur, opacidad 0, palabras
@@ -596,14 +577,6 @@
           );
           wordObserver.observe(word);
         })(words[w], w);
-      }
-
-      /* Los íconos de Lucide se dibujan recién ahora: los data-lucide del DOM ya están
-         reemplazados por SVG. */
-      if (window.lucide && lucide.createIcons) {
-        lucide.createIcons({
-          attrs: { 'stroke-width': 1.5 }
-        });
       }
     })();
   </script>

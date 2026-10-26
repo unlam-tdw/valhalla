@@ -17,7 +17,12 @@ export class ApiError extends Error {
 }
 
 export function csrfToken() {
-  return document.querySelector('meta[name="_csrf"]')?.content ?? null;
+  // La vista publica del plan hereda solo headContent, sin los metas de CSRF, pero su form
+  // lleva el token como input oculto. El fallback permite que el toggle de esa vista tambien
+  // use la API sin duplicar el token en el <head>.
+  return document.querySelector('meta[name="_csrf"]')?.content
+    ?? document.querySelector('input[name="_csrf"]')?.value
+    ?? null;
 }
 
 function csrfHeaderName() {

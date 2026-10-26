@@ -158,3 +158,170 @@ html[data-theme="dark"] .divide-gray-200 > * { border-color: var(--dark-border);
 .theme-icon-sun { display: none; }
 html[data-theme="dark"] .theme-icon-moon { display: none; }
 html[data-theme="dark"] .theme-icon-sun { display: block; }
+
+/* --- Indicador del item "Tema" del modal autenticado ([PROF+THEME]): el badge dice el modo
+       VIGENTE, no la accion. Los dos textos viajan en el boton y el modo decide cual se ve,
+       mismo patron que los iconos: no hay estado que sincronizar desde JS. --- */
+.theme-label-dark { display: none; }
+html[data-theme="dark"] .theme-label-light { display: none; }
+html[data-theme="dark"] .theme-label-dark { display: inline; }
+
+/* ============================ COMPONENTES COMPARTIDOS ============================
+ *
+ * [DIS] 17-DIS: una declaracion por componente, consumida por la landing y por la app.
+ * Ningun template repite estas reglas (AC-01, AC-02, AC-03). */
+
+/* --- Card de lugar (AC-01): la parada del itinerario con la misma cara en el hero del
+ * landing (components/place-card.html) y en el detalle del plan (el <li> lleva la clase
+ * doble itinerary-stop place-card: el detalle conserva su identidad para sus reglas
+ * moviles y de reduced-motion, y aca vive lo visual compartido). Borde, radius, padding,
+ * superficie y hover salen de un solo lugar; el layout interno (flex:1, los .stop-*)
+ * sigue siendo de cada pagina. --- */
+.place-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: var(--white);
+  font-family: var(--typeface-sans);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.place-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.06);
+}
+
+html[data-theme="dark"] .place-card {
+  background: var(--dark-card);
+  border-color: var(--dark-border);
+}
+
+/* [DIS] El mapa Leaflet no debe pintar por encima del nav sticky (z-50). Sus traen z-index
+   400-800 (y los marcadores custom, hasta 1000) y, como .leaflet-container venia con
+   z-index: auto, no creaba stacking context: esos descendientes escapaban al contexto raiz y
+   tapaban la barra al hacer scroll (los paneles del mapa se dibujaban sobre el nav). Darle
+   z-index: 0 convierte el container en su propio stacking context, aislando los paneles
+   dentro del mapa. El nav (z-50) vuelve a quedar por encima. Vale para todo mapa del sitio
+   (detalle del plan y explore), sin tocar el leaflet.css vendorizado. */
+.leaflet-container {
+  position: relative;
+  z-index: 0;
+}
+
+/* [DIS] Revisión visual (2026-10-25) — sistema de bordes en modo día, en TODAS las vistas.
+   En oscuro las capas se separan por tono y todo se lee; en claro era blanco sobre blanco:
+   cards con border-0, tiles .bg-light, inputs, tablas y las cajas blancas con sombra del
+   catálogo, home, admin y auth sin ninguna separación. Dos llaves, solo tema claro (cada
+   utilidad ya tiene su traducción propia en la capa html[data-theme="dark"], que no se
+   toca):
+   1) el token --bs-border-color sube de #dee2e6 a #adb5bd: todo lo que pinte Bootstrap
+      (cards, inputs, list-group, tablas, tiles, panel del itinerario) sale con un gris
+      visible en cualquier vista.
+   2) las utilidades faint de Tailwind (.border-gray-200 / .border-gray-300) pasan al
+      mismo gris con su hover un paso más oscuro como antes, y las cajas blancas con
+      sombra que no traían borde (.bg-white.shadow*) reciben 1px solid. Las <section>
+      blancas del landing quedan fuera a propósito: no traen borde ni sombra. */
+html:not([data-bs-theme="dark"]) {
+  --bs-border-color: #adb5bd;
+}
+
+html:not([data-bs-theme="dark"]) .card {
+  border: 1px solid var(--bs-border-color) !important;
+}
+
+html:not([data-bs-theme="dark"]) .bg-light {
+  border: 1px solid var(--bs-border-color);
+}
+
+html:not([data-bs-theme="dark"]) .border-gray-200,
+html:not([data-bs-theme="dark"]) .border-gray-300 {
+  border-color: var(--bs-border-color);
+}
+
+html:not([data-bs-theme="dark"]) .hover\:border-gray-300:hover {
+  border-color: #6b7280;
+}
+
+html:not([data-bs-theme="dark"]) .bg-white.shadow,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-sm,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-md,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-lg,
+html:not([data-bs-theme="dark"]) .bg-white.shadow-xl {
+  border: 1px solid var(--bs-border-color);
+}
+
+/* --- Boton CTA (AC-02): el mismo estilo para el "Crear mi plan gratis" del hero del
+ * landing, el de la seccion final y los botones primarios del navbar. Antes era una
+ * lista de utilidades de Tailwind pegada string por string en 4 lugares del landing (y
+ * otra distinta en el navbar): padding, peso, radio, colores y transiciones viven una
+ * sola vez. btn-cta--alt es la variante del Login, que conserva su rol de segundo plano
+ * (fondo secundario, hover primario) compartiendo todo lo demas. --- */
+.btn-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  background: var(--primary);
+  color: var(--white);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-cta:hover {
+  background: var(--secondary);
+}
+
+.btn-cta--alt {
+  background: var(--secondary);
+}
+
+.btn-cta--alt:hover {
+  background: var(--primary);
+}
+
+/* Focus en secundario: sobre el navbar negro el primario no se distingue. */
+.btn-cta:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.btn-cta:active {
+  transform: scale(0.98);
+}
+
+/* --- Indicador del FAQ (AC-03): chevron en CSS puro dentro del <summary>, que ya es
+ * flex con justify-between. No depende de lucide ni de JS: sin script la fila sigue
+ * viendose abrible, <details> abre igual, y details[open] invierte la punta. El hover
+ * de la fila comunica que es accionable. --- */
+details > summary {
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+}
+
+details > summary:hover {
+  background-color: rgb(17 24 39 / 0.04);
+}
+
+details > summary::after {
+  content: "";
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--gray);
+  border-bottom: 2px solid var(--gray);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+details[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
+html[data-theme="dark"] details > summary:hover {
+  background-color: rgb(255 255 255 / 0.06);
+}

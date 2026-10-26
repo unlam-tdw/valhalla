@@ -1,15 +1,33 @@
 /**
- * The OSM importer: map viewport, predefined queries and the point list. Extracted from
+ * The OSM importer: map viewport, predefined queries, the point list and the preview panel that
+ * opens over the map instead of navigating to the alta. Extracted from
  * WEB-INF/templates/pages/admin/place-import.html (docs/guide-js.md R4).
  *
  * `Vue` and `L` are globals from the vendored classic scripts, which run before this
  * module. The CABA box comes from the page, because only Thymeleaf knows the backend value.
+ *
+ * Dos endpoints y una regla: leer es barato, consultar cuesta medio minuto. `/pois` se pide
+ * al entrar y cada vez que el mapa se mueve, y sale de la base; `/refresh` solo cuando el
+ * admin presiona el boton, porque es el unico que habla con Overpass.
  */
 import { apiFetch } from '../lib/api.js';
+import { categoryColor } from '../lib/category-colors.js';
 import { el } from '../lib/dom.js';
 
 const CABA = (window.PLACE_IMPORT_SEED || {}).cabaBounds ?? null;
 const { createApp, ref, computed, watch, onMounted } = Vue;
+
+const ENDPOINT_STORED = '/admin/places/import/pois';
+const ENDPOINT_REFRESH = '/admin/places/import/refresh';
+
+/* Dos errores distintos a proposito: "no se pudo leer lo guardado" y "Overpass no contesto"
+   piden cosas distintas del admin. */
+const ERROR_STORED = 'No se pudieron leer los puntos guardados. Recargá la página.';
+const ERROR_REFRESH =
+  'No se pudieron traer los puntos de OpenStreetMap. Probá de nuevo en unos segundos.';
+
+/* Cada cuanto se recalcula el "hace X" de la ultima carga, sin recargar la pagina. */
+const CLOCK_TICK_MS = 30000;
 
 /* Consultas predefinidas: el par OSM que viaja a /admin/places/import/pois y la categoria que
    el importador sugiere en el form. La sugerencia no decide nada: el select del ABM deja
@@ -31,8 +49,17 @@ createApp({
     const search = ref('');
     const error = ref('');
     const loading = ref(false);
-    /* "Todavia no busque" no es lo mismo que "busque y no habia nada": cambia el texto. */
+    /* Ingesta en curso: el boton no puede disparar dos y una lectura no la cancela. */
+    const refreshing = ref(false);
+    /* "Todavia no leí" no es lo mismo que "leí y no habia nada": cambia el texto. */
     const loaded = ref(false);
+    /* ISO-8601 de la ultima carga de esta zona y este tipo, o null si nunca se cargo. */
+    const fetchedAt = ref(null);
+    /* El punto elegido en el mapa o en la lista: abre la vista previa sobre el mapa en vez de
+       navegar. null = no hay panel abierto. */
+    const selectedPoi = ref(null);
+    /* Reloj propio: el "hace X" tiene que envejecer aunque nadie toque la pagina. */
+    const now = ref(Date.now());
     let map = null;
     let markers = [];
     let pending = 0;
@@ -41,8 +68,6 @@ createApp({
     /* Bordes del area visible como numeros (no el objeto de Leaflet): Vue no envuelve en proxy
        un objeto ajeno y la comparacion queda aritmetica. */
     const area = ref(null);
-    /* La zona que se consulto: sirve para avisar cuando el mapa se fue a otra parte. */
-    const loadedArea = ref(null);
     const refreshArea = () => {
       const bounds = map.getBounds();
       /* Antes de que Tailwind mida el mapa, el contenedor mide 0 y getBounds() devuelve
@@ -72,10 +97,9 @@ createApp({
         timer = setTimeout(fn, wait);
       };
     };
-    const onMapMoved = debounce(refreshArea, 120);
 
     /* Sin acentos ni mayusculas: "cafe" tiene que encontrar "Café". El filtro es local a
-       proposito — volver a Overpass por cada tecla costaria ~30s sobre datos que ya estan. */
+       proposito: la lista ya esta en memoria, no hay motivo para volver a pedirla. */
     const normalizeName = (text) => (text || '').normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
@@ -85,10 +109,8 @@ createApp({
 
     /* Cargar solo tiene sentido si la zona visible toca CABA: el backend recorta a la ciudad. */
     const canLoad = computed(() => !!area.value && intersects(area.value, CABA));
-
-    /* El mapa se movio a una zona que la lista actual no cubre: se avisa, no se vacia. */
-    const staleArea = computed(() => !!loadedArea.value && !!area.value &&
-      !intersects(area.value, loadedArea.value));
+    /* La zona (y el tipo) que se esta mirando ya se cargo alguna vez. */
+    const zoneLoaded = computed(() => !!fetchedAt.value);
 
     const filtered = computed(() => {
       const term = normalizeName(search.value.trim());
@@ -96,14 +118,45 @@ createApp({
       return pois.value.filter((poi) => normalizeName(poi.name).includes(term));
     });
 
-    /* "N de M" cuando el filtro recorta; el total solo cuando no hay filtro activo. */
+    /* "N de M" cuando el filtro recorta; el total solo cuando no hay filtro activo. Una lectura es
+       tan corta que no reemplaza el conteo: solo la ingesta (30 s) se anuncia. */
     const statusText = computed(() => {
-      if (loading.value) return 'Buscando puntos en la zona visible...';
-      if (!loaded.value) return '';
+      if (refreshing.value) return 'Consultando OpenStreetMap: puede tardar hasta 30 s...';
+      if (!loaded.value) return loading.value ? 'Leyendo los puntos guardados...' : '';
       return filtered.value.length < pois.value.length
         ? filtered.value.length + ' de ' + pois.value.length + ' punto(s)'
         : pois.value.length + ' punto(s) encontrados';
     });
+
+    /* Antigüedad legible de lo que hay en el mapa. Se calcula, no se guarda: el texto cambia
+       con el reloj aunque los datos no. */
+    const loadedAgo = computed(() => {
+      if (!fetchedAt.value) return '';
+      const seconds = Math.max(0, Math.round((now.value - Date.parse(fetchedAt.value)) / 1000));
+      if (seconds < 60) return 'recién';
+      const minutes = Math.round(seconds / 60);
+      if (minutes < 60) return 'hace ' + minutes + ' min';
+      const hours = Math.round(minutes / 60);
+      if (hours < 24) return 'hace ' + hours + ' h';
+      return 'hace ' + Math.round(hours / 24) + ' día(s)';
+    });
+
+    /* Zona que nunca se cargo: hay que decirlo, porque "no hay puntos" y "no los pediste
+       todavia" se parecen demasiado. Solo aplica cuando no hay nada que mostrar. */
+    const neverLoaded = computed(() => loaded.value && !loading.value && !error.value &&
+      !zoneLoaded.value && pois.value.length === 0);
+
+    /* El boton dice lo que va a hacer, no lo que esta pasando: el "en curso" va en el texto de
+       estado. Asi el texto no parpadea en cada relectura de la base. */
+    const loadLabel = computed(() =>
+      zoneLoaded.value ? 'Actualizar puntos de esta zona' : 'Cargar puntos de esta zona'
+    );
+
+    /* Identidad de la fila, la misma que guarda el backend en source_key: dos POIs homonimos en
+       esquinas distintas son dos filas y el v-for no puede confundirlas. Un POI sin identidad de
+       OSM cae en la clave de respaldo (nombre@lat,lon). */
+    const keyOf = (poi) => poi.externalId ||
+      poi.name + '@' + poi.latitude + ',' + poi.longitude;
 
     /* El alta espera los mismos params que arma el marker. encodeURIComponent en cada valor:
        los nombres de OSM traen acentos, comas y parentesis. */
@@ -111,29 +164,47 @@ createApp({
       const param = (name, value) => value === null || value === undefined || value === ''
         ? ''
         : '&' + name + '=' + encodeURIComponent(value);
-      return '/admin/places/new?category=' + encodeURIComponent(selected.value.category) +
+      /* La categoria del punto manda (es la que se guardo en la fila); el tipo elegido en el
+         selector es solo el respaldo de un punto que no la trae. */
+      return '/admin/places/new?category=' +
+        encodeURIComponent(poi.category || selected.value.category) +
         param('name', poi.name) +
         param('address', poi.address) +
         param('latitude', poi.latitude) +
         param('longitude', poi.longitude) +
         param('openingHours', poi.openingHours) +
         param('phone', poi.phone) +
-        param('website', poi.website);
+        param('website', poi.website) +
+        param('externalId', poi.externalId);
     };
 
-    /* Sin hex nuevo: el color sale de los tokens de marca, igual que los markers de /explore. */
-    const brandColor = () => {
-      const tokens = getComputedStyle(document.documentElement);
-      return tokens.getPropertyValue('--primary').trim() ||
-        tokens.getPropertyValue('--black').trim();
+    /* El punto elegido, ya sea desde el mapa o desde la lista: las dos vias abren el panel. */
+    const selectPoi = (poi) => {
+      selectedPoi.value = poi;
     };
+
+    const closePreview = () => {
+      selectedPoi.value = null;
+    };
+
+    /* El panel muestra todo lo que el alta va a recibir, con un guion donde OSM no trajo nada. */
+    const orDash = (value) =>
+      value === null || value === undefined || value === '' ? '—' : value;
+
+    const coordinatesOf = (poi) =>
+      poi.latitude === null || poi.latitude === undefined ||
+        poi.longitude === null || poi.longitude === undefined
+        ? '—'
+        : poi.latitude + ', ' + poi.longitude;
 
     const drawMarkers = () => {
       markers.forEach((marker) => map.removeLayer(marker));
       markers = filtered.value
         .filter((poi) => poi.latitude !== null && poi.longitude !== null)
         .map((poi) => {
-          const color = brandColor();
+          /* El mismo token por categoria que usa /explore: un punto del importador se lee igual
+             que el del mapa publico. */
+          const color = categoryColor(poi.category);
           const marker = L.circleMarker([poi.latitude, poi.longitude], {
             radius: 9,
             color: color,
@@ -145,7 +216,7 @@ createApp({
              the label is a node, not markup. */
           marker.bindPopup(el('strong', { text: poi.name }));
           marker.on('click', () => {
-            window.location.href = formUrl(poi);
+            selectPoi(poi);
           });
           return marker;
         });
@@ -154,8 +225,20 @@ createApp({
     /* Los markers se redibujan solos cuando cambia la lista filtrada. */
     watch(filtered, drawMarkers);
 
-    const loadPois = async () => {
+    /* Si el elegido dejo de estar en la lista (filtro, carga nueva, cambio de tipo) el panel se
+       cierra: no puede quedar mostrando un punto que ya no esta. */
+    watch(filtered, () => {
+      if (selectedPoi.value && !filtered.value.includes(selectedPoi.value)) closePreview();
+    });
+
+    /* Un solo camino para los dos endpoints: cambia la URL y el texto del error, no el contrato
+       (sobre {pois, fetchedAt}) ni el manejo de la carrera entre pedidos. */
+    const requestPois = async (endpoint, failure) => {
       if (!canLoad.value) return;
+      const isRefresh = endpoint === ENDPOINT_REFRESH;
+      /* Una lectura no cancela una ingesta: abortar el refresh dejaria la zona a medio guardar.
+         Si termina, su respuesta ya trae la lista. */
+      if (!isRefresh && refreshing.value) return;
       const current = ++pending;
       /* Si se aprieta dos veces, la anterior no se espera: se aborta y manda la ultima. */
       if (controller) controller.abort();
@@ -163,32 +246,51 @@ createApp({
       const box = area.value;
       const query = selected.value;
       const param = (name, value) => '&' + name + '=' + encodeURIComponent(value);
-      loadedArea.value = box;
       loading.value = true;
+      refreshing.value = isRefresh;
       error.value = '';
       try {
         const response = await apiFetch(
-          '/admin/places/import/pois?' + query.key + '=' + encodeURIComponent(query.value) +
+          endpoint + '?' + query.key + '=' + encodeURIComponent(query.value) +
             param('south', box.south) + param('west', box.west) +
             param('north', box.north) + param('east', box.east),
           { signal: controller.signal }
         );
         const data = await response.json();
         if (current !== pending) return;
-        pois.value = data;
-        search.value = '';
+        pois.value = data.pois || [];
+        fetchedAt.value = data.fetchedAt || null;
         loaded.value = true;
       } catch (loadError) {
         if (current !== pending || loadError.name === 'AbortError') return;
         console.error(loadError);
-        error.value = loadError.status === 401 ? loadError.message :
-          'No se pudieron traer los puntos de OpenStreetMap. Probá de nuevo en unos segundos.';
+        error.value = loadError.status === 401 ? loadError.message : failure;
       } finally {
-        if (current === pending) loading.value = false;
+        if (current === pending) {
+          loading.value = false;
+          refreshing.value = false;
+        }
       }
     };
 
-    /* Al entrar no se consulta nada: el mapa queda listo y la consulta la dispara el boton. */
+    /* Lo guardado de la zona visible: al entrar y en cada movimiento del mapa. */
+    const readStored = () => requestPois(ENDPOINT_STORED, ERROR_STORED);
+    /* El boton: Overpass + diff, y devuelve la misma lista ya actualizada. */
+    const refreshZone = () => requestPois(ENDPOINT_REFRESH, ERROR_REFRESH);
+
+    /* Mover el mapa ya no consulta Overpass: relee la base para la zona nueva. */
+    const onMapMoved = debounce(() => {
+      refreshArea();
+      readStored();
+    }, 120);
+
+    /* Cambiar de tipo es otra lista: se relee (de la base) y el filtro viejo deja de tener
+       sentido sobre puntos que ya no estan. */
+    watch(selected, () => {
+      search.value = '';
+      readStored();
+    });
+
     onMounted(() => {
       map = L.map('map', { center: [-34.6037, -58.3816], zoom: 13 });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -201,7 +303,12 @@ createApp({
       new ResizeObserver(() => map.invalidateSize()).observe(map.getContainer());
       requestAnimationFrame(() => map.invalidateSize());
       map.on('moveend zoomend', onMapMoved);
-      refreshArea();
+      /* Mismo camino que un movimiento: si el mapa todavia mide 0 no hay area y no se pide
+         nada; el invalidateSize de arriba dispara el moveend que sí la tiene. */
+      onMapMoved();
+      setInterval(() => {
+        now.value = Date.now();
+      }, CLOCK_TICK_MS);
     });
 
     return {
@@ -211,13 +318,24 @@ createApp({
       search,
       filtered,
       statusText,
+      loadedAgo,
+      neverLoaded,
+      loadLabel,
+      zoneLoaded,
       error,
       loading,
+      refreshing,
       loaded,
       canLoad,
-      staleArea,
-      loadPois,
-      formUrl
+      keyOf,
+      refreshZone,
+      formUrl,
+      selectedPoi,
+      selectPoi,
+      closePreview,
+      orDash,
+      coordinatesOf,
+      categoryColor
     };
   }
 }).mount('#place-import-app');

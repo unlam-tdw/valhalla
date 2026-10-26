@@ -1,8 +1,13 @@
 <!-- [MOBILE] flex-wrap: en pantallas angostas el segundo bloque (links) baja a su propia fila
-     en vez de forzar scroll horizontal (AC-01/AC-02 de 22-MOBILE). -->
+     en vez de forzar scroll horizontal (AC-01/AC-02 de 22-MOBILE).
+     [DIS] AC-06: sticky top-0 + z-50 dejan la barra fija durante el scroll en landing y app,
+     desde el fragmento único (una sola declaración, todas las páginas). El skip-link del
+     landing va después en el orden de fuente y, con el mismo z-50, pinta encima al enfocarse;
+     los modales del sitio (navbar-menu z-[1100], detalle del explorador z-[1100]) siguen por
+     encima, como los tenía /explore con su sticky propio. -->
 <nav th:fragment="navbar" xmlns:th="http://www.thymeleaf.org"
   xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-  class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-black px-4 text-white shadow">
+  class="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-black px-4 text-white shadow">
 
   <!-- Logo principal: a /admin/home cuando el navbar rinde la variante admin (rol ADMIN
        dentro de /admin/**), a / en el resto. La variante se decide por rol Y por el área que se
@@ -44,11 +49,11 @@
     <!-- Front door to the admin panel; the only destination an admin needs, and only while
          inside /admin/**. Outside that area the admin gets the user menu instead. -->
     <a th:href="@{/admin/users}" th:if="${showAdminNav}"
-      class="rounded-md bg-primary px-3 py-2 font-medium hover:bg-secondary">
+      class="btn-cta">
       Users
     </a>
     <a th:href="@{/admin/places}" th:if="${showAdminNav}"
-      class="rounded-md bg-primary px-3 py-2 font-medium hover:bg-secondary">
+      class="btn-cta">
       Places
     </a>
 
@@ -56,15 +61,15 @@
          listado. /explore es el catálogo. Se muestran en todo el área de usuario, también
          para una sesión ADMIN que la está navegando. -->
     <a th:href="@{/for-you}" th:unless="${showAdminNav}"
-      class="rounded-md bg-primary px-3 py-2 font-medium hover:bg-secondary">
+      class="btn-cta">
       Para vos
     </a>
     <a th:href="@{/explore}" th:unless="${showAdminNav}"
-      class="rounded-md bg-primary px-3 py-2 font-medium hover:bg-secondary">
+      class="btn-cta">
       Explore
     </a>
     <a th:href="@{/plans}" th:unless="${showAdminNav}"
-      class="rounded-md bg-primary px-3 py-2 font-medium hover:bg-secondary">
+      class="btn-cta">
       Plans
     </a>
 
@@ -89,25 +94,9 @@
         class="h-full w-full object-cover" />
     </button>
 
-    <!-- Toggle de modo oscuro: mismo control que en la rama anónima, duplicado por lo
-         mismo que el resto del menú (el nav es flex de dos hijos). El data-theme-toggle
-         lo engancha el handler por delegación de layouts/base :: headContent, y la
-         visibilidad de cada ícono la decide html[data-theme] en brand.css: este botón
-         no toca JS para cambiar de icono. El sr-only es el nombre accesible y el texto
-         que pinnea WebPage.getNavbarItems. -->
-    <button type="button" data-theme-toggle title="Cambiar tema"
-      class="theme-toggle inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 hover:bg-secondary">
-      <svg class="theme-icon-moon h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-      </svg>
-      <svg class="theme-icon-sun h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-      </svg>
-      <span class="sr-only">Cambiar tema</span>
-    </button>
+    <!-- [PROF+THEME] El toggle standalone ya no vive en la rama autenticada: el control de
+         tema es el item "Tema" del modal (components/navbar-menu.html), que persiste la
+         preferencia en el usuario. El anónimo conserva el toggle de [THEME] al final del nav. -->
   </div>
 
   <!-- Usuario NO AUTENTICADO: sin hamburguesa (decision fijada en PublicPlansListE2E), asi que
@@ -119,15 +108,15 @@
   <div sec:authorize="!isAuthenticated()"
     class="order-last md:order-none md:ml-auto w-full md:w-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1 pb-3 text-sm md:pb-0">
     <a th:href="@{/for-you}"
-      class="rounded-md bg-primary px-3 py-2 font-medium hover:bg-secondary">
+      class="btn-cta">
       Para vos
     </a>
     <a th:href="@{/auth/register}"
-      class="rounded-md bg-primary px-3 py-2 font-medium hover:bg-secondary">
+      class="btn-cta">
       Register
     </a>
     <a th:href="${#strings.isEmpty(currentPath)} ? @{/auth/login} : @{/auth/login(redirect=${currentPath})}"
-      class="rounded-md bg-secondary px-3 py-2 font-medium hover:bg-primary">
+      class="btn-cta btn-cta--alt">
       Login
     </a>
 
