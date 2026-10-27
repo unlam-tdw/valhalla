@@ -2,9 +2,12 @@ package com.valhalla.domain.planplace;
 
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.plan.UuidVersion7Generator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -39,6 +42,23 @@ public class PlanPlace {
 
   @Column(name = "visit_time")
   private LocalTime visitTime;
+
+  // [SCH] Override de la duracion de la visita y del modo del tramo hacia la parada siguiente. Nulos
+  // = el planificador usa la duracion del lugar y el modo por defecto del plan.
+  @Column(name = "duration_minutes")
+  private Integer durationMinutes;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "transport_mode_to_next")
+  private TransportMode transportModeToNext;
+
+  // [SCH] El usuario fijo esta hora a mano: la derivacion arranca de aca y recalcula las
+  // siguientes, en vez de pisarla. La columna no figuraba en la tabla de la spec (que solo
+  // describia cuatro columnas nuevas), pero sin la marca un pin solo se podria detectar adivinando
+  // al comparar la hora guardada con la derivada, y esa comparacion confunde una hora vieja con una
+  // elegida. Con la marca, D-6 ("un pin explicito corta la cadena") es implementable sin heuristica.
+  @Column(name = "time_pinned")
+  private boolean timePinned;
 
   @Column(name = "sort_order")
   private Integer sortOrder = 0;
@@ -89,6 +109,37 @@ public class PlanPlace {
 
   public void setVisitTime(LocalTime visitTime) {
     this.visitTime = visitTime;
+  }
+
+  public Integer getDurationMinutes() {
+    return durationMinutes;
+  }
+
+  public void setDurationMinutes(Integer durationMinutes) {
+    this.durationMinutes = durationMinutes;
+  }
+
+  public TransportMode getTransportModeToNext() {
+    return transportModeToNext;
+  }
+
+  public void setTransportModeToNext(TransportMode transportModeToNext) {
+    this.transportModeToNext = transportModeToNext;
+  }
+
+  /**
+   * [SCH] Marca de pin: la hora de esta parada la eligio el usuario y la derivacion tiene que
+   * respetarla. La columna es la unica forma de distinguir un pin de una hora derivada en una
+   * corrida anterior, sin comparar horas.
+   *
+   * @return {@code true} si la hora de la parada no se puede recalcular
+   */
+  public boolean isTimePinned() {
+    return timePinned;
+  }
+
+  public void setTimePinned(boolean timePinned) {
+    this.timePinned = timePinned;
   }
 
   public Integer getSortOrder() {

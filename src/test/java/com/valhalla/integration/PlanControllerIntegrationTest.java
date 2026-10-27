@@ -8,7 +8,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -26,6 +25,7 @@ import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
@@ -40,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
@@ -77,6 +78,19 @@ public class PlanControllerIntegrationTest {
   private static final UUID MISSING_PLAN_ID = UUID.fromString(
     "00000000-0000-0000-0000-000000000000"
   );
+
+  /** [SCH] Configuracion del itinerario que usan los tests de derivacion. */
+  private static final LocalDate EVENT_DATE = LocalDate.of(2026, 6, 13);
+  private static final LocalTime EVENT_TIME = LocalTime.of(10, 0);
+  private static final LocalTime DAY_END = LocalTime.of(23, 0);
+
+  /** 90 minutos de visita + 5 de traslado entre dos paradas pegadas. */
+  private static final LocalTime SECOND_STOP_START = LocalTime.of(11, 35);
+  private static final int MUSEUM_DURATION_MINUTES = 90;
+
+  /** Coordenadas de los museos de prueba: iguales entre si, para fijar el piso del traslado. */
+  private static final double LATITUDE = -34.6;
+  private static final double LONGITUDE = -58.4;
 
   @Autowired
   private WebApplicationContext wac;
@@ -118,6 +132,7 @@ public class PlanControllerIntegrationTest {
           .with(user(OWNER_EMAIL))
           .with(csrf())
           .param("name", "Plan con permisos")
+          .param("eventDate", "2026-12-31")
           .param("settings.shareLink", "PARTICIPANTS")
           .param("settings.inviteInternal", "OWNER")
           .param("settings.inviteByEmail", "EDITORS")
@@ -286,6 +301,7 @@ public class PlanControllerIntegrationTest {
           .with(user(OTHER_EMAIL))
           .with(csrf())
           .param("name", "Edited by editor")
+          .param("eventDate", "2026-12-31")
       )
       .andExpect(redirectedUrl("/plans/" + planId));
     assertThat(planRepository.findById(planId).orElseThrow().getName(), is("Edited by editor"));
@@ -304,7 +320,11 @@ public class PlanControllerIntegrationTest {
       .andExpect(redirectedUrl("/plans/" + planId));
     mockMvc
       .perform(
-        post("/plans/" + planId).with(user(OTHER_EMAIL)).with(csrf()).param("name", "Forbidden")
+        post("/plans/" + planId)
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("name", "Forbidden")
+          .param("eventDate", "2026-12-31")
       )
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     assertThat(planRepository.findById(planId).orElseThrow().getName(), is("Edited by editor"));
@@ -787,7 +807,8 @@ public class PlanControllerIntegrationTest {
         .getContentAsString();
     assertThat(detail, containsString("value=\"2026-12-31\""));
     assertThat(detail, containsString("value=\"18:30\""));
-    assertThat(detail, containsString(">2026-12-31</span>"));
+    // [SCH] El tile FECHA del resumen se unificó a dd/mm/yyyy; el input del form sigue ISO.
+    assertThat(detail, containsString(">31/12/2026</span>"));
     assertThat(detail, containsString(">18:30</span>"));
     assertThat(saved.getAdministrator().getId(), is(equalTo(this.ownerId)));
     assertThat(saved.getAdministrator().getEmail(), is(equalTo(OWNER_EMAIL)));
@@ -802,7 +823,11 @@ public class PlanControllerIntegrationTest {
     // when
     MvcResult result =
       this.mockMvc.perform(
-          post("/plans").with(csrf()).param("name", PLAN_NAME).param("isPublic", "true")
+          post("/plans")
+            .with(csrf())
+            .param("name", PLAN_NAME)
+            .param("isPublic", "true")
+            .param("eventDate", "2026-12-31")
         )
         .andExpect(status().is3xxRedirection())
         .andReturn();
@@ -815,104 +840,131 @@ public class PlanControllerIntegrationTest {
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void T_PLN_074b_postPlans_guardaLosLugaresEnOrdenPermitiendoRepetirUnoYDejandoVaciosEnNull()
+  public void T_PLN_074b_postPlans_permiteRepetirElMismoLugarYDerivaElHorarioDeLasDosFilas()
     throws Exception {
-    // given
-    UUID placeId = this.placeRepository.findAll().get(0).getId();
+    // given: el mismo lugar dos veces; la repeticion sigue siendo valida
+    UUID placeId = givenMuseum();
 
     // when
-    MvcResult result =
-      this.mockMvc.perform(
-          post("/plans")
-            .with(csrf())
-            .param("name", PLAN_NAME)
-            .param("places[0].placeId", placeId.toString())
-            .param("places[0].description", "desayuno")
-            .param("places[0].visitDate", "2026-12-01")
-            .param("places[0].visitTime", "09:30")
-            .param("places[1].placeId", placeId.toString())
-            .param("places[1].description", "")
-            .param("places[1].visitDate", "")
-            .param("places[1].visitTime", "")
-        )
-        .andExpect(status().is3xxRedirection())
-        .andReturn();
+    MvcResult result = createPlanWith(placeId, placeId);
 
-    // then
+    // then: las dos filas se guardan y el servidor les deriva fecha y hora en orden
+    this.entityManager.flush();
+    this.entityManager.clear();
     Plan saved =
       this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
     assertThat(saved.getPlanPlaces(), hasSize(2));
     assertThat(saved.getPlanPlaces().get(0).getSortOrder(), is(1));
-    assertThat(saved.getPlanPlaces().get(0).getDescription(), is(equalTo("desayuno")));
-    assertThat(saved.getPlanPlaces().get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
-    assertThat(saved.getPlanPlaces().get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
+    assertThat(saved.getPlanPlaces().get(0).getPlace().getId(), is(equalTo(placeId)));
+    assertThat(saved.getPlanPlaces().get(0).getVisitDate(), is(equalTo(EVENT_DATE)));
+    assertThat(saved.getPlanPlaces().get(0).getVisitTime(), is(equalTo(EVENT_TIME)));
     assertThat(saved.getPlanPlaces().get(1).getSortOrder(), is(2));
-    assertThat(saved.getPlanPlaces().get(1).getVisitDate(), is(nullValue()));
-    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(nullValue()));
     assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(placeId)));
+    assertThat(saved.getPlanPlaces().get(1).getVisitDate(), is(equalTo(EVENT_DATE)));
+    // 90 minutos de visita + 5 de traslado entre dos paradas pegadas
+    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(equalTo(SECOND_STOP_START)));
   }
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void T_PLN_074c_postPlans_ordenaLosLugaresPorHoraDeVisitaYNoPorElOrdenDeCarga()
-    throws Exception {
-    // given: el lugar cargado primero es el de las 15:00 y el segundo el de las 12:00
-    UUID afternoon = this.placeRepository.findAll().get(0).getId();
-    UUID morning = this.placeRepository.findAll().get(1).getId();
+  public void I03_postPlans_respetaElOrdenDelFormularioYNoLoReordenaPorHora() throws Exception {
+    // given: se envian los lugares al reves del orden en que se crearon. El reordenamiento viejo
+    // por hora de visita daba vuelta esta lista; ahora el orden del form es el del itinerario.
+    UUID secondCreated = givenMuseum();
+    UUID firstCreated = givenMuseum();
 
     // when
-    MvcResult result =
-      this.mockMvc.perform(
-          post("/plans")
-            .with(csrf())
-            .param("name", PLAN_NAME)
-            .param("places[0].placeId", afternoon.toString())
-            .param("places[0].visitTime", "15:00")
-            .param("places[1].placeId", morning.toString())
-            .param("places[1].visitTime", "12:00")
-        )
-        .andExpect(status().is3xxRedirection())
-        .andReturn();
+    MvcResult result = createPlanWith(secondCreated, firstCreated);
 
-    // then: el itinerario sigue el día del plan, no el orden en que se vieron los lugares
+    // then: el itinerario persistido conserva el orden enviado
+    this.entityManager.flush();
+    this.entityManager.clear();
     Plan saved =
       this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
     assertThat(saved.getPlanPlaces(), hasSize(2));
-    assertThat(saved.getPlanPlaces().get(0).getPlace().getId(), is(equalTo(morning)));
+    assertThat(saved.getPlanPlaces().get(0).getPlace().getId(), is(equalTo(secondCreated)));
     assertThat(saved.getPlanPlaces().get(0).getSortOrder(), is(1));
-    assertThat(saved.getPlanPlaces().get(0).getVisitTime(), is(equalTo(LocalTime.of(12, 0))));
-    assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(afternoon)));
+    assertThat(saved.getPlanPlaces().get(0).getVisitTime(), is(equalTo(EVENT_TIME)));
+    assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(firstCreated)));
     assertThat(saved.getPlanPlaces().get(1).getSortOrder(), is(2));
-    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(equalTo(LocalTime.of(15, 0))));
+    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(equalTo(SECOND_STOP_START)));
   }
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
-  public void T_PLN_074d_postPlans_losLugaresSinHoraQuedanAlFinal() throws Exception {
-    // given: el cargado primero no tiene hora, así que el recorrido arranca por el que sí tiene
-    UUID untimed = this.placeRepository.findAll().get(0).getId();
-    UUID timed = this.placeRepository.findAll().get(1).getId();
+  public void I01_postPlans_derivaElItinerarioDesdeLaHoraDeInicio() throws Exception {
+    // given: dos museos con las mismas coordenadas, para que el traslado caiga en el piso de 5
+    UUID first = givenMuseum();
+    UUID second = givenMuseum();
 
     // when
-    MvcResult result =
-      this.mockMvc.perform(
-          post("/plans")
-            .with(csrf())
-            .param("name", PLAN_NAME)
-            .param("places[0].placeId", untimed.toString())
-            .param("places[1].placeId", timed.toString())
-            .param("places[1].visitTime", "09:00")
-        )
-        .andExpect(status().is3xxRedirection())
-        .andReturn();
+    MvcResult result = createPlanWith(first, second);
+
+    // then: fecha, hora de inicio y ventana viajan al plan, y cada parada queda con su horario
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan saved =
+      this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
+    assertThat(saved.getEventDate(), is(equalTo(EVENT_DATE)));
+    assertThat(saved.getEventTime(), is(equalTo(EVENT_TIME)));
+    assertThat(saved.getDayEndTime(), is(equalTo(DAY_END)));
+    assertThat(saved.getTransportMode(), is(TransportMode.WALK));
+    assertThat(saved.getPlanPlaces(), hasSize(2));
+    for (PlanPlace stop : saved.getPlanPlaces()) {
+      assertThat(stop.getVisitDate(), is(equalTo(EVENT_DATE)));
+      assertThat(stop.getDurationMinutes(), is(equalTo(MUSEUM_DURATION_MINUTES)));
+    }
+    assertThat(saved.getPlanPlaces().get(0).getVisitTime(), is(equalTo(EVENT_TIME)));
+    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(equalTo(SECOND_STOP_START)));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void I02_postPlans_sinFechaNoCreaNadaYVuelveAExplore() throws Exception {
+    // when: la fecha es la base del itinerario, asi que el alta sin ella no pasa la validacion
+    this.mockMvc.perform(
+        post("/plans").with(csrf()).param("name", PLAN_NAME).param("eventTime", "10:00")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/explore"));
 
     // then
-    Plan saved =
-      this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
-    assertThat(saved.getPlanPlaces(), hasSize(2));
-    assertThat(saved.getPlanPlaces().get(0).getPlace().getId(), is(equalTo(timed)));
-    assertThat(saved.getPlanPlaces().get(1).getPlace().getId(), is(equalTo(untimed)));
-    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(nullValue()));
+    assertThat(this.planRepository.findAll(), is(empty()));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void I04_putPlans_cambiarLaFechaCorreLasParadasYConservaLaHoraRelativa() throws Exception {
+    // given: un plan con el itinerario ya derivado
+    UUID planId = planIdOf(
+      createPlanWith(givenMuseum(), givenMuseum()).getResponse().getRedirectedUrl()
+    );
+
+    // when: se cambia solo el dia; la hora de inicio y el modo siguen igual
+    this.mockMvc.perform(
+        post("/plans/" + planId)
+          .with(csrf())
+          .param("_method", "PUT")
+          .param("name", PLAN_NAME)
+          .param("eventDate", "2026-07-01")
+          .param("eventTime", "10:00")
+          .param("dayEndTime", "23:00")
+          .param("transportMode", "WALK")
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/plans/" + planId));
+
+    // then: todas las paradas se corren al dia nuevo y mantienen su lugar en la cadena
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan updated = this.planRepository.findById(planId).orElseThrow();
+    assertThat(updated.getEventDate(), is(equalTo(LocalDate.of(2026, 7, 1))));
+    assertThat(updated.getPlanPlaces(), hasSize(2));
+    for (PlanPlace stop : updated.getPlanPlaces()) {
+      assertThat(stop.getVisitDate(), is(equalTo(LocalDate.of(2026, 7, 1))));
+    }
+    assertThat(updated.getPlanPlaces().get(0).getVisitTime(), is(equalTo(EVENT_TIME)));
+    assertThat(updated.getPlanPlaces().get(1).getVisitTime(), is(equalTo(SECOND_STOP_START)));
   }
 
   @Test
@@ -1062,7 +1114,11 @@ public class PlanControllerIntegrationTest {
 
     // when
     this.mockMvc.perform(
-        post("/plans/" + planId).with(csrf()).param("_method", "PUT").param("name", "Hackeado")
+        post("/plans/" + planId)
+          .with(csrf())
+          .param("_method", "PUT")
+          .param("name", "Hackeado")
+          .param("eventDate", "2026-12-31")
       )
       .andExpect(status().is3xxRedirection())
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
@@ -1379,7 +1435,8 @@ public class PlanControllerIntegrationTest {
       html.indexOf("<section", html.indexOf("id=\"plan-summary\""))
     );
     assertThat(summary, containsString("Recorrido con amigos"));
-    assertThat(summary, containsString(">2026-12-31</span>"));
+    // [SCH] El tile FECHA muestra dd/mm/yyyy con el resto de la feature.
+    assertThat(summary, containsString(">31/12/2026</span>"));
     assertThat(summary, containsString(">18:30</span>"));
     assertThat(html, containsString("Salir del plan"));
     assertThat(html, not(containsString("Eliminar plan")));
@@ -1414,7 +1471,12 @@ public class PlanControllerIntegrationTest {
     this.planRepository.save(plan);
     this.mockMvc.perform(post("/plans/" + planId + "/delete").with(csrf()))
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
-    this.mockMvc.perform(post("/plans/" + planId).with(csrf()).param("name", "Changed"))
+    this.mockMvc.perform(
+        post("/plans/" + planId)
+          .with(csrf())
+          .param("name", "Changed")
+          .param("eventDate", "2026-12-31")
+      )
       .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
     this.mockMvc.perform(post("/plans/" + planId + "/leave")).andExpect(status().isForbidden());
     this.mockMvc.perform(post("/plans/join").param("shortCode", "anything"))
@@ -2225,6 +2287,35 @@ public class PlanControllerIntegrationTest {
           .string(not(containsString("Eliminar del plan")))
       );
     assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+  }
+
+  /**
+   * [SCH] Un museo con categoria y coordenadas conocidas: el horario derivado no depende del
+   * catalogo sembrado, que cambia con el dataset.
+   */
+  private UUID givenMuseum() {
+    Place place = new Place();
+    place.setName("Museo de integracion");
+    place.setCategory(PlaceCategory.MUSEUM);
+    place.setLatitude(LATITUDE);
+    place.setLongitude(LONGITUDE);
+    this.placeRepository.save(place);
+    return place.getId();
+  }
+
+  /** [SCH] Crea un plan por el endpoint con las paradas dadas, en ese orden. */
+  private MvcResult createPlanWith(UUID... placeIds) throws Exception {
+    MockHttpServletRequestBuilder request = post("/plans")
+      .with(csrf())
+      .param("name", PLAN_NAME)
+      .param("eventDate", EVENT_DATE.toString())
+      .param("eventTime", "10:00")
+      .param("dayEndTime", "23:00")
+      .param("transportMode", "WALK");
+    for (int index = 0; index < placeIds.length; index++) {
+      request.param("places[" + index + "].placeId", placeIds[index].toString());
+    }
+    return this.mockMvc.perform(request).andExpect(status().is3xxRedirection()).andReturn();
   }
 
   private UUID givenUser(String email) {

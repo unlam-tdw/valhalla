@@ -272,7 +272,7 @@
               <a :href="'/plans/' + plan.id + '/public'"
                 class="block rounded-lg border border-gray-200 bg-white p-4 pr-12 shadow-sm transition hover:bg-gray-50">
                 <h4 class="text-base font-medium text-gray-900">{{ plan.name }}</h4>
-                <p class="text-xs text-gray-500">{{ plan.eventDate || 'No date' }} &middot; {{ plan.placeCount }} places</p>
+                <p class="text-xs text-gray-500">{{ formatDate(plan.eventDate) || 'No date' }} &middot; {{ plan.placeCount }} places</p>
                 <!-- [CAL] Indicador read-only del agregado (16-CAL.md, AC-10): la version Vue
                      del fragment components/rating :: indicator, con los mismos estilos de
                      base.html. Solo lectura: el voto vive en la vista del plan. Sin
@@ -328,7 +328,7 @@
                 <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ entry.name }}</span>
               </div>
               <p v-if="entry.visitDate || entry.visitTime" class="mt-1 text-xs text-gray-500">
-                {{ entry.visitDate }} {{ entry.visitTime }}</p>
+                {{ formatDate(entry.visitDate) }} {{ entry.visitTime }}</p>
             </li>
           </ol>
           <a :href="'/plans/' + activePlan.id"
@@ -349,7 +349,7 @@
                 class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
                 <option value="" disabled>Selecciona un plan...</option>
                 <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id">
-                  {{ plan.name }} ({{ plan.eventDate || 'Sin fecha' }})
+                  {{ plan.name }} ({{ formatDate(plan.eventDate) || 'Sin fecha' }})
                 </option>
               </select>
               <p v-if="availablePlans.length === 0" class="text-sm text-gray-500">
@@ -420,8 +420,36 @@
                     </div>
                     <div class="mt-4">
                       <label for="plan-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
-                      <input type="date" id="plan-date" name="eventDate" th:attr="min=${today}"
+                      <input type="date" id="plan-date" name="eventDate" required v-model="planDate"
+                        ref="planDateInput" th:attr="min=${today}"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div class="mt-4 flex gap-3">
+                      <div class="min-w-0 flex-1">
+                        <label for="plan-start-time" class="mb-1 block text-sm font-medium text-gray-700">Hora
+                          de inicio</label>
+                        <input type="time" id="plan-start-time" name="eventTime" step="300"
+                          v-model="planStartTime"
+                          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <label for="plan-day-end" class="mb-1 block text-sm font-medium text-gray-700">Fin del
+                          día</label>
+                        <input type="time" id="plan-day-end" name="dayEndTime" step="300"
+                          v-model="planDayEnd"
+                          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none" />
+                      </div>
+                    </div>
+                    <div class="mt-4">
+                      <label for="plan-transport"
+                        class="mb-1 block text-sm font-medium text-gray-700">Cómo se trasladan</label>
+                      <select id="plan-transport" name="transportMode" v-model="planTransportMode"
+                        class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 focus:border-blue-500 focus:outline-none">
+                        <option value="WALK">A pie</option>
+                        <option value="BIKE">Bicicleta</option>
+                        <option value="BUS">Colectivo</option>
+                        <option value="CAR">Auto</option>
+                      </select>
                     </div>
 
                   </div>
@@ -429,41 +457,56 @@
                   <!-- Step 2 -->
                   <div class="flex w-1/3 shrink-0 flex-col gap-3 overflow-y-auto px-1"
                     :inert="planStep !== 2 ? '' : null">
-                    <p class="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                      Usá el botón + de los lugares del panel derecho para agregarlos a este plan.
-                      Todos los lugares se visitan el mismo día que el plan: acá solo definís la hora
-                      de cada parada.</p>
+                    <p v-if="draftPlaces.length === 0" class="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                      Agregá lugares con el botón + del panel de la derecha. El horario de cada parada se
+                      calcula solo a partir de la fecha, la hora de inicio y el modo de traslado.</p>
 
-                    <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                      In this plan ({{ draftPlaces.length }})</h3>
-                    <p v-if="draftPlaces.length === 0" class="text-sm text-gray-500">
-                      Add at least one place. You can add the same place more than once.</p>
-                    <ol class="flex flex-col gap-2">
-                      <li v-for="(item, index) in draftPlaces" :key="item.key"
-                        class="rounded-md border border-gray-200 bg-gray-50 p-3">
-                        <input type="hidden" :name="'places[' + index + '].placeId'" :value="item.place.id" />
-                        <div class="flex items-center gap-2">
-                          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-medium text-white">{{ index + 1 }}</span>
-                          <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ item.place.name }}</span>
-                          <button type="button" @click="moveDraft(index, -1)" :disabled="index === 0"
-                            aria-label="Move up"
-                            class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&uarr;</button>
-                          <button type="button" @click="moveDraft(index, 1)"
-                            :disabled="index === draftPlaces.length - 1" aria-label="Move down"
-                            class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&darr;</button>
-                          <button type="button" @click="removeDraft(index)" aria-label="Remove place"
-                            class="rounded p-1 text-red-600 hover:bg-red-100">&times;</button>
-                        </div>
-                        <input type="text" v-model="item.description" :name="'places[' + index + '].description'"
-                          placeholder="Nota (opcional)" aria-label="Nota"
-                          class="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
-                        <div class="mt-2">
-                          <input type="time" v-model="item.visitTime" :name="'places[' + index + '].visitTime'"
-                            aria-label="Hora de visita"
-                            class="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
-                        </div>
-                      </li>
-                    </ol>
+                    <div v-for="group in dayGroups" :key="group.dayIndex" class="flex flex-col gap-2">
+                      <h3 v-if="dayGroups.length > 1"
+                        class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ group.label }}</h3>
+                      <ol class="flex flex-col gap-2">
+                        <li v-for="stop in group.stops" :key="stop.key">
+                          <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+                            <input type="hidden" :name="'places[' + stop.index + '].placeId'"
+                              :value="stop.item.place.id" />
+                            <div class="flex items-center gap-2">
+                              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-medium text-white">{{ stop.order }}</span>
+                              <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{{ stop.item.place.name }}</span>
+                              <button type="button" @click="moveDraft(stop.index, -1)" :disabled="stop.index === 0"
+                                aria-label="Mover arriba"
+                                class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&uarr;</button>
+                              <button type="button" @click="moveDraft(stop.index, 1)"
+                                :disabled="stop.index === draftPlaces.length - 1" aria-label="Mover abajo"
+                                class="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-30">&darr;</button>
+                              <button type="button" @click="removeDraft(stop.index)" aria-label="Quitar lugar"
+                                class="rounded p-1 text-red-600 hover:bg-red-100">&times;</button>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-600">
+                              {{ capitalize(stop.item.place.category) }} · {{ stop.timeRange }} ·
+                              {{ stop.duration }}</p>
+                            <input type="text" v-model="stop.item.description"
+                              :name="'places[' + stop.index + '].description'" placeholder="Nota (opcional)"
+                              aria-label="Nota"
+                              class="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
+                          </div>
+                          <div v-if="stop.leg" class="mt-1 flex items-center gap-2 pl-8 text-xs text-gray-500">
+                            <span class="min-w-0 flex-1 truncate">{{ stop.leg.label }}</span>
+                            <select v-model="stop.item.transportModeToNext"
+                              :name="'places[' + stop.index + '].transportModeToNext'"
+                              aria-label="Traslado hacia la parada siguiente"
+                              class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs">
+                              <option value="">Según el plan</option>
+                              <option v-for="(label, mode) in transportLabels" :key="mode" :value="mode">{{ label }}</option>
+                            </select>
+                          </div>
+                        </li>
+                      </ol>
+                    </div>
+
+                    <p v-if="dayCount > 0" class="text-xs text-gray-500">
+                      {{ draftPlaces.length }} {{ draftPlaces.length === 1 ? 'parada' : 'paradas' }} ·
+                      {{ dayCount }} {{ dayCount === 1 ? 'día' : 'días' }} ·
+                      {{ totalDuration }} en lugares</p>
                   </div>
                   <div class="w-1/3 shrink-0 overflow-y-auto px-1" :inert="planStep !== 3 ? '' : null">
                     <h3 class="font-semibold">Privacidad y permisos</h3>

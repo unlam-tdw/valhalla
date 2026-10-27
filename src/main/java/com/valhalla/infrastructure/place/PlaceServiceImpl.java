@@ -138,6 +138,9 @@ public class PlaceServiceImpl implements PlaceService {
     place.setOpeningHours(request.getOpeningHours());
     place.setPhone(request.getPhone());
     place.setWebsite(request.getWebsite());
+    // [SCH] Sin duracion tipica (null) el planificador resuelve por categoria; un valor guardado
+    // manda sobre ese default. Se copia siempre: vaciar el form vuelve a "segun categoria".
+    place.setDefaultDurationMinutes(request.getDefaultDurationMinutes());
     // Compartido por alta y edicion a proposito: un POST manipulado con el hidden vacio no puede
     // borrar la identidad de un lugar ya importado.
     String externalId = request.getExternalId();

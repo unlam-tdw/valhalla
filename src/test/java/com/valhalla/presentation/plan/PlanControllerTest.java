@@ -25,6 +25,7 @@ import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceService;
 import com.valhalla.domain.rating.PlanRatingService;
@@ -278,7 +279,14 @@ public class PlanControllerTest {
     // then
     assertThat(view.getViewName(), is(DETAIL_VIEW));
     assertThat(view.getModel().get("plan"), is(sameInstance(plan)));
+    // [SCH] Sin fecha de plan no hay jornada de referencia para el JS que agrupa por día.
+    assertThat(view.getModel().get("planDateIso"), is(nullValue()));
     verify(this.planServiceMock, times(1)).getParticipatingPlan(PLAN_ID, OWNER_EMAIL);
+
+    // La fecha viaja como ISO porque el JS compara strings, no fechas.
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    view = this.controller.showPlan(PLAN_ID, this.authentication);
+    assertThat(view.getModel().get("planDateIso"), is(equalTo("2026-12-31")));
   }
 
   // --- [MARK] toggle de Guardados en el detalle y en la vista publica ---
@@ -588,6 +596,11 @@ public class PlanControllerTest {
     PlanPlace entry = new PlanPlace();
     entry.setId(ENTRY_ID);
     entry.setPlace(place);
+    // [SCH] La parada del slice 4: duración, modo del tramo y el pin del horario viajan al
+    // seed para que el detalle dibuje el rango y distinga lo fijado a mano.
+    entry.setDurationMinutes(90);
+    entry.setTransportModeToNext(TransportMode.BUS);
+    entry.setTimePinned(true);
     plan.addPlanPlace(entry);
     plan.setIsPublic(true);
     when(this.planServiceMock.getSharedPlan(PLAN_ID)).thenReturn(plan);
@@ -602,6 +615,41 @@ public class PlanControllerTest {
     assertThat(stop.get("entryId"), is(ENTRY_ID.toString()));
     assertThat(stop.get("latitude"), is(equalTo(Double.valueOf(-34.8222))));
     assertThat(stop.get("longitude"), is(equalTo(Double.valueOf(-58.5358))));
+    assertThat(stop.get("durationMinutes"), is(equalTo(90)));
+    assertThat(stop.get("transportModeToNext"), is(equalTo("BUS")));
+    assertThat(stop.get("timePinned"), is(true));
+  }
+
+  @Test
+  public void T_PVP_018_showPublicPlan_exponeElRangoYLaFechaDeReferenciaDeLaParada() {
+    // given: sin fecha de plan y sin hora de parada no hay rango ni jornada de referencia
+    Plan plan = plan(PLAN_ID, "Viaje publico");
+    Place place = new Place();
+    place.setId(PLACE_ID);
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    entry.setDurationMinutes(90);
+    plan.addPlanPlace(entry);
+    plan.setIsPublic(true);
+    when(this.planServiceMock.getSharedPlan(PLAN_ID)).thenReturn(plan);
+
+    // when
+    ModelAndView view = this.controller.showPublicPlan(PLAN_ID, this.authentication);
+
+    // then: [SCH] sin hora no hay fin que calcular, y sin fecha el template no tiene con qué
+    // comparar la de la parada
+    Map<?, ?> stop = (Map<?, ?>) ((List<?>) view.getModel().get("itineraryPlaces")).get(0);
+    assertThat(view.getModel().get("planDateIso"), is(nullValue()));
+    assertThat(stop.get("visitTimeEnd"), is(nullValue()));
+
+    // y con las dos la vista pública dibuja el rango y puede ocultar la fecha repetida
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    entry.setVisitTime(LocalTime.of(10, 0));
+    view = this.controller.showPublicPlan(PLAN_ID, this.authentication);
+
+    stop = (Map<?, ?>) ((List<?>) view.getModel().get("itineraryPlaces")).get(0);
+    assertThat(view.getModel().get("planDateIso"), is(equalTo("2026-12-31")));
+    assertThat(stop.get("visitTimeEnd"), is(equalTo("11:30")));
   }
 
   // --- GET /for-you: el feed se mudo a ForYouController (/for-you, con y sin sesion) ---
@@ -644,6 +692,9 @@ public class PlanControllerTest {
     assertThat(captor.getValue().getDescription(), is(equalTo("Un viaje largo")));
     assertThat(captor.getValue().getEventDate(), is(equalTo(LocalDate.of(2026, 12, 31))));
     assertThat(captor.getValue().getIsPublic(), is(true));
+    // [SCH] El form no manda ventana ni modo: el plan nace con los defaults del planificador.
+    assertThat(captor.getValue().getDayEndTime(), is(equalTo(LocalTime.of(23, 0))));
+    assertThat(captor.getValue().getTransportMode(), is(TransportMode.WALK));
     // The form is not the owner of id, shortCode or administrator, so the DTO must carry none.
     assertThat(captor.getValue().getId(), is(nullValue()));
     assertThat(captor.getValue().getShortCode(), is(nullValue()));
@@ -655,18 +706,15 @@ public class PlanControllerTest {
 
   @Test
   public void T_PLN_067_createPlan_mapeaLosLugaresEnOrdenYSaltaLasFilasVacias() {
-    // given
-    PlanRequest form = new PlanRequest("Viaje", null, null, false);
+    // given: el orden del form es el del itinerario, y cada fila trae su modo de traslado
+    PlanRequest form = new PlanRequest("Viaje", null, LocalDate.of(2026, 12, 1), false);
+    form.setDayEndTime(LocalTime.of(21, 0));
+    form.setTransportMode(TransportMode.CAR);
     form.setPlaces(
       List.of(
-        new PlanPlaceRequest(
-          OTHER_PLACE_ID,
-          "primero",
-          LocalDate.of(2026, 12, 1),
-          LocalTime.of(9, 30)
-        ),
-        new PlanPlaceRequest(null, null, null, null),
-        new PlanPlaceRequest(OTHER_PLACE_ID, "otra vez", null, null)
+        new PlanPlaceRequest(OTHER_PLACE_ID, "primero", TransportMode.BIKE),
+        new PlanPlaceRequest(null, null, null),
+        new PlanPlaceRequest(OTHER_PLACE_ID, "otra vez", null)
       )
     );
     ArgumentCaptor<Plan> captor = ArgumentCaptor.forClass(Plan.class);
@@ -682,11 +730,16 @@ public class PlanControllerTest {
     assertThat(entries.get(0).getPlace().getId(), is(OTHER_PLACE_ID));
     assertThat(entries.get(0).getSortOrder(), is(1));
     assertThat(entries.get(0).getDescription(), is(equalTo("primero")));
-    assertThat(entries.get(0).getVisitDate(), is(equalTo(LocalDate.of(2026, 12, 1))));
-    assertThat(entries.get(0).getVisitTime(), is(equalTo(LocalTime.of(9, 30))));
+    assertThat(entries.get(0).getTransportModeToNext(), is(TransportMode.BIKE));
+    // [SCH] D-7: la fila ya no acepta fecha ni hora; el horario lo deriva el servicio.
+    assertThat(entries.get(0).getVisitDate(), is(nullValue()));
+    assertThat(entries.get(0).getVisitTime(), is(nullValue()));
     assertThat(entries.get(1).getPlace().getId(), is(OTHER_PLACE_ID));
     assertThat(entries.get(1).getSortOrder(), is(2));
     assertThat(entries.get(1).getPlan(), is(sameInstance(captor.getValue())));
+    // el form sí manda la ventana y el modo: viajan tal cual al plan
+    assertThat(captor.getValue().getDayEndTime(), is(equalTo(LocalTime.of(21, 0))));
+    assertThat(captor.getValue().getTransportMode(), is(TransportMode.CAR));
   }
 
   // --- PUT /plans/{id} ---

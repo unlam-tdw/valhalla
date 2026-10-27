@@ -62,6 +62,19 @@ public class PlanSettings {
     inviteByEmail = Objects.requireNonNull(permission);
   }
 
+  // [SCH] Si esta activo, reordenar el itinerario recalcula los horarios de las paradas. Apagado,
+  // los horarios cargados a mano se respetan tal cual.
+  @Column(name = "auto_schedule")
+  private Boolean autoSchedule = true;
+
+  public Boolean getAutoSchedule() {
+    return autoSchedule != null ? autoSchedule : true;
+  }
+
+  public void setAutoSchedule(Boolean autoSchedule) {
+    this.autoSchedule = autoSchedule;
+  }
+
   public boolean isSharingEnabled() {
     return getShareLink() != PlanPermission.OWNER;
   }

@@ -176,10 +176,13 @@ public class PublicPlanViewE2E extends E2eBase {
   }
 
   private void makePlanPublic(PlansPage plans) {
-    // The editor submits the itinerary rows from Vue, which mount after the page loads.
-    // The row inputs are type=hidden, so wait for attached rather than for visible.
+    // Vue monta el itinerario desde el seed del servidor: el primer place-item es la señal de
+    // que la página terminó de montar. El form de edición ya no lleva las filas places[] que
+    // antes servían de espera (el itinerario se edita por REST), y sin esperar a Vue el click
+    // en Guardar cambios podía salir antes de tiempo.
     page
-      .locator("input[name='places[0].placeId']")
+      .locator(".place-item")
+      .first()
       .waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
     page.locator("#isPublic").check();
     page.locator("button:has-text('Guardar cambios')").click();

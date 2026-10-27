@@ -6,6 +6,8 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
+import com.valhalla.domain.plan.PlanScheduleCalculator;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.rating.PlanRating;
 import com.valhalla.domain.rating.PlanRatingRepository;
@@ -35,6 +37,10 @@ import org.springframework.stereotype.Component;
  * perfil dev. Es idempotente: si los fantasmas ya existen, no vuelve a crear ni usuarios ni
  * planes; las calificaciones fantasma ([CAL]) se completan aparte, por si la base viene de una
  * corrida anterior a que el seeder las sembrara.
+ *
+ * <p>[SCH] Los itinerarios demo salen con horario derivado: cada parada trae su duracion de la
+ * categoria y las horas las calcula {@link PlanScheduleCalculator} con la ventana y el modo del
+ * plan, en vez de venir escritas a mano aca.
  */
 @Component
 public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshedEvent> {
@@ -76,6 +82,8 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
     String description,
     int daysFromNow,
     String hour,
+    String dayEnd,
+    TransportMode transportMode,
     int ownerIndex,
     List<Integer> participantIndexes,
     List<String> placeNames,
@@ -99,6 +107,9 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
     new FollowSeed(2, 3)
   );
 
+  /** [SCH] Los seis planes demo comparten la misma ventana: el dia cierra a las 23:00. */
+  private static final String DAY_END = "23:00";
+
   private static final List<GhostPlan> PLANS = List.of(
     new GhostPlan(
       "GHOST001",
@@ -106,6 +117,8 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
       "MALBA a la mañana y el Planetario cuando cae la tarde. Traigan plata para la cafetería.",
       4,
       "14:00",
+      DAY_END,
+      TransportMode.BUS,
       0,
       List.of(1, 2),
       List.of("MALBA", "Planetario Galileo Galilei"),
@@ -120,9 +133,11 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
     new GhostPlan(
       "GHOST002",
       "Milonga para principiantes",
-      "Nadie sabe bailar, igual vamos. Clase a las 21:30 y después tira libre.",
+      "Nadie sabe bailar, igual vamos. Clase a las 21:00 y después tira libre.",
       7,
-      "21:30",
+      "21:00",
+      DAY_END,
+      TransportMode.BUS,
       1,
       List.of(3),
       List.of("La Viruta"),
@@ -134,6 +149,8 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
       "Empezamos en el Tortoni charlando y terminamos mirando estanterías en el Ateneo.",
       10,
       "11:00",
+      DAY_END,
+      TransportMode.WALK,
       2,
       List.of(4),
       List.of("Cafe Tortoni", "El Ateneo Grand Splendid"),
@@ -145,6 +162,8 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
       "Todos llevan algo: carne, ensalada, hielo o el postre. El que no lleva nada lava los platos.",
       13,
       "13:00",
+      DAY_END,
+      TransportMode.BIKE,
       3,
       List.of(0, 1, 2, 4),
       List.of("Parque Tres de Febrero"),
@@ -156,6 +175,8 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
       "La cervecería de Corrientes tiene banda los sábados. Reservamos mesa atrás.",
       17,
       "20:00",
+      DAY_END,
+      TransportMode.BUS,
       4,
       List.of(0),
       List.of("Cerveceria General San Martin"),
@@ -168,7 +189,9 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
       "Parrillada de fin de mes",
       "El Don Julio no acepta reserva así que vamos temprano y paseamos por la feria de Serrano.",
       21,
-      "20:30",
+      "20:00",
+      DAY_END,
+      TransportMode.CAR,
       0,
       List.of(1),
       List.of("Parrilla Don Julio", "Plaza Serrano"),
@@ -301,6 +324,8 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
     plan.setDescription(data.description());
     plan.setEventDate(LocalDate.now().plusDays(data.daysFromNow()));
     plan.setEventTime(LocalTime.parse(data.hour()));
+    plan.setDayEndTime(LocalTime.parse(data.dayEnd()));
+    plan.setTransportMode(data.transportMode());
     plan.setIsPublic(true);
     plan.setShortCode(data.shortCode());
     plan.setAdministrator(ghosts.get(GHOST_EMAILS.get(data.ownerIndex())));
@@ -317,12 +342,51 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
       PlanPlace entry = new PlanPlace();
       entry.setPlace(place);
       entry.setSortOrder(order);
+      // [SCH] La duracion del demo es la de su categoria, explicita para que el horario quede
+      // estable aunque cambien los defaults del catalogo.
+      entry.setDurationMinutes(PlanScheduleCalculator.defaultDurationMinutes(place.getCategory()));
       order++;
       plan.addPlanPlace(entry);
     }
+    applyDerivedSchedule(plan);
     // Spring Data devuelve la misma instancia con el id asignado, que es el que usan las
     // calificaciones del plan recien creado.
     return planRepository.save(plan);
+  }
+
+  /**
+   * [SCH] El seeder no inventa horas a mano: las deriva con la misma calculadora que usa el resto
+   * del sistema, con la ventana y el modo de traslado del plan. Asi el itinerario demo se ve igual
+   * que uno armado desde el form, y cambiar una duracion del catalogo mueve las horas solas.
+   */
+  private void applyDerivedSchedule(Plan plan) {
+    List<PlanScheduleCalculator.Stop> inputs = plan
+      .getPlanPlaces()
+      .stream()
+      .map(stop ->
+        new PlanScheduleCalculator.Stop(
+          null,
+          null,
+          stop.getDurationMinutes(),
+          stop.getPlace().getDefaultDurationMinutes(),
+          stop.getPlace().getCategory(),
+          stop.getPlace().getLatitude(),
+          stop.getPlace().getLongitude(),
+          stop.getTransportModeToNext()
+        )
+      )
+      .toList();
+    List<PlanScheduleCalculator.Slot> slots = PlanScheduleCalculator.schedule(
+      plan.getEventDate(),
+      plan.getEventTime(),
+      plan.getDayEndTime(),
+      plan.getTransportMode(),
+      inputs
+    );
+    for (int i = 0; i < slots.size(); i++) {
+      plan.getPlanPlaces().get(i).setVisitDate(slots.get(i).date());
+      plan.getPlanPlaces().get(i).setVisitTime(slots.get(i).start());
+    }
   }
 
   /**

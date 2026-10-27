@@ -131,6 +131,7 @@ public class PlaceServiceImplTest {
       -34.6091,
       -58.3917
     );
+    request.setDefaultDurationMinutes(45);
 
     Place result = placeService.create(request);
 
@@ -144,6 +145,7 @@ public class PlaceServiceImplTest {
     assertThat(result.getOpeningHours(), is(equalTo("Mo-Su 08:00-20:00")));
     assertThat(result.getPhone(), is(equalTo("+54 11 5555-0001")));
     assertThat(result.getWebsite(), is(equalTo("https://elbankrojo.test")));
+    assertThat(result.getDefaultDurationMinutes(), is(equalTo(45)));
     verify(placeRepositoryMock).save(result);
   }
 
@@ -151,6 +153,7 @@ public class PlaceServiceImplTest {
   public void shouldUpdateAnExistingPlaceApplyingTheSameMapping() {
     Place existing = place("Old Name", PlaceCategory.OTHER);
     existing.setId(OTHER_PLACE_ID);
+    existing.setDefaultDurationMinutes(120);
     when(placeRepositoryMock.findById(OTHER_PLACE_ID)).thenReturn(Optional.of(existing));
     EditPlaceRequest request = new EditPlaceRequest(
       "New Name",
@@ -178,6 +181,11 @@ public class PlaceServiceImplTest {
     assertThat(result.getOpeningHours(), is(equalTo("Tu-Su 10:00-18:00")));
     assertThat(result.getPhone(), is(equalTo("+54 11 5555-0002")));
     assertThat(result.getWebsite(), is(equalTo("https://museo.test")));
+    assertThat(
+      "una edicion sin duracion tipica vuelve a 'segun categoria'",
+      result.getDefaultDurationMinutes(),
+      is(nullValue())
+    );
     verify(placeRepositoryMock).save(existing);
   }
 
