@@ -36,6 +36,8 @@
              also disarms prepare-agent and the report, and would cost the coverage
              matrix. -->
         <jacoco.gate.skip>false</jacoco.gate.skip>
+        <!-- Overridden to true by the dev profile; see prettier plugin <skip>. -->
+        <prettier.skip>false</prettier.skip>
     </properties>
 
     <dependencies>
@@ -296,6 +298,11 @@
                     <prettierJavaVersion>2.5.0</prettierJavaVersion>
                     <!-- Maximum line length (100) aligned with Google Checkstyle -->
                     <printWidth>100</printWidth>
+                    <!-- Maps the Maven property to the plugin's skip parameter: the parameter
+                         has no -D user property of its own, so without this mapping the dev
+                         profile's prettier.skip=true is inert and the check runs (~13s) on
+                         every dev startup. -->
+                    <skip>${prettier.skip}</skip>
                 </configuration>
                 <executions>
                     <execution>
