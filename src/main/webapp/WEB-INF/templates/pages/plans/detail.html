@@ -533,17 +533,19 @@
                 </h5>
                 <p class="text-muted small mb-0" th:if="${#lists.isEmpty(participantEmails)}">Todav&iacute;a no se ha unido nadie al plan.</p>
                 <ol class="list-group list-group-numbered" th:unless="${#lists.isEmpty(participantEmails)}">
-                    <li class="list-group-item d-flex flex-wrap align-items-center gap-2" th:each="participant : ${participants}" th:with="email=${participant.email}">
+                    <li class="list-group-item d-flex flex-wrap align-items-center gap-2" th:each="participant : ${participants}" th:with="email=${participant.email}, displayName=${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">
                         <div class="flex-grow-1 text-break" style="min-width: 0;">
                             <!-- [PROF] AC-22/PROF-014: el nombre del participante linkea a su
-                                 perfil publico; el email queda como sub-linea interna. -->
+                                 perfil publico. El email es interno: no se muestra como texto,
+                                 solo viaja en los inputs hidden de las acciones autorizadas. -->
                             <a th:href="@{/profile/{id}(id=${participant.id})}" class="text-decoration-none"
-                              th:text="${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">Nombre completo</a>
-                            <span class="text-muted small" th:text="${email}">usuario@ejemplo.com</span>
+                              th:text="${#strings.isEmpty(displayName) ? 'Sin nombre' : displayName}">Nombre completo</a>
                         </div>
                         <span th:if="${plan.isAdministrator(email)}" class="badge bg-primary flex-shrink-0">Due&ntilde;o</span>
-                        <span th:if="${!canEditPlan and !plan.isAdministrator(email)}" class="badge bg-secondary flex-shrink-0" th:text="${plan.isEditor(email) ? 'Editor' : 'Participante'}">Participante</span>
-                        <form th:if="${canEditPlan and !plan.isAdministrator(email)}" th:action="@{/plans/{id}/participants/role(id=${plan.id})}" method="POST" class="d-flex align-items-center gap-2 flex-shrink-0 mb-0">
+                        <!-- El dueño es el único que reasigna roles existentes; los editores ven el
+                             rol como badge (siguen pudiendo invitar y proponer Editor). -->
+                        <span th:if="${!isPlanAdministrator and !plan.isAdministrator(email)}" class="badge bg-secondary flex-shrink-0" th:text="${plan.isEditor(email) ? 'Editor' : 'Participante'}">Participante</span>
+                        <form th:if="${isPlanAdministrator and !plan.isAdministrator(email)}" th:action="@{/plans/{id}/participants/role(id=${plan.id})}" method="POST" class="d-flex align-items-center gap-2 flex-shrink-0 mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
                             <select name="role" class="form-select form-select-sm w-auto" aria-label="Rol del participante">
@@ -555,12 +557,12 @@
                         <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/remove(id=${plan.id})}" method="POST" class="mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Expulsar del plan a ' + email}" title="Puede volver a unirse al plan">Expulsar</button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Eliminar del plan a ' + (#strings.isEmpty(displayName) ? 'esta persona' : displayName)}" title="Puede volver a unirse al plan">Eliminar del plan</button>
                         </form>
                         <form th:if="${canEditPlan and !plan.isAdministrator(email) and (isPlanAdministrator or !plan.isEditor(email))}" th:action="@{/plans/{id}/participants/ban(id=${plan.id})}" method="POST" class="mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Banear del plan a ' + email}" title="No podr&aacute; volver a unirse al plan">Banear</button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Banear del plan a ' + (#strings.isEmpty(displayName) ? 'esta persona' : displayName)}" title="No podr&aacute; volver a unirse al plan">Banear</button>
                         </form>
                     </li>
                 </ol>
@@ -630,15 +632,15 @@
         <div th:unless="${bannedParticipants == null or #lists.isEmpty(bannedParticipants)}" class="mt-3">
             <p class="text-muted small">Al quitar el baneo, la persona podrá volver a unirse. No recuperará su participación ni su rol anterior automáticamente.</p>
             <ul class="list-group list-group-flush">
-                <li th:each="participant : ${bannedParticipants}" class="list-group-item d-flex flex-wrap align-items-center gap-2 px-0">
+                <li th:each="participant : ${bannedParticipants}" th:with="displayName=${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}" class="list-group-item d-flex flex-wrap align-items-center gap-2 px-0">
                     <div class="flex-grow-1 text-break" style="min-width: 0;">
-                        <strong class="d-block" th:text="${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">Nombre completo</strong>
-                        <span class="text-muted small" th:text="${participant.email}">usuario@ejemplo.com</span>
+                        <!-- [PLN] AC-15: el email del miembro baneado es interno; solo viaja en el campo oculto. -->
+                        <strong class="d-block" th:text="${#strings.isEmpty(displayName) ? 'Sin nombre' : displayName}">Nombre completo</strong>
                     </div>
                     <form th:action="@{/plans/{id}/participants/unban(id=${plan.id})}" method="POST" class="mb-0">
                         <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                         <input type="hidden" name="participantEmail" th:value="${participant.email}" />
-                        <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap" th:aria-label="${'Quitar baneo a ' + participant.email}">Quitar baneo</button>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap" th:aria-label="${'Quitar baneo a ' + (#strings.isEmpty(displayName) ? 'esta persona' : displayName)}">Quitar baneo</button>
                     </form>
                 </li>
             </ul>

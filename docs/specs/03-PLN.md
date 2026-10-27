@@ -12,6 +12,9 @@ El usuario puede crear, editar y eliminar planes con nombre, descripcion, fecha 
 Desde `/plans/{id}`, el dueño y los editores pueden incorporar a una persona
 registrada mediante su correo y elegir el rol Participante o Editor. La invitación
 queda pendiente hasta que el destinatario acepte o rechace en Mis planes. No se envía un email.
+La asignación de roles sobre participantes existentes, en cambio, es exclusiva del dueño:
+los editores conservan la invitación (incluido proponer el rol Editor), pero no pueden
+ascender ni degradar a nadie.
 
 En un plan público, cualquier usuario con sesión iniciada puede incorporar
 personas registradas con el rol Participante. La asignación del rol Editor queda
@@ -44,10 +47,13 @@ requiere un token CSRF. Si el correo no está registrado, la persona ya tiene un
 invitación pendiente para ese plan o ya pertenece
 al plan, muestra un mensaje en el detalle sin modificar los participantes ni sus roles.
 
-La lista incluye al dueño una sola vez y muestra primero el nombre completo y luego
-el correo de cada persona, junto con su rol. Mantiene el orden por correo sin
-distinguir mayúsculas y minúsculas. Solo quienes pertenecen al plan pueden salir;
-el dueño no puede hacerlo.
+La lista incluye al dueño una sola vez y muestra el nombre completo, el rol y un link
+al perfil público de cada persona. El correo nunca se muestra como texto: solo viaja
+en los campos ocultos de las acciones autorizadas (cambiar rol, eliminar, banear y
+quitar el baneo). Mantiene el
+orden por correo sin distinguir mayúsculas y minúsculas. Solo quienes pertenecen al plan
+pueden salir; el dueño no puede hacerlo. El dueño ve el formulario de rol para el resto
+de participantes; los editores ven el rol como insignia de solo lectura.
 
 Desde la lista de participantes, el dueño y los editores pueden eliminar participantes
 con el botón Eliminar del plan. Solo el dueño puede eliminar editores. El dueño no
@@ -92,8 +98,10 @@ La cobertura en `PlanServiceImplTest` y `PlanControllerIntegrationTest` verifica
 invitaciones del dueño y de editores, invitaciones de usuarios con sesión a planes públicos,
 consulta anónima de solo lectura y rechazo de escrituras anónimas,
 rechazo de permisos insuficientes, correos desconocidos y duplicados, persistencia
-de roles, protección CSRF y visualización del nombre completo y correo.
-También verifica persistencia de invitaciones pendientes, aceptación como Editor
+de roles, protección CSRF y visualización del nombre completo, rol y link al perfil sin
+exponer el correo. También verifica que solo el dueño cambie roles existentes: un editor
+o un tercero reciben la respuesta de plan inexistente y el rol queda intacto.
+Además cubre persistencia de invitaciones pendientes, aceptación como Editor
 o Participante, rechazo, aislamiento por destinatario, intentos de responder por otra
 persona, duplicados, respuestas repetidas y eliminación de invitaciones con el plan.
 
@@ -118,6 +126,8 @@ persona, duplicados, respuestas repetidas y eliminación de invitaciones con el 
 | AC-11 | POST /plans crea un plan nuevo |
 | AC-12 | PUT /plans/{id} actualiza un plan existente |
 | AC-13 | DELETE /plans/{id} elimina un plan |
+| AC-14 | Solo el dueño cambia el rol de participantes existentes. Editores, participantes y terceros reciben la misma respuesta que un plan inexistente, y el rol no se modifica |
+| AC-15 | El detalle del plan nunca muestra el correo de los participantes como texto: muestra nombre completo, rol y link al perfil. El correo solo aparece en campos ocultos de acciones autorizadas |
 
 ## Escenarios de Test
 
@@ -144,6 +154,8 @@ persona, duplicados, respuestas repetidas y eliminación de invitaciones con el 
 | U-12 | `getPlanById()` con id inexistente retorna empty | AC-07 |
 | U-13 | `updatePlan()` actualiza el plan | AC-12 |
 | U-14 | `deletePlan()` elimina el plan | AC-13 |
+| U-15 | `changeParticipantRole()` del dueño promueve y degrada a un participante | AC-14 |
+| U-16 | `changeParticipantRole()` de un editor o tercero lanza `PlanNotFoundException` y no muta el rol | AC-14 |
 
 ### Tests de Integracion (`integration/PlanControllerIntegrationTest.java`)
 
@@ -156,6 +168,9 @@ persona, duplicados, respuestas repetidas y eliminación de invitaciones con el 
 | I-05 | `GET /plans/{id}` con id valido retorna 200 | AC-07 |
 | I-06 | `GET /plans/{id}` con id inexistente retorna 200 sin plan | AC-07 |
 | I-07 | `DELETE /plans/{id}` redirige a /plans | AC-08, AC-09 |
+| I-12 | El dueño ve el formulario de rol y su POST persiste el cambio | AC-14 |
+| I-13 | Un editor ve la insignia de rol pero no el formulario; su POST redirige al plan inexistente y el rol no cambia | AC-14 |
+| I-14 | El detalle muestra nombre y rol de los participantes sin el correo como texto visible | AC-15 |
 
 ### Tests de Integracion (`infrastructure/PlanRepositoryTest.java`)
 
@@ -171,6 +186,7 @@ persona, duplicados, respuestas repetidas y eliminación de invitaciones con el 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
 | E-01 | `PlansViewE2E` | Crear plan, ver en lista, ver detalle, eliminar | AC-02, AC-06, AC-07, AC-08 |
+| E-02 | `PlanParticipantsE2E` | El dueño cambia el rol; el editor no ve el control ni el correo y el rol se mantiene | AC-14, AC-15 |
 
 ## Referencia de Implementacion
 

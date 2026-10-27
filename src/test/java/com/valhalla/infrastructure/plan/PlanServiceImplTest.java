@@ -396,6 +396,82 @@ public class PlanServiceImplTest {
     assertThat(plan.getInvitations(), is(empty()));
   }
 
+  // --- changeParticipantRole: solo el dueño reasigna roles existentes (AC-14) ---
+
+  @Test
+  public void ownerChangesParticipantRole() {
+    Plan plan = invitationPlan(false);
+    plan.getParticipants().add(owner(PARTICIPANT_ID, OTHER_EMAIL));
+
+    planService.changeParticipantRole(PLAN_ID, OTHER_EMAIL, "editor", OWNER_EMAIL);
+
+    assertThat(plan.isEditor(OTHER_EMAIL), is(true));
+    verify(planRepositoryMock).save(plan);
+
+    planService.changeParticipantRole(PLAN_ID, OTHER_EMAIL, "guest", OWNER_EMAIL);
+
+    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+    assertThat(plan.isParticipant(OTHER_EMAIL), is(true));
+  }
+
+  @Test
+  public void editorCannotChangeParticipantRole() {
+    Plan plan = invitationPlan(false);
+    User editor = owner(EDITOR_ID, OTHER_EMAIL);
+    User guest = owner(PARTICIPANT_ID, UNKNOWN_EMAIL);
+    plan.getParticipants().addAll(List.of(editor, guest));
+    plan.getEditors().add(editor);
+
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.changeParticipantRole(PLAN_ID, UNKNOWN_EMAIL, "editor", OTHER_EMAIL)
+    );
+
+    assertThat(plan.isEditor(UNKNOWN_EMAIL), is(false));
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void strangerCannotChangeParticipantRole() {
+    Plan plan = invitationPlan(false);
+    plan.getParticipants().add(owner(PARTICIPANT_ID, UNKNOWN_EMAIL));
+
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.changeParticipantRole(PLAN_ID, UNKNOWN_EMAIL, "editor", OTHER_EMAIL)
+    );
+
+    assertThat(plan.isEditor(UNKNOWN_EMAIL), is(false));
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void ownerCannotChangeAdministratorRole() {
+    Plan plan = invitationPlan(false);
+
+    assertThrows(
+      PlanNotFoundException.class,
+      () -> planService.changeParticipantRole(PLAN_ID, OWNER_EMAIL, "guest", OWNER_EMAIL)
+    );
+
+    assertThat(plan.isAdministrator(OWNER_EMAIL), is(true));
+    assertNothingWasMutated();
+  }
+
+  @Test
+  public void ownerCannotAssignUnknownRole() {
+    Plan plan = invitationPlan(false);
+    plan.getParticipants().add(owner(PARTICIPANT_ID, OTHER_EMAIL));
+
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> planService.changeParticipantRole(PLAN_ID, OTHER_EMAIL, "owner", OWNER_EMAIL)
+    );
+
+    assertThat(plan.isEditor(OTHER_EMAIL), is(false));
+    assertNothingWasMutated();
+  }
+
   private Plan invitationPlan(boolean isPublic) {
     Plan plan = new Plan();
     plan.setId(PLAN_ID);

@@ -34,7 +34,10 @@ public class PlanBanE2E extends E2eBase {
       page.locator("[aria-controls='plan-options-menu']").click();
       page.locator("[aria-controls='banned-participants']").click();
       assertThat(page.locator("#banned-participants")).isVisible();
-      assertThat(page.locator("#banned-participants")).containsText("visitante.ban@unlam.edu.ar");
+      assertThat(page.locator("#banned-participants")).containsText("Visitante BAN");
+      assertThat(page.locator("#banned-participants"))
+        .not()
+        .containsText("visitante.ban@unlam.edu.ar");
       page.locator("#banned-participants").press("Escape");
       assertThat(page.locator("#banned-participants")).not().isVisible();
       assertThat(page.locator("[aria-controls='plan-options-menu']")).isFocused();

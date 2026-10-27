@@ -22,9 +22,11 @@ público de la API utilizado por **Explorar**.
 
 El detalle del plan incluye un botón **Más opciones**, identificado con tres
 puntos, junto a las acciones de clonar y eliminar. Su desplegable contiene
-**Ver miembros baneados**, que abre un modal con la cantidad, nombres, correos
-y un botón **Quitar baneo** por persona. Si no hay baneos, muestra un mensaje
-indicándolo. La lista ya no ocupa espacio dentro del recorrido o los participantes.
+**Ver miembros baneados**, que abre un modal con la cantidad, los nombres
+y un botón **Quitar baneo** por persona. El correo no se muestra como texto: solo
+viaja en el campo oculto de esa acción, igual que en la lista de participantes.
+Si no hay baneos, muestra un mensaje indicándolo. La lista ya no ocupa espacio
+dentro del recorrido o los participantes.
 
 El menú utiliza el estado `planOptionsOpen` de la aplicación Vue existente. Se
 cierra al perder el foco o presionar Escape. Su contenido permanece oculto antes

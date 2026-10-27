@@ -257,7 +257,10 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     String role,
     String userEmail
   ) {
-    Plan plan = getEditablePlan(id, userEmail);
+    // Solo el dueño cambia roles existentes: los editores conservan la invitación, no la
+    // reasignación. getOwnedPlan responde como inexistente para el resto (misma política que
+    // deleteOwnedPlan), así que un editor no puede distinguir un plan ajeno de uno inexistente.
+    Plan plan = getOwnedPlan(id, userEmail);
     if (plan.isAdministrator(participantEmail)) {
       throw new PlanNotFoundException();
     }
