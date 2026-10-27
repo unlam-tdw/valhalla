@@ -100,6 +100,7 @@ public class PlaceAdminController {
     form.setLatitude(place.getLatitude());
     form.setLongitude(place.getLongitude());
     form.setExternalId(place.getExternalId());
+    form.setDefaultDurationMinutes(place.getDefaultDurationMinutes());
     Map<String, Object> model = new ModelMap();
     model.put(ATTR_PLACE_FORM, form);
     model.put(ATTR_PLACE_ID, id);
@@ -152,6 +153,9 @@ public class PlaceAdminController {
     form.setExternalId(params.get("externalId"));
     // AC-06: una categoria sin mapping (o desconocida) arranca en OTHER; el admin la cambia.
     form.setCategory(PlaceCategory.fromCode(params.get("category")).orElse(PlaceCategory.OTHER));
+    // [SCH] Duracion tipica que el importador puede traer en el query. OSM no la trae, asi que el
+    // alta deja el campo vacio y el planificador resuelve por categoria.
+    form.setDefaultDurationMinutes(minutesOrNull(params.get("defaultDurationMinutes")));
     return form;
   }
 
@@ -173,6 +177,24 @@ public class PlaceAdminController {
     }
     try {
       return Double.valueOf(value);
+    } catch (NumberFormatException exception) {
+      // Un query param manipulado no puede romper el form: se ignora el valor.
+      return null;
+    }
+  }
+
+  /**
+   * [SCH] Duracion tipica en minutos, leida del query con el que el importador pre-llena el alta.
+   * OSM no trae duracion, asi que el param llega ausente y el resultado es {@code null}: en el
+   * form eso se muestra vacio y significa "segun categoria". Un valor no numerico se ignora,
+   * igual que una coordenada.
+   */
+  private Integer minutesOrNull(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    try {
+      return Integer.valueOf(value);
     } catch (NumberFormatException exception) {
       // Un query param manipulado no puede romper el form: se ignora el valor.
       return null;

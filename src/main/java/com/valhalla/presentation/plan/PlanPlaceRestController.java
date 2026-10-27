@@ -1,8 +1,10 @@
 package com.valhalla.presentation.plan;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceService;
+import com.valhalla.domain.planplace.PlanPlaceUpdate;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -62,8 +64,16 @@ public class PlanPlaceRestController {
       service.updatePlanPlace(
         planId,
         id,
-        request.visitDate() == null ? null : LocalDate.parse(request.visitDate()),
-        request.visitTime() == null ? null : LocalTime.parse(request.visitTime()),
+        new PlanPlaceUpdate(
+          request.durationMinutes(),
+          request.visitDate() == null ? null : LocalDate.parse(request.visitDate()),
+          request.visitTime() == null ? null : LocalTime.parse(request.visitTime()),
+          // [SCH] Un nombre de modo desconocido lanza IllegalArgumentException, que el handler de
+          // abajo traduce a 400 como el resto del cuerpo invalido.
+          request.transportModeToNext() == null
+            ? null
+            : TransportMode.valueOf(request.transportModeToNext())
+        ),
         principal.getName()
       )
     );
@@ -113,7 +123,10 @@ public class PlanPlaceRestController {
     String address,
     String category,
     Double latitude,
-    Double longitude
+    Double longitude,
+    Integer durationMinutes,
+    String transportModeToNext,
+    boolean timePinned
   ) {
     static ItineraryEntry from(PlanPlace entry) {
       return new ItineraryEntry(
@@ -128,7 +141,10 @@ public class PlanPlaceRestController {
         entry.getPlace().getAddress(),
         entry.getPlace().getCategory() == null ? null : entry.getPlace().getCategory().name(),
         entry.getPlace().getLatitude(),
-        entry.getPlace().getLongitude()
+        entry.getPlace().getLongitude(),
+        entry.getDurationMinutes(),
+        entry.getTransportModeToNext() == null ? null : entry.getTransportModeToNext().name(),
+        entry.isTimePinned()
       );
     }
   }

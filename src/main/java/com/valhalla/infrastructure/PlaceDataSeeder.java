@@ -3,6 +3,7 @@ package com.valhalla.infrastructure;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
+import com.valhalla.domain.plan.PlanScheduleCalculator;
 import java.util.List;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -145,6 +146,8 @@ public class PlaceDataSeeder implements ApplicationListener<ContextRefreshedEven
     place.setName(data.name());
     place.setDescription(data.description());
     place.setCategory(data.category());
+    // [SCH] El catalogo nace con la duracion tipica de su categoria; despues se edita desde el ABM.
+    place.setDefaultDurationMinutes(PlanScheduleCalculator.defaultDurationMinutes(data.category()));
     place.setAddress(data.address());
     place.setLatitude(data.latitude());
     place.setLongitude(data.longitude());

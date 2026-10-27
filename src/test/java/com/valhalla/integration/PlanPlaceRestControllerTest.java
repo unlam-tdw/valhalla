@@ -25,6 +25,16 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
   @Autowired
   private PlanPlaceService itineraryService;
 
+  // El alta repetida del mismo lugar necesita el id de cada fila, y add() devuelve siempre la
+  // primera: este helper solo confirma el alta y deja que el test lea el itinerario.
+  private void postPlace(UUID placeId) throws Exception {
+    mvc
+      .perform(
+        post(url).param("placeId", placeId.toString()).with(user("apl@test.com")).with(csrf())
+      )
+      .andExpect(status().isOk());
+  }
+
   @Test
   void editorCanManageEveryItineraryOperation() {
     User editor = new User();
@@ -41,8 +51,12 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
     itineraryService.updatePlanPlace(
       plan.getId(),
       firstEntry.getId(),
-      java.time.LocalDate.of(2026, 12, 1),
-      java.time.LocalTime.of(10, 30),
+      new PlanPlaceUpdate(
+        null,
+        java.time.LocalDate.of(2026, 12, 1),
+        java.time.LocalTime.of(10, 30),
+        null
+      ),
       email
     );
     itineraryService.reorderPlaces(
@@ -156,7 +170,143 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
   }
 
   @Test
-  void I05_deletesEntry() throws Exception {
+  void I05_addPlaceDerivaDuracionFechaYHora() throws Exception {
+    plan.setEventDate(java.time.LocalDate.of(2026, 12, 1));
+    plan.setEventTime(java.time.LocalTime.of(10, 0));
+    plans.save(plan);
+    Integer duration = places.findById(first).orElseThrow().getDefaultDurationMinutes();
+
+    mvc
+      .perform(post(url).param("placeId", first.toString()).with(user("apl@test.com")).with(csrf()))
+      .andExpect(status().isOk())
+      .andExpect(jsonValue("/durationMinutes", duration))
+      .andExpect(jsonValue("/visitDate", "2026-12-01"))
+      .andExpect(jsonValue("/visitTime", "10:00"))
+      .andExpect(jsonValue("/timePinned", false));
+  }
+
+  @Test
+  void I06_reorderConAutoScheduleMueveLasHorasAlNuevoOrden() throws Exception {
+    plan.setEventDate(java.time.LocalDate.of(2026, 12, 1));
+    plan.setEventTime(java.time.LocalTime.of(10, 0));
+    plans.save(plan);
+    // El mismo lugar dos veces: misma duracion y mismo punto, asi el traslado cae en el piso de 5
+    // minutos y las horas del orden nuevo son exactas.
+    postPlace(first);
+    postPlace(first);
+    var visits = entries.findByPlanId(plan.getId());
+    UUID firstEntry = visits.get(0).getId();
+    UUID secondEntry = visits.get(1).getId();
+
+    mvc
+      .perform(
+        post(url + "/reorder")
+          .with(user("apl@test.com"))
+          .with(csrf())
+          .contentType("application/json")
+          .content("[\"" + secondEntry + "\",\"" + firstEntry + "\"]")
+      )
+      .andExpect(status().isOk());
+
+    var reordered = entries.findByPlanId(plan.getId());
+    assertEquals(secondEntry, reordered.get(0).getId());
+    assertEquals(java.time.LocalTime.of(10, 0), reordered.get(0).getVisitTime());
+    assertEquals(java.time.LocalTime.of(11, 35), reordered.get(1).getVisitTime());
+  }
+
+  @Test
+  void I07_putConHoraExplicitaFijaLaParadaYRecalculaLasSiguientes() throws Exception {
+    plan.setEventDate(java.time.LocalDate.of(2026, 12, 1));
+    plan.setEventTime(java.time.LocalTime.of(10, 0));
+    plans.save(plan);
+    postPlace(first);
+    postPlace(first);
+    var visits = entries.findByPlanId(plan.getId());
+    UUID pinnedId = visits.get(0).getId();
+    UUID nextId = visits.get(1).getId();
+
+    mvc
+      .perform(
+        put(url + "/" + pinnedId)
+          .with(user("apl@test.com"))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{\"visitTime\":\"14:00\"}")
+      )
+      .andExpect(status().isOk())
+      .andExpect(jsonValue("/visitTime", "14:00"))
+      .andExpect(jsonValue("/timePinned", true));
+
+    var updated = entries.findByPlanId(plan.getId());
+    assertEquals(pinnedId, updated.get(0).getId());
+    assertTrue(updated.get(0).isTimePinned());
+    assertEquals(java.time.LocalTime.of(14, 0), updated.get(0).getVisitTime());
+    assertEquals(java.time.LocalDate.of(2026, 12, 1), updated.get(0).getVisitDate());
+    // La siguiente arranca a las 14:00 mas los 90 minutos de la parada fijada mas el piso de 5.
+    assertEquals(nextId, updated.get(1).getId());
+    assertEquals(java.time.LocalTime.of(15, 35), updated.get(1).getVisitTime());
+  }
+
+  @Test
+  void I08_unEditorPuedeFijarElHorario() throws Exception {
+    User editor = new User();
+    editor.setEmail("editor@test.com");
+    editor.setPassword("password");
+    editor.setRole("USER");
+    users.save(editor);
+    plan.getParticipants().add(editor);
+    plan.getEditors().add(editor);
+    plan.setEventDate(java.time.LocalDate.of(2026, 12, 1));
+    plan.setEventTime(java.time.LocalTime.of(10, 0));
+    plans.save(plan);
+    UUID id = add(first);
+
+    mvc
+      .perform(
+        put(url + "/" + id)
+          .with(user(editor.getEmail()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(
+            "{\"visitDate\":\"2026-12-02\",\"visitTime\":\"09:30\"," +
+            "\"durationMinutes\":45,\"transportModeToNext\":\"BIKE\"}"
+          )
+      )
+      .andExpect(status().isOk())
+      .andExpect(jsonValue("/visitDate", "2026-12-02"))
+      .andExpect(jsonValue("/visitTime", "09:30"))
+      .andExpect(jsonValue("/durationMinutes", 45))
+      .andExpect(jsonValue("/transportModeToNext", "BIKE"))
+      .andExpect(jsonValue("/timePinned", true));
+
+    PlanPlace saved = entries.findById(id).orElseThrow();
+    assertTrue(saved.isTimePinned());
+    assertEquals(java.time.LocalTime.of(9, 30), saved.getVisitTime());
+    assertEquals(45, saved.getDurationMinutes());
+    assertEquals(TransportMode.BIKE, saved.getTransportModeToNext());
+  }
+
+  @Test
+  void unModoDeTrasladoDesconocidoDevuelve400YNoEscribe() throws Exception {
+    UUID id = add(first);
+
+    mvc
+      .perform(
+        put(url + "/" + id)
+          .with(user("apl@test.com"))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{\"transportModeToNext\":\"TELEPORT\"}")
+      )
+      .andExpect(status().isBadRequest());
+
+    PlanPlace unchanged = entries.findById(id).orElseThrow();
+    assertNull(unchanged.getTransportModeToNext());
+    assertFalse(unchanged.isTimePinned());
+  }
+
+  @Test
+  void I09_deletesEntry() throws Exception {
     UUID id = add(first);
     mvc
       .perform(delete(url + "/" + id).with(user("apl@test.com")).with(csrf()))
@@ -165,7 +315,7 @@ class PlanPlaceRestControllerTest extends PlanPlaceWebFixture {
   }
 
   @Test
-  void I06_reorders() throws Exception {
+  void I10_reorders() throws Exception {
     UUID firstEntry = add(first);
     UUID secondEntry = add(second);
     mvc

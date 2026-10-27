@@ -45,6 +45,21 @@ public class PlansPage extends WebPage {
     this.typeIntoElement("#plan-date", isoDate);
   }
 
+  /** Paso 1 del modal: hora en la que arranca la jornada, de donde sale el horario derivado. */
+  public void typeStartTime(String time) {
+    this.typeIntoElement("#plan-start-time", time);
+  }
+
+  /** Paso 1 del modal: hora en que cierra la jornada; lo que no entra rueda al día siguiente. */
+  public void typeDayEndTime(String time) {
+    this.typeIntoElement("#plan-day-end", time);
+  }
+
+  /** Paso 1 del modal: modo de traslado por defecto, por su {@code value} (WALK, BIKE, BUS, CAR). */
+  public void selectTransportMode(String mode) {
+    this.page.selectOption("#plan-transport", mode);
+  }
+
   /** Avanza al siguiente paso del wizard. */
   public void clickNextStep() {
     this.clickElement("button:has-text('Siguiente')");
@@ -56,7 +71,16 @@ public class PlansPage extends WebPage {
    * panel de creación está abierto.
    */
   public void addFirstDraftPlace() {
-    this.page.locator("#explore-app > aside article button[aria-label^='Add ']").first().click();
+    addDraftPlace(0);
+  }
+
+  /**
+   * Paso 2: agrega al borrador la tarjeta {@code index} del catálogo. Un test que necesita
+   * varias paradas distintas las pide por índice: repetir el mismo lugar deja el itinerario con
+   * nombres y duraciones iguales, y entonces reordenar no cambia ningún horario.
+   */
+  public void addDraftPlace(int index) {
+    this.page.locator("#explore-app > aside article button[aria-label^='Add ']").nth(index).click();
   }
 
   /** Paso 3: envía el formulario del modal (POST /plans). */

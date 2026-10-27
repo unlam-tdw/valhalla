@@ -16,4 +16,13 @@ public class PlaceTest {
 
     assertThat(place.getImageUrl(), is(equalTo("https://example.test/place.jpg")));
   }
+
+  @Test
+  public void shouldStoreTheDefaultDurationMinutes() {
+    Place place = new Place();
+
+    place.setDefaultDurationMinutes(45);
+
+    assertThat(place.getDefaultDurationMinutes(), is(equalTo(45)));
+  }
 }

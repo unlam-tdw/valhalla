@@ -9,6 +9,14 @@ import { apiFetch } from '../lib/api.js';
 import { categoryColor } from '../lib/category-colors.js';
 import { el } from '../lib/dom.js';
 import {
+  effectiveMinutes,
+  formatClock,
+  formatDate,
+  formatDuration,
+  scheduleStops,
+  TRANSPORT_LABELS
+} from '../lib/plan-schedule.js';
+import {
   buildMarker,
   categoryIconHtml as categoryIcon,
   categoryIconNode,
@@ -28,8 +36,15 @@ createApp({
     const plansQuery = ref('');
     const showCreatePlan = ref(false);
     const planNameInput = ref(null);
+    const planDateInput = ref(null);
     const planStep = ref(1);
     const draftPlaces = ref([]);
+    /* Los cuatro datos de los que sale el horario. La fecha vive en el input nativo, así que su
+       ref es solo el espejo que necesita el preview. */
+    const planDate = ref('');
+    const planStartTime = ref('10:00');
+    const planDayEnd = ref('23:00');
+    const planTransportMode = ref('WALK');
     const showAddToPlan = ref(false);
     const placeToAdd = ref(null);
     const availablePlans = ref([]);
@@ -139,6 +154,10 @@ createApp({
       showCreatePlan.value = false;
       planStep.value = 1;
       draftPlaces.value = [];
+      planDate.value = '';
+      planStartTime.value = '10:00';
+      planDayEnd.value = '23:00';
+      planTransportMode.value = 'WALK';
     };
 
     const activePlan = ref(null);
@@ -224,7 +243,7 @@ createApp({
 
     // The same place may be added repeatedly, so rows are keyed by their own counter.
     const addToDraft = (place) => {
-      draftPlaces.value.push({ key: nextDraftKey++, place, description: '', visitTime: '' });
+      draftPlaces.value.push({ key: nextDraftKey++, place, description: '', transportModeToNext: '' });
     };
 
     const removeDraft = (index) => {
@@ -238,8 +257,66 @@ createApp({
       draftPlaces.value.splice(target, 0, item);
     };
 
+    /* Preview del horario: lo calcula lib/plan-schedule.js, que espeja la calculadora del
+       servidor. El horario que se guarda lo deriva el servidor igual, con estos mismos datos. */
+    const schedule = computed(() => scheduleStops({
+      planDate: planDate.value,
+      startTime: planStartTime.value,
+      dayEnd: planDayEnd.value,
+      mode: planTransportMode.value,
+      stops: draftPlaces.value
+    }));
+
+    const shortDate = (isoDate) => isoDate.slice(8, 10) + '/' + isoDate.slice(5, 7);
+
+    /* El tramo pertenece a la parada que lo origina: usa el modo propio de la parada y, si no
+       fija uno, el del plan. */
+    const legLabel = (item, minutes) => {
+      const mode = item.transportModeToNext || planTransportMode.value;
+      return (TRANSPORT_LABELS[mode] || TRANSPORT_LABELS.WALK) + ' · ' + minutes + ' min';
+    };
+
+    /* Las paradas agrupadas por la jornada que les tocó, con el chip ya resuelto. El último tramo
+       de cada día se omite: cruza a la jornada siguiente, no es un traslado del itinerario. */
+    const dayGroups = computed(() => {
+      const groups = [];
+      schedule.value.forEach((slot, index) => {
+        const item = draftPlaces.value[index];
+        const isLastOfDay =
+          index === schedule.value.length - 1 ||
+          schedule.value[index + 1].dayIndex !== slot.dayIndex;
+        let group = groups[groups.length - 1];
+        if (!group || group.dayIndex !== slot.dayIndex) {
+          group = {
+            dayIndex: slot.dayIndex,
+            label: 'Día ' + (slot.dayIndex + 1) + ' · ' + shortDate(slot.date),
+            stops: []
+          };
+          groups.push(group);
+        }
+        group.stops.push({
+          key: item.key,
+          index,
+          item,
+          order: index + 1,
+          timeRange: formatClock(slot.startMinutes) + ' – ' + formatClock(slot.endMinutes),
+          duration: formatDuration(slot.minutes),
+          leg: isLastOfDay ? null : { label: legLabel(item, slot.legMinutes) }
+        });
+      });
+      return groups;
+    });
+
+    const dayCount = computed(() => dayGroups.value.length);
+
+    const totalDuration = computed(() =>
+      formatDuration(draftPlaces.value.reduce((total, item) => total + effectiveMinutes(item), 0)));
+
     const nextPlanStep = () => {
       if (planNameInput.value && !planNameInput.value.reportValidity()) return;
+      if (planStep.value === 1 && planDateInput.value && !planDateInput.value.reportValidity()) {
+        return;
+      }
       if (planStep.value === 2 && draftPlaces.value.length === 0) return;
       planStep.value = Math.min(3, planStep.value + 1);
     };
@@ -449,6 +526,7 @@ createApp({
       categories,
       filteredPlaces,
       capitalize,
+      formatDate,
       categoryColor,
       categoryIcon,
       lucideIcon,
@@ -466,10 +544,20 @@ createApp({
       toggleBookmark,
       showCreatePlan,
       planNameInput,
+      planDateInput,
       openCreatePlan,
       closeCreatePlan,
       planStep,
       draftPlaces,
+      planDate,
+      planStartTime,
+      planDayEnd,
+      planTransportMode,
+      transportLabels: TRANSPORT_LABELS,
+      schedule,
+      dayGroups,
+      dayCount,
+      totalDuration,
       activePlan,
       closeActivePlan,
       addToDraft,

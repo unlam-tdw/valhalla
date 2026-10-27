@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.place.PlaceRepository;
+import com.valhalla.domain.plan.PlanScheduleCalculator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -121,6 +122,21 @@ public class PlaceDataSeederTest {
     // then: todos null, el placeholder es el default (U-09)
     for (Place place : savedPlaces()) {
       assertThat(place.getImageUrl(), is(nullValue()));
+    }
+  }
+
+  @Test
+  public void cadaLugarSembradoNaceConLaDuracionTipicaDeSuCategoria() {
+    // when
+    this.seeder.ensureSeeded();
+
+    // then: el oraculo es la misma calculadora, no un numero escrito a mano
+    for (Place place : savedPlaces()) {
+      assertThat(
+        "duracion de " + place.getName(),
+        place.getDefaultDurationMinutes(),
+        is(equalTo(PlanScheduleCalculator.defaultDurationMinutes(place.getCategory())))
+      );
     }
   }
 

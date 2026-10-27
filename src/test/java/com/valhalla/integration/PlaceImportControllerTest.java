@@ -342,6 +342,7 @@ public class PlaceImportControllerTest {
           .param("phone", "+54 11 4444-5555")
           .param("website", "https://parrilla.example.com")
           .param("category", "RESTAURANT")
+          .param("defaultDurationMinutes", "90")
       )
       .andExpect(status().isOk())
       .andExpect(view().name("pages/admin/place-form"))
@@ -358,11 +359,27 @@ public class PlaceImportControllerTest {
               hasProperty("openingHours", is("Mo-Su 12:00-23:00")),
               hasProperty("phone", is("+54 11 4444-5555")),
               hasProperty("website", is("https://parrilla.example.com")),
-              hasProperty("category", is(PlaceCategory.RESTAURANT))
+              hasProperty("category", is(PlaceCategory.RESTAURANT)),
+              hasProperty("defaultDurationMinutes", is(90))
             )
           )
       )
       .andExpect(content().string(containsString("Parrilla del Puerto")));
+  }
+
+  /** [SCH] OSM no trae duracion: una basura en el param no rompe el form, queda vacia. */
+  @Test
+  @WithMockUser(username = ADMIN_EMAIL, roles = { "ADMIN" })
+  public void ignorarUnaDuracionTipicaQueNoEsUnNumero() throws Exception {
+    this.mockMvc.perform(
+        get("/admin/places/new")
+          .param("name", "Sin Duracion")
+          .param("defaultDurationMinutes", "noventa")
+      )
+      .andExpect(status().isOk())
+      .andExpect(
+        model().attribute("placeForm", hasProperty("defaultDurationMinutes", nullValue()))
+      );
   }
 
   @Test

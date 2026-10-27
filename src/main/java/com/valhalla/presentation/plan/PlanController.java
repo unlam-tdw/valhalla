@@ -6,12 +6,15 @@ import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanPermission;
 import com.valhalla.domain.plan.PlanService;
+import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.planplace.PlanPlaceService;
 import com.valhalla.domain.rating.PlanRatingService;
 import com.valhalla.domain.rating.RatingSummary;
 import com.valhalla.domain.user.User;
 import jakarta.validation.Valid;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -45,6 +48,14 @@ public class PlanController {
   private static final String REDIRECT_EXPLORE = "redirect:/explore";
   private static final String ATTR_PLANS = "plans";
   private static final String ATTR_PLAN = "plan";
+
+  // [SCH] Defaults del planificador cuando el form no manda la ventana del dia ni el modo: los
+  // mismos que asume un plan viejo sin esas columnas.
+  private static final LocalTime DEFAULT_DAY_END = LocalTime.of(23, 0);
+
+  // [SCH] El fin de la visita viaja ya formateado: la vista publica no calcula nada y el formato
+  // es el mismo HH:mm (24 h, cero a la izquierda) que dibuja el detalle del plan.
+  private static final DateTimeFormatter CLOCK_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
   private final PlanService planService;
   private final PlanPlaceService planPlaceService;
@@ -126,6 +137,9 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    // [SCH] El JS compara la fecha de cada parada contra esta para no repetir el Día 1 en cada
+    // una: sin la fecha del plan, la lista no puede saber cuál es la jornada de referencia.
+    model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }
@@ -145,6 +159,10 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    // [SCH] El template compara la fecha de cada parada contra esta para mostrarla solo cuando
+    // difiere de la del plan; sin ella la vista publica no sabria cuál es la jornada de
+    // referencia (mismo motivo que el planDateIso de showPlan).
+    model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     // AC-03: "Creado por" en la vista pública; sin nombre de visualización se usa el email.
     model.put("administratorName", displayName(plan.getAdministrator()));
     // [PROF] AC-22: el autor linkea a su perfil público; el id viaja al link del template.
@@ -318,6 +336,8 @@ public class PlanController {
       return new ModelAndView(REDIRECT_EXPLORE);
     }
     Plan draft = toPlanOrderedByVisitTime(planForm);
+    Plan draft = toPlan(planForm);
+    draft.getSettings().setShareLink(planForm.getSettings().getShareLink());
     draft.getSettings().setHandleRequests(planForm.getSettings().getHandleRequests());
     draft.getSettings().setInviteInternal(planForm.getSettings().getInviteInternal());
     draft.getSettings().setInviteByEmail(planForm.getSettings().getInviteByEmail());
@@ -509,37 +529,29 @@ public class PlanController {
   }
 
   /**
-   * El orden del formulario es el del mouse, no el del día: quien arma el plan agrega primero el
-   * lugar que vio primero y recién después le pone la hora. Así que al crear, el itinerario se
-   * ordena por hora de visita; los que no tienen hora quedan al final, en el orden en que se
-   * cargaron. Solo al crear: en la edición el orden ya es una decisión del usuario (el drag &amp;
-   * drop del detalle).
+   * El orden del formulario es el orden del itinerario: el usuario arma la lista en el orden en que
+   * quiere recorrerla y el {@code sortOrder} sale de esa posicion. Nada de reordenar por hora: el
+   * horario lo deriva el servicio ({@code PlanScheduler}) a partir de la fecha, la hora de inicio y
+   * las duraciones, y las filas del form ya no traen fecha ni hora.
+   *
+   * <p>Los campos que el form no manda caen a los defaults del planificador (cierre a las 23:00 y
+   * caminar), los mismos que usa un plan viejo sin esas columnas.
+   *
+   * <p>The form owns these fields and its itinerary rows only: id, shortCode and administrator
+   * never come from a post.
    */
-  private Plan toPlanOrderedByVisitTime(PlanRequest planForm) {
-    Plan plan = toPlan(planForm);
-    plan
-      .getPlanPlaces()
-      .sort(
-        Comparator.comparing(
-          PlanPlace::getVisitTime,
-          Comparator.nullsLast(Comparator.naturalOrder())
-        )
-      );
-    int order = 1;
-    for (PlanPlace entry : plan.getPlanPlaces()) {
-      entry.setSortOrder(order);
-      order++;
-    }
-    return plan;
-  }
-
-  /** The form owns these fields and its itinerary rows only: id, shortCode and administrator never come from a post. */
   private Plan toPlan(PlanRequest planForm) {
     Plan plan = new Plan();
     plan.setName(planForm.getName());
     plan.setDescription(planForm.getDescription());
     plan.setEventDate(planForm.getEventDate());
     plan.setEventTime(planForm.getEventTime());
+    plan.setDayEndTime(
+      planForm.getDayEndTime() == null ? DEFAULT_DAY_END : planForm.getDayEndTime()
+    );
+    plan.setTransportMode(
+      planForm.getTransportMode() == null ? TransportMode.WALK : planForm.getTransportMode()
+    );
     plan.setIsPublic(planForm.getIsPublic());
     int order = 1;
     for (PlanPlaceRequest row : planForm.getPlaces()) {
@@ -552,8 +564,7 @@ public class PlanController {
       PlanPlace entry = new PlanPlace();
       entry.setPlace(place);
       entry.setDescription(row.getDescription());
-      entry.setVisitDate(row.getVisitDate());
-      entry.setVisitTime(row.getVisitTime());
+      entry.setTransportModeToNext(row.getTransportModeToNext());
       entry.setSortOrder(order);
       order++;
       plan.addPlanPlace(entry);
@@ -574,6 +585,22 @@ public class PlanController {
     view.put("address", place.getAddress());
     view.put("latitude", place.getLatitude());
     view.put("longitude", place.getLongitude());
+    // [SCH] El detalle dibuja el rango con la duración y distingue lo fijado a mano de lo
+    // derivado con el pin; el modo del tramo viaja para el seed de la parada.
+    view.put("durationMinutes", entry.getDurationMinutes());
+    TransportMode mode = entry.getTransportModeToNext();
+    view.put("transportModeToNext", mode == null ? null : mode.name());
+    view.put("timePinned", entry.isTimePinned());
+    // [SCH] El fin de la visita se calcula acá y no en el template: la vista pública es
+    // estática (su único JS es el mapa) y sin duración no hay fin que calcular, igual que en
+    // el JS del detalle. LocalTime da la vuelta sobre la medianoche igual que formatClock.
+    LocalTime start = entry.getVisitTime();
+    Integer duration = entry.getDurationMinutes();
+    String timeEnd = null;
+    if (start != null && duration != null && duration > 0) {
+      timeEnd = CLOCK_FORMATTER.format(start.plusMinutes(duration));
+    }
+    view.put("visitTimeEnd", timeEnd);
     return view;
   }
 }

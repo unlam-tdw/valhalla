@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.sameInstance;
 import com.valhalla.domain.user.User;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -229,5 +230,80 @@ public class PlanTest {
     assertThat(plan.getSettings().getHandleRequests(), is(PlanPermission.EDITORS));
     assertThat(plan.hasPendingJoinRequest(null), is(false));
     assertThat(plan.hasPendingJoinRequest("visitor@test.com"), is(false));
+  }
+
+  @Test
+  public void T_PLN_055_dayEndYTransportModeDeleganEnElSchedule() {
+    this.plan.setDayEndTime(LocalTime.of(21, 0));
+    this.plan.setTransportMode(TransportMode.CAR);
+
+    assertThat(this.plan.getDayEndTime(), is(equalTo(LocalTime.of(21, 0))));
+    assertThat(this.plan.getTransportMode(), is(TransportMode.CAR));
+  }
+
+  @Test
+  public void T_PLN_056_updateFromCopiaDayEndYTransportMode() {
+    // given: el form del slice 3 va a mandar los dos campos nuevos
+    Plan changes = new Plan();
+    changes.setDayEndTime(LocalTime.of(20, 0));
+    changes.setTransportMode(TransportMode.BIKE);
+
+    // when
+    this.plan.updateFrom(changes);
+
+    // then
+    assertThat(this.plan.getDayEndTime(), is(equalTo(LocalTime.of(20, 0))));
+    assertThat(this.plan.getTransportMode(), is(TransportMode.BIKE));
+  }
+
+  @Test
+  public void T_PLN_057_scheduleNuloRespondeNuloYPermiteReconstruirlo() throws Exception {
+    // given: una fila hidratada sin el embeddable, el mismo caso que T_PLN_053
+    nullOutSchedule(this.plan);
+
+    // then
+    assertThat(this.plan.getDayEndTime(), is(nullValue()));
+    assertThat(this.plan.getTransportMode(), is(nullValue()));
+
+    // when: los setters reconstruyen el schedule en vez de NPE
+    this.plan.setDayEndTime(LocalTime.of(22, 0));
+    this.plan.setTransportMode(TransportMode.BUS);
+
+    // then
+    assertThat(this.plan.getDayEndTime(), is(equalTo(LocalTime.of(22, 0))));
+    assertThat(this.plan.getTransportMode(), is(TransportMode.BUS));
+  }
+
+  @Test
+  public void T_PLN_058_planScheduleRecuperaLosDefaultsDeFilasViejas() {
+    // given: columnas agregadas despues, una fila vieja las hidrata en null
+    PlanSchedule schedule = new PlanSchedule();
+
+    // then: el default es dia completo caminando
+    assertThat(schedule.getDayEndTime(), is(equalTo(LocalTime.of(23, 0))));
+    assertThat(schedule.getTransportMode(), is(TransportMode.WALK));
+
+    // when
+    schedule.setDayEndTime(null);
+    schedule.setTransportMode(null);
+
+    // then: los getters siguen tolerando null
+    assertThat(schedule.getDayEndTime(), is(equalTo(LocalTime.of(23, 0))));
+    assertThat(schedule.getTransportMode(), is(TransportMode.WALK));
+  }
+
+  @Test
+  public void PET_U05_autoScheduleArrancaEnTrueYAceptaValoresExplicitos() {
+    PlanSettings settings = this.plan.getSettings();
+    assertThat(settings.getAutoSchedule(), is(true));
+
+    settings.setAutoSchedule(false);
+    assertThat(settings.getAutoSchedule(), is(false));
+
+    // given: una fila vieja sin la columna
+    settings.setAutoSchedule(null);
+
+    // then: sin dato, reordenar recalcula
+    assertThat(settings.getAutoSchedule(), is(true));
   }
 }
