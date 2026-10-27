@@ -102,10 +102,8 @@ public class PlanPlaceDetailE2E extends E2eBase {
     Locator titles = page.locator(".stop-title");
     String firstName = titles.nth(0).innerText();
     String secondName = titles.nth(1).innerText();
-    Response reorder = page.waitForResponse(
-      "**/reorder",
-      () -> page.locator(".place-item").nth(0).dragTo(page.locator(".place-item").nth(1))
-    );
+    assertThat(page.locator(".place-item").first()).hasAttribute("draggable", "true");
+    Response reorder = reorderFirstTwoStops();
     assertEquals(200, reorder.status(), "the reorder has to be saved by the server");
     assertThat(titles.nth(0)).hasText(secondName);
     assertThat(titles.nth(1)).hasText(firstName);
@@ -282,7 +280,39 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   private void closeStopDetails() {
-    page.locator("dialog[aria-labelledby='place-detail-title'] .btn-close").click();
+    Locator dialog = page.locator("dialog[aria-labelledby='place-detail-title']");
+    dialog.locator(".btn-close").click();
+    // Do not let the next action race the native dialog backdrop.
+    assertThat(dialog).isHidden();
+  }
+
+  /**
+   * Playwright's pointer-driven {@code dragTo} can skip the HTML5 drag events on headless CI and
+   * leave the response wait hanging. Dispatch the same events the Vue component listens to, so the
+   * handlers and the reorder POST remain covered without depending on pointer hit-testing.
+   */
+  private Response reorderFirstTwoStops() {
+    return page.waitForResponse(
+      "**/reorder",
+      () ->
+        page.evaluate(
+          """
+          () => {
+            const items = document.querySelectorAll('.place-item');
+            const dataTransfer = new DataTransfer();
+            const event = (type) => new DragEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              dataTransfer
+            });
+            items[0].dispatchEvent(event('dragstart'));
+            items[1].dispatchEvent(event('dragover'));
+            items[1].dispatchEvent(event('drop'));
+            items[0].dispatchEvent(event('dragend'));
+          }
+          """
+        )
+    );
   }
 
   /**
