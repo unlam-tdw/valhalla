@@ -198,7 +198,7 @@ public class PlanBanSecurityTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("id=\"banned-participants\"")))
         .andExpect(content().string(containsString("Persona Baneada")))
-        .andExpect(content().string(containsString("Quitar baneo a " + MEMBER)));
+        .andExpect(content().string(containsString("Quitar baneo a Persona Baneada")));
     }
     createUser("viewer.ban@test.com");
     service.joinPlan("BAN12345", "viewer.ban@test.com");

@@ -8,11 +8,13 @@
 | **Place** | A location in Buenos Aires. Has name, description, category, address, coordinates, image, and a typical visit duration (`defaultDurationMinutes`, editable in the place admin form). |
 | **Plan** | A curated collection of places with schedule. Owned by a User. Is public or private. Its schedule is a daily window: Day 1 date, start time, day end time and transport mode (`WALK`/`BIKE`/`BUS`/`CAR`). |
 | **PlanPlace** | A place within a plan, with visit date, time, and order in the itinerary. Order is the source of truth: visit date/time are derived from it (stop duration, else the place's default duration, else its category default, plus the leg to the next stop) and re-derived whenever the itinerary changes, unless the User pins them by hand. |
-| **Plan participant** | Registered User who joins a public Plan using its Short Code, or a private Plan after an accepted join request or invitation. Can read its detail and leave it; cannot edit or delete it unless assigned the Editor role. The administrator owns the Plan and can delete it. |
+| **Plan participant** | Registered User who joins a public Plan using its Short Code, or a private Plan after an accepted join request or invitation. Can read its detail and leave it; cannot edit or delete it unless assigned the Editor role. The plan detail shows their full name, role and profile link, never their email as visible text. The administrator owns the Plan and can delete it. |
 | **Rating** | A 1–5 star score a logged-in User gives to a public Plan. One per User per Plan (updatable). Authorship is stored but never shown: only the average and count are public. |
 | **Seguidor / Seguido** | Directed follow relation between two Users: one `follows` row per (follower, followed) pair. It grants no extra visibility — only the followed user's public plans reach the "Siguiendo" feed scope — and it sends no notifications. |
 
-**Editor**: A Plan participant who can modify the plan and itinerary and change participant roles. Only the administrator (owner) can delete the Plan. Leaving the Plan removes the Editor role.
+**Editor**: A Plan participant who can modify the plan and itinerary and invite people,
+including proposing the Editor role. Only the administrator (owner) can change the roles
+of existing participants or delete the Plan. Leaving the Plan removes the Editor role.
 
 The owner and Editors can remove Participants from a Plan. Only the owner can remove
 Editors. The owner cannot be removed. Removal revokes participation and the Editor

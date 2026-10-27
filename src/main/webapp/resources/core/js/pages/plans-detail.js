@@ -17,7 +17,7 @@ import {
     directionsUrl
 } from '../lib/places-map.js';
 
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, nextTick } = Vue;
 const seed = window.PLAN_DETAIL_SEED || {};
 const itineraryUrl = seed.itineraryUrl || '';
 const catalogUrl = seed.catalogUrl || '';
@@ -311,6 +311,10 @@ createApp({
                 // La ficha muestra el horario ya formateado: el rango, la duración y el día se
                 // calculan acá, igual que en la lista, y no en el template.
                 selectedEntry.value = { ...entry, ...describeStop(entry) };
+                // [MERGE] El spread de describeStop (feature) y el nextTick de main (DIS-B04) no
+                // se pisan: el nextTick va después de montar selectedEntry, que es lo que el
+                // <template v-if> necesita para renderizar antes de showModal.
+                await nextTick();
                 placeDialog.value.showModal();
             } catch (error) { requestError.value = error.message; }
         };

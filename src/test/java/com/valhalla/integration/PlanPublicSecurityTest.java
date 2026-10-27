@@ -244,6 +244,25 @@ public class PlanPublicSecurityTest {
     assertThat(html, containsString(PUBLIC_PLAN_NAME));
   }
 
+  /**
+   * S-05 (AC-15): el detalle publico anonimo muestra nombre y rol de los participantes, pero
+   * nunca sus correos como texto.
+   */
+  @Test
+  public void PVP_S05_getPlanPublicoDetalleNoMuestraEmailsDeParticipantes() throws Exception {
+    String html =
+      this.mockMvc.perform(get("/plans/" + this.publicPlanId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(html, not(containsString(PARTICIPANT_EMAIL)));
+    assertThat(html, not(containsString(OWNER_EMAIL)));
+    assertThat(html, containsString("Participante PVP"));
+    assertThat(html, containsString("Dueno PVP"));
+  }
+
   // ============================================================
   // [CAL] Calificaciones: S-01..S-03 de 16-CAL.md
   // ============================================================
