@@ -6,11 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Mouse;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Response;
+import com.microsoft.playwright.TimeoutError;
+import com.microsoft.playwright.options.BoundingBox;
 import com.microsoft.playwright.options.SelectOption;
 import com.valhalla.e2e.views.PlansPage;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
@@ -131,13 +135,75 @@ public class PlanPlaceDetailE2E extends E2eBase {
     Locator titles = page.locator(".stop-title");
     String firstName = titles.nth(0).innerText();
     String secondName = titles.nth(1).innerText();
-    // El nav sticky y el scroll que Playwright hace a mitad del arrastre dejaban el drag sin
-    // drop (el POST /reorder nunca salía): centrando la tarjeta antes, el arrastre no necesita
-    // scrollear y el drop cae en la segunda tarjeta.
-    Locator source = page.locator(".place-item").nth(0);
-    Locator target = page.locator(".place-item").nth(1);
-    source.evaluate("el => el.scrollIntoView({ block: 'center' })", null);
-    Response reorder = page.waitForResponse("**/reorder", () -> source.dragTo(target));
+    // Chromium auto-scrollea la página durante un arrastre cuando el puntero queda cerca de un
+    // borde, y ese scroll invalida las coordenadas ya calculadas: el drop termina sobre la navbar
+    // sticky (top-0) en vez de sobre la tarjeta, el evento nunca llega a la parada y el POST
+    // /reorder no sale. Se bloquea el scroll, se centra el par completo en el viewport, se
+    // verifica que el punto de drop caiga dentro de una tarjeta y se arrastra con el mouse crudo
+    // (sin el scroll interno que hace dragTo).
+    page.evaluate(
+      "() => { document.documentElement.style.overflow = 'hidden'; document.body.style.overflow = 'hidden'; }"
+    );
+    BoundingBox targetCard = null;
+    String hit = "";
+    for (int attempt = 0; attempt < 3 && !hit.equals("place-item"); attempt++) {
+      centerItineraryPair(page);
+      targetCard = page.locator(".stop-details").nth(1).boundingBox();
+      hit =
+        elementAt(page, targetCard.x + targetCard.width / 2, targetCard.y + targetCard.height / 2);
+    }
+    assertTrue(
+      hit.equals("place-item"),
+      "el drop tiene que caer dentro de la segunda tarjeta y cayo en: " +
+      hit +
+      " (box=" +
+      targetCard.x +
+      "," +
+      targetCard.y +
+      " " +
+      targetCard.width +
+      "x" +
+      targetCard.height +
+      " scrollY=" +
+      page.evaluate("window.scrollY") +
+      " vh=" +
+      page.evaluate("window.innerHeight") +
+      ")"
+    );
+    BoundingBox sourceBox = page.locator(".stop-details").nth(0).boundingBox();
+    BoundingBox targetBox = page.locator(".stop-details").nth(1).boundingBox();
+    double fromX = sourceBox.x + sourceBox.width / 2;
+    double fromY = sourceBox.y + sourceBox.height / 2;
+    double toX = targetBox.x + targetBox.width / 2;
+    double toY = targetBox.y + targetBox.height / 2;
+    Response reorder;
+    try {
+      reorder =
+        page.waitForResponse(
+          "**/reorder",
+          () -> {
+            page.mouse().move(fromX, fromY);
+            page.mouse().down();
+            page.mouse().move(toX, toY, new Mouse.MoveOptions().setSteps(15));
+            page.mouse().up();
+          }
+        );
+    } catch (TimeoutError timeout) {
+      // Diagnóstico del fallo: en qué punto quedó el drop y en qué orden quedó la lista.
+      System.out.println(
+        "[drag] POST /reorder no salió: scrollY=" +
+        page.evaluate("window.scrollY") +
+        " hit=" +
+        elementAt(page, toX, toY) +
+        " order=" +
+        page.locator(".stop-title").allInnerTexts()
+      );
+      throw timeout;
+    } finally {
+      page.evaluate(
+        "() => { document.documentElement.style.overflow = ''; document.body.style.overflow = ''; }"
+      );
+    }
     assertEquals(200, reorder.status(), "the reorder has to be saved by the server");
     assertThat(titles.nth(0)).hasText(secondName);
     assertThat(titles.nth(1)).hasText(firstName);
@@ -323,6 +389,42 @@ public class PlanPlaceDetailE2E extends E2eBase {
 
   private void closeStopDetails() {
     page.locator("dialog[aria-labelledby='place-detail-title'] .btn-close").click();
+  }
+
+  /**
+   * Centra el par de tarjetas del itinerario en el viewport: si quedan cerca de un borde,
+   * Chromium auto-scrollea la página durante el arrastre y las coordenadas medidas quedan
+   * viejas, con lo que el drop cae en otro elemento.
+   */
+  private void centerItineraryPair(Page page) {
+    page.evaluate(
+      """
+      () => {
+        const items = document.querySelectorAll('.place-item');
+        const first = items[0].getBoundingClientRect();
+        const second = items[1].getBoundingClientRect();
+        const top = Math.min(first.top, second.top);
+        const bottom = Math.max(first.bottom, second.bottom);
+        window.scrollBy(0, (top + bottom) / 2 - window.innerHeight / 2);
+      }
+      """
+    );
+  }
+
+  /** El ancestro del punto: {@code place-item} cuando cae dentro de una tarjeta del itinerario. */
+  private String elementAt(Page page, double x, double y) {
+    return String.valueOf(
+      page.evaluate(
+        """
+        ([x, y]) => {
+          const el = document.elementFromPoint(x, y);
+          if (!el) return 'none';
+          return el.closest('.place-item') ? 'place-item' : el.className;
+        }
+        """,
+        List.of(x, y)
+      )
+    );
   }
 
   /**
