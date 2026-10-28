@@ -67,10 +67,6 @@ public class Plan {
     return planManager.getJoinRequests();
   }
 
-  public boolean canShareLink(String email) {
-    return getSettings().getShareLink().allows(this, email);
-  }
-
   public boolean canInviteInternal(String email) {
     return getSettings().getInviteInternal().allows(this, email);
   }

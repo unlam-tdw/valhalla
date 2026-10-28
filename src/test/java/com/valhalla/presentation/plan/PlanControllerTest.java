@@ -100,23 +100,22 @@ public class PlanControllerTest {
   }
 
   @Test
-  public void PET_landingSummaryAndPendingStateFollowSharingPermission() {
+  public void PET_landingAlwaysShowsSummaryAndPendingState() {
     Plan shared = plan(PLAN_ID, "Privado");
     shared.setIsPublic(false);
     when(planServiceMock.getSharedPlan(PLAN_ID)).thenReturn(shared);
     Authentication visitor = petSession("visitor@test.com");
-    ModelAndView disabled = controller.showPublicPlan(PLAN_ID, visitor);
-    assertThat(disabled.getViewName(), is("pages/plans/request"));
-    assertThat(disabled.getModel().containsKey("summary"), is(false));
-    shared.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
+    ModelAndView landing = controller.showPublicPlan(PLAN_ID, visitor);
+    assertThat(landing.getViewName(), is("pages/plans/request"));
+    assertThat(landing.getModel().containsKey("summary"), is(true));
+    assertThat(landing.getModel().get("requestPending"), is(false));
     User requester = new User();
     requester.setEmail("visitor@test.com");
     shared.getJoinRequests().add(new com.valhalla.domain.plan.PlanJoinRequest(shared, requester));
-    ModelAndView enabled = controller.showPublicPlan(PLAN_ID, visitor);
-    assertThat(enabled.getModel().get("sharingEnabled"), is(true));
-    assertThat(enabled.getModel().get("requestPending"), is(true));
-    assertThat(enabled.getModel().containsKey("plan"), is(false));
-    PlanController.JoinPlanSummary summary = (PlanController.JoinPlanSummary) enabled
+    ModelAndView pending = controller.showPublicPlan(PLAN_ID, visitor);
+    assertThat(pending.getModel().get("requestPending"), is(true));
+    assertThat(pending.getModel().containsKey("plan"), is(false));
+    PlanController.JoinPlanSummary summary = (PlanController.JoinPlanSummary) pending
       .getModel()
       .get("summary");
     assertThat(summary.name(), is("Privado"));
@@ -139,14 +138,13 @@ public class PlanControllerTest {
   }
 
   @Test
-  public void PET_creationMapsAllPermissionSelectors() {
+  public void PET_creationMapsPermissionSelectors() {
     PlanRequest form = new PlanRequest(
       "Permisos",
       "Descripción",
       LocalDate.of(2026, 12, 31),
       false
     );
-    form.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
     form.getSettings().setHandleRequests(com.valhalla.domain.plan.PlanPermission.EDITORS);
     form.getSettings().setInviteInternal(com.valhalla.domain.plan.PlanPermission.OWNER);
     form.getSettings().setInviteByEmail(com.valhalla.domain.plan.PlanPermission.EDITORS);
@@ -154,10 +152,6 @@ public class PlanControllerTest {
     when(planServiceMock.createPlan(captor.capture(), eq(OWNER_EMAIL)))
       .thenReturn(plan(PLAN_ID, "Permisos"));
     controller.createPlan(form, noErrors(form), authentication);
-    assertThat(
-      captor.getValue().getSettings().getShareLink(),
-      is(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS)
-    );
     assertThat(
       captor.getValue().getSettings().getHandleRequests(),
       is(com.valhalla.domain.plan.PlanPermission.EDITORS)

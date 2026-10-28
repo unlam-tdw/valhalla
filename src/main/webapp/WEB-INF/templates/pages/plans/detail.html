@@ -340,16 +340,6 @@
     </div>
 
     <div class="row g-4">
-        <section th:if="${canShareLink}" class="col-12" aria-labelledby="share-link-heading">
-            <div class="card border-0 shadow-sm p-4">
-                <h5 id="share-link-heading" class="fw-bold">Compartir link</h5>
-                <div class="d-flex gap-2">
-                    <input id="plan-share-link" type="text" readonly th:value="@{/plans/{id}/public(id=${plan.id})}" class="form-control" aria-label="Link del plan" />
-                    <button id="copy-plan-share-link" type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>Copiar link</button>
-                </div>
-                <p id="plan-share-status" role="status" class="small text-muted mt-2 mb-0"></p>
-            </div>
-        </section>
         <section th:if="${canHandleRequests}" class="col-12" aria-labelledby="join-requests-heading">
             <div class="card border-0 shadow-sm p-4">
                 <h5 id="join-requests-heading" class="fw-bold">Solicitudes</h5>
@@ -772,7 +762,6 @@
     </dialog>
     </div>
 
-    <script th:if="${canShareLink}" th:src="@{/js/plan-share.js}" defer></script>
     <!-- Leaflet vendorizado (1.9.4 fija): mismo motivo que la hoja de estilos. -->
     <script th:src="@{/js/leaflet.js}"></script>
     <!-- Lucide vendorizado: un script clasico se ejecuta antes que el type="module" de abajo,

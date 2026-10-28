@@ -65,7 +65,6 @@ public class PlanJoinRequestSecurityTest {
     plan.setDescription("Resumen autorizado");
     plan.setShortCode("PETSEC01");
     plan.setAdministrator(owner);
-    plan.getSettings().setShareLink(PlanPermission.EDITORS);
     plan.getParticipants().add(editor);
     plan.getEditors().add(editor);
     plans.save(plan);
@@ -95,18 +94,15 @@ public class PlanJoinRequestSecurityTest {
   }
 
   @Test
-  public void PET_S03_disabledLinkHidesSummaryAndRejectsNewRequests() throws Exception {
-    plan.getSettings().setShareLink(PlanPermission.OWNER);
+  public void PET_S03_privateLandingAlwaysShowsSummaryAndAcceptsRequests() throws Exception {
     mvc
       .perform(get(landing()).with(user(REQUESTER)))
       .andExpect(status().isOk())
-      .andExpect(content().string(not(containsString(NAME))))
-      .andExpect(content().string(not(containsString("Resumen autorizado"))))
-      .andExpect(content().string(not(containsString("Solicitar participación</button>"))));
-    mvc
-      .perform(post(requests()).with(user(REQUESTER)).with(csrf()))
-      .andExpect(redirectedUrl(NOT_FOUND));
-    assertThat(plan.getJoinRequests(), hasSize(0));
+      .andExpect(content().string(containsString(NAME)))
+      .andExpect(content().string(containsString("Resumen autorizado")))
+      .andExpect(content().string(containsString("Solicitar participación</button>")));
+    submitRequest();
+    assertThat(plan.getJoinRequests(), hasSize(1));
   }
 
   @Test
@@ -148,7 +144,6 @@ public class PlanJoinRequestSecurityTest {
         post("/plans/" + plan.getId() + "/settings")
           .with(user(EDITOR))
           .with(csrf())
-          .param("shareLink", "PARTICIPANTS")
           .param("handleRequests", "EDITORS")
           .param("inviteInternal", "PARTICIPANTS")
           .param("inviteByEmail", "PARTICIPANTS")
@@ -204,12 +199,28 @@ public class PlanJoinRequestSecurityTest {
   }
 
   @Test
-  public void PET_disablingLinkPreservesExistingRequestForOwner() throws Exception {
+  public void PET_settingsChangePreservesExistingRequest() throws Exception {
     submitRequest();
-    plan.getSettings().setShareLink(PlanPermission.OWNER);
+    mvc
+      .perform(
+        post("/plans/" + plan.getId() + "/settings")
+          .with(user(OWNER))
+          .with(csrf())
+          .param("handleRequests", "EDITORS")
+          .param("inviteInternal", "PARTICIPANTS")
+          .param("inviteByEmail", "PARTICIPANTS")
+      )
+      .andExpect(redirectedUrl("/plans/" + plan.getId() + "/settings?saved=true"));
+    entityManager.flush();
+    entityManager.clear();
+    plan = plans.findById(plan.getId()).orElseThrow();
+    assertThat(plan.getJoinRequests(), hasSize(1));
     mvc
       .perform(post(response()).with(user(OWNER)).with(csrf()).param("action", "accept"))
       .andExpect(redirectedUrl("/plans/" + plan.getId()));
+    entityManager.flush();
+    entityManager.clear();
+    plan = plans.findById(plan.getId()).orElseThrow();
     assertThat(plan.isParticipant(REQUESTER), is(true));
   }
 

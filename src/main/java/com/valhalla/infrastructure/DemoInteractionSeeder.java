@@ -274,10 +274,10 @@ public class DemoInteractionSeeder implements ApplicationListener<ContextRefresh
   }
 
   /**
-   * Item 2: la matriz de permisos. El orden de GHOST010 es obligatorio: primero el cierre, despues
-   * el sharing, y recien entonces la solicitud de ingreso. El cierre va antes de {@code
-   * updateSettings} a proposito: guardar esta entidad despues reescribiria los permisos recien
-   * seteados con los que trae en memoria, y el plan seguiria sin sharing.
+   * Item 2: la matriz de permisos. El orden de GHOST010 es obligatorio: primero el cierre y recien
+   * entonces la solicitud de ingreso. El cierre va antes de {@code updateSettings} a proposito:
+   * guardar esta entidad despues reescribiria los permisos recien seteados con los que trae en
+   * memoria.
    */
   private void seedPermissions(Map<String, Plan> plans) {
     Plan closing = plans.get(MARKER_SHORT_CODE);
@@ -285,7 +285,6 @@ public class DemoInteractionSeeder implements ApplicationListener<ContextRefresh
     this.planRepository.save(closing);
     this.planService.updateSettings(
         closing.getId(),
-        PlanPermission.PARTICIPANTS,
         PlanPermission.EDITORS,
         PlanPermission.PARTICIPANTS,
         PlanPermission.OWNER,
@@ -314,7 +313,6 @@ public class DemoInteractionSeeder implements ApplicationListener<ContextRefresh
       );
     this.planService.updateSettings(
         findPlan("GHOST003").getId(),
-        PlanPermission.PARTICIPANTS,
         PlanPermission.EDITORS,
         PlanPermission.PARTICIPANTS,
         PlanPermission.PARTICIPANTS,

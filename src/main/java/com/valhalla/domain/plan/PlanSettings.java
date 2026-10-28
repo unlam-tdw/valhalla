@@ -10,20 +10,8 @@ import java.util.Objects;
 public class PlanSettings {
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "share_link_permission")
-  private PlanPermission shareLink = PlanPermission.OWNER;
-
-  @Enumerated(EnumType.STRING)
   @Column(name = "handle_requests_permission")
   private PlanPermission handleRequests = PlanPermission.OWNER;
-
-  public PlanPermission getShareLink() {
-    return shareLink == null ? PlanPermission.OWNER : shareLink;
-  }
-
-  public void setShareLink(PlanPermission shareLink) {
-    this.shareLink = Objects.requireNonNull(shareLink);
-  }
 
   public PlanPermission getHandleRequests() {
     return handleRequests == null ? PlanPermission.OWNER : handleRequests;
@@ -73,9 +61,5 @@ public class PlanSettings {
 
   public void setAutoSchedule(Boolean autoSchedule) {
     this.autoSchedule = autoSchedule;
-  }
-
-  public boolean isSharingEnabled() {
-    return getShareLink() != PlanPermission.OWNER;
   }
 }
