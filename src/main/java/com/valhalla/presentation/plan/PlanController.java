@@ -105,6 +105,7 @@ public class PlanController {
     model.put("canInviteInternal", plan.canInviteInternal(userEmail));
     model.put("canInviteByEmail", plan.canInviteByEmail(userEmail));
     model.put("canInvite", plan.canInviteInternal(userEmail) || plan.canInviteByEmail(userEmail));
+    model.put("canShare", plan.getIsPublic());
     model.put("canHandleRequests", plan.canHandleRequests(userEmail));
     if (plan.canHandleRequests(userEmail)) {
       model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
@@ -193,14 +194,12 @@ public class PlanController {
 
   private void addPublicMeta(Map<String, Object> model, Plan plan) {
     model.put("pageTitle", plan.getName());
+    model.put("ogTitle", plan.getName());
+    model.put("ogUrl", "/plans/" + plan.getId() + PUBLIC_SUFFIX);
     if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
       model.put("pageDescription", plan.getDescription());
-    }
-    model.put("ogTitle", plan.getName());
-    if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
       model.put("ogDescription", plan.getDescription());
     }
-    model.put("ogType", "website");
   }
 
   private ModelAndView showJoinLanding(Plan plan, String email) {
