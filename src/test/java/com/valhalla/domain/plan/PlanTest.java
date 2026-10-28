@@ -205,12 +205,6 @@ public class PlanTest {
       );
       assertThat(plan.canInviteInternal(null), is(false));
     }
-    // [SEC] El link lo comparten dueño y editores, sin importar la visibilidad del plan.
-    assertThat(plan.canShareLink(administrator.getEmail()), is(true));
-    assertThat(plan.canShareLink(editor.getEmail()), is(true));
-    assertThat(plan.canShareLink(participant.getEmail()), is(false));
-    assertThat(plan.canShareLink("visitor@test.com"), is(false));
-    assertThat(plan.canShareLink(null), is(false));
     plan.getSettings().setHandleRequests(PlanPermission.EDITORS);
     assertThat(plan.canHandleRequests(editor.getEmail()), is(true));
     assertThat(plan.canHandleRequests(participant.getEmail()), is(false));

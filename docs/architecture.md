@@ -212,7 +212,6 @@ src/main/webapp/resources/
 │   ├── vue.global.prod.js
 │   ├── lucide.min.js
 │   ├── add-to-plan.js           agrega un lugar a un plan (módulo)
-│   ├── plan-share.js            comparte un plan (script clásico, defer)
 │   ├── lib/
 │   │   ├── api.js                   csrfToken(), apiFetch(), ApiError
 │   │   └── dom.js                   el(): el único constructor de nodos

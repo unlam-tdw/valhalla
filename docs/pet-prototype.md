@@ -4,22 +4,24 @@ Esta entrega en `task-20-PET` implementa el pedido de acceso a planes privados.
 No incorpora la rama `task-19-BAN`. Spec: `docs/specs/21-PET.md`.
 
 > Actualización card #49: se eliminó la configuración de "Compartir link"; la
-> visibilidad del plan gobierna el acceso. Ver `docs/specs/21-PET.md`.
+> visibilidad del plan gobierna el acceso. Tampoco hay un botón para copiar el link
+> desde la configuración del plan. Ver `docs/specs/21-PET.md`.
 
 ## Cómo probar el flujo manualmente
 
 1. Crear un plan privado y entrar en su detalle con la cuenta del dueño.
-2. Usar **Copiar link** en el detalle (lo ven el dueño y los editores). No hay una
-   configuración de "Compartir link": la visibilidad del plan ya define el acceso.
-3. Abrir el link con otra cuenta registrada. Sin sesión, el sitio lleva al login y
+2. Abrir manualmente `/plans/{id}/public`, usando el id que aparece en la URL del
+   detalle. La visibilidad del plan define el acceso.
+3. Abrir esa URL con otra cuenta registrada. Sin sesión, el sitio lleva al login y
    conserva el destino para volver después de ingresar.
 4. La landing muestra nombre, descripción, fecha, cantidad de lugares y un cover
    genérico. No muestra dueño, participantes, emails, short code ni itinerario.
 5. Pulsar **Solicitar participación**. La misma pantalla informa que el pedido está
    pendiente; volver a enviarlo no crea otra solicitud.
-6. Desde el detalle, el dueño ve **Solicitudes**, con enlace al perfil y acciones
-   **Aceptar** y **Rechazar**. Puede habilitar esta gestión para editores en la
-   configuración. Los participantes comunes no pueden gestionar solicitudes.
+6. Desde el detalle, el dueño ve el bloque **Solicitudes** entre el resumen del
+   plan y el formulario de invitación, con enlace al perfil y acciones **Aceptar** y
+   **Rechazar**. Puede habilitar esta gestión para editores en la configuración.
+   Los participantes comunes no pueden gestionar solicitudes.
 7. Al aceptar, la persona pasa a participante. Al abrir nuevamente el link, accede
    directamente al detalle. Rechazar elimina el pedido y permite solicitar de nuevo.
 
@@ -33,8 +35,11 @@ Los permisos de invitación y de gestión de solicitudes tienen sus defaults
 (**Solo dueño** para gestionar solicitudes e invitar por email; **Dueño y editores**
 para invitar dentro de la app). Un plan privado siempre muestra el resumen y el
 formulario de solicitud en la landing; un plan público conserva su vista pública.
-Solo el dueño puede modificar la configuración; los endpoints también verifican
-los permisos y los formularios conservan la protección CSRF existente.
+Solo el dueño puede cambiar los permisos de roles; dueño y editores administran
+datos, solicitudes y bans. La configuración `#configuracion` conserva datos, roles y
+baneados; las solicitudes viven junto a participantes.
+Los endpoints también verifican los permisos y los formularios conservan la
+protección CSRF existente.
 
 ## Persistencia
 
@@ -51,7 +56,7 @@ respondiéndose desde el detalle.
 
 ## Permisos e invitaciones por canal
 
-Configuración del plan y el paso 3 de `/explore` incluyen tres permisos:
+La sección **Roles y permisos** del detalle y el paso 3 de `/explore` incluyen tres permisos:
 invitación interna (Dueño y editores), invitación por email (Solo dueño) y
 gestionar solicitudes (Solo dueño). Los dos primeros admiten Todos los
 participantes; gestionar solicitudes solo admite dueño o editores. El permiso de

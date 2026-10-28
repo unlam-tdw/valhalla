@@ -28,7 +28,6 @@ public class ActionIconsTest {
   private static final Path PUBLIC_PLAN = TEMPLATES.resolve("pages/plans/public.html");
   private static final Path DETAIL = TEMPLATES.resolve("pages/plans/detail.html");
   private static final Path MY_PLANS = TEMPLATES.resolve("pages/plans/list.html");
-  private static final Path SETTINGS = TEMPLATES.resolve("pages/plans/settings.html");
   private static final Path PROFILE_EDIT = TEMPLATES.resolve("pages/profile/edit.html");
   private static final Path CHANGE_PASSWORD = TEMPLATES.resolve(
     "pages/profile/change-password.html"
@@ -49,7 +48,6 @@ public class ActionIconsTest {
   private static final String TRASH = "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6";
   private static final String LOG_OUT = "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4";
   private static final String SETTINGS_GLYPH = "M12.22 2h-.44a2 2 0 0 0-2 2v.18";
-  private static final String LINK = "M10 13a5 5 0 0 0 7.54.54l3-3";
   private static final String CHECK = "M20 6 9 17l-5-5";
   private static final String CLOSE = "M18 6 6 18";
   private static final String SAVE = "M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8";
@@ -61,11 +59,9 @@ public class ActionIconsTest {
     PUBLIC_PLAN,
     5, // Unirme (form + link), Clonar (form + link), Ver mi plan
     DETAIL,
-    6, // Configuración, Eliminar, Salir, Clonar, Copiar link, Guardar cambios
+    6, // Configuración, Eliminar, Salir, Clonar, Guardar cambios, Guardar permisos
     MY_PLANS,
     8, // Crear plan, Unirme, Ver detalle x3, Eliminar, Aceptar, Rechazar
-    SETTINGS,
-    1,
     PROFILE_EDIT,
     4, // Guardar perfil, Abrir, Clonar, Quitar
     CHANGE_PASSWORD,
@@ -94,7 +90,6 @@ public class ActionIconsTest {
     assertThat(read(DETAIL), containsString(TRASH));
     assertThat(read(DETAIL), containsString(LOG_OUT));
     assertThat(read(DETAIL), containsString(COPY));
-    assertThat(read(DETAIL), containsString(LINK));
     assertThat(read(DETAIL), containsString(SAVE));
 
     assertThat(read(MY_PLANS), containsString(PLUS));
@@ -104,7 +99,6 @@ public class ActionIconsTest {
     assertThat(read(MY_PLANS), containsString(CHECK));
     assertThat(read(MY_PLANS), containsString(CLOSE));
 
-    assertThat(read(SETTINGS), containsString(SAVE));
     assertThat(read(PROFILE_EDIT), containsString(SAVE));
     assertThat(read(PROFILE_EDIT), containsString(EYE));
     assertThat(read(PROFILE_EDIT), containsString(COPY));

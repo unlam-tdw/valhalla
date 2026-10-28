@@ -94,7 +94,6 @@ public class PlanController {
     model.put("canInviteInternal", plan.canInviteInternal(userEmail));
     model.put("canInviteByEmail", plan.canInviteByEmail(userEmail));
     model.put("canInvite", plan.canInviteInternal(userEmail) || plan.canInviteByEmail(userEmail));
-    model.put("canShareLink", plan.canShareLink(userEmail));
     model.put("canHandleRequests", plan.canHandleRequests(userEmail));
     if (plan.canHandleRequests(userEmail)) {
       model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
@@ -184,8 +183,8 @@ public class PlanController {
     Map<String, Object> model = new ModelMap();
     model.put("planId", id);
     model.put("requestPending", plan.hasPendingJoinRequest(email));
-    // [SEC] Un plan privado siempre muestra la landing de solicitud: no hay un permiso de
-    // compartir link por plan que la apague.
+    // [SEC] Un plan privado siempre muestra la landing de solicitud: la visibilidad del plan
+    // gobierna el acceso.
     model.put(
       "summary",
       new JoinPlanSummary(
@@ -226,11 +225,11 @@ public class PlanController {
 
   @GetMapping("/{id}/settings")
   public ModelAndView showSettings(@PathVariable UUID id, Authentication authentication) {
-    return new ModelAndView(
-      "pages/plans/settings",
-      ATTR_PLAN,
-      planService.getOwnedPlan(id, authentication.getName())
-    );
+    // La configuracion vive en el detalle. Se conserva la ruta como redireccion para
+    // enlaces viejos, pero sigue pasando por getOwnedPlan: el dueño es el unico que puede
+    // ver y cambiar los selectores de permisos.
+    planService.getOwnedPlan(id, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "#config-roles");
   }
 
   @PostMapping("/{id}/settings")
@@ -239,7 +238,8 @@ public class PlanController {
     @RequestParam PlanPermission handleRequests,
     @RequestParam PlanPermission inviteInternal,
     @RequestParam PlanPermission inviteByEmail,
-    Authentication authentication
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
   ) {
     planService.updateSettings(
       id,
@@ -248,7 +248,8 @@ public class PlanController {
       inviteByEmail,
       authentication.getName()
     );
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "/settings?saved=true");
+    redirectAttributes.addFlashAttribute("settingsSaved", "Configuración guardada");
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "#config-roles");
   }
 
   /**

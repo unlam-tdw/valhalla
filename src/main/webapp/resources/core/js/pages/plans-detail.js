@@ -54,7 +54,6 @@ createApp({
         const placeDialog = ref(null);
         const planOptionsOpen = ref(false);
         const planOptionsButton = ref(null);
-        const bannedParticipantsDialog = ref(null);
         const closePlanOptions = (event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) {
                 planOptionsOpen.value = false;
@@ -328,7 +327,7 @@ createApp({
 
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
-            planOptionsOpen, planOptionsButton, bannedParticipantsDialog, closePlanOptions,
+            planOptionsOpen, planOptionsButton, closePlanOptions,
             placeDialog, availablePlaces, formatVisitDate, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateDateTime, addPlace,
             removePlace, onDragStart, onDrop
