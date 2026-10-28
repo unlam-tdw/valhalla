@@ -187,7 +187,20 @@ public class PlanController {
     // Sin sesion no hay puntaje propio que buscar (AC-05): el anonimo nunca tiene widget de voto.
     model.put("myRating", email == null ? null : this.planRatingService.getMyRating(id, email));
     addBookmarkFlags(model, plan, email);
+    addPublicMeta(model, plan);
     return new ModelAndView(VIEW_PUBLIC_PLAN, model);
+  }
+
+  private void addPublicMeta(Map<String, Object> model, Plan plan) {
+    model.put("pageTitle", plan.getName());
+    if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
+      model.put("pageDescription", plan.getDescription());
+    }
+    model.put("ogTitle", plan.getName());
+    if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
+      model.put("ogDescription", plan.getDescription());
+    }
+    model.put("ogType", "website");
   }
 
   private ModelAndView showJoinLanding(Plan plan, String email) {
