@@ -34,7 +34,7 @@ Estas decisiones están tomadas y son las que la implementación debe respetar.
 
 | # | Decisión | Motivo |
 |---|----------|--------|
-| D-1 | Una fecha (Día 1), una hora de inicio y una hora de fin de día por plan | Es el único calendario que el usuario tipea |
+| D-1 | Una fecha (Día 1) y una hora de inicio por plan; el fin de día es el default fijo 23:00, sin input editable | Es el único calendario que el usuario tipea |
 | D-2 | Las horas de las paradas son **derivadas** y se persisten en `visitDate`/`visitTime` | La vista pública, el listado y el clon siguen leyendo lo mismo |
 | D-3 | La duración efectiva es una cascada: override de la visita → duración del lugar → default por categoría | El camino feliz no pide nada nuevo por parada |
 | D-4 | El orden del itinerario es el orden de las paradas; las horas lo siguen | Elimina P-1/P-2: una sola regla en creación y edición |
@@ -133,8 +133,8 @@ presentarse como tal.
 
 ### Creación (`/explore`, panel de 3 pasos)
 
-- **Paso 1**: nombre, descripción, **fecha (obligatoria, `min=hoy`)**, **hora de inicio**
-  (default 10:00), **hora de fin de día** (default 23:00).
+- **Paso 1**: nombre, descripción, **fecha (obligatoria, `min=hoy`)** y **hora de inicio**
+  (default 10:00). No pide fin de día: la ventana cierra siempre a las 23:00.
 - **Paso 2**: cada parada muestra un chip con el rango calculado y la duración; los
   tramos entre paradas muestran el traslado y permiten cambiar el modo. La lista se
   agrupa por día derivado. El pie muestra el total.
@@ -161,7 +161,7 @@ Día 2 · dom 25/10
 - La fecha por parada se muestra solo cuando difiere de `plan.eventDate`.
 - Reordenar recalcula los horarios cuando `autoSchedule` está activo.
 - El diálogo "Ver más" conserva un ajuste manual de duración, hora y día (pin).
-- "Editar plan" pide fecha, hora de inicio y hora de fin de día.
+- "Editar plan" pide fecha y hora de inicio; el fin de día es el default fijo 23:00.
 - Se corrige el permiso: el editor de horario usa `canEditPlan`, no `isPlanAdministrator`.
 
 ### ABM de lugares
@@ -179,7 +179,7 @@ Día 2 · dom 25/10
 
 | # | Criterio |
 |---|----------|
-| AC-01 | Al crear un plan se pide una única fecha, una hora de inicio y una hora de fin de día |
+| AC-01 | Al crear un plan se pide una única fecha y una hora de inicio; el cierre de la jornada es el default fijo 23:00, sin input editable |
 | AC-02 | La fecha del plan es obligatoria: sin fecha no se crea el plan |
 | AC-03 | Cada parada del itinerario muestra un rango horario calculado (inicio–fin) |
 | AC-04 | El horario se recalcula al agregar, quitar o reordenar paradas, al cambiar una duración y al cambiar la hora de inicio |
@@ -255,7 +255,7 @@ seeder, así que se pueden mergear solos.
 |---|-------|-----------|--------|-------|
 | 1 | Núcleo | enum `TransportMode`, columnas, cascada de duración, calculadora pura multi-día + gaps, tests U-01..U-11 | P-8 | ~2 días |
 | 2 | Datos | duraciones en el seeder, ventana y modo en los planes de demo, runner de backfill, tests I-10..I-12 | P-7 | ~1 día |
-| 3 | Creación | paso 1 con hora de inicio y fin de día, paso 2 con chips, grupos por día, tramos y total, tests I-01..I-05 | P-1, P-3, P-4 | ~2-3 días |
+| 3 | Creación | paso 1 con hora de inicio (fin de día fijo 23:00), paso 2 con chips, grupos por día, tramos y total, tests I-01..I-05 | P-1, P-3, P-4 | ~2-3 días |
 | 4 | Detalle | chips y agrupación, recompute al reordenar, pin en el diálogo, fix de permiso de editor, tests I-06..I-09 | P-2, P-5, P-6 | ~2 días |
 | 5 | Pulido | duración en el ABM y en el importador, copy en español, formatos de fecha unificados, vista pública | P-5 | ~1 día |
 

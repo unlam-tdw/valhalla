@@ -2306,14 +2306,14 @@ public class PlanControllerIntegrationTest {
     return place.getId();
   }
 
-  /** [SCH] Crea un plan por el endpoint con las paradas dadas, en ese orden. */
+  /** [SCH] Crea un plan por el endpoint con las paradas dadas, en ese orden. Sin dayEndTime:
+   *  el form ya no lo manda y el default del servidor (23:00) es el que tiene que quedar. */
   private MvcResult createPlanWith(UUID... placeIds) throws Exception {
     MockHttpServletRequestBuilder request = post("/plans")
       .with(csrf())
       .param("name", PLAN_NAME)
       .param("eventDate", EVENT_DATE.toString())
       .param("eventTime", "10:00")
-      .param("dayEndTime", "23:00")
       .param("transportMode", "WALK");
     for (int index = 0; index < placeIds.length; index++) {
       request.param("places[" + index + "].placeId", placeIds[index].toString());

@@ -39,11 +39,11 @@ createApp({
     const planDateInput = ref(null);
     const planStep = ref(1);
     const draftPlaces = ref([]);
-    /* Los cuatro datos de los que sale el horario. La fecha vive en el input nativo, así que su
-       ref es solo el espejo que necesita el preview. */
+    /* Los tres datos de los que sale el horario. La fecha vive en el input nativo, así que su
+       ref es solo el espejo que necesita el preview. El fin del día no se expone: el preview (y
+       el servidor) cierran siempre a las 23:00. */
     const planDate = ref('');
     const planStartTime = ref('10:00');
-    const planDayEnd = ref('23:00');
     const planTransportMode = ref('WALK');
     const showAddToPlan = ref(false);
     const placeToAdd = ref(null);
@@ -156,7 +156,6 @@ createApp({
       draftPlaces.value = [];
       planDate.value = '';
       planStartTime.value = '10:00';
-      planDayEnd.value = '23:00';
       planTransportMode.value = 'WALK';
     };
 
@@ -262,7 +261,6 @@ createApp({
     const schedule = computed(() => scheduleStops({
       planDate: planDate.value,
       startTime: planStartTime.value,
-      dayEnd: planDayEnd.value,
       mode: planTransportMode.value,
       stops: draftPlaces.value
     }));
@@ -551,7 +549,6 @@ createApp({
       draftPlaces,
       planDate,
       planStartTime,
-      planDayEnd,
       planTransportMode,
       transportLabels: TRANSPORT_LABELS,
       schedule,

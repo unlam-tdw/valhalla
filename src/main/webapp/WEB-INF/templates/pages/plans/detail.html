@@ -604,14 +604,9 @@
                         <input type="time" th:field="*{eventTime}" class="form-control" />
                     </div>
 
-                    <!-- [SCH] La ventana del día y el modo del plan son los que usa el planificador
-                         para derivar el horario: sin ellos acá, el dueño no puede corregir por qué
-                         una parada se fue al día siguiente o cuánto tarda cada tramo. -->
-                    <div class="mb-3">
-                        <label for="dayEndTime" class="form-label text-muted small">Fin del día</label>
-                        <input type="time" th:field="*{dayEndTime}" class="form-control" step="300" />
-                    </div>
-
+                    <!-- [SCH] El modo del plan es uno de los datos que usa el planificador para
+                         derivar el horario. El cierre de la jornada es el default fijo 23:00:
+                         ya no se expone como campo editable. -->
                     <div class="mb-3">
                         <label for="transportMode" class="form-label text-muted small">Cómo se trasladan</label>
                         <select th:field="*{transportMode}" class="form-select">
