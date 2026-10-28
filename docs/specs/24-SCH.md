@@ -38,7 +38,7 @@ Estas decisiones están tomadas y son las que la implementación debe respetar.
 | D-2 | Las horas de las paradas son **derivadas** y se persisten en `visitDate`/`visitTime` | La vista pública, el listado y el clon siguen leyendo lo mismo |
 | D-3 | La duración efectiva es una cascada: override de la visita → duración del lugar → default por categoría | El camino feliz no pide nada nuevo por parada |
 | D-4 | El orden del itinerario es el orden de las paradas; las horas lo siguen | Elimina P-1/P-2: una sola regla en creación y edición |
-| D-5 | El traslado se estima por distancia y modo de transporte, y no se persiste | Reordenar es determinista sin estado extra |
+| D-5 | El traslado se estima por distancia y modo de transporte; solo el override manual por tramo (`PlanPlace.travelMinutesToNext`) se persiste, los tramos calculados siguen derivándose | Reordenar es determinista: el override es una excepción visible, no estado oculto |
 | D-6 | Un pin explícito de hora (y opcionalmente de día) corta la cadena | Es el escape hatch manual, y es visible |
 | D-7 | El backfill deriva todo y descarta las horas viejas cargadas a mano | No hay usuarios reales; respetarlas produce itinerarios mixtos y peores |
 | D-8 | El plan es multi-día sin límite, con rollover por ventana diaria | Sin ventana, un viaje largo termina a las 03:00 |
@@ -53,6 +53,7 @@ migraciones (`JpaConfig.java:40`, `docs/setup.md:85`), así que se crean solas.
 | `Place.defaultDurationMinutes` | `places` | `Integer` nullable | Duración típica del lugar en el catálogo |
 | `PlanPlace.durationMinutes` | `plan_places` | `Integer` nullable | Override de esta visita |
 | `PlanPlace.transportModeToNext` | `plan_places` | `TransportMode` nullable | Override del tramo hacia la parada siguiente |
+| `PlanPlace.travelMinutesToNext` | `plan_places` | `Integer` nullable | Override de minutos del tramo hacia la parada siguiente; `null` = calculado |
 | `Plan.transportMode` | `plans` | `TransportMode` no nulo, default `WALK` | Modo por defecto del plan |
 | `Plan.dayEndTime` | `plans` | `LocalTime` no nulo, default `23:00` | Fin de la ventana diaria |
 | `PlanSettings.autoSchedule` | `plans` | `boolean` default `true` | Si reordenar recalcula las horas |
@@ -126,6 +127,10 @@ Velocidades efectivas, que ya incluyen espera y estacionamiento para no sobre-pr
 | Colectivo | 16 km/h | espera incluida |
 | Auto | 22 km/h | estacionar incluido |
 
+Si el tramo tiene `travelMinutesToNext` cargado, se usa ese valor tal cual (piso de 1
+minuto, sin tope de 90) y la fórmula no corre; el clamp 5-90 solo aplica a los tramos
+calculados.
+
 En la UI se rotula siempre como **"traslado estimado"**. No es ruteo real y no debe
 presentarse como tal.
 
@@ -189,7 +194,7 @@ Día 2 · dom 25/10
 | AC-08 | Un itinerario que no entra en la ventana diaria continúa en el día siguiente |
 | AC-09 | El itinerario se agrupa por día y el separador se omite cuando el plan dura un solo día |
 | AC-10 | El plan tiene un modo de transporte por defecto y cada tramo puede sobrescribirlo |
-| AC-11 | El traslado se estima por distancia y modo, se rotula como estimación y queda entre 5 y 90 minutos |
+| AC-11 | El traslado se estima por distancia y modo, se rotula como estimación y queda entre 5 y 90 minutos; un valor fijo cargado por el usuario se usa tal cual con piso de 1 minuto |
 | AC-12 | El orden del itinerario es el orden de las paradas; las horas lo siguen y crear un plan ya no reordena por hora |
 | AC-13 | Cambiar la fecha del plan corre el Día 1 y recalcula todas las fechas derivadas |
 | AC-14 | El resumen del plan muestra la hora de inicio real; ningún plan creado con el flujo nuevo muestra "Sin hora" |
@@ -217,6 +222,8 @@ Día 2 · dom 25/10
 | U-09 | Sin coordenadas se usa el gap de fallback | AC-11 |
 | U-10 | La última parada no suma traslado | AC-03 |
 | U-11 | Un plan de un solo día no genera separador de día | AC-09 |
+| U-23 | El traslado fijo gana sobre la distancia y no se conea en 90 | AC-11 |
+| U-24 | El traslado fijo tiene piso de 1 minuto y no necesita coordenadas | AC-11 |
 
 ### Tests de Integracion (`integration/PlanControllerIntegrationTest.java`)
 
@@ -231,6 +238,7 @@ Día 2 · dom 25/10
 | I-07 | `PUT /api/plans/{id}/places/{id}` con pin recalcula las siguientes | AC-06 |
 | I-08 | Un editor puede editar el horario de una parada | AC-15 |
 | I-09 | El resumen del plan muestra la hora de inicio persistida | AC-14 |
+| I-13 | `POST /plans` acepta `travelMinutesToNext` por tramo y lo persiste | AC-11 |
 
 ### Tests de Integracion (`infrastructure/plan/PlanScheduleBackfillTest.java`)
 
@@ -283,7 +291,7 @@ planes de prueba. Si más adelante hubiera datos reales, este es el punto a camb
 | `domain/plan/PlanScheduleCalculator.java` | Crear |
 | `domain/plan/PlanSchedule.java` | Actualizar (hora de inicio, fin de día, modo) |
 | `domain/plan/PlanSettings.java` | Actualizar (`autoSchedule`) |
-| `domain/planplace/PlanPlace.java` | Actualizar (duración y modo del tramo) |
+| `domain/planplace/PlanPlace.java` | Actualizar (duración, modo y minutos del tramo) |
 | `domain/place/Place.java` | Actualizar (duración típica) |
 | `infrastructure/plan/PlanScheduleBackfill.java` | Crear |
 | `infrastructure/PublicPlanDataSeeder.java` | Actualizar (duraciones, ventana, modo) |

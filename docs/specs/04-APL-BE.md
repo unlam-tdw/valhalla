@@ -20,7 +20,7 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
 | AC-02 | No se puede agregar el mismo lugar dos veces al mismo plan |
 | AC-03 | Al agregar un lugar se asigna un sortOrder automatico (siguiente al maximo) |
 | AC-04 | GET /api/plans/{planId}/places retorna el itinerario ordenado por sortOrder |
-| AC-05 | PUT /api/plans/{planId}/places/{id} actualiza visitDate y visitTime |
+| AC-05 | PUT /api/plans/{planId}/places/{id} actualiza el payload completo del horario (visitDate, visitTime, durationMinutes, transportModeToNext, travelMinutesToNext); un valor nulo limpia el override y vuelve al cálculo |
 | AC-06 | DELETE /api/plans/{planId}/places/{id} elimina un lugar del plan |
 | AC-07 | POST /api/plans/{planId}/places/reorder reordena los lugares del plan |
 | AC-08 | El panel lateral de `/places` incluye los planes del usuario logueado para el lugar seleccionado |
@@ -44,6 +44,7 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
 | U-06 | `reorderPlaces()` reordena segun la lista recibida | AC-07 |
 | U-07 | `isPlaceInPlan()` retorna true si el lugar esta en el plan | AC-02 |
 | U-08 | `isPlaceInPlan()` retorna false si el lugar no esta en el plan | AC-02 |
+| U-09 | `updatePlanPlace()` guarda `travelMinutesToNext` y con nulo lo limpia | AC-05 |
 
 ### Tests de Integracion (`integration/PlanPlaceRestControllerTest.java`)
 
@@ -55,6 +56,8 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
 | I-04 | `PUT /api/plans/{planId}/places/{id}` actualiza fecha/hora | AC-05 |
 | I-05 | `DELETE /api/plans/{planId}/places/{id}` elimina lugar | AC-06 |
 | I-06 | `POST /api/plans/{planId}/places/reorder` reordena | AC-07 |
+| I-13 | `PUT` con `travelMinutesToNext` lo persiste y con `null` lo limpia | AC-05 |
+| I-14 | `PUT` con `travelMinutesToNext` no numérico → 400 sin escribir | AC-05 |
 
 ### Tests de Integracion (`infrastructure/PlanPlaceRepositoryTest.java`)
 

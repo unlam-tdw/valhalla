@@ -24,13 +24,13 @@ Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral 
 | AC-03 | Al agregar un lugar se muestra feedback visual (redirect o mensaje) |
 | AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
 | AC-05 | El itinerario agrupa las paradas por día y cada una muestra numero de orden, nombre, categoria y su horario como chip con rango `HH:mm – HH:mm`, duración y fecha (la fecha solo aparece cuando difiere del Día 1) |
-| AC-06 | Se puede editar duración, día y hora de visita desde el diálogo de la parada; fijar el día o la hora recalcula las paradas siguientes y las marca como fijadas a mano |
+| AC-06 | Se puede editar duración, día y hora de visita desde el diálogo de la parada, y los minutos de traslado del tramo anterior desde ahí o desde el paso 2; fijar el día o la hora recalcula las paradas siguientes y las marca como fijadas a mano |
 | AC-07 | Se puede eliminar un lugar del itinerario con boton X |
 | AC-08 | El mapa muestra markers numerados por cada lugar del itinerario |
 | AC-09 | El mapa dibuja una linea de ruta entre los lugares en orden |
 | AC-10 | El mapa hace fitBounds para mostrar todos los markers |
 | AC-11 | Los forms usan CSRF token para proteger POST/PUT/DELETE |
-| AC-12 | El form de creación de plan pide fecha (Día 1), hora de inicio y modo de traslado (el fin de día es el default fijo 23:00, sin input); no pide hora por parada, el paso de lugares muestra el rango derivado de cada parada |
+| AC-12 | El form de creación de plan pide fecha (Día 1), hora de inicio y modo de traslado (el fin de día es el default fijo 23:00, sin input); no pide hora por parada, el paso de lugares muestra el rango derivado de cada parada y permite fijar los minutos de traslado por tramo |
 
 ## Escenarios de Test
 
@@ -69,13 +69,15 @@ Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral 
 - **El horario no se tipea al crear** (24-SCH): el paso 1 del wizard pide fecha (Día 1), hora de
   inicio y modo de traslado (`WALK`/`BIKE`/`BUS`/`CAR`) —el fin de día es el default fijo 23:00,
   sin input—; el paso 2 muestra por parada
-  el rango derivado y el tramo al siguiente con su selector de modo (opción "Según el plan"). El
+  el rango derivado y el tramo al siguiente con su selector de modo (opción "Según el plan") y un
+  input de minutos de traslado (vacío = calculado, mínimo 1). El
   detalle de la programación vive en la spec 24-SCH (PR #42), no acá.
 - **El itinerario agrupa por día y edita por diálogo**: los chips son de solo lectura (rango,
   duración, fecha solo si difiere del Día 1 y badge "Fijado" cuando el usuario fijó el horario).
   La edición de duración/día/hora está en el diálogo de la parada y manda un
   `PlanPlaceUpdateRequest` completo a `PUT /api/plans/{id}/places/{entryId}`, que recalcula la
-  cadena de horarios.
+  cadena de horarios. El diálogo también edita los minutos de traslado del tramo: vacío vuelve al
+  cálculo, un valor se persiste como override.
 - **El form "Editar plan" expone el modo del plan**: además de fecha y hora de inicio tiene
   `transportMode`, uno de los campos que usa el planificador para derivar el horario. El cierre
   de la ventana (`dayEndTime`) es el default fijo 23:00 y ya no tiene input.

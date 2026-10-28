@@ -491,6 +491,11 @@
                               <option value="">Según el plan</option>
                               <option v-for="(label, mode) in transportLabels" :key="mode" :value="mode">{{ label }}</option>
                             </select>
+                            <!-- [SCH] Minutos del tramo a mano: vacío = calculado por distancia y modo. -->
+                            <input type="number" min="1" v-model="stop.item.travelMinutesToNext"
+                              :name="'places[' + stop.index + '].travelMinutesToNext'"
+                              placeholder="auto" aria-label="Minutos de traslado a la parada siguiente"
+                              class="w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs" />
                           </div>
                         </li>
                       </ol>

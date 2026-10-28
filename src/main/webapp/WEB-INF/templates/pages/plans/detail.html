@@ -749,6 +749,16 @@
                             @change="updateEntry(selectedEntry, 'visitTime', $event.target.value)">
                     </div>
                 </div>
+                <!-- [SCH] Minutos del tramo a la parada siguiente; vacío = calculado por
+                     distancia y modo. El servidor lo aplica con piso de 1 al rederivar. -->
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted mb-1" :for="'travel-minutes-' + selectedEntry.id">Traslado a la siguiente (min)</label>
+                        <input type="number" min="1" class="form-control form-control-sm" :id="'travel-minutes-' + selectedEntry.id"
+                            :value="selectedEntry.travelMinutesToNext ?? ''" placeholder="Según el cálculo"
+                            @change="updateEntry(selectedEntry, 'travelMinutesToNext', $event.target.value)">
+                    </div>
+                </div>
                 <!-- AC-06/AC-07 sin botones nuevos: el texto explica que fijar corre la cadena y
                      que vaciar los dos campos devuelve la parada al cálculo automático. -->
                 <p class="form-text small mt-2 mb-0">Fijar el día o la hora recalcula las paradas siguientes. Si vaciás los dos, el horario vuelve a calcularse solo.</p>

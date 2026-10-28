@@ -242,7 +242,13 @@ createApp({
 
     // The same place may be added repeatedly, so rows are keyed by their own counter.
     const addToDraft = (place) => {
-      draftPlaces.value.push({ key: nextDraftKey++, place, description: '', transportModeToNext: '' });
+      draftPlaces.value.push({
+        key: nextDraftKey++,
+        place,
+        description: '',
+        transportModeToNext: '',
+        travelMinutesToNext: ''
+      });
     };
 
     const removeDraft = (index) => {
@@ -268,10 +274,11 @@ createApp({
     const shortDate = (isoDate) => isoDate.slice(8, 10) + '/' + isoDate.slice(5, 7);
 
     /* El tramo pertenece a la parada que lo origina: usa el modo propio de la parada y, si no
-       fija uno, el del plan. */
+       fija uno, el del plan. Los minutos fijados a mano se marcan con "(fijo)". */
     const legLabel = (item, minutes) => {
       const mode = item.transportModeToNext || planTransportMode.value;
-      return (TRANSPORT_LABELS[mode] || TRANSPORT_LABELS.WALK) + ' · ' + minutes + ' min';
+      const label = (TRANSPORT_LABELS[mode] || TRANSPORT_LABELS.WALK) + ' · ' + minutes + ' min';
+      return Number(item.travelMinutesToNext) > 0 ? label + ' (fijo)' : label;
     };
 
     /* Las paradas agrupadas por la jornada que les tocó, con el chip ya resuelto. El último tramo
