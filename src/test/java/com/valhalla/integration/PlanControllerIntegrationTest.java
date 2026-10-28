@@ -237,6 +237,11 @@ public class PlanControllerIntegrationTest {
       .perform(get("/plans/" + id + "/settings?saved=true").with(user(OWNER_EMAIL)))
       .andExpect(status().isOk())
       .andExpect(content().string(containsString("Configuración guardada")));
+    mockMvc
+      .perform(get("/plans/" + id).with(user(OWNER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(not(containsString("id=\"plan-share-link\""))))
+      .andExpect(content().string(not(containsString("Compartir link"))));
   }
 
   @Test

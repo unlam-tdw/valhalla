@@ -4,14 +4,15 @@ Esta entrega en `task-20-PET` implementa el pedido de acceso a planes privados.
 No incorpora la rama `task-19-BAN`. Spec: `docs/specs/21-PET.md`.
 
 > Actualización card #49: se eliminó la configuración de "Compartir link"; la
-> visibilidad del plan gobierna el acceso. Ver `docs/specs/21-PET.md`.
+> visibilidad del plan gobierna el acceso. Tampoco hay un botón para copiar el link
+> desde el detalle. Ver `docs/specs/21-PET.md`.
 
 ## Cómo probar el flujo manualmente
 
 1. Crear un plan privado y entrar en su detalle con la cuenta del dueño.
-2. Usar **Copiar link** en el detalle (lo ven el dueño y los editores). No hay una
-   configuración de "Compartir link": la visibilidad del plan ya define el acceso.
-3. Abrir el link con otra cuenta registrada. Sin sesión, el sitio lleva al login y
+2. Abrir manualmente `/plans/{id}/public`, usando el id que aparece en la URL del
+   detalle. La visibilidad del plan define el acceso.
+3. Abrir esa URL con otra cuenta registrada. Sin sesión, el sitio lleva al login y
    conserva el destino para volver después de ingresar.
 4. La landing muestra nombre, descripción, fecha, cantidad de lugares y un cover
    genérico. No muestra dueño, participantes, emails, short code ni itinerario.

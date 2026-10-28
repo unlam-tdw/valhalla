@@ -30,9 +30,9 @@ y navegar por el mapa no modifica el plan.
 
 La visibilidad es la única regla de acceso por link: un plan público puede abrirse
 sin sesión; un plan privado muestra a quien tenga el link una landing con un resumen
-sanitizado y la opción de solicitar participación (ver la spec `21-PET`). No existe una
-configuración por plan de "compartir por link"; el botón "Copiar link" del detalle
-lo ven el dueño y los editores, y en un plan público el link es abierto a cualquiera.
+sanitizado y la opción de solicitar participación (ver la spec `21-PET`). No hay una
+configuración de "compartir por link" ni un botón de copia en el detalle; la URL se
+comparte fuera de la aplicación y su acceso lo define la visibilidad del plan.
 
 Si el detalle falla al evaluar `isPlanParticipant` con un valor nulo, comprobar que
 el controlador y la plantilla correspondan a la misma versión. En desarrollo con

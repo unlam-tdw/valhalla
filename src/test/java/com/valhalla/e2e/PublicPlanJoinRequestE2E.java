@@ -8,20 +8,16 @@ import com.valhalla.e2e.views.PlansPage;
 import com.valhalla.e2e.views.RegisterPage;
 import com.valhalla.e2e.views.WebPage;
 import com.valhalla.presentation.shared.LoginRedirects;
-import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 public class PublicPlanJoinRequestE2E extends E2eBase {
 
   @Test
-  void E01_sharedLinkRequestAndAcceptanceGrantPrivatePlanAccess() {
+  void E01_publicUrlRequestAndAcceptanceGrantPrivatePlanAccess() {
     signInAsAdmin();
     PlansPage plans = new PlansPage(page);
     plans.createPlanViaExplore("Encuentro privado PET", "Resumen del encuentro", "2026-12-31");
-    String sharedUrl = URI
-      .create(plans.baseUrl())
-      .resolve(page.locator("#plan-share-link").inputValue())
-      .toString();
+    String publicUrl = page.url() + "/public";
 
     try (BrowserContext visitor = browser.newContext()) {
       Page visitorPage = visitor.newPage();
@@ -33,7 +29,7 @@ public class PublicPlanJoinRequestE2E extends E2eBase {
       register.typeConfirmPassword("secret123");
       register.clickRegister();
       new WebPage(visitorPage).waitForPath(LoginRedirects.USER_LANDING);
-      visitorPage.navigate(sharedUrl);
+      visitorPage.navigate(publicUrl);
       assertThat(visitorPage.locator("main h1")).hasText("Encuentro privado PET");
       assertThat(visitorPage.locator(".stop-details")).hasCount(0);
       visitorPage.locator("button:has-text('Solicitar participación')").click();
@@ -43,7 +39,7 @@ public class PublicPlanJoinRequestE2E extends E2eBase {
       page.reload();
       page.locator("form[action*='/join-requests/'] button[value='accept']").click();
       assertThat(page.locator("form[action*='/join-requests/']")).hasCount(0);
-      visitorPage.navigate(sharedUrl);
+      visitorPage.navigate(publicUrl);
       new PlansPage(visitorPage).waitForDetailPath();
       assertThat(visitorPage.locator("main h2")).containsText("Encuentro privado PET");
       assertThat(visitorPage.locator(".stop-details")).hasCount(1);

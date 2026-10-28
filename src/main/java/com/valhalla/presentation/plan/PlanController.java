@@ -105,7 +105,6 @@ public class PlanController {
     model.put("canInviteInternal", plan.canInviteInternal(userEmail));
     model.put("canInviteByEmail", plan.canInviteByEmail(userEmail));
     model.put("canInvite", plan.canInviteInternal(userEmail) || plan.canInviteByEmail(userEmail));
-    model.put("canShareLink", plan.canShareLink(userEmail));
     model.put("canHandleRequests", plan.canHandleRequests(userEmail));
     if (plan.canHandleRequests(userEmail)) {
       model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
@@ -202,8 +201,8 @@ public class PlanController {
     Map<String, Object> model = new ModelMap();
     model.put("planId", id);
     model.put("requestPending", plan.hasPendingJoinRequest(email));
-    // [SEC] Un plan privado siempre muestra la landing de solicitud: no hay un permiso de
-    // compartir link por plan que la apague.
+    // [SEC] Un plan privado siempre muestra la landing de solicitud: la visibilidad del plan
+    // gobierna el acceso.
     model.put(
       "summary",
       new JoinPlanSummary(

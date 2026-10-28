@@ -70,7 +70,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       return;
     }
     // [SEC] Un plan privado siempre acepta solicitudes: la visibilidad gobierna el acceso, no
-    // un permiso de "compartir link" por plan. Un plan público se une por short code.
+    // una configuración por plan. Un plan público se une por short code.
     if (plan.getIsPublic()) {
       throw new PlanNotFoundException();
     }

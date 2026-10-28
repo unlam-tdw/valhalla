@@ -7,6 +7,8 @@
 > **Estado (2026-10-21):** implementada en `task-20-PET`; los bans (AC-05/10/14/15) llegan con `task-19-BAN`.
 > **Cambio (2026-10-25, card #49):** se elimino la configuracion de compartir por link. La
 > visibilidad del plan gobierna el acceso y la landing privada siempre ofrece resumen + solicitud.
+> **Cambio (2026-10-28):** se elimino el boton "Compartir link" del detalle. La configuracion
+> conserva los permisos y bans; el acceso por URL sigue dependiendo de la visibilidad.
 
 ## Objetivo
 
@@ -51,9 +53,9 @@ Decisiones (2026-10-17, con equipo):
 5. **Invitacion por email**: email **real** (SMTP) solo a usuarios **ya registrados**, con link
    de aceptacion por token. Sin SMTP configurado, el envio cae a un logger de consola
    (dev/tests).
-6. **Link y visibilidad (card #49)**: no hay selector de sharing. Un plan publico es abierto a
-   cualquiera con el link; un privado siempre ofrece resumen + solicitud. `canShareLink` equivale
-   a `canEdit` (dueño o editor).
+6. **Link y visibilidad (card #49)**: no hay selector ni boton de sharing en la app. Un plan
+   publico es abierto a cualquiera con el link; un privado siempre ofrece resumen + solicitud.
+   La URL se comparte fuera de la aplicacion y su acceso lo define la visibilidad.
 
 ## Criterios de Aceptacion
 
@@ -74,7 +76,7 @@ Decisiones (2026-10-17, con equipo):
 | AC-13 | Seccion "Solicitudes" en el detalle: visible para el dueño, y para los editores solo si `handleRequests = EDITORS`; cada solicitud muestra el usuario con link a su perfil y las tres acciones (aceptar/rechazar/banear) |
 | AC-14 | `POST /plans/{id}/join-requests/{requestId}/respond?action=accept|reject|ban`: **accept** agrega al requester como participant y elimina la solicitud; **reject** la elimina sin mas; **ban** la elimina, lo agrega a `bannedUsers` y, si ya participaba o era editor, lo remueve y pierde el rol |
 | AC-15 | Un usuario banneado no puede solicitar de nuevo ni entrar via short code; para quien responde sin permiso (participant ajeno, otro usuario) la respuesta de respond es identica a un id inexistente |
-| AC-16 | El boton "Compartir link" del detalle copia `/plans/{id}/public` y lo ven el dueño y los editores (no los participantes). En un plan publico el link es abierto a cualquiera; en uno privado lleva a la landing de solicitud |
+| AC-16 | La configuracion del plan no incluye un boton ni un campo "Compartir link": el detalle no renderiza `#plan-share-link`. En un plan publico la URL es abierta a cualquiera; en uno privado lleva a la landing de solicitud |
 | AC-17 | `inviteParticipant`: el canal **app** valida `inviteInternal` y el canal **email** valida `inviteByEmail`; ademas del front (form habilitado o no), el service responde como inexistente a quien no cumple |
 | AC-18 | Invitacion con canal email: se genera `token` en la `PlanInvitation` y se envia **email real** al usuario registrado con el link de aceptacion; si no hay SMTP configurado el envio cae a un logger y la invitacion queda igualmente pendiente en la app |
 | AC-19 | `GET /plans/{id}/invitations/{token}/accept` (permitAll, el token es la credencial): sin sesion redirige a login con `redirect` de vuelta; con sesion muestra la confirmacion y el POST (con CSRF) acepta si el logueado es el destinatario y cae en `/plans/{id}`; si el logueado no es el destinatario, error amigable sin aceptar nada |
@@ -89,7 +91,6 @@ Decisiones (2026-10-17, con equipo):
 |---|------|-------------|
 | U-01 | `new Plan()` deja los 3 selectores en sus defaults y recupera nulos heredados | AC-01, AC-02 |
 | U-02 | reject de valores invalidos en los selectores (p.ej. `"FOO"`, o `PARTICIPANTS` en solicitudes) | AC-01 |
-| U-03 | `canShareLink(email)`: dueño y editores siempre; participante y ajeno nunca (no depende de la visibilidad) | AC-16 |
 | U-04 | `canInviteInternal(email)` / `canInviteByEmail(email)` / `canHandleRequests(email)` con cada nivel del selector | AC-17, AC-13 |
 
 ### Tests Unitarios (`infrastructure/plan/PlanServiceImplTest.java`)
@@ -137,7 +138,7 @@ Decisiones (2026-10-17, con equipo):
 | I-06 | `POST /plans/{id}/join-requests` crea la pendiente; segundo POST no duplica | AC-10, AC-11 |
 | I-07 | Aceptar la solicitud aparece como participant en el detalle; rechazar y banear dejan `plan_banned_users` con el usuario | AC-14 |
 | I-08 | `GET /plans/{id}/invitations/{token}/accept` con sesion del destinatario lo deja como participant y el token queda invalido (segunda vez error) | AC-19, AC-20 |
-| I-09 | `GET /plans/{id}/settings` y el paso 3 de `/explore` no renderizan `shareLink` ni "Compartir link" | AC-01, AC-16 |
+| I-09 | Ni el paso 3 de `/explore`, ni `GET /plans/{id}/settings`, ni el detalle renderizan `shareLink`, "Compartir link" o `#plan-share-link` | AC-01, AC-16 |
 | I-10 | `GET /plans/{id}/public` de un plan publico sigue renderizando la vista publica sin landing | AC-12 |
 
 ### Tests de Seguridad (`integration/PlanJoinRequestSecurityTest.java`)
@@ -159,10 +160,9 @@ Decisiones (2026-10-17, con equipo):
 
 ## Notas / decisiones de diseño
 
-- **La visibilidad gobierna el acceso por link (card #49).** No existe un selector de sharing:
-  un plan publico es abierto a cualquiera con el link; un plan privado muestra **siempre** la
-  landing de solicitud con resumen sanitizado. El boton "Compartir link" lo ven el dueño y los
-  editores (`canShareLink` == `canEdit`), no los participantes. Las invitaciones (internas o por
+- **La visibilidad gobierna el acceso por link (card #49).** No existe un selector ni un boton
+  de sharing: un plan publico es abierto a cualquiera con el link; un plan privado muestra
+  **siempre** la landing de solicitud con resumen sanitizado. Las invitaciones (internas o por
   email) siguen siendo la via para incorporar gente sin pasar por la solicitud.
 - **Privado ≡ inexistente donde el proyecto ya lo hace.** Settings (`GET/POST /settings`),
   responder solicitudes sin permiso y `requestToJoin` en un plan publico lanzan
@@ -229,9 +229,6 @@ File: `src/main/java/com/valhalla/domain/plan/Plan.java`
 @Embedded
 private PlanSettings settings = new PlanSettings();
 
-public boolean canShareLink(String email) {
-  return canEdit(email); // dueño o editor; la visibilidad no cambia quien copia el link
-}
 public boolean canInviteInternal(String email) { ... }
 public boolean canInviteByEmail(String email) { ... }
 public boolean canHandleRequests(String email) { ... }
@@ -451,13 +448,11 @@ public ModelAndView updateSettings(
   requester con `th:href="@{/users/{id}(...)}"` al perfil y dos forms POST a
   `/plans/{id}/join-requests/{rid}/respond?action=accept|reject` (la accion `ban` llega con
   `task-19-BAN`).
-- **Boton "Compartir link"** (AC-16): solo si `model["canShareLink"]` (dueño o editor); copia
-  `/plans/{id}/public` al portapapeles.
 - **Form de invitacion** (AC-17): el input de email y el boton de canal app/email habilitados
   segun `model["canInviteInternal"]` / `model["canInviteByEmail"]`.
 
-Los flags los computa `Plan` (`canShareLink` = `canEdit`, `canInviteInternal`,
-`canInviteByEmail`, `canHandleRequests`); el template nunca decide permisos por su cuenta.
+Los flags los computa `Plan` (`canInviteInternal`, `canInviteByEmail`, `canHandleRequests`);
+el template nunca decide permisos por su cuenta.
 
 ### 8. Aceptacion por token + envio por email
 
@@ -545,9 +540,8 @@ File: `src/main/webapp/WEB-INF/templates/pages/places/list.html`
 | `pages/plans/settings.html` | Crear (AC-04) |
 | `pages/plans/request.html` | Crear (AC-06/08/10) |
 | `pages/plans/accept-invitation.html` | Crear (confirmacion del token) |
-| `pages/plans/detail.html` | Actualizar (Solicitudes, compartir link, gating de invitaciones) |
+| `pages/plans/detail.html` | Actualizar (Solicitudes y gating de invitaciones) |
 | `pages/places/list.html` | Actualizar (paso 3 del wizard, AC-03) |
-| `resources/core/js/plan-share.js` | Crear (copiar el link al portapapeles) |
 | `.env.example` | Actualizar (SMTP_* y APP_BASE_URL) |
 | `docker-compose.yml` | Actualizar (pasa las variables SMTP al proceso) |
 | `pom.xml` | Actualizar (spring-context-support + angus-mail) |

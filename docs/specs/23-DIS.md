@@ -32,7 +32,7 @@ Sin backend, sin DB y sin JavaScript nuevo: los iconos se dibujan server-side.
 
 | # | Criterio |
 |---|----------|
-| AC-01 | Cada acción del inventario (Crear, Buscar, Unirse, Clonar, Abrir/Ver, Quitar/Eliminar, Configuración, Copiar link, Aceptar/Rechazar, Guardar) lleva un icono SVG inline del set Lucide, con `stroke="currentColor"`, `aria-hidden="true"` y tamaño fijo (`h-4 w-4`) |
+| AC-01 | Cada acción del inventario (Crear, Buscar, Unirse, Clonar, Abrir/Ver, Quitar/Eliminar, Configuración, Aceptar/Rechazar, Guardar) lleva un icono SVG inline del set Lucide, con `stroke="currentColor"`, `aria-hidden="true"` y tamaño fijo (`h-4 w-4`) |
 | AC-02 | El set es outline por defecto y filled solo para estado activo (el toggle de Guardados, que ya existía): un solo glyph por acción, `stroke-width="2"` en todo el set |
 | AC-03 | Los botones con texto conservan el texto como nombre accesible (el icono va `aria-hidden`); los botones de solo icono mantienen `aria-label` + `title` + `sr-only` (Guardados, hamburguesa, tema) |
 | AC-04 | "Por {autor}" del feed `/for-you` renderiza en una sola línea, con el nombre truncado accesiblemente (`title` con el nombre completo); para que el link del autor pueda existir, el link de la card pasa a ser un overlay (HTML inválido: `<a>` anidado dentro de `<a>`); el mismo fix de una línea aplica al bloque de Guardados del perfil, que comparte payload |
@@ -155,7 +155,6 @@ En `detail.html` (stack Bootstrap) la misma pieza con las utilidades del stack:
 | Abrir / Ver | eye | vista pública ("Ver mi plan"), Mis planes ("Ver detalle"), perfil ("Abrir"), feed ("Ver todos los planes") |
 | Quitar / Eliminar | trash-2 | detalle ("Eliminar plan"), Mis planes, perfil ("Quitar") |
 | Configuración | settings | detalle |
-| Copiar link | link | detalle (sección Compartir) |
 | Aceptar / Rechazar | check / x | Mis planes (invitaciones pendientes) |
 | Guardar | save | detalle ("Guardar cambios"), perfil, contraseña, configuración del plan |
 | Salir | log-out | menú del navbar (ya existía) |
