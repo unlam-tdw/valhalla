@@ -133,7 +133,6 @@ public class PlanControllerIntegrationTest {
           .with(csrf())
           .param("name", "Plan con permisos")
           .param("eventDate", "2026-12-31")
-          .param("settings.shareLink", "PARTICIPANTS")
           .param("settings.inviteInternal", "OWNER")
           .param("settings.inviteByEmail", "EDITORS")
           .param("settings.handleRequests", "EDITORS")

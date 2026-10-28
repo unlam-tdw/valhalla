@@ -334,9 +334,7 @@ public class PlanController {
       // un POST inválido vuelve a esa vista en vez de re-renderizar pages/plans/new.
       return new ModelAndView(REDIRECT_EXPLORE);
     }
-    Plan draft = toPlanOrderedByVisitTime(planForm);
     Plan draft = toPlan(planForm);
-    draft.getSettings().setShareLink(planForm.getSettings().getShareLink());
     draft.getSettings().setHandleRequests(planForm.getSettings().getHandleRequests());
     draft.getSettings().setInviteInternal(planForm.getSettings().getInviteInternal());
     draft.getSettings().setInviteByEmail(planForm.getSettings().getInviteByEmail());
