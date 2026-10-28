@@ -64,7 +64,6 @@ createApp({
         const placeDialog = ref(null);
         const planOptionsOpen = ref(false);
         const planOptionsButton = ref(null);
-        const bannedParticipantsDialog = ref(null);
         const closePlanOptions = (event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) {
                 planOptionsOpen.value = false;
