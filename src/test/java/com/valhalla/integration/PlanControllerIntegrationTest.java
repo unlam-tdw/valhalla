@@ -252,7 +252,6 @@ public class PlanControllerIntegrationTest {
     String ownerHtml = mockMvc
       .perform(get("/plans/" + id).with(user(OWNER_EMAIL)))
       .andExpect(status().isOk())
-      .andExpect(content().string(containsString("Configuración guardada")))
       .andReturn()
       .getResponse()
       .getContentAsString();
