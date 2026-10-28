@@ -45,10 +45,6 @@ createApp({
     const planDate = ref('');
     const planStartTime = ref('10:00');
     const planTransportMode = ref('WALK');
-    const showAddToPlan = ref(false);
-    const placeToAdd = ref(null);
-    const availablePlans = ref([]);
-    const selectedPlanId = ref('');
     const publicPlans = ref([]);
     const error = ref('');
     const setError = (message) => {
@@ -385,37 +381,6 @@ createApp({
       });
     };
 
-    const closeAddToPlan = () => {
-      showAddToPlan.value = false;
-      placeToAdd.value = null;
-      availablePlans.value = [];
-    };
-
-    const confirmAddToPlan = async () => {
-      if (!placeToAdd.value || !selectedPlanId.value) return;
-      // Emit event for the external JS module to handle the API call
-      const event = new CustomEvent('confirm-add-to-plan', {
-        detail: {
-          planId: selectedPlanId.value,
-          placeId: placeToAdd.value.id
-        }
-      });
-      document.dispatchEvent(event);
-      closeAddToPlan();
-    };
-
-    const createNewPlan = () => {
-      // La creación ya no vive en /plans/new: se abre el panel de creación de /explore con el
-      // lugar pendiente ya cargado en el borrador. El modal "Agregar a plan" se cierra
-      // después de copiar el lugar, porque tapa el panel (overlay z-2000 sobre aside z-1000).
-      const pendingPlace = placeToAdd.value;
-      closeAddToPlan();
-      if (pendingPlace) {
-        addToDraft(pendingPlace);
-      }
-      openCreatePlan();
-    };
-
     // Listen for add-to-plan events from the external JavaScript module
     document.addEventListener('add-to-plan', async (event) => {
       const place = event.detail;
@@ -426,28 +391,6 @@ createApp({
       }
       if (activePlan.value) {
         await addToActivePlan(place);
-        return;
-      }
-
-      placeToAdd.value = place;
-
-      try {
-        const response = await apiFetch('/api/plans');
-        const userPlans = await response.json();
-
-        const plansWithoutPlace = userPlans.filter(plan =>
-          !plan.planPlaces.some(pp => pp.placeId === place.id)
-        );
-
-        // La modal se abre siempre (tengas 0, algunos o todos los
-        // planes ocupados por este lugar): desde ahí siempre se puede
-        // crear un plan nuevo, y si hay planes disponibles también se
-        // puede elegir uno existente.
-        availablePlans.value = plansWithoutPlace;
-        selectedPlanId.value = '';
-        showAddToPlan.value = true;
-      } catch (error) {
-        setError(failure(error, 'Error al cargar los planes.'));
       }
     });
 
@@ -568,14 +511,7 @@ createApp({
       removeDraft,
       moveDraft,
       nextPlanStep,
-      onPlanSubmit,
-      showAddToPlan,
-      placeToAdd,
-      availablePlans,
-      selectedPlanId,
-      closeAddToPlan,
-      confirmAddToPlan,
-      createNewPlan
+      onPlanSubmit
     };
   }
 }).mount('#explore-app');

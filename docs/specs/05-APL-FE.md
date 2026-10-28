@@ -8,20 +8,20 @@
 
 ## Objetivo
 
-Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral de `/places`, itinerario con Vue.js, mapa con rutas y marcadores numerados en el detalle del plan.
+Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/places`, itinerario con Vue.js, mapa con rutas y marcadores numerados en el detalle del plan. El agregado vive en el wizard de creación y en el detalle del plan.
 
 ## Pre-requisitos
 
-- [APL-BE] completed (PlanPlace entity, REST endpoints, `userPlans` en el model de `GET /places`)
+- [APL-BE] completed (PlanPlace entity, REST endpoints)
 - [PLC] completed (panel lateral de detalles del lugar dentro de `/places`)
 
 ## Criterios de Aceptacion
 
 | # | Criterio |
 |---|----------|
-| AC-01 | El panel lateral de `/places` muestra un dropdown con los planes del usuario logueado para el lugar seleccionado |
-| AC-02 | Se puede agregar el lugar seleccionado a un plan desde el panel lateral, sin salir de `/places` |
-| AC-03 | Al agregar un lugar se muestra feedback visual (redirect o mensaje) |
+| AC-01 | El panel lateral de `/places` no muestra ni botón "Add to plan" ni dropdown de planes: la ficha de lugar es solo lectura (el agregado vive en el wizard de creación y en el detalle del plan) |
+| AC-02 | Al hacer click en un lugar de `/explore` nunca se abre un modal de "agregar a plan" |
+| AC-03 | Al agregar un lugar desde el wizard o desde el detalle del plan se muestra feedback visual (redirect o mensaje) |
 | AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
 | AC-05 | El itinerario agrupa las paradas por día y cada una muestra numero de orden, nombre, categoria y su horario como chip con rango `HH:mm – HH:mm`, duración y fecha (la fecha solo aparece cuando difiere del Día 1) |
 | AC-06 | Se puede editar duración, día y hora de visita desde el diálogo de la parada, y los minutos de traslado del tramo anterior desde ahí o desde el paso 2; fijar el día o la hora recalcula las paradas siguientes y las marca como fijadas a mano |
@@ -38,7 +38,7 @@ Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral 
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | El panel lateral de `/places` muestra el select con los planes del usuario y el boton "Add to plan" | AC-01, AC-02 |
+| U-01 | El panel lateral de `/places` no contiene el botón "Add to plan" ni el modal | AC-01, AC-02 |
 
 ### Tests de Integracion (`presentation/plan/PlanControllerTest.java`)
 
@@ -51,19 +51,20 @@ Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral 
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `AddToPlanE2E` | Ir a /places, seleccionar un lugar, agregar a plan desde el panel, verificar en /plans/{id} | AC-01, AC-02, AC-04, AC-05 |
+| E-01 | `AddPlaceToPlanE2E` | Crear plan desde /explore, agregar un lugar vía API en la sesión del navegador y verificar el itinerario | AC-04, AC-05 |
 
 ## Notas / decisiones de diseño
 
-- **El "Add to plan" vive en el panel lateral, no en una ficha aparte** (D1). No existe
-  `pages/places/detail.html` ni ruta `/places/{id}`: la ficha se rediseñó en Sprint 1 (PR #6) como
-  `<aside aria-label="Details for ...">` dentro de `/places`. El panel ya tiene nombre, categoría,
-  dirección, descripción e imagen del lugar, así que el dropdown de planes se agrega ahí y el
-  usuario no pierde el mapa, el filtro aplicado ni la posición del scroll.
-- **El panel ya existe en `places/list.html`** y su botón "Add to plan" hoy es un no-op
-  (`PlacesViewE2E` solo verifica que no navegue y que el panel siga montado). Esta spec lo
-  conecta al endpoint real de APL-BE.
-- **CSRF (AC-11)**: APL-BE reduce el ignore list a las lecturas, así que el `POST` desde `/places`
+- **El "Add to plan" y su modal se quitaron de `/places`**. No existe
+  `pages/places/detail.html` ni ruta `/places/{id}`: la ficha vive como
+  `<aside aria-label="Details for ...">` dentro de `/places` y es solo lectura (nombre, categoría,
+  dirección, descripción e imagen). El agregado de lugares ocurre en el wizard de creación de
+  `/explore` (tarjeta "+" → borrador) y en el detalle del plan; el usuario no pierde el mapa, el
+  filtro aplicado ni la posición del scroll.
+- **`add-to-plan.js` queda como puente de eventos**: el click en la tarjeta "+" emite
+  `add-to-plan` y `places-list.js` lo enruta al borrador del wizard o al plan activo. El camino
+  que abría el modal (fetch de `/api/plans` + select) se borró junto con el modal.
+- **CSRF (AC-11)**: APL-BE reduce el ignore list a las lecturas, así que el `POST` de agregado
   necesita el token. Un form de Thymeleaf lo trae con `th:name="${_csrf.parameterName}"`; si la
   llamada se hace con `fetch`, el token va en el header que indique `${_csrf.parameterName}`.
 - **El horario no se tipea al crear** (24-SCH): el paso 1 del wizard pide fecha (Día 1), hora de
@@ -89,11 +90,11 @@ Frontend para agregar lugares a planes: boton "Add to plan" en el panel lateral 
 
 > Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 >
-> **El código de ejemplo es anterior a la implementación actual**: el "Add to plan" hoy abre un
-> modal, y desde 24-SCH el itinerario agrupa por día y renderiza chips de solo lectura, con la
-> edición del horario en el diálogo de la parada (`plans-detail.js` → `updateEntry`, que manda los
-> cuatro campos del horario de una vez). El detalle usa Bootstrap con el módulo JS, no el CDN de
-> Vue de abajo.
+> **El código de ejemplo es anterior a la implementación actual**: el "Add to plan" con su modal
+> se eliminó de `/places`, y desde 24-SCH el itinerario agrupa por día y renderiza chips de solo
+> lectura, con la edición del horario en el diálogo de la parada (`plans-detail.js` →
+> `updateEntry`, que manda los cuatro campos del horario de una vez). El detalle usa Bootstrap con
+> el módulo JS, no el CDN de Vue de abajo.
 
 ### 1. Update the places panel (add "Add to plan" form)
 
@@ -322,7 +323,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 
 | File | Action |
 |------|--------|
-| `templates/pages/places/list.html` | Update (add "Add to plan" form al panel lateral, con CSRF) |
+| `templates/pages/places/list.html` | Update (ficha de lugar solo lectura: sin botón "Add to plan" ni modal) |
 | `templates/pages/plans/detail.html` | Update (add Vue.js itinerary with CSRF helpers) |
 | `resources/core/js/pages/places-list.js` | Update (wizard: ventana del día y rango derivado por parada, AC-12) |
 | `resources/core/js/pages/plans-detail.js` | Update (itinerario agrupado por día, chips y PUT completo del horario, AC-05/AC-06) |

@@ -34,8 +34,8 @@
          layout de escritorio (mapa a la izquierda, sidebar junto al borde, paneles siempre
          visibles via md:visible). -->
     <!-- [FLASH] v-cloak: el template es HTML de servidor y Vue lo pinta recien en mount().
-         Sin el atributo se ven crudos el banner de error, el aside de detalle con sus
-         {{selectedPlace.*}} y el modal "Agregar a plan". La regla y el fallback de 3 s viven
+         Sin el atributo se ven crudos el banner de error y el aside de detalle con sus
+         {{selectedPlace.*}}. La regla y el fallback de 3 s viven
          en layouts/base.html :: headContent. -->
     <div id="explore-app" v-cloak
       class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
@@ -205,15 +205,6 @@
             <p v-if="selectedPlace.description" class="whitespace-pre-line text-sm leading-6 text-gray-700">
               {{ selectedPlace.description }}
             </p>
-            <div class="mt-auto flex justify-end pt-4">
-              <button type="button" :data-add-to-plan="selectedPlace.id" :data-place-name="selectedPlace.name"
-                :data-place-category="selectedPlace.category" :data-place-latitude="selectedPlace.latitude"
-                :data-place-longitude="selectedPlace.longitude"
-                :aria-label="'Add ' + selectedPlace.name + ' to a plan'"
-                class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
-                Add to plan
-              </button>
-            </div>
           </div>
         </aside>
 
@@ -336,44 +327,6 @@
             View plan details
           </a>
         </aside>
-
-        <!-- Add to plan modal -->
-        <div v-if="showAddToPlan" @click.self="closeAddToPlan" @keydown.esc="closeAddToPlan"
-          class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="add-to-plan-title"
-            class="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white p-6 shadow-md">
-            <h2 id="add-to-plan-title" class="text-2xl font-semibold text-gray-900">Agregar a plan</h2>
-            <p class="mt-2 text-sm text-gray-600">Selecciona un plan para agregar <strong>{{ placeToAdd?.name }}</strong></p>
-            <div class="mt-4 flex flex-col gap-3">
-              <select v-model="selectedPlanId" aria-label="Seleccionar plan"
-                class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
-                <option value="" disabled>Selecciona un plan...</option>
-                <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id">
-                  {{ plan.name }} ({{ formatDate(plan.eventDate) || 'Sin fecha' }})
-                </option>
-              </select>
-              <p v-if="availablePlans.length === 0" class="text-sm text-gray-500">
-                No hay planes disponibles para agregar este lugar.
-              </p>
-            </div>
-            <div class="mt-4 flex justify-end gap-2">
-              <button type="button" @click="closeAddToPlan"
-                class="rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300">
-                Cancelar
-              </button>
-              <button type="button" @click="confirmAddToPlan" :disabled="!selectedPlanId"
-                class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
-                Agregar
-              </button>
-            </div>
-            <div class="mt-3 border-t border-gray-200 pt-3">
-              <button type="button" @click="createNewPlan"
-                class="w-full rounded-md border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">
-                + Crear nuevo plan
-              </button>
-            </div>
-          </div>
-        </div>
 
         <!-- Create plan: replaces the Plans aside in place, leaving the map interactive -->
         <aside v-if="showCreatePlan" id="plans-aside" role="complementary" aria-labelledby="create-plan-title"

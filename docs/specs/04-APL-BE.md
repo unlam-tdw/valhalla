@@ -5,7 +5,7 @@
 
 ## Objetivo
 
-Backend para agregar lugares a planes: entity PlanPlace, repository, service, REST endpoints y actualizacion de PlaceController para exponer los planes del usuario en el panel lateral de `/places`. Los endpoints de escritura exigen sesion, validan ownership con el criterio "not found" y el ignore list de CSRF se reduce a las rutas de lectura.
+Backend para agregar lugares a planes: entity PlanPlace, repository, service y REST endpoints. Los endpoints de escritura exigen sesion, validan ownership con el criterio "not found" y el ignore list de CSRF se reduce a las rutas de lectura.
 
 ## Pre-requisitos
 
@@ -23,7 +23,7 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
 | AC-05 | PUT /api/plans/{planId}/places/{id} actualiza el payload completo del horario (visitDate, visitTime, durationMinutes, transportModeToNext, travelMinutesToNext); un valor nulo limpia el override y vuelve al cálculo |
 | AC-06 | DELETE /api/plans/{planId}/places/{id} elimina un lugar del plan |
 | AC-07 | POST /api/plans/{planId}/places/reorder reordena los lugares del plan |
-| AC-08 | El panel lateral de `/places` incluye los planes del usuario logueado para el lugar seleccionado |
+| AC-08 | `GET /api/plans` retorna los planes del usuario logueado; el panel lateral de `/places` ya no los lista (la ficha es solo lectura, ver 05-APL-FE) |
 | AC-09 | PlanPlace tiene relacion ManyToOne con Plan y Place (LAZY) |
 | AC-10 | La combinacion (plan_id, place_id) es unica (unique constraint) |
 | AC-11 | La escritura en `/api/plans/**` (POST/PUT/DELETE) exige sesion autenticada. `GET /api/places` sigue siendo lectura publica — es catalogo, no dato de usuario. `GET /api/plans/{id}/places` sigue siendo legible sin sesion **solo si el plan es publico** (lo necesita la vista compartida de [VPC]); con plan privado responde 404 si no sos el owner |
@@ -68,12 +68,12 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
 | I-09 | `existsByPlanIdAndPlaceId()` retorna false si no existe | AC-10 |
 | I-10 | Unique constraint previene duplicados | AC-10 |
 
-### Tests de Integracion (`integration/PlaceControllerTest.java`)
+### Tests de Integracion (`presentation/plan/PlanRestControllerTest.java`)
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| I-11 | `GET /places` con sesion incluye `userPlans` en el model | AC-08 |
-| I-12 | `GET /places` sin sesion no incluye `userPlans` | AC-08 |
+| I-11 | `GET /api/plans` sin principal retorna lista vacia sin tocar el servicio | AC-08 |
+| I-12 | `GET /api/plans` autenticado mapea los planes del usuario | AC-08 |
 
 ### Tests de Seguridad (`integration/PlanPlaceSecurityTest.java`)
 
@@ -122,9 +122,9 @@ Backend para agregar lugares a planes: entity PlanPlace, repository, service, RE
   el plan es publico — es lo que necesita la vista compartida de [VPC] para leer el itinerario
   desde el `fetch`. Si el plan es privado y no sos el owner, 404 por el mismo criterio de AC-13.
 - **AC-08 y el panel lateral**. No hay `pages/places/detail.html` ni ruta `/places/{id}`: la ficha
-  se rediseñó como panel lateral dentro de `/places` (D1). El "Add to plan" de 05-APL-FE vive
-  en ese panel, que ya tiene toda la data del lugar, así que el backend solo tiene que poner
-  `userPlans` en el model de `GET /places`.
+  se rediseñó como panel lateral dentro de `/places` (D1) y quedó solo lectura: el "Add to plan"
+  de 05-APL-FE se quitó y el agregado vive en el wizard de creación y en el detalle del plan.
+  Los planes del usuario siguen exponiéndose en `GET /api/plans`.
 
 ## Referencia de Implementacion
 
