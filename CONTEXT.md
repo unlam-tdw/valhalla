@@ -45,12 +45,12 @@ Plan through its shared link or Short Code. It grants no access until the owner,
 authorized, accepts it. Rejection removes the request without granting participation.
 The visitor sees only the name, description, date, place count and generic cover.
 
-**Plan settings**: Owner-managed permissions for sharing links, inviting internally,
-inviting by email and handling join requests. Internal invitations default to Editors;
-other capabilities default to Owner. Sharing and inviting can extend to all Participants;
-handling requests can extend only to Editors. Owner-only sharing disables the private
-landing summary and request form. Only owners and Editors can propose the Editor role.
-Bans also prevent requesting or accepting access to a private Plan.
+**Plan settings**: Owner-managed permissions for inviting internally, inviting by email
+and handling join requests. Internal invitations default to Editors; other capabilities
+default to Owner. Inviting can extend to all Participants; handling requests can extend
+only to Editors. There is no in-app share-link control: Plan visibility governs access.
+Only owners and Editors can propose the Editor role. Bans also prevent requesting or
+accepting access to a private Plan.
 
 **Schedule derivation**: visit date/time stay persisted in `visitDate`/`visitTime` even when
 they are derived, so the public view, the plan listing and cloning read them unchanged.

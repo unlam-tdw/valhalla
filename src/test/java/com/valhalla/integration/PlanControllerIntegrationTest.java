@@ -133,7 +133,6 @@ public class PlanControllerIntegrationTest {
           .with(csrf())
           .param("name", "Plan con permisos")
           .param("eventDate", "2026-12-31")
-          .param("settings.shareLink", "PARTICIPANTS")
           .param("settings.inviteInternal", "OWNER")
           .param("settings.inviteByEmail", "EDITORS")
           .param("settings.handleRequests", "EDITORS")
@@ -148,17 +147,17 @@ public class PlanControllerIntegrationTest {
     Plan plan = planRepository.findById(id).orElseThrow();
     assertThat(plan.getSettings().getInviteByEmail().name(), is("EDITORS"));
     assertThat(plan.getSettings().getInviteInternal().name(), is("OWNER"));
-    assertThat(plan.getSettings().getShareLink().name(), is("PARTICIPANTS"));
     mockMvc
       .perform(get("/plans/" + id + "/settings").with(user(OWNER_EMAIL)))
       .andExpect(status().isOk())
-      .andExpect(content().string(containsString("inviteByEmail")));
+      .andExpect(content().string(containsString("inviteByEmail")))
+      .andExpect(content().string(not(containsString("shareLink"))))
+      .andExpect(content().string(not(containsString("Compartir link"))));
     mockMvc
       .perform(
         post("/plans/" + id + "/settings")
           .with(user(OTHER_EMAIL))
           .with(csrf())
-          .param("shareLink", "OWNER")
           .param("handleRequests", "OWNER")
           .param("inviteInternal", "PARTICIPANTS")
           .param("inviteByEmail", "PARTICIPANTS")
@@ -203,14 +202,15 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void exploreRendersThirdStepAndAllPermissionFields() throws Exception {
+  public void exploreRendersPermissionFieldsAndNoShareLink() throws Exception {
     mockMvc
       .perform(get("/explore").with(user(OWNER_EMAIL)))
       .andExpect(status().isOk())
       .andExpect(content().string(containsString("settings.inviteInternal")))
       .andExpect(content().string(containsString("settings.inviteByEmail")))
       .andExpect(content().string(containsString("settings.handleRequests")))
-      .andExpect(content().string(containsString("settings.shareLink")));
+      .andExpect(content().string(not(containsString("settings.shareLink"))))
+      .andExpect(content().string(not(containsString("Compartir link"))));
   }
 
   @Test
@@ -221,7 +221,6 @@ public class PlanControllerIntegrationTest {
         post("/plans/" + id + "/settings")
           .with(user(OWNER_EMAIL))
           .with(csrf())
-          .param("shareLink", "PARTICIPANTS")
           .param("handleRequests", "EDITORS")
           .param("inviteInternal", "OWNER")
           .param("inviteByEmail", "EDITORS")
@@ -230,7 +229,6 @@ public class PlanControllerIntegrationTest {
     entityManager.flush();
     entityManager.clear();
     Plan saved = planRepository.findById(id).orElseThrow();
-    assertThat(saved.getSettings().getShareLink().name(), is("PARTICIPANTS"));
     assertThat(saved.getSettings().getHandleRequests().name(), is("EDITORS"));
     assertThat(saved.getSettings().getInviteInternal().name(), is("OWNER"));
     assertThat(saved.getSettings().getInviteByEmail().name(), is("EDITORS"));
@@ -238,6 +236,11 @@ public class PlanControllerIntegrationTest {
       .perform(get("/plans/" + id + "/settings?saved=true").with(user(OWNER_EMAIL)))
       .andExpect(status().isOk())
       .andExpect(content().string(containsString("Configuración guardada")));
+    mockMvc
+      .perform(get("/plans/" + id).with(user(OWNER_EMAIL)))
+      .andExpect(status().isOk())
+      .andExpect(content().string(not(containsString("id=\"plan-share-link\""))))
+      .andExpect(content().string(not(containsString("Compartir link"))));
   }
 
   @Test

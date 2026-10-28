@@ -224,7 +224,6 @@ public class PlanBanSecurityTest {
     for (String manager : List.of(OWNER, EDITOR)) {
       Plan plan = plans.findById(planId).orElseThrow();
       plan.setIsPublic(false);
-      plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
       plan.getEditors().add(users.findByEmail(MEMBER).orElseThrow());
       plans.save(plan);
       service.banParticipant(planId, MEMBER, OWNER);
@@ -420,7 +419,6 @@ public class PlanBanSecurityTest {
     service.banParticipant(planId, MEMBER, OWNER);
     Plan plan = plans.findById(planId).orElseThrow();
     plan.setIsPublic(false);
-    plan.getSettings().setShareLink(com.valhalla.domain.plan.PlanPermission.PARTICIPANTS);
     com.valhalla.domain.plan.PlanJoinRequest request = new com.valhalla.domain.plan.PlanJoinRequest(
       plan,
       users.findByEmail(MEMBER).orElseThrow()

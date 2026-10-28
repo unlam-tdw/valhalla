@@ -18,9 +18,6 @@ public class PlanBanE2E extends E2eBase {
     PlansPage plans = new PlansPage(page);
     plans.createPlanViaExplore("Plan BAN", "Recorrido privado", "2026-12-31");
     String detailUrl = page.url();
-    page.navigate(detailUrl + "/settings");
-    page.locator("select[name='shareLink']").selectOption("EDITORS");
-    page.locator("main form button[type='submit']").click();
     try (BrowserContext visitor = browser.newContext()) {
       Page guest = visitor.newPage();
       registerGuest(guest);
