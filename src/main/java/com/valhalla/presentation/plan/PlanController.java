@@ -196,15 +196,25 @@ public class PlanController {
     model.put("pageTitle", plan.getName());
     model.put("ogTitle", plan.getName());
     model.put("ogUrl", "/plans/" + plan.getId() + PUBLIC_SUFFIX);
+    model.put("ogType", "article");
     String creator = displayName(plan.getAdministrator());
-    String desc = plan.getDescription();
-    if (desc != null && !desc.isBlank()) {
-      model.put("pageDescription", desc);
-      model.put("ogDescription", desc);
-    } else if (creator != null && !creator.isBlank()) {
-      String fallback = "Plan de " + creator;
-      model.put("pageDescription", fallback);
-      model.put("ogDescription", fallback);
+    StringBuilder descBuilder = new StringBuilder();
+    if (creator != null && !creator.isBlank()) {
+      descBuilder.append("Plan creado por ").append(creator).append(". ");
+    }
+    if (plan.getEventDate() != null) {
+      descBuilder.append("Fecha: ").append(plan.getEventDate()).append(". ");
+    }
+    int placeCount = plan.getPlanPlaces() == null ? 0 : plan.getPlanPlaces().size();
+    descBuilder.append(placeCount).append(" lugar").append(placeCount == 1 ? "" : "es").append(" en el itinerario.");
+    String built = descBuilder.toString().trim();
+    if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
+      String fullDesc = plan.getDescription().trim() + " | " + built;
+      model.put("pageDescription", fullDesc);
+      model.put("ogDescription", fullDesc);
+    } else {
+      model.put("pageDescription", built);
+      model.put("ogDescription", built);
     }
     String cover = "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), 6) + 1) + ".png";
     model.put("ogImage", cover);

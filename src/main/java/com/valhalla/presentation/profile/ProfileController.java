@@ -309,8 +309,9 @@ public class ProfileController {
     String profileName = displayName(owner);
     String description = "Perfil de " + profileName + " en PlanIt. Descubrí sus planes públicos.";
     model.put("pageTitle", profileName);
-    model.put("pageDescription", description);
     model.put("ogTitle", profileName);
+    model.put("ogType", "profile");
+    model.put("pageDescription", description);
     model.put("ogDescription", description);
     model.put("ogUrl", "/profile/" + owner.getId());
     if (owner.getAvatarUrl() != null && !owner.getAvatarUrl().isBlank()) {

@@ -81,7 +81,7 @@
        Open Graph; Twitter/X leen la tarjeta propia. El @{} de Thymeleaf devuelve una URL
        relativa en un GET directo, y og:image relativa no se descarga: el prefijo sale del
        bean siteOrigin, que lo arma con la request real (ver BaseWebConfig). -->
-  <meta property="og:type" content="website">
+  <meta property="og:type" th:content="${ogType != null ? ogType : 'website'}">
   <meta property="og:site_name" content="PlanIt">
   <meta property="og:title" th:content="${ogTitle != null} ? ${ogTitle} : (${pageTitle != null} ? ${pageTitle} : 'PlanIt')">
   <meta property="og:description" th:content="${ogDescription != null}
@@ -102,6 +102,7 @@
       ? ${pageDescription}
       : 'Discover and plan your perfect day in Buenos Aires')">
   <meta name="twitter:image" th:content="|${@siteOrigin.base()}${ogImage != null ? ogImage : '/images/og-image.png'}|">
+  <meta name="twitter:card" content="summary_large_image">
 
   <!-- Barra del navegador en mobile, del color del navbar. El manifest da nombre e ícono
        al "agregar a pantalla de inicio"; apple-touch-icon es aparte porque iOS no acepta
