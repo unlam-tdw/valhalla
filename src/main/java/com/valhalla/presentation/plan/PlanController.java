@@ -206,7 +206,11 @@ public class PlanController {
       descBuilder.append("Fecha: ").append(plan.getEventDate()).append(". ");
     }
     int placeCount = plan.getPlanPlaces() == null ? 0 : plan.getPlanPlaces().size();
-    descBuilder.append(placeCount).append(" lugar").append(placeCount == 1 ? "" : "es").append(" en el itinerario.");
+    descBuilder
+      .append(placeCount)
+      .append(" lugar")
+      .append(placeCount == 1 ? "" : "es")
+      .append(" en el itinerario.");
     String built = descBuilder.toString().trim();
     if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
       String fullDesc = plan.getDescription().trim() + " | " + built;
@@ -216,7 +220,8 @@ public class PlanController {
       model.put("pageDescription", built);
       model.put("ogDescription", built);
     }
-    String cover = "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), 6) + 1) + ".png";
+    String cover =
+      "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), 6) + 1) + ".png";
     model.put("ogImage", cover);
   }
 
