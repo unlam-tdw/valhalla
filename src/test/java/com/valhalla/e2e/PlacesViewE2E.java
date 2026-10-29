@@ -148,12 +148,13 @@ public class PlacesViewE2E extends E2eBase {
       equalTo("rgb(231, 76, 60)")
     );
 
-    // Sin "Add to plan": el boton del panel de detalles y su modal se quitaron, asi que
-    // abrir la ficha no muestra ninguna accion de agregar ni levanta ningun dialogo.
+    // [APL] Sin sesión no hay planes propios, así que el picker inline del panel no se
+    // pinta y tampoco hay diálogo: la ficha sigue siendo solo informativa para anónimos.
     assertThat(
       panel.locator("button").filter(new Locator.FilterOptions().setHasText("Add to plan")).count(),
       is(equalTo(0))
     );
+    assertThat(panel.locator("#plan-picker").count(), is(equalTo(0)));
     assertThat(page.locator("div[role='dialog']").count(), is(equalTo(0)));
 
     panel.locator("button[aria-label='Close place details']").click();

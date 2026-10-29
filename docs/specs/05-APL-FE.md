@@ -19,8 +19,8 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 
 | # | Criterio |
 |---|----------|
-| AC-01 | El panel lateral de `/places` no muestra ni botón "Add to plan" ni dropdown de planes: la ficha de lugar es solo lectura (el agregado vive en el wizard de creación y en el detalle del plan) |
-| AC-02 | Al hacer click en un lugar de `/explore` nunca se abre un modal de "agregar a plan" |
+| AC-01 | El panel lateral de `/places` ofrece un picker de plan inline (select de los planes propios que no contienen el lugar + botón "Agregar al plan"), sin modal; sin planes el picker no se pinta |
+| AC-02 | Al hacer click en un lugar de `/explore` nunca se abre un modal de "agregar a plan": el agregado desde la ficha es inline, con feedback en el mismo panel (éxito o 409 "El destino ya se encuentra en el plan.") |
 | AC-03 | Al agregar un lugar desde el wizard o desde el detalle del plan se muestra feedback visual (redirect o mensaje) |
 | AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
 | AC-05 | El itinerario agrupa las paradas por día y cada una muestra numero de orden, nombre, categoria y su horario como chip con rango `HH:mm – HH:mm`, duración y fecha (la fecha solo aparece cuando difiere del Día 1) |
@@ -38,7 +38,7 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | El panel lateral de `/places` no contiene el botón "Add to plan" ni el modal | AC-01, AC-02 |
+| U-01 | El panel lateral de `/places` no contiene el botón "Add to plan" ni el modal; el picker inline existe con `id="plan-picker"` y `aria-label="Agregar al plan"`, tras `v-if="availablePlans.length"` | AC-01, AC-02 |
 
 ### Tests de Integracion (`presentation/plan/PlanControllerTest.java`)
 
@@ -55,15 +55,21 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 
 ## Notas / decisiones de diseño
 
-- **El "Add to plan" y su modal se quitaron de `/places`**. No existe
+- **El "Add to plan" y su modal se quitaron de `/places`; el picker volvió inline**. No existe
   `pages/places/detail.html` ni ruta `/places/{id}`: la ficha vive como
-  `<aside aria-label="Details for ...">` dentro de `/places` y es solo lectura (nombre, categoría,
-  dirección, descripción e imagen). El agregado de lugares ocurre en el wizard de creación de
-  `/explore` (tarjeta "+" → borrador) y en el detalle del plan; el usuario no pierde el mapa, el
-  filtro aplicado ni la posición del scroll.
+  `<aside aria-label="Details for ...">` dentro de `/places` (nombre, categoría,
+  dirección, descripción e imagen) y ahora cierra con un picker de plan: select de los planes
+  propios que no contienen ya el lugar (`availablePlans`, UUIDs comparados como string) +
+  botón "Agregar al plan" con `apiFetch` POST, sin modal y sin salir de la página. El picker
+  solo se pinta si hay planes elegibles (`v-if="availablePlans.length"`); sin sesión la API
+  devuelve `[]` y la ficha queda informativa. El 409 responde "El destino ya se encuentra en
+  el plan."; el resto usa el `failure` de la vista. El agregado también sigue vivo en el
+  wizard de creación de `/explore` (tarjeta "+" → borrador) y en el detalle del plan; el
+  usuario no pierde el mapa, el filtro aplicado ni la posición del scroll.
 - **`add-to-plan.js` queda como puente de eventos**: el click en la tarjeta "+" emite
   `add-to-plan` y `places-list.js` lo enruta al borrador del wizard o al plan activo. El camino
-  que abría el modal (fetch de `/api/plans` + select) se borró junto con el modal.
+  que abría el modal (fetch de `/api/plans` + select) se reemplazó por el picker inline del
+  panel de detalle.
 - **CSRF (AC-11)**: APL-BE reduce el ignore list a las lecturas, así que el `POST` de agregado
   necesita el token. Un form de Thymeleaf lo trae con `th:name="${_csrf.parameterName}"`; si la
   llamada se hace con `fetch`, el token va en el header que indique `${_csrf.parameterName}`.
@@ -91,7 +97,9 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 > Los pasos a continuación son guía de implementación, no reemplazan los acceptance criteria de arriba.
 >
 > **El código de ejemplo es anterior a la implementación actual**: el "Add to plan" con su modal
-> se eliminó de `/places`, y desde 24-SCH el itinerario agrupa por día y renderiza chips de solo
+> se eliminó de `/places` —el picker de planes que se ve abajo volvió, pero inline en el panel de
+> detalle, sin form server-side ni `sec:authorize`—, y desde 24-SCH el itinerario agrupa por día y
+> renderiza chips de solo
 > lectura, con la edición del horario en el diálogo de la parada (`plans-detail.js` →
 > `updateEntry`, que manda los cuatro campos del horario de una vez). El detalle usa Bootstrap con
 > el módulo JS, no el CDN de Vue de abajo.
@@ -323,7 +331,7 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 
 | File | Action |
 |------|--------|
-| `templates/pages/places/list.html` | Update (ficha de lugar solo lectura: sin botón "Add to plan" ni modal) |
+| `templates/pages/places/list.html` | Update (ficha de lugar con picker de plan inline, sin modal) |
 | `templates/pages/plans/detail.html` | Update (add Vue.js itinerary with CSRF helpers) |
 | `resources/core/js/pages/places-list.js` | Update (wizard: ventana del día y rango derivado por parada, AC-12) |
 | `resources/core/js/pages/plans-detail.js` | Update (itinerario agrupado por día, chips y PUT completo del horario, AC-05/AC-06) |

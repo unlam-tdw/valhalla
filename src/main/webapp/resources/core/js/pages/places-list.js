@@ -189,6 +189,62 @@ createApp({
       }
     };
 
+    /* [APL] Panel de detalle: agregar a plan inline, sin modal (AC-03). Los planes propios se
+       piden una sola vez al montar; uno que ya contiene el lugar no se ofrece, asi que el 409
+       es solo una carrera rara y se responde con el mismo texto de addToActivePlan. */
+    const planOptions = ref([]);
+    const planPickId = ref('');
+    const planBusy = ref(false);
+    const planMessage = ref('');
+    const planError = ref(false);
+
+    const loadPlanOptions = async () => {
+      const response = await apiFetch('/api/plans');
+      planOptions.value = await response.json();
+    };
+
+    const availablePlans = computed(() => {
+      const place = selectedPlace.value;
+      if (!place) return [];
+      return planOptions.value.filter(plan =>
+        !(plan.planPlaces || []).some(entry => String(entry.placeId) === String(place.id)));
+    });
+
+    watch(selectedPlace, () => {
+      planPickId.value = availablePlans.value[0]?.id || '';
+      planMessage.value = '';
+      planError.value = false;
+    });
+
+    // Un alta exitosa saca el plan de la lista: si el select quedó apuntando a un plan
+    // que ya no se ofrece, vuelve al primero disponible.
+    watch(availablePlans, (plans) => {
+      if (!plans.some(plan => plan.id === planPickId.value)) {
+        planPickId.value = plans[0]?.id || '';
+      }
+    });
+
+    const addSelectedToPlan = async () => {
+      const plan = availablePlans.value.find(candidate => candidate.id === planPickId.value);
+      if (planBusy.value || !plan) return;
+      planBusy.value = true;
+      planMessage.value = '';
+      planError.value = false;
+      try {
+        await apiFetch('/api/plans/' + plan.id + '/places?placeId=' + selectedPlace.value.id,
+          { method: 'POST' });
+        await loadPlanOptions();
+        planMessage.value = 'Agregado a ' + plan.name + '.';
+      } catch (error) {
+        planError.value = error.status === 409;
+        planMessage.value = error.status === 409
+          ? 'El destino ya se encuentra en el plan.'
+          : failure(error, 'Error al agregar el lugar al plan.');
+      } finally {
+        planBusy.value = false;
+      }
+    };
+
     /* [MARK] Guardar/quitar desde el sidebar. Igual que el toggle server-rendered: el estado se
        pinta antes de la respuesta, el boton queda bloqueado mientras vuela y un fallo lo revierte
        y muestra el aviso de la vista. El confirm se pregunta solo al quitar. */
@@ -412,6 +468,14 @@ createApp({
         console.error('Error fetching public plans:', error);
       }
 
+      // [APL] Planes propios para el picker del panel de detalle. Sin sesión la API
+      // devuelve [] y el picker no se pinta; un fallo lo deja igual.
+      try {
+        await loadPlanOptions();
+      } catch (error) {
+        console.error('Error fetching plan options:', error);
+      }
+
       // The vendored Tailwind compiler runs deferred, so this can execute before any
       // stylesheet exists: L.map() inside that 1280x0 box bakes an offset center which
       // invalidateSize({ pan: false }) then preserves, leaving the opening view shifted
@@ -511,7 +575,13 @@ createApp({
       removeDraft,
       moveDraft,
       nextPlanStep,
-      onPlanSubmit
+      onPlanSubmit,
+      availablePlans,
+      planPickId,
+      planBusy,
+      planMessage,
+      planError,
+      addSelectedToPlan
     };
   }
 }).mount('#explore-app');

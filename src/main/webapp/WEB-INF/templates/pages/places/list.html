@@ -205,6 +205,25 @@
             <p v-if="selectedPlace.description" class="whitespace-pre-line text-sm leading-6 text-gray-700">
               {{ selectedPlace.description }}
             </p>
+            <!-- [APL] Picker de plan inline en el panel de detalle: select + boton, sin
+                 modal (AC3). El boton vive fuera del <article> de la tarjeta para no
+                 chocar con el selector de e2e de addDraftPlace
+                 (aside > article > button[aria-label^='Add ']). -->
+            <div v-if="availablePlans.length" class="flex flex-col gap-2 border-t border-gray-100 pt-4">
+              <label for="plan-picker" class="text-sm font-medium text-gray-700">Plan</label>
+              <select id="plan-picker" v-model="planPickId" :disabled="planBusy"
+                class="h-10 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 disabled:opacity-60">
+                <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
+              </select>
+              <button type="button" @click="addSelectedToPlan" :disabled="planBusy || !planPickId"
+                aria-label="Agregar al plan"
+                class="h-10 rounded-md bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                <span v-if="!planBusy">Agregar al plan</span>
+                <span v-else>Agregando…</span>
+              </button>
+              <p v-if="planMessage" role="status"
+                class="text-sm" :class="planError ? 'text-red-600' : 'text-green-700'">{{ planMessage }}</p>
+            </div>
           </div>
         </aside>
 
