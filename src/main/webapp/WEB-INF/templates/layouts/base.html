@@ -90,7 +90,7 @@
       ? ${pageDescription}
       : 'Discover and plan your perfect day in Buenos Aires')">
   <meta property="og:url" th:if="${ogUrl != null}" th:content="|${@siteOrigin.base()}${ogUrl}|">
-  <meta property="og:image" th:content="|${@siteOrigin.base()}@{/images/og-image.png}|">
+  <meta property="og:image" th:content="|${@siteOrigin.base()}${ogImage != null ? ogImage : '/images/og-image.png'}|">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -101,7 +101,7 @@
     : (${pageDescription != null}
       ? ${pageDescription}
       : 'Discover and plan your perfect day in Buenos Aires')">
-  <meta name="twitter:image" th:content="|${@siteOrigin.base()}@{/images/og-image.png}|">
+  <meta name="twitter:image" th:content="|${@siteOrigin.base()}${ogImage != null ? ogImage : '/images/og-image.png'}|">
 
   <!-- Barra del navegador en mobile, del color del navbar. El manifest da nombre e ícono
        al "agregar a pantalla de inicio"; apple-touch-icon es aparte porque iOS no acepta

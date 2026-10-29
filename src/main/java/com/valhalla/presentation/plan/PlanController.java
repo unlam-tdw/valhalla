@@ -196,10 +196,18 @@ public class PlanController {
     model.put("pageTitle", plan.getName());
     model.put("ogTitle", plan.getName());
     model.put("ogUrl", "/plans/" + plan.getId() + PUBLIC_SUFFIX);
-    if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
-      model.put("pageDescription", plan.getDescription());
-      model.put("ogDescription", plan.getDescription());
+    String creator = displayName(plan.getAdministrator());
+    String desc = plan.getDescription();
+    if (desc != null && !desc.isBlank()) {
+      model.put("pageDescription", desc);
+      model.put("ogDescription", desc);
+    } else if (creator != null && !creator.isBlank()) {
+      String fallback = "Plan de " + creator;
+      model.put("pageDescription", fallback);
+      model.put("ogDescription", fallback);
     }
+    String cover = "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), 6) + 1) + ".png";
+    model.put("ogImage", cover);
   }
 
   private ModelAndView showJoinLanding(Plan plan, String email) {

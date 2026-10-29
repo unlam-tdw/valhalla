@@ -313,6 +313,11 @@ public class ProfileController {
     model.put("ogTitle", profileName);
     model.put("ogDescription", description);
     model.put("ogUrl", "/profile/" + owner.getId());
+    if (owner.getAvatarUrl() != null && !owner.getAvatarUrl().isBlank()) {
+      model.put("ogImage", owner.getAvatarUrl());
+    } else {
+      model.put("ogImage", "/images/og-image.png");
+    }
     return model;
   }
 
