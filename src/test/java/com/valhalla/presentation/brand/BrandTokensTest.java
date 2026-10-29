@@ -473,11 +473,17 @@ public class BrandTokensTest {
       { "og:site_name", "content=\"PlanIt\"" },
       { "og:title", null },
       { "og:description", null },
-      { "og:image", "th:content=\"|${@siteOrigin.base()}@{/images/og-image.png}|\"" },
+      {
+        "og:image",
+        "th:content=\"|${@siteOrigin.base()}${ogImage != null ? ogImage : '/images/og-image.png'}|\"",
+      },
       { "og:image:width", "content=\"1200\"" },
-      { "og:image:height", "content=\"630\"" },
+      { "og:image:height", "th:content=\"${ogImageHeight != null} ? ${ogImageHeight} : 630\"" },
       { "twitter:card", "content=\"summary_large_image\"" },
-      { "twitter:image", "th:content=\"|${@siteOrigin.base()}@{/images/og-image.png}|\"" },
+      {
+        "twitter:image",
+        "th:content=\"|${@siteOrigin.base()}${ogImage != null ? ogImage : '/images/og-image.png'}|\"",
+      },
     }) {
       String element = metaElement(base, tag[0]);
       if (tag[1] != null) {

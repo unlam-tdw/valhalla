@@ -199,6 +199,46 @@ public class ProfileControllerIntegrationTest {
     assertThat(html, not(containsString("Plan privado de Ada")));
   }
 
+  // --- [META/SHARE] preview del perfil y boton en sus cards ---
+
+  @Test
+  public void publicProfileDeclaresItsSharePreviewAndShipsTheShareButton() throws Exception {
+    Plan plan = new Plan();
+    plan.setName("Plan publico de Ada");
+    plan.setIsPublic(true);
+    plan.setAdministrator(userRepository.findById(selfId).orElseThrow());
+    Plan created = planService.createPlan(plan, SELF_EMAIL);
+
+    String html =
+      this.mockMvc.perform(get("/profile/" + selfId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // El perfil no tiene portada propia: el preview cae en la imagen de marca, siempre absoluta.
+    assertThat(html, containsString("property=\"og:title\" content=\"Ada Lovelace\""));
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:description\" content=\"Perfil de Ada Lovelace en PlanIt. " +
+        "Descubrí sus planes públicos.\""
+      )
+    );
+    assertThat(
+      html,
+      containsString("property=\"og:url\" content=\"http://localhost:80/profile/" + selfId + "\"")
+    );
+    assertThat(
+      html,
+      containsString("property=\"og:image\" content=\"http://localhost:80/images/og-image.png\"")
+    );
+    assertThat(html, containsString("name=\"twitter:card\" content=\"summary_large_image\""));
+    // La card del plan publico comparte el link; la tarjeta la arma la plataforma con la OG.
+    assertThat(html, containsString("data-share-url=\"/plans/" + created.getId() + "/public\""));
+    assertThat(html, containsString("/js/share-plan.js"));
+  }
+
   // --- [MARK] toggle de Guardados en las cards del perfil publico ---
 
   @Test

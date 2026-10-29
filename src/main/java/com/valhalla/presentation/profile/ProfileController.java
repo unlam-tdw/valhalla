@@ -306,9 +306,13 @@ public class ProfileController {
         )
         .toList()
     );
-    model.put("pageTitle", displayName(owner));
-    model.put("ogTitle", displayName(owner));
-    model.put("ogType", "profile");
+    String profileName = displayName(owner);
+    String description = "Perfil de " + profileName + " en PlanIt. Descubrí sus planes públicos.";
+    model.put("pageTitle", profileName);
+    model.put("pageDescription", description);
+    model.put("ogTitle", profileName);
+    model.put("ogDescription", description);
+    model.put("ogUrl", "/profile/" + owner.getId());
     return model;
   }
 

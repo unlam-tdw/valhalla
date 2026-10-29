@@ -116,6 +116,14 @@ public final class PlanFeedCards {
   }
 
   /**
+   * Misma portada en PNG para las vistas previas de compartir: WhatsApp y Twitter no renderizan
+   * SVG, asi que la miniatura del link (y la imagen que arma el share nativo) usan el raster.
+   */
+  public static String coverPngFor(UUID planId) {
+    return coverFor(planId).replace(".svg", ".png");
+  }
+
+  /**
    * [PPV] Nombre visible del administrador en el feed. Sin nombre registrado queda vacio y la vista
    * oculta la linea: AC-09 prohibe exponer emails en el listado, a diferencia del helper de la
    * vista publica del plan, que usa el email como ultimo recurso.

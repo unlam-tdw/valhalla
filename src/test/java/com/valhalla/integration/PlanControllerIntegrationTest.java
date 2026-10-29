@@ -29,6 +29,7 @@ import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
+import com.valhalla.presentation.plan.PlanFeedCards;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -1389,6 +1390,158 @@ public class PlanControllerIntegrationTest {
     // ancla), no el texto suelto: el popup del mapa arma su link en el script, asi que
     // "maps/dir/" aparece como literal de JS aunque no haya parada con direccion.
     assertThat(html, not(containsString("href=\"https://www.google.com/maps/dir")));
+  }
+
+  @Test
+  public void publicPlanDeclaresSharePreviewWithCreatorDescriptionAndCover() throws Exception {
+    // given: un plan publico con descripcion, compartido por link
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    plan.setDescription("Feria de Serrano y Don Julio");
+    this.planRepository.save(plan);
+    String cover = PlanFeedCards.coverFor(planId).replace(".svg", ".png");
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: el preview lleva creador, descripcion, URL absoluta y la portada PNG del plan (los
+    // scrapers no renderizan la portada SVG del feed).
+    assertThat(
+      html,
+      containsString("property=\"og:title\" content=\"Test User · " + PUBLIC_PLAN_NAME + "\"")
+    );
+    assertThat(
+      html,
+      containsString("property=\"og:description\" content=\"Feria de Serrano y Don Julio\"")
+    );
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:url\" content=\"http://localhost:80/plans/" + planId + "/public\""
+      )
+    );
+    assertThat(
+      html,
+      containsString("property=\"og:image\" content=\"http://localhost:80" + cover + "\"")
+    );
+    assertThat(html, containsString("property=\"og:image:height\" content=\"640\""));
+    assertThat(
+      html,
+      containsString("name=\"twitter:image\" content=\"http://localhost:80" + cover + "\"")
+    );
+    // El boton comparte solo el link: las etiquetas OG de arriba son las que arman la tarjeta.
+    assertThat(html, containsString("data-share-url=\"/plans/" + planId + "/public\""));
+    assertThat(html, containsString("/js/share-plan.js"));
+    assertThat(html, not(containsString("data-share-cover")));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void detailSharesPublicPlansAndPrivatePlansForTheOwner() throws Exception {
+    // given: un plan privado y uno publico del mismo dueno
+    UUID privateId = givenPlanFor(this.ownerId, PLAN_NAME);
+    UUID publicId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    // when
+    String privateHtml =
+      this.mockMvc.perform(get("/plans/" + privateId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    String publicHtml =
+      this.mockMvc.perform(get("/plans/" + publicId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: el dueno comparte ambos; el link privado cae en la landing de solicitud (21-PET).
+    assertThat(publicHtml, containsString("data-share-url=\"/plans/" + publicId + "/public\""));
+    assertThat(publicHtml, containsString("/js/share-plan.js"));
+    assertThat(privateHtml, containsString("data-share-url=\"/plans/" + privateId + "/public\""));
+    assertThat(privateHtml, containsString("/js/share-plan.js"));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void privatePlanShareIsLimitedToTheOwnerAndItsEditors() throws Exception {
+    // given: un plan privado ajeno del que el usuario es participante comun
+    UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    User participant = this.userRepository.findById(this.otherId).orElseThrow();
+    plan.getParticipants().add(participant);
+    this.planRepository.save(plan);
+
+    // when / then: participar no alcanza para compartir un plan privado
+    String participantHtml =
+      this.mockMvc.perform(get("/plans/" + planId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(participantHtml, not(containsString("data-share-plan")));
+    assertThat(participantHtml, not(containsString("/js/share-plan.js")));
+
+    // when: el mismo participante pasa a editor
+    plan.getEditors().add(participant);
+    this.planRepository.save(plan);
+
+    // then: el editor si comparte el plan privado
+    String editorHtml =
+      this.mockMvc.perform(get("/plans/" + planId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(editorHtml, containsString("data-share-url=\"/plans/" + planId + "/public\""));
+    assertThat(editorHtml, containsString("/js/share-plan.js"));
+  }
+
+  @Test
+  public void forYouCardsShipTheLinkShareButton() throws Exception {
+    // given: un plan publico del dueno, visible para cualquier visitante
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/for-you"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: la card del feed comparte el link publico; la tarjeta la arma la plataforma con la OG.
+    assertThat(html, containsString("data-share-plan"));
+    assertThat(html, containsString("data-share-url=\"/plans/" + planId + "/public\""));
+    assertThat(html, containsString("data-share-title=\"" + PUBLIC_PLAN_NAME + "\""));
+    assertThat(html, containsString("/js/share-plan.js"));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
+  public void plansListShipsTheShareButtonOnEveryOwnedPlanIncludingPrivateOnes() throws Exception {
+    // given: Mis planes solo lista planes propios, publicos o privados
+    UUID publicId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    UUID privateId = givenPlanFor(this.ownerId, PLAN_NAME);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: el dueno comparte tambien sus planes privados; ambos links caen en la vista publica.
+    assertThat(html, containsString("data-share-url=\"/plans/" + publicId + "/public\""));
+    assertThat(html, containsString("data-share-url=\"/plans/" + privateId + "/public\""));
+    assertThat(html, containsString("/js/share-plan.js"));
   }
 
   @Test

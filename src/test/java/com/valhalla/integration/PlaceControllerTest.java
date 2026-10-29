@@ -113,4 +113,58 @@ public class PlaceControllerTest {
       // de que Tailwind compilara.
       .andExpect(content().string(not(containsString("textContent.length > 2000"))));
   }
+
+  // [SHARE] El sidebar de /explore lo pinta Vue despues del load: el boton viaja con el link y el
+  // titulo atados a la card, y share-plan.js comparte el link (el listener delegado cubre el alta).
+  @Test
+  @WithMockUser
+  public void shouldShipTheShareButtonOnTheExplorePlanCards() throws Exception {
+    mockMvc
+      .perform(get("/explore"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(containsString("data-share-plan")))
+      .andExpect(
+        content().string(containsString(":data-share-url=\"'/plans/' + plan.id + '/public'\""))
+      )
+      .andExpect(content().string(containsString(":data-share-title=\"plan.name\"")))
+      .andExpect(content().string(not(containsString(":data-share-cover"))))
+      .andExpect(content().string(containsString("/js/share-plan.js")));
+  }
+
+  // [META] El catalogo tambien se comparte por link: mismo par OG/Twitter del layout con URL
+  // absoluta y la portada de marca.
+  @Test
+  @WithMockUser
+  public void shouldDeclareTheSharePreviewForTheExploreCatalogue() throws Exception {
+    mockMvc
+      .perform(get("/explore"))
+      .andExpect(status().isOk())
+      .andExpect(
+        content()
+          .string(
+            containsString("property=\"og:title\" content=\"Explorar lugares en Buenos Aires\"")
+          )
+      )
+      .andExpect(
+        content()
+          .string(
+            containsString(
+              "property=\"og:description\" content=\"Descubrí lugares y armá tu plan perfecto " +
+              "con PlanIt.\""
+            )
+          )
+      )
+      .andExpect(
+        content()
+          .string(containsString("property=\"og:url\" content=\"http://localhost:80/explore\""))
+      )
+      .andExpect(
+        content()
+          .string(
+            containsString(
+              "property=\"og:image\" content=\"http://localhost:80/images/og-image.png\""
+            )
+          )
+      );
+  }
 }
