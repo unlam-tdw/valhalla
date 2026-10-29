@@ -140,6 +140,17 @@ public class PlansPage extends WebPage {
   }
 
   /** Rows of the listing table. Zero is the only value that proves a delete really deleted. */
+  /**
+   * [STD] El editor de metadatos vive en un diálogo, no en el layout: se abre con el botón
+   * "Editar" de la ficha. Idempotente — si ya está abierto no vuelve a clicar.
+   */
+  public void openEditDialog() {
+    Locator dialog = page.locator("dialog[aria-labelledby='plan-edit-title']");
+    if (!dialog.isVisible()) {
+      page.locator("#plan-summary").locator("button:has-text('Editar')").click();
+    }
+  }
+
   public int getPlanCount() {
     return this.page.locator("tbody tr").count();
   }

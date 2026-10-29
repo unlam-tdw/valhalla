@@ -45,6 +45,8 @@ public class PlanParticipantsE2E extends E2eBase {
       PlansPage plans = new PlansPage(page);
       plans.createPlanViaExplore(PLAN_NAME, "Prueba de roles y privacidad", "2026-12-31");
       String detailUrl = page.url();
+      // [STD] Invitar es un accordion dentro de Participantes: se despliega antes de llenar.
+      page.locator("button[aria-controls='invite-panel']").click();
       page.locator("#invitation-email").fill(EDITOR_EMAIL);
       page.locator("#invitation-role").selectOption("editor");
       page
