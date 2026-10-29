@@ -172,20 +172,70 @@ El cierre de la card es el gate completo en verde con los counts escritos en el 
   (es de permisos), el flujo de clonado, la lógica de solicitudes/invitaciones y la configuración
   del mapa (Leaflet queda intacto).
 
+## Notas de implementación (fase verde, 2026-10-28)
+
+- **[STD-001..006]** Todo el cambio vive en `templates/pages/plans/detail.html` + `plans-detail.js`:
+  - **Ficha:** 4 × `.plan-chip` (label chico sobre valor, `background: var(--bs-secondary-bg)` para
+    que el modo oscuro no pida reglas extra) y `#plan-description` con
+    `-webkit-line-clamp: 3` (`.plan-description-clamp`, el valor que clava el E2E vía
+    `getComputedStyle`). El label va en `<small>` — no es capricho: `DetailPlanCloneE2E` lee el
+    código con `small:has-text('CÓDIGO') + span` y con `<span>` en el label el selector se rompía.
+    El tile ADMINISTRADOR se fue del todo; el badge "Dueño" de Participantes es la fuente.
+  - **Edición:** `#plan-edit-dialog` conserva el mismo form y el mismo POST; `ref="editDialog"` +
+    `openEdit()` replican la mecánica de `bannedParticipantsDialog`. El trigger es
+    `#plan-summary button:has-text('Editar')` (texto exacto "Editar") y el literal completo
+    vive solo en el `<h5 id="plan-edit-title">`. El diálogo sigue **inmediatamente después de
+    Participantes** en el DOM porque los `substring()` de integración cortan de
+    `participants-heading` hasta ese literal. **Trampa:** los comentarios HTML se sirven crudos —
+    escribir "Editar plan" en un comentario de este template rompe los `not(containsString(...))`
+    de integración y desordena los `substring()` (el comentario del trigger no lo contiene a
+    propósito).
+  - **Solicitudes:** badge ancla en la fila de cabecera y card con
+    `th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}"`: con la lista vacía no hay
+    card, no hay mensaje de vacío y no hay ancla (el heading desaparece).
+  - **Invitar / agregar lugar:** `inviteOpen` y `addPlaceOpen` (refs Vue, arrancan en `false`) con
+    `aria-expanded` + `aria-controls`; ambos paneles llevan además `th:if` de permiso, así la
+    vista anónima no sirve markup de edición. El picker pasó a la cabecera de "Tu recorrido" y
+    quedó colapsado: la card propia ya no existe.
+  - **Orden mobile sin mover el DOM:** `.itinerary-col` y `.plan-cols` hacen `display: contents`
+    en `max-width: 767.98px` y cada hijo promovido gana `order` (ficha 1 → recorrido 2 → mapa 3 →
+    solicitudes 4 → participantes 5). Detalle que no es cosmético: los promovidos dejan de
+    calificar como `.row > *`, así que el CSS les devuelve a mano el `width: 100%`, el gutter y el
+    `margin-top` que Bootstrap les daba. En desktop no se toca nada: los wrappers vuelven a ser
+    columnas y la composición (mapa+recorrido a la izquierda, ficha+participantes a la derecha) es
+    la de siempre.
+- **Presupuestos (V-07 / AC-07) medidos sobre un plan con datos** (capturas del 2026-10-28):
+  desktop 1440×900 → **1.174 px** (techo 1.500; el baseline era 2.121-2.145) y 390 → **1.873 px**
+  (techo 2.800; baseline 3.589). Orden mobile medido: ficha y=332 → recorrido y=628 → mapa
+  y=1116 → participantes y=1689. Los dos temas verificados (claro/oscuro, desktop/móvil, diálogo
+  abierto): los chips heredan `--bs-*` y no dejaron manchas blancas.
+- **Tests existentes migrados en la fase verde:** `PlanPlaceDetailE2E.addsPersistsAndDisplaysVisitDetails`
+  y los dos `makePlanPublic` abren el diálogo con `PlansPage.openEditDialog()` antes de tocar los
+  inputs; `PlanParticipantsE2E` despliega el accordion antes de `#invitation-email`.
+- **Nota de entorno (no es de la card):** `PlacesViewE2E.shouldShowDetailsFromMarkerWithoutLeavingPlacesPage`
+  fallaba en local por el orden **físico** de la tabla `places` en `valhalla_e2e`: `findAll()`
+  sin `ORDER BY` devuelve el orden de heap, y "Estadio Monumental" (noroeste, fuera de la vista
+  fija del explore a zoom 13) quedó en la ranura (0,14) → era el `.first()` del test. El CI nunca
+  lo vio porque su volumen de Postgres nace vacío y el seeder inserta en orden de catálogo.
+  `TRUNCATE places CASCADE` + el arranque siguiente del Jetty resembraron `(0,1) El Sanjuanino…`
+  y el test pasó. No había código roto.
+
 ## Plan de entrega
 
-Items de la card (se van tildando con su commit, `(commit <hash>)` al landing):
+Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) — **cerrados
+2026-10-28**:
 
 - [STD-001] Ficha compacta: chips (fecha · hora · visibilidad · código), clamp de descripción y
-  tile ADMINISTRADOR fuera (AC-01).
-- [STD-002] "Editar plan" → `<dialog>` con a11y + botón "Editar" en la ficha (AC-02).
-- [STD-003] Solicitudes: badge en la cabecera y card solo con ≥ 1 (AC-03).
-- [STD-004] "Invitar a alguien" → accordion dentro de Participantes (AC-04).
-- [STD-005] "Agregar lugar al plan" → botón en la cabecera de "Tu recorrido" (AC-05).
-- [STD-006] Orden mobile con `order`, sin mover el DOM (AC-06) y techos de scroll (AC-07).
-- [STD-007] Spec y docs: nota de actualización en 17-DIS (AC-09) + hand-off de la card.
-- [T-STD-001] E2E: los tres métodos de "### E2E" en verde.
-- [T-STD-002] Gate: `gate.ps1 all` en verde con los counts al cierre.
+  tile ADMINISTRADOR fuera (AC-01). ✔ (commit e28b3e8)
+- [STD-002] "Editar plan" → `<dialog>` con a11y + botón "Editar" en la ficha (AC-02). ✔ (commit e28b3e8)
+- [STD-003] Solicitudes: badge en la cabecera y card solo con ≥ 1 (AC-03). ✔ (commit e28b3e8)
+- [STD-004] "Invitar a alguien" → accordion dentro de Participantes (AC-04). ✔ (commit e28b3e8)
+- [STD-005] "Agregar lugar al plan" → botón en la cabecera de "Tu recorrido" (AC-05). ✔ (commit e28b3e8)
+- [STD-006] Orden mobile con `order`, sin mover el DOM (AC-06) y techos de scroll (AC-07). ✔ (commit e28b3e8)
+- [STD-007] Spec y docs: nota de actualización en 17-DIS (AC-09) + hand-off de la card. ✔ (este commit)
+- [T-STD-001] E2E: los tres métodos de "### E2E" en verde. ✔ (commit e28b3e8 — PlanPlaceDetailE2E 7/7)
+- [T-STD-002] Gate: `gate.ps1 all` en verde con los counts al cierre. ✔ (exit 0: surefire
+  998/0/0 · E2E 84/0/0 en 26 clases · checkstyle 0 · prettier/PMD/CPD · gate js -Strict 0 FAIL)
 
 ## Archivos a crear/modificar
 
