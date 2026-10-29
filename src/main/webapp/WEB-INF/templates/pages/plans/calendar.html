@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layouts/base :: head('Mi calendario')}"></head>
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+  <main class="flex-1 p-4">
+    <div class="mx-auto max-w-7xl">
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold text-gray-900">Mi calendario</h1>
+          <p class="mt-1 text-sm text-gray-600">Tus planes y aquellos en los que participás, en un solo lugar.</p>
+        </div>
+        <a th:href="@{/plans}" class="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mis planes</a>
+      </div>
+      <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm" aria-label="Calendario mensual">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-4">
+          <h2 class="text-xl font-semibold capitalize text-gray-900" th:text="${monthLabel}">Mes</h2>
+          <nav class="flex items-center gap-2" aria-label="Cambiar mes">
+            <a th:href="@{/plans/calendar(month=${previousMonth})}" class="rounded-md border border-gray-300 px-3 py-2 text-gray-700 hover:bg-gray-100" aria-label="Mes anterior">←</a>
+            <a th:href="@{/plans/calendar}" class="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">Hoy</a>
+            <a th:href="@{/plans/calendar(month=${nextMonth})}" class="rounded-md border border-gray-300 px-3 py-2 text-gray-700 hover:bg-gray-100" aria-label="Mes siguiente">→</a>
+          </nav>
+        </div>
+        <div class="overflow-x-auto">
+          <div class="min-w-[700px]">
+            <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50 text-center text-sm font-medium text-gray-600">
+              <div th:each="label : ${ {'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'} }" class="py-3" th:text="${label}">Lun</div>
+            </div>
+            <div class="grid grid-cols-7">
+              <div th:each="day : ${days}" class="min-h-32 min-w-0 border-b border-r border-gray-200 p-2" th:classappend="${day.currentMonth} ? 'bg-white' : 'bg-gray-50'">
+                <time th:datetime="${day.date}" th:text="${day.date.dayOfMonth}" class="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm" th:classappend="${day.today} ? 'bg-primary text-white' : 'text-gray-600'">1</time>
+                <a th:each="plan : ${day.plans}" th:href="@{/plans/{id}(id=${plan.id})}" class="mb-1 block break-words rounded-md border border-gray-200 px-2 py-1 text-sm text-primary hover:bg-gray-100">
+                  <span th:if="${plan.eventTime != null}" th:text="${#temporals.format(plan.eventTime, 'HH:mm')}" class="block text-xs text-gray-600">10:00</span>
+                  <span th:text="${plan.name}">Plan</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <p th:unless="${hasPlans}" class="mt-4 text-sm text-gray-600">Todavía no tenés planes. Creá uno desde Mis planes o unite con un código.</p>
+      <section th:unless="${#lists.isEmpty(undatedPlans)}" class="mt-6 rounded-lg border border-gray-200 bg-white p-4">
+        <h2 class="mb-3 text-lg font-semibold text-gray-900">Sin fecha</h2>
+        <a th:each="plan : ${undatedPlans}" th:href="@{/plans/{id}(id=${plan.id})}" th:text="${plan.name}" class="mb-2 block text-primary hover:underline">Plan</a>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
