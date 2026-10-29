@@ -4,8 +4,9 @@
 > con menos scroll`, lista `BACKLOG` (spec 1:1 con la card)
 > **Estimacion:** 3 pts Fibonacci
 > **Note:** This is an SDD proposal. Implementation may change based on team decisions.
-> **Estado (2026-10-28):** spec inicial para revisión, sin implementar. Decisiones de diseño
-> cerradas con la usuaria (ver Notas). Card pendiente de pegar en Trello.
+> **Estado (2026-10-28):** implementada y verde — TDD (rojo `64b3995`, verde `e28b3e8`) y
+> `gate.ps1 all` exit 0 (surefire 998/0/0 · E2E 84/0/0). Decisiones de diseño cerradas con la
+> usuaria (ver Notas). Card pendiente de pegar en Trello (hand-off preparado).
 
 ## Objetivo
 
