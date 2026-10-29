@@ -141,14 +141,18 @@ presentarse como tal.
 - **Paso 1**: nombre, descripción, **fecha (obligatoria, `min=hoy`)** y **hora de inicio**
   (default 10:00). No pide fin de día: la ventana cierra siempre a las 23:00.
 - **Paso 2**: cada parada muestra un chip con el rango calculado y la duración; los
-  tramos entre paradas muestran el traslado y permiten cambiar el modo. La lista se
+  tramos entre paradas se rotulan en una línea propia (modo · minutos calculados, con
+  "(fijo)" cuando hay override) y debajo, en su propia línea, el selector de modo junto
+  al input de minutos: su placeholder muestra el default calculado y, mientras no se
+  cargue un valor, un texto "≈ N min calculado" lo deja a la vista. La lista se
   agrupa por día derivado. El pie muestra el total.
 
 ```
 Día 1 · sáb 24/10
 ┌──────────────────────────────────────────────────────┐
 │ 1  Café Tortoni     [Café]    10:00 – 10:45   ↑↓ ×   │
-│      🚶 12 min  ·  cambiar modo ▾                     │
+│      A pie · 12 min                                   │
+│      modo ▾  [12 min]  ≈ 12 min calculado             │
 │ 2  MALBA            [Museo]   10:57 – 12:27   ↑↓ ×   │
 └──────────────────────────────────────────────────────┘
 Día 2 · dom 25/10

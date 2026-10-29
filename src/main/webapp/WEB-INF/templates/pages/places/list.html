@@ -454,20 +454,28 @@
                               aria-label="Nota"
                               class="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm" />
                           </div>
-                          <div v-if="stop.leg" class="mt-1 flex items-center gap-2 pl-8 text-xs text-gray-500">
-                            <span class="min-w-0 flex-1 truncate">{{ stop.leg.label }}</span>
-                            <select v-model="stop.item.transportModeToNext"
-                              :name="'places[' + stop.index + '].transportModeToNext'"
-                              aria-label="Traslado hacia la parada siguiente"
-                              class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs">
-                              <option value="">Según el plan</option>
-                              <option v-for="(label, mode) in transportLabels" :key="mode" :value="mode">{{ label }}</option>
-                            </select>
-                            <!-- [SCH] Minutos del tramo a mano: vacío = calculado por distancia y modo. -->
-                            <input type="number" min="1" v-model="stop.item.travelMinutesToNext"
-                              :name="'places[' + stop.index + '].travelMinutesToNext'"
-                              placeholder="auto" aria-label="Minutos de traslado a la parada siguiente"
-                              class="w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs" />
+                          <div v-if="stop.leg" class="mt-1 flex flex-col gap-1 pl-8 text-xs text-gray-500">
+                            <!-- [SCH] El rotulo del tramo va en su linea propia: con flex-1 +
+                                 truncate se cortaba al lado del selector y los minutos. -->
+                            <p>{{ stop.leg.label }}</p>
+                            <div class="flex items-center gap-2">
+                              <select v-model="stop.item.transportModeToNext"
+                                :name="'places[' + stop.index + '].transportModeToNext'"
+                                aria-label="Traslado hacia la parada siguiente"
+                                class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs">
+                                <option value="">Según el plan</option>
+                                <option v-for="(label, mode) in transportLabels" :key="mode" :value="mode">{{ label }}</option>
+                              </select>
+                              <!-- [SCH] Minutos del tramo a mano: vacío = calculado por
+                                   distancia y modo. El placeholder pone a la vista ese
+                                   default calculado en lugar del "auto". -->
+                              <input type="number" min="1" v-model="stop.item.travelMinutesToNext"
+                                :name="'places[' + stop.index + '].travelMinutesToNext'"
+                                :placeholder="stop.leg.minutes + ' min'"
+                                aria-label="Minutos de traslado a la parada siguiente"
+                                class="w-24 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs" />
+                              <span v-if="!stop.item.travelMinutesToNext">≈ {{ stop.leg.minutes }} min calculado</span>
+                            </div>
                           </div>
                         </li>
                       </ol>

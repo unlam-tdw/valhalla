@@ -30,7 +30,7 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 | AC-09 | El mapa dibuja una linea de ruta entre los lugares en orden |
 | AC-10 | El mapa hace fitBounds para mostrar todos los markers |
 | AC-11 | Los forms usan CSRF token para proteger POST/PUT/DELETE |
-| AC-12 | El form de creación de plan pide fecha (Día 1), hora de inicio y modo de traslado (el fin de día es el default fijo 23:00, sin input); no pide hora por parada, el paso de lugares muestra el rango derivado de cada parada y permite fijar los minutos de traslado por tramo |
+| AC-12 | El form de creación de plan pide fecha (Día 1), hora de inicio y modo de traslado (el fin de día es el default fijo 23:00, sin input); no pide hora por parada, el paso de lugares muestra el rango derivado de cada parada y permite fijar los minutos de traslado por tramo; la fila del tramo es legible: el rotulo va en línea propia y el input de minutos muestra el default calculado como placeholder + hint "≈ N min calculado" mientras esté vacío |
 
 ## Escenarios de Test
 
@@ -77,7 +77,11 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
   inicio y modo de traslado (`WALK`/`BIKE`/`BUS`/`CAR`) —el fin de día es el default fijo 23:00,
   sin input—; el paso 2 muestra por parada
   el rango derivado y el tramo al siguiente con su selector de modo (opción "Según el plan") y un
-  input de minutos de traslado (vacío = calculado, mínimo 1). El
+  input de minutos de traslado (vacío = calculado, mínimo 1). La fila del tramo apila el rotulo
+  en línea propia (sin truncate) y el default calculado queda a la vista como placeholder del
+  input y como hint "≈ N min calculado". El diálogo "Ver más" del detalle no lo muestra porque
+  `plans-detail.js` no tiene los minutos del tramo (no están en el itinerario del servidor): ahí
+  el input sigue con placeholder "auto". El
   detalle de la programación vive en la spec 24-SCH (PR #42), no acá.
 - **El itinerario agrupa por día y edita por diálogo**: los chips son de solo lectura (rango,
   duración, fecha solo si difiere del Día 1 y badge "Fijado" cuando el usuario fijó el horario).

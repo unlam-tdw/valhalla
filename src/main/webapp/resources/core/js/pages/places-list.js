@@ -358,7 +358,7 @@ createApp({
           order: index + 1,
           timeRange: formatClock(slot.startMinutes) + ' – ' + formatClock(slot.endMinutes),
           duration: formatDuration(slot.minutes),
-          leg: isLastOfDay ? null : { label: legLabel(item, slot.legMinutes) }
+          leg: isLastOfDay ? null : { label: legLabel(item, slot.legMinutes), minutes: slot.legMinutes }
         });
       });
       return groups;
