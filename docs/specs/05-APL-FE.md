@@ -31,6 +31,7 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 | AC-10 | El mapa hace fitBounds para mostrar todos los markers |
 | AC-11 | Los forms usan CSRF token para proteger POST/PUT/DELETE |
 | AC-12 | El form de creación de plan pide fecha (Día 1), hora de inicio y modo de traslado (el fin de día es el default fijo 23:00, sin input); no pide hora por parada, el paso de lugares muestra el rango derivado de cada parada y permite fijar los minutos de traslado por tramo; la fila del tramo es legible: el rotulo va en línea propia y el input de minutos muestra el default calculado como placeholder + hint "≈ N min calculado" mientras esté vacío |
+| AC-13 | Mientras el wizard de `/explore` tiene paradas en el borrador, el mapa dibuja el itinerario como overlay: marcadores numerados (círculo oscuro, estilo propio) con popup de paso, nombre, llegada, permanencia y traslado, más una polyline punteada entre ellas en orden; se repinta con cada cambio del borrador y no hace fitBounds |
 
 ## Escenarios de Test
 
@@ -92,6 +93,13 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 - **El form "Editar plan" expone el modo del plan**: además de fecha y hora de inicio tiene
   `transportMode`, uno de los campos que usa el planificador para derivar el horario. El cierre
   de la ventana (`dayEndTime`) es el default fijo 23:00 y ya no tiene input.
+- **El overlay del borrador vive solo en `/explore`** (AC-13): `places-list.js` dibuja
+  marcadores numerados (círculo oscuro vía CSS propio en el style block, badge sin
+  `data-category`) y una polyline punteada con las mismas opciones que la del detalle del plan
+  (`#0d6efd`, `dashArray '6, 6'`), en `let` planos aparte de los marcadores de lugares. Un
+  `watch(schedule)` las repinta ante cualquier cambio del borrador (paradas, fecha, hora, modo,
+  minutos fijos) y no hay fitBounds. Los popups se construyen con nodos (guide-js R7). El E2E
+  de conteo tarjeta↔marcador se ata a `[data-category]`, así el overlay no lo rompe.
 - **El ABM de lugares expone la duración típica** (`defaultDurationMinutes`, campo
   "Duración típica (min)"): es el segundo eslabón de la cascada de duraciones, entre la parada
   y el default por categoría.
@@ -337,5 +345,5 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 |------|--------|
 | `templates/pages/places/list.html` | Update (ficha de lugar con picker de plan inline, sin modal) |
 | `templates/pages/plans/detail.html` | Update (add Vue.js itinerary with CSRF helpers) |
-| `resources/core/js/pages/places-list.js` | Update (wizard: ventana del día y rango derivado por parada, AC-12) |
+| `resources/core/js/pages/places-list.js` | Update (wizard: ventana del día y rango derivado por parada, AC-12; picker del panel de detalle, AC-01/02; overlay del borrador en el mapa, AC-13) |
 | `resources/core/js/pages/plans-detail.js` | Update (itinerario agrupado por día, chips y PUT completo del horario, AC-05/AC-06) |

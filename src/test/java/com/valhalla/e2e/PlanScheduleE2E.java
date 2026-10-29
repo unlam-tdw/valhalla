@@ -116,6 +116,13 @@ public class PlanScheduleE2E extends E2eBase {
     for (int index = 0; index < STOP_COUNT; index++) {
       plans.addDraftPlace(index);
     }
+
+    // [ITI] Con las tres paradas en el borrador, el mapa de /explore dibuja el overlay:
+    // un marcador numerado por parada y una polyline punteada que las une. Sin fitBounds,
+    // y sin romper el conteo de pines de lugar (los del borrador no llevan data-category).
+    assertThat(page.locator("#map .draft-marker")).hasCount(STOP_COUNT);
+    assertThat(page.locator("#map path.leaflet-interactive[stroke-dasharray]")).hasCount(1);
+
     plans.clickNextStep();
     plans.clickCreate();
     plans.waitForDetailPath();

@@ -340,7 +340,9 @@ public class PlacesViewE2E extends E2eBase {
   }
 
   private Locator markers() {
-    return page.locator("#map .leaflet-marker-icon");
+    // [ITI] El badge con data-category es un DIV HIJO del marcador (divIcon html), no el
+    // root: este helper mide pines de lugares; los del borrador no llevan data-category.
+    return page.locator("#map .leaflet-marker-icon div[data-category]");
   }
 
   private String placesUrl() {
@@ -354,7 +356,7 @@ public class PlacesViewE2E extends E2eBase {
   private void waitForMarkerCentered(int markerIndex) {
     page.waitForFunction(
       "() => { const map = document.querySelector('#map'); " +
-      "const marker = map.querySelectorAll('.leaflet-marker-icon')[" +
+      "const marker = map.querySelectorAll('.leaflet-marker-icon div[data-category]')[" +
       markerIndex +
       "]; " +
       "if (!marker) return false; " +
@@ -369,10 +371,12 @@ public class PlacesViewE2E extends E2eBase {
   }
 
   private void waitForPlaceCount(int expectedCount) {
+    // [ITI] data-category en el conteo de marcadores: los del borrador no se cuentan como
+    // lugares (AC-14), así la igualdad exacta tarjeta↔marcador sobrevive al overlay.
     page.waitForFunction(
       "() => document.querySelectorAll('#explore-app > aside article').length === " +
       expectedCount +
-      " && document.querySelectorAll('#map .leaflet-marker-icon').length === " +
+      " && document.querySelectorAll('#map .leaflet-marker-icon div[data-category]').length === " +
       expectedCount
     );
   }

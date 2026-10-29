@@ -61,6 +61,9 @@ createApp({
     let mapResizeObserver = null;
     let markers = [];
     const markersByPlaceId = new Map();
+    // [ITI] Capas del borrador sobre el mapa: handles propias, nunca las de los lugares.
+    let draftMarkers = [];
+    let draftRouteLine = null;
 
     const filteredPlaces = computed(() => {
       return places.value.filter(place => {
@@ -437,6 +440,64 @@ createApp({
       });
     };
 
+    /* [ITI] Borrador sobre el mapa (AC-13): al agregar lugares al wizard se dibujan
+       marcadores numerados y una polyline punteada en el orden del itinerario, sin
+       fitBounds (la vista la elige quien mira el mapa). Los popups se construyen con
+       nodos: el nombre viene del ABM/importador, sin sanitizar (guide-js R7). El badge
+       NO lleva data-category: el conteo E2E de lugares sigue atado solo a los pines. */
+    const draftPopupContent = (place, slot, index, legMinutes) => el('div', {}, [
+      el('strong', { text: (index + 1) + '. ' + place.name }),
+      el('br'),
+      'Llegada ' + formatClock(slot.startMinutes),
+      el('br'),
+      'Permanencia ' + formatDuration(slot.minutes),
+      legMinutes === null ? null : el('br'),
+      legMinutes === null ? null : 'Traslado ' + legMinutes + ' min'
+    ]);
+
+    const drawDraftOverlay = () => {
+      if (!map) return;
+      draftMarkers.forEach(m => map.removeLayer(m));
+      draftMarkers = [];
+      if (draftRouteLine) {
+        map.removeLayer(draftRouteLine);
+        draftRouteLine = null;
+      }
+
+      const coordinates = [];
+      schedule.value.forEach((slot, index) => {
+        const place = draftPlaces.value[index].place;
+        if (!place.latitude || !place.longitude) return;
+        coordinates.push([place.latitude, place.longitude]);
+
+        const isLast = index === schedule.value.length - 1;
+        const legMinutes = isLast ? null : slot.legMinutes;
+        const badge = el('div', {
+          class: 'draft-step',
+          dataset: { draftStep: String(index + 1) },
+          'aria-hidden': 'true'
+        }, [String(index + 1)]);
+        const marker = buildMarker(place, {
+          badge,
+          className: 'draft-marker',
+          size: 26,
+          popupAnchor: [0, -13]
+        }).addTo(map);
+        marker.bindPopup(draftPopupContent(place, slot, index, legMinutes), { autoPan: false });
+        draftMarkers.push(marker);
+      });
+
+      if (coordinates.length > 1) {
+        // Mismas opciones de la polyline punteada del detalle del plan (plans-detail.js).
+        draftRouteLine = L.polyline(coordinates, {
+          color: '#0d6efd',
+          weight: 3,
+          opacity: 0.8,
+          dashArray: '6, 6'
+        }).addTo(map);
+      }
+    };
+
     // Listen for add-to-plan events from the external JavaScript module
     document.addEventListener('add-to-plan', async (event) => {
       const place = event.detail;
@@ -522,11 +583,20 @@ createApp({
 
       // Add markers
       updateMarkers();
+      // [ITI] Dibujo inicial del overlay del borrador (vacío al arrancar: es un no-op).
+      drawDraftOverlay();
 
     });
 
     watch(filteredPlaces, () => {
       updateMarkers();
+    });
+
+    // [ITI] El overlay sigue al borrador: schedule se recalcula con cada cambio de
+    // paradas, fecha, hora de inicio, modo o minutos fijos, así que un solo watch
+    // cubre los cinco (y repinta los horarios de los popups al arrancar el día más tarde).
+    watch(schedule, () => {
+      drawDraftOverlay();
     });
 
     return {
