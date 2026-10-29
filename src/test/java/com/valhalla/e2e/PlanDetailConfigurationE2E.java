@@ -20,6 +20,9 @@ public class PlanDetailConfigurationE2E extends E2eBase {
     plans.createPlanViaExplore("Plan configurable", "Configuración inicial", "2026-12-31");
     String detailUrl = page.url();
 
+    assertThat(page.locator("#plan-app")).isVisible();
+    assertThat(page.locator("main h2")).containsText("Plan configurable");
+
     page.locator("a:has-text('Configuración del plan')").click();
     assertThat(page.locator("#configuracion")).isVisible();
     assertThat(page.locator("#config-datos")).isVisible();
