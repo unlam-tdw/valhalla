@@ -229,12 +229,8 @@
         [data-bs-theme="dark"] .stop-category,
         [data-bs-theme="dark"] .itinerary-empty,
         [data-bs-theme="dark"] .stop-remove:hover { background: var(--bs-tertiary-bg); }
-        /* [DIS] Los tiles del resumen (.bg-light) usan --bs-light, que Bootstrap NO redefine en
-           dark: queda #f8f9fa (mancha blanca) y el texto hereda --bs-body-color (#adb5bd), gris
-           sobre blanco = ilegible ("letras apagadas"). Pintamos .bg-light con --bs-tertiary-bg en
-           dark (solo lo usa el resumen) para que el tile sea superficie oscura y el texto claro
-           respire. El !important pisa a la utilidad .bg-light de Bootstrap. */
-        [data-bs-theme="dark"] .bg-light { background-color: var(--bs-tertiary-bg) !important; }
+        /* [25-STD] La regla que re-coloreaba los tiles .bg-light del resumen se retiro con los
+           tiles: la ficha ahora son chips sobre --bs-secondary-bg, que si cambia en dark. */
 
         /* ===================== [DIS] 17-DIS =====================
            Van en el bloque de despues de headContent: tiene que pisar a brand.css (su <link>
@@ -294,6 +290,68 @@
         #isPublic { background-color: var(--gray); border-color: var(--gray); }
 
         #isPublic:checked { background-color: var(--primary); border-color: var(--primary); }
+
+        /* ===================== [STD] 25-STD ===================== */
+
+        /* [STD] AC-01: chips de lectura de la ficha — label chico sobre el valor dentro de la
+             misma pildora. Todo por --bs-*: data-bs-theme re-colorea en oscuro sin reglas extra. */
+        .plan-chip {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+            padding: 6px 12px;
+            border-radius: 10px;
+            background: var(--bs-secondary-bg);
+            line-height: 1.2;
+        }
+        .plan-chip__label {
+            font-size: .65rem;
+            font-weight: 700;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: var(--bs-secondary-color);
+        }
+        .plan-chip__value {
+            font-size: .95rem;
+            font-weight: 600;
+            color: var(--bs-body-color);
+            white-space: nowrap;
+        }
+
+        /* [STD] AC-01: clamp de 3 lineas para la descripcion de la ficha. -webkit-line-clamp es
+             el valor que clava el test E2E via getComputedStyle; pre-wrap conserva los saltos. */
+        .plan-description-clamp {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            white-space: pre-wrap;
+        }
+
+        /* [STD] AC-06: orden de mobile SIN mover el DOM. .row sigue siendo flex y en <768 los
+             dos wrappers sueltan su caja (display: contents) para que cada bloque entre en la
+             corrida de orden: ficha -> Tu recorrido -> Mapa -> Solicitudes -> Participantes.
+             Los hijos promovidos dejan de calificar como .row > *, asi que heredan aca el
+             width, el gutter y el margin-top que Bootstrap les daba. En desktop no toca nada:
+             los wrappers vuelven a ser columnas y la composicion es la de siempre (mapa +
+             recorrido a la izquierda, ficha + participantes a la derecha). */
+        @media (max-width: 767.98px) {
+            .itinerary-col, .plan-cols { display: contents; }
+            .itinerary-col > *, .plan-cols > * {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                padding-left: calc(var(--bs-gutter-x) * .5);
+                padding-right: calc(var(--bs-gutter-x) * .5);
+                margin-top: calc(var(--bs-gutter-y) * 1);
+            }
+            #plan-summary { order: 1; }
+            .itinerary-panel { order: 2; }
+            #map-card { order: 3; }
+            #join-requests-section { order: 4; }
+            #participants-section { order: 5; }
+        }
     </style>
 </head>
 <body th:replace="~{layouts/base :: layout(~{::main})}">
@@ -311,6 +369,10 @@
             <h2 class="fw-bold m-0" th:text="${plan.name}">Nombre del plan</h2>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- [STD] AC-03: el ancla de solicitudes vive en la cabecera y solo se pinta con
+                 >=1 para no sumar estado vacio; el clic salta a la card del recuento. -->
+            <a th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" href="#join-requests-section"
+               class="badge rounded-pill text-bg-warning text-decoration-none flex-shrink-0">Solicitudes <span th:text="${#lists.size(joinRequests)}">1</span></a>
             <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
             <div th:if="${canBookmark}" class="flex-shrink-0">
                 <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
@@ -340,11 +402,13 @@
     </div>
 
     <div class="row g-4">
-        <section th:if="${canHandleRequests}" class="col-12" aria-labelledby="join-requests-heading">
+        <!-- [STD] AC-03: sin solicitudes no hay card ni mensaje de vacio — la seccion no se
+             pinta y el unico indicador es el ancla de la cabecera (que tambien exige >=1).
+             Con >=1 el titulo lleva el conteo junto a las acciones de aceptar/rechazar. -->
+        <section th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" id="join-requests-section" class="col-12" aria-labelledby="join-requests-heading">
             <div class="card border-0 shadow-sm p-4">
-                <h5 id="join-requests-heading" class="fw-bold">Solicitudes</h5>
-                <p th:if="${#lists.isEmpty(joinRequests)}" class="text-muted mb-0">No hay solicitudes pendientes.</p>
-                <ul th:unless="${#lists.isEmpty(joinRequests)}" class="list-group list-group-flush">
+                <h5 id="join-requests-heading" class="fw-bold">Solicitudes <span class="badge text-bg-warning" th:text="${#lists.size(joinRequests)}">1</span></h5>
+                <ul class="list-group list-group-flush">
                     <li th:each="request : ${joinRequests}" class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3">
                         <a th:href="@{/profile/{id}(id=${request.requesterId})}" th:text="${request.requesterName}">Ver perfil</a>
                         <form th:action="@{/plans/{id}/join-requests/{rid}/respond(id=${plan.id},rid=${request.id})}" method="post" class="d-flex gap-2 mb-0">
@@ -356,34 +420,40 @@
                 </ul>
             </div>
         </section>
-        <div class="col-md-7">
-            <div class="card border-0 shadow-sm p-3 mb-4">
+        <div class="col-md-7 itinerary-col">
+            <div id="map-card" class="card border-0 shadow-sm p-3 mb-4">
                 <div id="map"></div>
             </div>
 
-            <div th:if="${canEditPlan}" class="card border-0 shadow-sm p-4 mb-4">
-                <h5 class="fw-bold mb-3">Agregar lugar al plan</h5>
-                <div class="row g-2">
-                    <div class="col-md-9">
-                        <select v-model="selectedPlaceId" class="form-select" aria-label="Lugar para agregar al plan">
-                            <option :value="null" disabled>-- Seleccionar un lugar disponible --</option>
-                            <option v-for="place in availablePlaces" :key="place.id" :value="place.id">
-                                {{ place.name }} ({{ place.category }})
-                            </option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId || saving">
-                            + Agregar
-                        </button>
+            <section class="itinerary-panel" aria-labelledby="itinerary-heading">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
+                        <!-- [STD] AC-05: agregar lugar es una accion del recorrido, no una card
+                             propia: el boton va en la cabecera y el picker se despliega colapsado
+                             debajo, sin consumir layout hasta que se pide. -->
+                        <button th:if="${canEditPlan}" type="button" class="btn btn-outline-success btn-sm"
+                                aria-controls="add-place-panel" :aria-expanded="addPlaceOpen"
+                                @click="addPlaceOpen = !addPlaceOpen">Agregar lugar al plan</button>
                     </div>
                 </div>
-            </div>
-
-            <section class="itinerary-panel" aria-labelledby="itinerary-heading">
-                <div class="d-flex justify-content-between align-items-center gap-2">
-                    <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
-                    <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
+                <div th:if="${canEditPlan}" id="add-place-panel" v-cloak v-show="addPlaceOpen">
+                    <div class="row g-2 mt-3">
+                        <div class="col-md-9">
+                            <select v-model="selectedPlaceId" class="form-select" aria-label="Lugar para agregar al plan">
+                                <option :value="null" disabled>-- Seleccionar un lugar disponible --</option>
+                                <option v-for="place in availablePlaces" :key="place.id" :value="place.id">
+                                    {{ place.name }} ({{ place.category }})
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId || saving">
+                                + Agregar
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
                 <div v-if="planPlaces.length === 0" class="itinerary-empty">
@@ -458,89 +528,80 @@
             </section>
         </div>
 
-        <div class="col-md-5">
+        <div class="col-md-5 plan-cols">
+            <!-- [STD] AC-01: la ficha es la fuente de lectura de la vista base — cuatro chips
+                 (fecha, hora, visibilidad, codigo) y la descripcion con clamp de 3 lineas. Se fue
+                 el tile ADMINISTRADOR (el badge "Dueño" vive en Participantes, que es donde se
+                 administra a la gente) y con el, la celda vacia del grid. El trigger de edicion
+                 se llama solo "Editar": el titulo del editor queda reservado para el
+                 <dialog> (ahi lo leen los substring() de integracion), y los values crudos
+                 viven en su propio span para que enganchen igual que antes. -->
             <div id="plan-summary" class="card border-0 shadow-sm p-4 mb-4">
-                <!-- [DIS] AC-09: el fondo gris vive en un div interno, no en la columna.
-                      bg-light sobre la col pisaba el padding del gutter (.p-3 es !important)
-                      y los tiles grises se tocaban horizontalmente; ahora el gutter de
-                      Bootstrap (16px en ambos ejes) queda a la vista entre tiles. -->
-                <div class="row g-3">
-                    <div class="col-12">
-                        <div class="bg-light p-3 rounded h-100">
-                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">DESCRIPCI&Oacute;N</small>
-                            <p id="plan-description" class="mb-0 text-break" style="white-space: pre-wrap;"
-                               th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded h-100">
-                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">FECHA</small>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="plan-chip">
+                            <small class="plan-chip__label">FECHA</small>
                             <!-- [SCH] dd/mm/yyyy, el mismo formato visible que la vista pública y el
                                  itinerario; el input del form de edición sigue pidiendo ISO. -->
-                            <span th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'dd/MM/yyyy') : 'Sin fecha'}">01/12/2026</span>
-                        </div>
+                            <span class="plan-chip__value" th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'dd/MM/yyyy') : 'Sin fecha'}">01/12/2026</span>
+                        </span>
+                        <span class="plan-chip">
+                            <small class="plan-chip__label">HORA</small>
+                            <span class="plan-chip__value" th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
+                        </span>
+                        <span class="plan-chip">
+                            <small class="plan-chip__label">VISIBILIDAD</small>
+                            <span class="plan-chip__value" th:text="${plan.isPublic != null && plan.isPublic ? 'Público' : 'Privado'}">Privado</span>
+                        </span>
+                        <span class="plan-chip">
+                            <small class="plan-chip__label">CÓDIGO</small>
+                            <span class="plan-chip__value" th:text="${plan.shortCode}">BD0F615A</span>
+                        </span>
                     </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded h-100">
-                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">HORA</small>
-                            <span th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded h-100">
-                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">VISIBILIDAD</small>
-                            <span th:text="${plan.isPublic != null && plan.isPublic ? 'Público' : 'Privado'}">Privado</span>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded h-100">
-                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">ADMINISTRADOR</small>
-                            <!-- [PROF] AC-22/PROF-014: el email del admin deja de ser la etiqueta; aca
-                                 se ve el nombre y linkea al perfil publico (es un usuario real). -->
-                            <a th:if="${plan.administrator != null}"
-                              th:href="@{/profile/{id}(id=${plan.administrator.id})}"
-                              th:text="${#strings.trim((plan.administrator.firstName == null ? '' : plan.administrator.firstName) + ' ' + (plan.administrator.lastName == null ? '' : plan.administrator.lastName))}"
-                              class="text-decoration-none text-decoration-underline-hover">Administrador</a>
-                            <span th:if="${plan.administrator == null}">Sin administrador</span>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded h-100">
-                            <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 0.75rem;">CÓDIGO</small>
-                            <span th:text="${plan.shortCode}">BD0F615A</span>
-                        </div>
-                    </div>
+                    <!-- [STD] AC-02: abrir el editor no es navegar: el boton levanta el dialog. -->
+                    <button th:if="${canEditPlan}" type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                            aria-controls="plan-edit-dialog" @click="openEdit">Editar</button>
                 </div>
+                <p id="plan-description" class="mb-0 text-break plan-description-clamp"
+                   th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
             </div>
 
-            <section class="card border-0 shadow-sm p-4 mb-4" aria-labelledby="participants-heading">
+            <section id="participants-section" class="card border-0 shadow-sm p-4 mb-4" aria-labelledby="participants-heading">
                 <div th:if="${participantSuccess}" class="alert alert-success" role="status" th:text="${participantSuccess}"></div>
                 <div th:if="${invitationSuccess}" class="alert alert-success" role="status" th:text="${invitationSuccess}"></div>
                 <div th:if="${invitationError}" class="alert alert-danger" role="alert" th:text="${invitationError}"></div>
-                <form th:if="${canInvite}" th:action="@{/plans/{id}/participants/invite(id=${plan.id})}" method="POST" class="mb-4">
-                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                    <h5 class="fw-bold mb-3">Invitar a alguien</h5>
-                    <label for="invitation-email" class="form-label">Correo electr&oacute;nico</label>
-                    <input id="invitation-email" name="participantEmail" type="email" required class="form-control mb-2" placeholder="persona@ejemplo.com" />
-                    <p class="text-muted small">La persona debe tener una cuenta registrada. Podr&aacute; aceptar o rechazar la invitaci&oacute;n en Mis planes.</p>
-                    <div th:if="${canEditPlan}" class="mb-3">
-                        <label for="invitation-role" class="form-label">Rol</label>
-                        <select id="invitation-role" name="role" class="form-select">
-                            <option value="guest">Participante</option>
-                            <option value="editor">Editor</option>
+                <!-- [STD] AC-04: invitar pasa a un accordion de la seccion — el boton en la fila
+                     del titulo con aria-expanded y el form dentro del panel colapsado. -->
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                    <h5 id="participants-heading" class="fw-bold m-0">
+                        Participantes <span class="badge bg-secondary" th:text="${participantEmails == null ? 0 : #lists.size(participantEmails)}">0</span>
+                    </h5>
+                    <button th:if="${canInvite}" type="button" class="btn btn-outline-primary btn-sm"
+                            aria-controls="invite-panel" :aria-expanded="inviteOpen"
+                            @click="inviteOpen = !inviteOpen">Invitar a alguien</button>
+                </div>
+                <div th:if="${canInvite}" id="invite-panel" v-cloak v-show="inviteOpen" class="mb-4 border-top">
+                    <form th:action="@{/plans/{id}/participants/invite(id=${plan.id})}" method="POST" class="pt-3">
+                        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                        <label for="invitation-email" class="form-label">Correo electr&oacute;nico</label>
+                        <input id="invitation-email" name="participantEmail" type="email" required class="form-control mb-2" placeholder="persona@ejemplo.com" />
+                        <p class="text-muted small">La persona debe tener una cuenta registrada. Podr&aacute; aceptar o rechazar la invitaci&oacute;n en Mis planes.</p>
+                        <div th:if="${canEditPlan}" class="mb-3">
+                            <label for="invitation-role" class="form-label">Rol</label>
+                            <select id="invitation-role" name="role" class="form-select">
+                                <option value="guest">Participante</option>
+                                <option value="editor">Editor</option>
+                            </select>
+                        </div>
+                        <input th:unless="${canEditPlan}" type="hidden" name="role" value="guest" />
+                        <label for="invitation-channel" class="form-label">Enviar invitación</label>
+                        <select id="invitation-channel" name="channel" class="form-select mb-3">
+                            <option th:if="${canInviteInternal}" value="app">Dentro de la app</option>
+                            <option th:if="${canInviteByEmail}" value="email">Por email y en Mis planes</option>
                         </select>
-                    </div>
-                    <input th:unless="${canEditPlan}" type="hidden" name="role" value="guest" />
-                    <label for="invitation-channel" class="form-label">Enviar invitación</label>
-                    <select id="invitation-channel" name="channel" class="form-select mb-3">
-                        <option th:if="${canInviteInternal}" value="app">Dentro de la app</option>
-                        <option th:if="${canInviteByEmail}" value="email">Por email y en Mis planes</option>
-                    </select>
-                    <button type="submit" class="btn btn-primary">Invitar</button>
-                </form>
-                <h5 id="participants-heading" class="fw-bold mb-3">
-                    Participantes <span class="badge bg-secondary" th:text="${participantEmails == null ? 0 : #lists.size(participantEmails)}">0</span>
-                </h5>
+                        <button type="submit" class="btn btn-primary">Invitar</button>
+                    </form>
+                </div>
                 <p class="text-muted small mb-0" th:if="${#lists.isEmpty(participantEmails)}">Todav&iacute;a no se ha unido nadie al plan.</p>
                 <ol class="list-group list-group-numbered" th:unless="${#lists.isEmpty(participantEmails)}">
                     <li class="list-group-item d-flex flex-wrap align-items-center gap-2" th:each="participant : ${participants}" th:with="email=${participant.email}, displayName=${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">
@@ -578,8 +639,17 @@
                 </ol>
             </section>
 
-            <div th:if="${canEditPlan}" class="card border-0 shadow-sm p-4">
-                <h5 class="fw-bold mb-3">Editar plan</h5>
+            <!-- [STD] AC-02: la edicion de metadatos vive en un <dialog> con el a11y del AC-18
+                 de 17-DIS (aria-labelledby, foco al abrir, Escape cierra) y sigue EXACTAMENTE
+                 despues de Participantes en el DOM: los substring() de integracion cortan hasta
+                 el <h5> de este dialog (su texto es el del editor, ver 25-STD; ojo con escribir
+                 ese literal en comentarios: se sirven crudos y rompen los not(contains)).
+                 Mismo form, mismo POST. -->
+            <dialog th:if="${canEditPlan}" id="plan-edit-dialog" ref="editDialog" aria-labelledby="plan-edit-title" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 92%; max-height: 85dvh; overflow-y: auto; margin: auto;">
+                <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                    <h5 id="plan-edit-title" class="fw-bold m-0">Editar plan</h5>
+                    <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar la edición del plan" @click="editDialog.close()"></button>
+                </div>
 
                 <form th:action="@{/plans/{id}(id=${plan.id})}" th:object="${plan}" method="POST">
                     <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
@@ -643,7 +713,7 @@
                         <button type="submit" class="btn btn-primary px-4 fw-bold d-inline-flex align-items-center gap-2" :disabled="saving"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>Guardar cambios</button>
                     </div>
                 </form>
-            </div>
+            </dialog>
         </div>
     </div>
     <p v-if="requestError" class="alert alert-danger mt-3" role="alert">{{ requestError }}</p>

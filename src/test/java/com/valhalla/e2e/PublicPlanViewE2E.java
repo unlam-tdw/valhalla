@@ -184,6 +184,8 @@ public class PublicPlanViewE2E extends E2eBase {
       .locator(".place-item")
       .first()
       .waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
+    // [STD] El form de edicion vive en el dialog de la ficha: se abre antes del switch.
+    plans.openEditDialog();
     page.locator("#isPublic").check();
     page.locator("button:has-text('Guardar cambios')").click();
     plans.waitForDetailPath();

@@ -78,6 +78,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(page.locator(".stop-pinned")).hasCount(0);
     assertThat(page.locator("#plan-summary")).containsText(EVENT_DATE_LABEL);
     assertThat(page.locator("#plan-summary")).containsText(START_TIME);
+    // [STD] El form de edicion vive en el dialog de la ficha: se abre antes de leer o tocar
+    // sus inputs (cerrado, el <dialog> los esconde).
+    plans.openEditDialog();
     assertThat(page.locator("input[name='eventDate']")).hasValue(EVENT_DATE);
     assertThat(page.locator("input[name='eventTime']")).hasValue(START_TIME);
 

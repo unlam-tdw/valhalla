@@ -65,6 +65,13 @@ createApp({
         const planOptionsOpen = ref(false);
         const planOptionsButton = ref(null);
         const bannedParticipantsDialog = ref(null);
+        // [STD] 25-STD: los dos paneles plegables (invitar, agregar lugar) arrancan cerrados
+        // para que la vista base no pinte formularios ni consuma scroll, y el editor de
+        // metadatos se abre como <dialog> desde el boton "Editar" de la ficha.
+        const inviteOpen = ref(false);
+        const addPlaceOpen = ref(false);
+        const editDialog = ref(null);
+        const openEdit = () => editDialog.value.showModal();
         const closePlanOptions = (event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) {
                 planOptionsOpen.value = false;
@@ -448,6 +455,7 @@ createApp({
             // [MERGE] Sin estos cuatro en el retorno, el menú "Más opciones" no abre: el handler
             // escribe sobre una propiedad inexistente y Vue la descarta en silencio.
             planOptionsOpen, planOptionsButton, bannedParticipantsDialog, closePlanOptions,
+            inviteOpen, addPlaceOpen, editDialog, openEdit,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
             removePlace, onDragStart, onDrop
