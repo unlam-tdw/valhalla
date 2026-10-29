@@ -29,7 +29,8 @@ public class CalendarController {
   @GetMapping("/plans/calendar")
   public ModelAndView calendar(
     Authentication authentication,
-    @RequestParam(required = false) String month
+    @RequestParam(required = false) String month,
+    @RequestParam(name = "date", required = false) String requestedDay
   ) {
     YearMonth selected = YearMonth.now();
     if (month != null) {
@@ -68,6 +69,30 @@ public class CalendarController {
       })
       .toList();
     ModelMap model = new ModelMap();
+    LocalDate selectedDate = selected.equals(YearMonth.now()) ? LocalDate.now() : first;
+    if (requestedDay != null) {
+      try {
+        LocalDate requestedDate = LocalDate.parse(requestedDay);
+        if (YearMonth.from(requestedDate).equals(selected)) {
+          selectedDate = requestedDate;
+        }
+      } catch (java.time.format.DateTimeParseException ignored) {
+        selectedDate = selected.equals(YearMonth.now()) ? LocalDate.now() : first;
+      }
+    }
+    LocalDate activeDate = selectedDate;
+    model.put("selectedDate", activeDate);
+    model.put(
+      "selectedDateLabel",
+      activeDate.format(
+        DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.forLanguageTag("es-AR"))
+      )
+    );
+    model.put(
+      "selectedPlans",
+      plans.stream().filter(plan -> activeDate.equals(plan.getEventDate())).toList()
+    );
+    model.put("selectedMonth", selected.toString());
     model.put("days", days);
     model.put(
       "monthLabel",
