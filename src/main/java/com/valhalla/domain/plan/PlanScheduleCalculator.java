@@ -64,7 +64,8 @@ public final class PlanScheduleCalculator {
 
   /**
    * Una parada tal como entra al planificador: los pines que fijo el usuario (fecha y/u hora), las
-   * duraciones candidatas y los datos con los que se estima el traslado.
+   * duraciones candidatas, los datos con los que se estima el traslado y el traslado fijado a mano
+   * hacia la parada siguiente.
    */
   public record Stop(
     LocalDate pinnedDate,
@@ -74,7 +75,8 @@ public final class PlanScheduleCalculator {
     PlaceCategory category,
     Double latitude,
     Double longitude,
-    TransportMode transportModeToNext
+    TransportMode transportModeToNext,
+    Integer travelMinutesToNext
   ) {}
 
   /** Horario calculado para una parada: dia, hora de inicio y hora de fin. */
@@ -180,11 +182,16 @@ public final class PlanScheduleCalculator {
   }
 
   /**
-   * Traslado hacia la parada siguiente: modo del tramo (o el del plan), distancia con rodeo y
-   * redondeo a cinco minutos. Sin coordenadas cae al valor por defecto; el resultado queda entre
-   * {@link #MIN_GAP_MINUTES} y {@link #MAX_GAP_MINUTES}.
+   * Traslado hacia la parada siguiente. Con minutos fijados a mano manda el override (piso 1, sin
+   * techo: el usuario conocio el trayecto). Sin override se estima por modo del tramo (o el del
+   * plan), distancia con rodeo y redondeo a cinco minutos; sin coordenadas cae al valor por
+   * defecto, y el resultado calculado queda entre {@link #MIN_GAP_MINUTES} y
+   * {@link #MAX_GAP_MINUTES}.
    */
   private static int gap(Stop from, Stop to, TransportMode defaultMode) {
+    if (from.travelMinutesToNext() != null) {
+      return Math.max(1, from.travelMinutesToNext());
+    }
     if (!hasCoordinates(from) || !hasCoordinates(to)) {
       return DEFAULT_GAP_MINUTES;
     }

@@ -575,6 +575,7 @@ public class PlanController {
       entry.setPlace(place);
       entry.setDescription(row.getDescription());
       entry.setTransportModeToNext(row.getTransportModeToNext());
+      entry.setTravelMinutesToNext(row.getTravelMinutesToNext());
       entry.setSortOrder(order);
       order++;
       plan.addPlanPlace(entry);

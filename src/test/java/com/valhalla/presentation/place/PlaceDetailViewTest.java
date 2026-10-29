@@ -2,6 +2,7 @@ package com.valhalla.presentation.place;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,12 +24,20 @@ public class PlaceDetailViewTest {
   }
 
   @Test
-  public void T_APL_FE_001_vistaLugares_contieneBotonAddToPlan() {
-    // 1- Verifica que exista el botón "Add to plan".
-    assertThat(html, containsString("Add to plan"));
+  public void T_APL_FE_001_vistaLugares_pickerInlineSinModal() {
+    // El boton "Add to plan" del panel de detalles y su modal se quitaron de la vista:
+    // el alta de lugares vive en el wizard de creacion y en el detalle del plan.
+    assertThat(html, not(containsString("Add to plan")));
+    assertThat(html, not(containsString("Agregar a plan")));
 
-    // 2- Habria que verificar que sea un botón submit pero se decidió poner en list.html
-    // figura como un type="button".
+    // [APL] El panel de detalle recupero un picker de plan, pero inline: select + boton,
+    // sin dialogo. Sin planes propios no se pinta (v-if="availablePlans.length").
+    assertThat(html, containsString("id=\"plan-picker\""));
+    assertThat(html, containsString("aria-label=\"Agregar al plan\""));
+    assertThat(html, containsString("v-if=\"availablePlans.length\""));
+    assertThat(html, not(containsString("role=\"dialog\"")));
+
+    // Queda el boton de las tarjetas que agrega al borrador mientras el wizard esta abierto.
     assertThat(html, containsString("type=\"button\""));
   }
 
