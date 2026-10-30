@@ -28,6 +28,11 @@ const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
 createApp({
   setup() {
+    // [APL] Sesión server-side vía data-* (guide-js R3): /api/plans devuelve [] igual para
+    // anónimo y para un usuario sin planes, así que el gate del picker no puede salir del
+    // fetch. Sin el atributo (render fuera del controller) se asume anónimo.
+    const isLogged =
+      document.getElementById('explore-app')?.dataset.isLogged === 'true';
     const places = ref([]);
     const selectedPlace = ref(null);
     const selectedCategory = ref('');
@@ -532,8 +537,9 @@ createApp({
         console.error('Error fetching public plans:', error);
       }
 
-      // [APL] Planes propios para el picker del panel de detalle. Sin sesión la API
-      // devuelve [] y el picker no se pinta; un fallo lo deja igual.
+      // [APL] Planes propios para el picker del panel de detalle. El gate de visibilidad
+      // es isLogged (server-side), no este fetch: sin sesión o sin planes la lista queda
+      // vacía y el panel ofrece crear el primer plan; un fallo la deja igual.
       try {
         await loadPlanOptions();
       } catch (error) {
@@ -603,6 +609,7 @@ createApp({
     });
 
     return {
+      isLogged,
       places,
       error,
       selectedPlace,

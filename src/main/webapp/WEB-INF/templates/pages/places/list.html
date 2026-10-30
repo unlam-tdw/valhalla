@@ -55,7 +55,10 @@
          Sin el atributo se ven crudos el banner de error y el aside de detalle con sus
          {{selectedPlace.*}}. La regla y el fallback de 3 s viven
          en layouts/base.html :: headContent. -->
-    <div id="explore-app" v-cloak
+    <!-- [APL] isLogged via data-* (guide-js R3): el picker del panel de detalle se pinta
+         solo con sesión; sin ella el fetch de /api/plans devuelve [] igual que en un
+         usuario sin planes y el frontend no podría distinguirlos. -->
+    <div id="explore-app" v-cloak th:attr="data-is-logged=${isLogged}"
       class="group flex-1 min-h-0 min-w-0 flex flex-col md:flex-row-reverse overflow-hidden">
       <!-- Error surface for the whole view: the 5 request paths below and the add-to-plan
            module all report here instead of opening a browser alert box. role="alert"
@@ -228,24 +231,39 @@
                  chocar con el selector de e2e de addDraftPlace
                  (aside > article > button[aria-label^='Add ']).
                  [T7] Se listan todos los planes propios: el que ya contiene el lugar
-                 queda deshabilitado y marcado, en vez de esconder el picker entero. -->
-            <div v-if="availablePlans.length" class="flex flex-col gap-2 border-t border-gray-100 pt-4">
-              <label for="plan-picker" class="text-sm font-medium text-gray-700">Plan</label>
-              <select id="plan-picker" v-model="planPickId" :disabled="planBusy"
-                class="h-10 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 disabled:opacity-60">
-                <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id"
-                  :disabled="planContainsPlace(plan)">
-                  {{ planContainsPlace(plan) ? plan.name + ' (ya contiene el lugar)' : plan.name }}
-                </option>
-              </select>
-              <button type="button" @click="addSelectedToPlan" :disabled="planBusy || !planPickId"
-                aria-label="Agregar al plan"
-                class="h-10 rounded-md bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
-                <span v-if="!planBusy">Agregar al plan</span>
-                <span v-else>Agregando…</span>
-              </button>
-              <p v-if="planMessage" role="status"
-                class="text-sm" :class="planError ? 'text-red-600' : 'text-green-700'">{{ planMessage }}</p>
+                 queda deshabilitado y marcado, en vez de esconder el picker entero.
+                 [T9] El gate es la sesión (isLogged), no la cantidad de planes: logueado
+                 sin planes ofrece crear el primero con el wizard de la misma página en
+                 vez de no pintar nada. -->
+            <div v-if="isLogged" class="flex flex-col gap-2 border-t border-gray-100 pt-4">
+              <template v-if="availablePlans.length">
+                <label for="plan-picker" class="text-sm font-medium text-gray-700">Plan</label>
+                <select id="plan-picker" v-model="planPickId" :disabled="planBusy"
+                  class="h-10 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 disabled:opacity-60">
+                  <option v-for="plan in availablePlans" :key="plan.id" :value="plan.id"
+                    :disabled="planContainsPlace(plan)">
+                    {{ planContainsPlace(plan) ? plan.name + ' (ya contiene el lugar)' : plan.name }}
+                  </option>
+                </select>
+                <button type="button" @click="addSelectedToPlan" :disabled="planBusy || !planPickId"
+                  aria-label="Agregar al plan"
+                  class="h-10 rounded-md bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                  <span v-if="!planBusy">Agregar al plan</span>
+                  <span v-else>Agregando…</span>
+                </button>
+                <p v-if="planMessage" role="status"
+                  class="text-sm" :class="planError ? 'text-red-600' : 'text-green-700'">{{ planMessage }}</p>
+              </template>
+              <template v-else>
+                <p class="text-sm text-gray-600">Todavía no tenés planes. Creá uno para agregar este lugar.</p>
+                <!-- "Crear un plan", no "Crear plan": este texto vive dentro del panel de
+                     detalle y un has-text('Crear plan') genérico lo matchearía junto al
+                     botón del sidebar y el submit del wizard (strict mode en los e2e). -->
+                <button type="button" @click="openCreatePlan"
+                  class="h-10 rounded-md bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700">
+                  Crear un plan
+                </button>
+              </template>
             </div>
           </div>
         </aside>

@@ -31,10 +31,13 @@ public class PlaceDetailViewTest {
     assertThat(html, not(containsString("Agregar a plan")));
 
     // [APL] El panel de detalle recupero un picker de plan, pero inline: select + boton,
-    // sin dialogo. Sin planes propios no se pinta (v-if="availablePlans.length").
+    // sin dialogo. El gate es la sesión (isLogged), no la cantidad de planes: logueado
+    // sin planes ofrece crear el primero con el wizard de la página.
     assertThat(html, containsString("id=\"plan-picker\""));
     assertThat(html, containsString("aria-label=\"Agregar al plan\""));
-    assertThat(html, containsString("v-if=\"availablePlans.length\""));
+    assertThat(html, containsString("v-if=\"isLogged\""));
+    assertThat(html, containsString("data-is-logged=${isLogged}"));
+    assertThat(html, containsString("Crear un plan"));
     assertThat(html, not(containsString("role=\"dialog\"")));
 
     // Queda el boton de las tarjetas que agrega al borrador mientras el wizard esta abierto.

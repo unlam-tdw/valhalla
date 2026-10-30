@@ -84,6 +84,35 @@ public class PlanPickerE2E extends E2eBase {
     assertEquals(Boolean.TRUE, inItinerary);
   }
 
+  /**
+   * [T9] Regresión del reporte del usuario: logueado sin planes el panel de detalle no quedaba
+   * mudo. El gate pasó de la cantidad de planes a la sesión, así que ahora se ofrece crear el
+   * primer plan con el wizard de la misma página.
+   */
+  @Test
+  void E03_offersCreatePlanWhenUserHasNoPlans() {
+    signInAsAdmin();
+    PlansPage plans = new PlansPage(page);
+    // openContext limpia la BD: el admin no tiene planes propios en este test.
+    plans.navigateToExplore();
+    page
+      .locator("#explore-app > aside article")
+      .last()
+      .locator("span:text-is('View details →')")
+      .click();
+    waitForDetailsPanel();
+
+    page.waitForFunction("() => document.querySelector(\"#place-details-aside button\") !== null");
+    // has-text es substring: "Crear un plan" no matchea "Crear plan" del sidebar/wizard.
+    Locator cta = page.locator("#place-details-aside button:has-text('Crear un plan')");
+    assertEquals(1, cta.count(), "a plan-less logged-in user must get a create-plan CTA");
+    assertEquals(0, page.locator("#plan-picker").count());
+
+    cta.click();
+    page.waitForFunction("() => document.querySelector('#create-plan-title') !== null");
+    assertTrue(page.locator("#create-plan-title").isVisible());
+  }
+
   private String detailPlanId() {
     String url = page.url();
     return url.substring(url.lastIndexOf('/') + 1);
