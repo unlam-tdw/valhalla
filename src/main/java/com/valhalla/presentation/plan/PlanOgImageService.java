@@ -14,7 +14,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.imageio.IIOImage;
@@ -49,10 +51,13 @@ public class PlanOgImageService {
 
   // WhatsApp pide content-length bajo 300 KB; se corta en 250 KB para tener margen.
   private static final int MAX_BYTES = 250_000;
+  // Tope defensivo de descarga: una foto de un CDN nunca pesa esto; si pasa, el recurso no es
+  // una foto de itinerary y se cae a la portada antes de tocar memoria.
+  private static final int MAX_DOWNLOAD_BYTES = 8_000_000;
   private static final float[] JPEG_TIERS = { 0.85f, 0.7f, 0.55f, 0.4f };
 
   private final ServletContext servletContext;
-  private final Map<String, byte[]> cache = new ConcurrentHashMap<>();
+  private final Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
 
   @Autowired
   public PlanOgImageService(ServletContext servletContext) {
@@ -60,10 +65,10 @@ public class PlanOgImageService {
   }
 
   /**
-   * JPG de preview del plan, o {@code null} si no hay ni portada generica ni imagen de marca
-   * (el endpoint responde 404 en ese caso, que en la practica no ocurre).
+   * JPG de preview del plan, o {@link Optional#empty()} si no hay ni portada generica ni imagen
+   * de marca (el endpoint responde 404 en ese caso, que en la practica no ocurre).
    */
-  public byte[] ogImageFor(Plan plan) {
+  public Optional<byte[]> ogImageFor(Plan plan) {
     String photo = firstPlacePhoto(plan);
     String key = photo != null ? "photo:" + photo : "cover:" + PlanFeedCards.coverFor(plan.getId());
     return cache.computeIfAbsent(
@@ -86,7 +91,7 @@ public class PlanOgImageService {
           place != null &&
           place.getImageUrl() != null &&
           !place.getImageUrl().isBlank() &&
-          !place.getImageUrl().trim().toLowerCase().endsWith(".svg")
+          !place.getImageUrl().trim().toLowerCase(Locale.ROOT).endsWith(".svg")
         )
         .map(Place::getImageUrl)
         .findFirst()
@@ -98,30 +103,30 @@ public class PlanOgImageService {
     }
   }
 
-  private byte[] fromPhotoOrCover(String photoUrl, UUID planId) {
+  private Optional<byte[]> fromPhotoOrCover(String photoUrl, UUID planId) {
     BufferedImage photo = download(photoUrl);
     if (photo == null) {
       return fromCover(planId);
     }
     try {
-      return encodeJpeg(cropToCanvas(photo));
+      return Optional.of(encodeJpeg(cropToCanvas(photo)));
     } catch (IOException exception) {
       return fromCover(planId);
     }
   }
 
-  private byte[] fromCover(UUID planId) {
+  private Optional<byte[]> fromCover(UUID planId) {
     BufferedImage cover = rasterizeCover(PlanFeedCards.coverFor(planId));
     if (cover == null) {
       cover = readBrandImage();
     }
     if (cover == null) {
-      return null;
+      return Optional.empty();
     }
     try {
-      return encodeJpeg(cropToCanvas(cover));
+      return Optional.of(encodeJpeg(cropToCanvas(cover)));
     } catch (IOException exception) {
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -142,11 +147,11 @@ public class PlanOgImageService {
         return null;
       }
       String contentType = connection.getContentType();
-      if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+      if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
         return null;
       }
       byte[] raw = connection.getInputStream().readAllBytes();
-      if (raw.length > 8_000_000) {
+      if (raw.length > MAX_DOWNLOAD_BYTES) {
         return null;
       }
       // ImageIO no decodifica WebP: null y a la portada.

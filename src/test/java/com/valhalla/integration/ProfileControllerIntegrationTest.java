@@ -202,6 +202,35 @@ public class ProfileControllerIntegrationTest {
   // --- [META/SHARE] preview del perfil y boton en sus cards ---
 
   @Test
+  public void profileWithAvatarPreviewsWithTheAvatarNotTheBrandImage() throws Exception {
+    User owner = userRepository.findById(selfId).orElseThrow();
+    owner.setAvatarUrl("/images/avatars/avatar-1.svg");
+    userRepository.save(owner);
+
+    String html =
+      this.mockMvc.perform(get("/profile/" + selfId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // Con avatar cargado, la tarjeta del perfil usa la foto real del usuario, absoluta igual
+    // que og:image:secure_url (mismo valor, solo cambia el nombre de la propiedad).
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:image\" content=\"http://localhost/images/avatars/avatar-1.svg\""
+      )
+    );
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:image:secure_url\" content=\"http://localhost/images/avatars/avatar-1.svg\""
+      )
+    );
+  }
+
+  @Test
   public void publicProfileDeclaresItsSharePreviewAndShipsTheShareButton() throws Exception {
     Plan plan = new Plan();
     plan.setName("Plan publico de Ada");

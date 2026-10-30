@@ -36,15 +36,16 @@ public class PlanOgImageController {
   @GetMapping("/{id}/og-image")
   public ResponseEntity<byte[]> ogImage(@PathVariable UUID id) {
     Plan plan = planService.getSharedPlan(id);
-    byte[] jpg = ogImages.ogImageFor(plan);
-    if (jpg == null) {
-      return ResponseEntity.notFound().build();
-    }
-    return ResponseEntity
-      .ok()
-      .contentType(MediaType.IMAGE_JPEG)
-      .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
-      .body(jpg);
+    return ogImages
+      .ogImageFor(plan)
+      .map(jpg ->
+        ResponseEntity
+          .ok()
+          .contentType(MediaType.IMAGE_JPEG)
+          .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+          .body(jpg)
+      )
+      .orElseGet(() -> ResponseEntity.notFound().build());
   }
 
   @ExceptionHandler(PlanNotFoundException.class)
