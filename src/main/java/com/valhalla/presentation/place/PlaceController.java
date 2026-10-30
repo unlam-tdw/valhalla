@@ -24,6 +24,9 @@ public class PlaceController {
     model.put("defaultPlanSettings", new com.valhalla.domain.plan.PlanSettings());
     // [WEA] El selector de fecha del plan no acepta días ya pasados.
     model.put("today", LocalDate.now().toString());
+    model.put("ogTitle", "Explorar lugares en Buenos Aires");
+    model.put("ogDescription", "Descubrí lugares y armá tu plan perfecto con PlanIt.");
+    model.put("ogUrl", "/explore");
     return new ModelAndView(VIEW_LIST, model);
   }
 }
