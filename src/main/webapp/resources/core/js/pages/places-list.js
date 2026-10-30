@@ -339,16 +339,8 @@ createApp({
 
     const shortDate = (isoDate) => isoDate.slice(8, 10) + '/' + isoDate.slice(5, 7);
 
-    /* El tramo pertenece a la parada que lo origina: usa el modo propio de la parada y, si no
-       fija uno, el del plan. Los minutos fijados a mano se marcan con "(fijo)". */
-    const legLabel = (item, minutes) => {
-      const mode = item.transportModeToNext || planTransportMode.value;
-      const label = (TRANSPORT_LABELS[mode] || TRANSPORT_LABELS.WALK) + ' · ' + minutes + ' min';
-      return Number(item.travelMinutesToNext) > 0 ? label + ' (fijo)' : label;
-    };
-
-    /* Las paradas agrupadas por la jornada que les tocó, con el chip ya resuelto. El último tramo
-       de cada día se omite: cruza a la jornada siguiente, no es un traslado del itinerario. */
+    /* Las paradas agrupadas por la jornada que les tocó. El último tramo de cada día se omite:
+       cruza a la jornada siguiente, no es un traslado del itinerario. */
     const dayGroups = computed(() => {
       const groups = [];
       schedule.value.forEach((slot, index) => {
@@ -372,7 +364,7 @@ createApp({
           order: index + 1,
           timeRange: formatClock(slot.startMinutes) + ' – ' + formatClock(slot.endMinutes),
           duration: formatDuration(slot.minutes),
-          leg: isLastOfDay ? null : { label: legLabel(item, slot.legMinutes), minutes: slot.legMinutes }
+          leg: isLastOfDay ? null : { minutes: slot.legMinutes }
         });
       });
       return groups;
