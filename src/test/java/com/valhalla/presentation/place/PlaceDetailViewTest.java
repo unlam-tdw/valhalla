@@ -38,6 +38,9 @@ public class PlaceDetailViewTest {
     assertThat(html, containsString("v-if=\"isLogged\""));
     assertThat(html, containsString("data-is-logged=${isLogged}"));
     assertThat(html, containsString("Crear un plan"));
+    // [T10] Con el wizard abierto el mismo bloque agrega al plan en proceso.
+    assertThat(html, containsString("v-if=\"showCreatePlan\""));
+    assertThat(html, containsString("@click=\"addSelectedToDraft\""));
     assertThat(html, not(containsString("role=\"dialog\"")));
 
     // Queda el boton de las tarjetas que agrega al borrador mientras el wizard esta abierto.

@@ -19,7 +19,7 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 
 | # | Criterio |
 |---|----------|
-| AC-01 | El panel lateral de `/places` ofrece un picker de plan inline (select de TODOS los planes propios; los que ya contienen el lugar salen deshabilitados y marcados "(ya contiene el lugar)" + botón "Agregar al plan"), sin modal; el bloque se pinta con sesión (gate `isLogged`), y un usuario logueado sin planes ve un CTA "Crear un plan" que abre el wizard de la misma página en vez de nada |
+| AC-01 | El panel lateral de `/places` ofrece un picker de plan inline (select de TODOS los planes propios; los que ya contienen el lugar salen deshabilitados y marcados "(ya contiene el lugar)" + botón "Agregar al plan"), sin modal; el bloque se pinta con sesión (gate `isLogged`), y un usuario logueado sin planes ve un CTA "Crear un plan" que abre el wizard de la misma página en vez de nada; con el wizard de creación abierto el botón agrega el lugar al plan EN PROCESO (borrador, mismo destino que el "+" de las tarjetas) en lugar de ofrecer crear otro plan o listar planes guardados |
 | AC-02 | Al hacer click en un lugar de `/explore` nunca se abre un modal de "agregar a plan": el agregado desde la ficha es inline, con feedback en el mismo panel (éxito o error); un plan que ya contiene el lugar no se puede re-agregar (opción deshabilitada, guard en el cliente porque el backend no rechaza duplicados) |
 | AC-03 | Al agregar un lugar desde el wizard o desde el detalle del plan se muestra feedback visual (redirect o mensaje) |
 | AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
@@ -39,7 +39,7 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | El panel lateral de `/places` no contiene el botón "Add to plan" ni el modal; el picker inline existe con `id="plan-picker"` y `aria-label="Agregar al plan"`, tras `v-if="isLogged"` (flag server-side por `data-is-logged` en `#explore-app`; logueado sin planes renderiza el CTA "Crear un plan"); las opciones deshabilitadas llevan el sufijo "(ya contiene el lugar)" | AC-01, AC-02 |
+| U-01 | El panel lateral de `/places` no contiene el botón "Add to plan" ni el modal; el picker inline existe con `id="plan-picker"` y `aria-label="Agregar al plan"`, tras `v-if="isLogged"` (flag server-side por `data-is-logged` en `#explore-app`); con el wizard abierto (`v-if="showCreatePlan"`) el mismo bloque expone un botón "Agregar al plan" que llama a `addSelectedToDraft` (lugar al borrador, sin select ni CTA), y logueado sin planes renderiza el CTA "Crear un plan"; las opciones deshabilitadas llevan el sufijo "(ya contiene el lugar)" | AC-01, AC-02 |
 
 ### Tests de Integracion (`presentation/plan/PlanControllerTest.java`)
 
@@ -68,8 +68,10 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
   (`v-if="isLogged"`, flag server-side que viaja como `data-is-logged` en `#explore-app`):
   `/api/plans` devuelve `[]` tanto sin sesión como en un usuario sin planes, así que por el
   fetch solo no se distinguían y el usuario logueado sin planes no veía nada. Con sesión y
-  cero planes el panel ofrece un CTA "Crear un plan" que abre el wizard de la misma página; sin
-  sesión la ficha queda informativa. El agregado también sigue vivo en el wizard de creación de `/explore` (tarjeta
+  cero planes el panel ofrece un CTA "Crear un plan" que abre el wizard de la misma página; con
+  el wizard de creación ya abierto el botón agrega el lugar al plan en proceso (`addToDraft`,
+  el mismo destino que el "+" de las tarjetas) en vez de ofrecer crear otro; sin sesión la
+  ficha queda informativa. El agregado también sigue vivo en el wizard de creación de `/explore` (tarjeta
   "+" → borrador) y en el detalle del plan; el usuario no pierde el mapa, el filtro aplicado
   ni la posición del scroll.
 - **`add-to-plan.js` queda como puente de eventos**: el click en la tarjeta "+" emite

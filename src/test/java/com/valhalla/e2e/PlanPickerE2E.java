@@ -113,6 +113,45 @@ public class PlanPickerE2E extends E2eBase {
     assertTrue(page.locator("#create-plan-title").isVisible());
   }
 
+  /**
+   * [T10] Regresión del reporte del usuario: con el wizard de creación abierto el botón del
+   * panel de detalle debe agregar el lugar al plan EN PROCESO (borrador), no ofrecer crear
+   * otro plan. Mismo destino que el "+" de las tarjetas.
+   */
+  @Test
+  void E04_addsToTheOpenWizardDraftInsteadOfOfferingCreate() {
+    signInAsAdmin();
+    PlansPage plans = new PlansPage(page);
+    plans.navigateToExplore();
+    plans.navigateToCreatePlanModal();
+    plans.typeEventDate("2027-03-20");
+    plans.clickNextStep();
+
+    page
+      .locator("#explore-app > aside article")
+      .last()
+      .locator("span:text-is('View details →')")
+      .click();
+    waitForDetailsPanel();
+
+    assertEquals(0, page.locator("#plan-picker").count());
+    assertEquals(
+      0,
+      page.locator("#place-details-aside button:has-text('Crear un plan')").count(),
+      "with the wizard open the panel must not offer creating another plan"
+    );
+    Locator add = page.locator("#place-details-aside button[aria-label='Agregar al plan']");
+    assertEquals(1, add.count(), "the button must add to the plan being created");
+    add.click();
+
+    // El lugar entró al borrador: la fila del paso 2 del wizard aparece (botón de quitar).
+    page.waitForFunction(
+      "() => document.querySelectorAll(\"#plans-aside button[aria-label='Quitar lugar']\").length === 1"
+    );
+    String message = page.textContent("#place-details-aside p[role='status']");
+    assertTrue(message.contains("proceso"), "the inline feedback must name the open plan");
+  }
+
   private String detailPlanId() {
     String url = page.url();
     return url.substring(url.lastIndexOf('/') + 1);

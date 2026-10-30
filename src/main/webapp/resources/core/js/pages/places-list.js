@@ -322,6 +322,14 @@ createApp({
       });
     };
 
+    // [T10] El panel de detalle con el wizard abierto agrega al plan EN PROCESO, igual que
+    // el "+" de las tarjetas (listener add-to-plan), en vez de ofrecer crear otro plan.
+    const addSelectedToDraft = () => {
+      addToDraft(selectedPlace.value);
+      planError.value = false;
+      planMessage.value = 'Agregado al plan en proceso.';
+    };
+
     const removeDraft = (index) => {
       draftPlaces.value.splice(index, 1);
     };
@@ -662,7 +670,8 @@ createApp({
       planBusy,
       planMessage,
       planError,
-      addSelectedToPlan
+      addSelectedToPlan,
+      addSelectedToDraft
     };
   }
 }).mount('#explore-app');

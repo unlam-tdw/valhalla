@@ -234,9 +234,19 @@
                  queda deshabilitado y marcado, en vez de esconder el picker entero.
                  [T9] El gate es la sesión (isLogged), no la cantidad de planes: logueado
                  sin planes ofrece crear el primero con el wizard de la misma página en
-                 vez de no pintar nada. -->
+                 vez de no pintar nada.
+                 [T10] Con el wizard de creación abierto el botón agrega al plan EN
+                 PROCESO (mismo destino que el "+" de las tarjetas), no a uno guardado. -->
             <div v-if="isLogged" class="flex flex-col gap-2 border-t border-gray-100 pt-4">
-              <template v-if="availablePlans.length">
+              <template v-if="showCreatePlan">
+                <p class="text-sm text-gray-600">Se agregará al plan que estás creando.</p>
+                <button type="button" @click="addSelectedToDraft"
+                  aria-label="Agregar al plan"
+                  class="h-10 rounded-md bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700">
+                  Agregar al plan
+                </button>
+              </template>
+              <template v-else-if="availablePlans.length">
                 <label for="plan-picker" class="text-sm font-medium text-gray-700">Plan</label>
                 <select id="plan-picker" v-model="planPickId" :disabled="planBusy"
                   class="h-10 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 disabled:opacity-60">
@@ -251,8 +261,6 @@
                   <span v-if="!planBusy">Agregar al plan</span>
                   <span v-else>Agregando…</span>
                 </button>
-                <p v-if="planMessage" role="status"
-                  class="text-sm" :class="planError ? 'text-red-600' : 'text-green-700'">{{ planMessage }}</p>
               </template>
               <template v-else>
                 <p class="text-sm text-gray-600">Todavía no tenés planes. Creá uno para agregar este lugar.</p>
@@ -264,6 +272,8 @@
                   Crear un plan
                 </button>
               </template>
+              <p v-if="planMessage" role="status"
+                class="text-sm" :class="planError ? 'text-red-600' : 'text-green-700'">{{ planMessage }}</p>
             </div>
           </div>
         </aside>
