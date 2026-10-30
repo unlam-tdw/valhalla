@@ -1,8 +1,6 @@
 package com.valhalla.presentation.plan;
 
-import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
-import com.valhalla.domain.planplace.PlanPlace;
 import jakarta.servlet.ServletContext;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -11,8 +9,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
@@ -34,14 +30,13 @@ import org.springframework.stereotype.Service;
 /**
  * [OG-JPG] Imagen de preview del plan para los scrapers: SIEMPRE un JPG 1200x630 de menos de
  * 250 KB, servido desde nuestro propio dominio (los bots no leen SVG y hay que evitar el
- * hotlink). Origen, en orden de prioridad: la foto del primer lugar del itinerario que tenga
- * foto raster (descargada y redimensionada en el servidor); si no, la portada SVG generica del
- * plan rasterizada aca; si no, la imagen de marca. Nunca se dibuja texto encima: solo se
- * convierte y redimensiona la imagen que ya existe.
+ * hotlink). El preview es la MISMA portada que muestra la card del plan —la elegida por hash
+ * del id entre las genericas de /images/plans— rasterizada aca; si la portada no esta, la
+ * imagen de marca. Nunca se dibuja texto encima: solo se convierte y redimensiona la imagen
+ * que ya existe, para que compartir y feed muestren siempre la misma cara del plan.
  *
- * <p>El resultado se cachea en memoria. Las claves llevan la URL de la foto o el cover, asi un
- * plan que cambia de foto calcula la entrada nueva y la vieja queda sin uso: no hace falta
- * invalidar nada.
+ * <p>El resultado se cachea en memoria por portada: un plan que pasa a otra cover calcula la
+ * entrada nueva y la vieja queda sin uso; no hace falta invalidar nada.
  */
 @Service
 public class PlanOgImageService {
@@ -51,9 +46,6 @@ public class PlanOgImageService {
 
   // WhatsApp pide content-length bajo 300 KB; se corta en 250 KB para tener margen.
   private static final int MAX_BYTES = 250_000;
-  // Tope defensivo de descarga: una foto de un CDN nunca pesa esto; si pasa, el recurso no es
-  // una foto de itinerary y se cae a la portada antes de tocar memoria.
-  private static final int MAX_DOWNLOAD_BYTES = 8_000_000;
   private static final float[] JPEG_TIERS = { 0.85f, 0.7f, 0.55f, 0.4f };
 
   private final ServletContext servletContext;
@@ -69,54 +61,12 @@ public class PlanOgImageService {
    * de marca (el endpoint responde 404 en ese caso, que en la practica no ocurre).
    */
   public Optional<byte[]> ogImageFor(Plan plan) {
-    String photo = firstPlacePhoto(plan);
-    String key = photo != null ? "photo:" + photo : "cover:" + PlanFeedCards.coverFor(plan.getId());
-    return cache.computeIfAbsent(
-      key,
-      k -> photo != null ? fromPhotoOrCover(photo, plan.getId()) : fromCover(plan.getId())
-    );
+    String cover = PlanFeedCards.coverFor(plan.getId());
+    return cache.computeIfAbsent(cover, this::fromCover);
   }
 
-  /**
-   * Primera foto raster del itinerario. Un {@code imageUrl} que ya apunta a un SVG no sirve: el
-   * scraper tampoco lo descarga, y esa rama cae en la portada convertida.
-   */
-  private String firstPlacePhoto(Plan plan) {
-    try {
-      return plan
-        .getPlanPlaces()
-        .stream()
-        .map(PlanPlace::getPlace)
-        .filter(place ->
-          place != null &&
-          place.getImageUrl() != null &&
-          !place.getImageUrl().isBlank() &&
-          !place.getImageUrl().trim().toLowerCase(Locale.ROOT).endsWith(".svg")
-        )
-        .map(Place::getImageUrl)
-        .findFirst()
-        .orElse(null);
-      // Un plan privado llega por getSharedPlan sin calentar planPlaces: afuera de la
-      // transaccion el lazy lanza. La portada generica no necesita el itinerario.
-    } catch (RuntimeException exception) {
-      return null;
-    }
-  }
-
-  private Optional<byte[]> fromPhotoOrCover(String photoUrl, UUID planId) {
-    BufferedImage photo = download(photoUrl);
-    if (photo == null) {
-      return fromCover(planId);
-    }
-    try {
-      return Optional.of(encodeJpeg(cropToCanvas(photo)));
-    } catch (IOException exception) {
-      return fromCover(planId);
-    }
-  }
-
-  private Optional<byte[]> fromCover(UUID planId) {
-    BufferedImage cover = rasterizeCover(PlanFeedCards.coverFor(planId));
+  private Optional<byte[]> fromCover(String coverPath) {
+    BufferedImage cover = rasterizeCover(coverPath);
     if (cover == null) {
       cover = readBrandImage();
     }
@@ -127,37 +77,6 @@ public class PlanOgImageService {
       return Optional.of(encodeJpeg(cropToCanvas(cover)));
     } catch (IOException exception) {
       return Optional.empty();
-    }
-  }
-
-  /** Baja la foto externa y la decodifica. {@code null} en cualquier fallo: el caller cae en la portada. */
-  private BufferedImage download(String photoUrl) {
-    try {
-      URI uri = URI.create(photoUrl.trim());
-      String scheme = uri.getScheme();
-      if (!"http".equals(scheme) && !"https".equals(scheme)) {
-        return null;
-      }
-      HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-      connection.setConnectTimeout(3000);
-      connection.setReadTimeout(6000);
-      connection.setInstanceFollowRedirects(true);
-      connection.setRequestProperty("User-Agent", "PlanItBot/1.0 (preview)");
-      if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-        return null;
-      }
-      String contentType = connection.getContentType();
-      if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
-        return null;
-      }
-      byte[] raw = connection.getInputStream().readAllBytes();
-      if (raw.length > MAX_DOWNLOAD_BYTES) {
-        return null;
-      }
-      // ImageIO no decodifica WebP: null y a la portada.
-      return ImageIO.read(new ByteArrayInputStream(raw));
-    } catch (IOException | IllegalArgumentException exception) {
-      return null;
     }
   }
 

@@ -12,81 +12,45 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.sun.net.httpserver.HttpServer;
-import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
-import com.valhalla.domain.planplace.PlanPlace;
 import jakarta.servlet.ServletContext;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.metadata.IIOMetadata;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 /**
- * [OG-JPG] La cadena de prioridad del preview (foto de lugar > portada SVG > imagen de marca)
- * y cada bajada de nivel: itinerary sin fotos raster, url no http, 404, content-type que no es
- * imagen, descarga gigante, bytes indecodificables, host inalcanzable y plan privado cuyo
- * lazy lanza. Corre contra un HttpServer real porque el contrato con los scrapers es que el
- * endpoint SIEMPRE devuelve un JPEG canvas o 404, nunca algo a medio romper.
+ * [OG-JPG] El preview del scraper es la MISMA portada que pinta la card del plan, rasterizada y
+ * codificada a JPEG canvas: se verifica que se pide exactamente el coverFor(id) de la card (sin
+ * tocar el itinerario, asi un plan privado con el lazy sin calentar no puede fallar), la bajada
+ * a la imagen de marca cuando la portada no esta, el empty (404 del endpoint) sin ninguno de los
+ * dos recursos y los extremos del encoder.
  */
 public class PlanOgImageServiceTest {
 
   private static final UUID PLAN_ID = UUID.randomUUID();
-
-  private HttpServer server;
-  private int port;
-
-  @BeforeEach
-  public void startServer() throws IOException {
-    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-    port = server.getAddress().getPort();
-    server.start();
-  }
-
-  @AfterEach
-  public void stopServer() {
-    server.stop(0);
-  }
-
-  private void serve(String path, int status, String contentType, byte[] body) {
-    server.createContext(
-      path,
-      exchange -> {
-        exchange.getResponseHeaders().add("Content-Type", contentType);
-        if (status != 200) {
-          exchange.sendResponseHeaders(status, -1);
-          exchange.close();
-          return;
-        }
-        exchange.sendResponseHeaders(200, body.length);
-        try (var out = exchange.getResponseBody()) {
-          out.write(body);
-        }
-      }
-    );
-  }
+  private static final int COVER_COUNT = 6;
 
   private static byte[] png(int width, int height, boolean noisy) throws IOException {
     BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -103,27 +67,14 @@ public class PlanOgImageServiceTest {
     return out.toByteArray();
   }
 
-  private Plan photoPlan(String... imageUrls) {
-    Plan plan = mock(Plan.class);
-    lenient().when(plan.getId()).thenReturn(PLAN_ID);
-    List<PlanPlace> planPlaces = Arrays
-      .stream(imageUrls)
-      .map(url -> {
-        Place place = mock(Place.class);
-        lenient().when(place.getImageUrl()).thenReturn(url);
-        PlanPlace planPlace = mock(PlanPlace.class);
-        lenient().when(planPlace.getPlace()).thenReturn(place);
-        return planPlace;
-      })
-      .toList();
-    when(plan.getPlanPlaces()).thenReturn(planPlaces);
-    return plan;
+  /** Plan con itinerario perezoso a proposito: el preview ya no lo lee nunca. */
+  private Plan plan() {
+    return planWithId(PLAN_ID);
   }
 
-  /** Plan cuyo itinerario lanza por lazy: el camino de todo plan privado sin calentar. */
-  private Plan coverOnlyPlan() {
+  private Plan planWithId(UUID id) {
     Plan plan = mock(Plan.class);
-    lenient().when(plan.getId()).thenReturn(PLAN_ID);
+    lenient().when(plan.getId()).thenReturn(id);
     when(plan.getPlanPlaces()).thenThrow(new RuntimeException("failed to lazily initialize"));
     return plan;
   }
@@ -159,6 +110,20 @@ public class PlanOgImageServiceTest {
     return contextWith(resources);
   }
 
+  private ServletContext contextWithAllCovers() throws IOException {
+    Map<String, byte[]> resources = brandResources();
+    for (int cover = 1; cover <= COVER_COUNT; cover++) {
+      resources.put(
+        "/resources/images/plans/cover-" + cover + ".svg",
+        ("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1200 640\">" +
+          "<rect width=\"1200\" height=\"640\" fill=\"#" +
+          String.format("%06x", cover * 0x111111) +
+          "\"/></svg>").getBytes(StandardCharsets.UTF_8)
+      );
+    }
+    return contextWith(resources);
+  }
+
   /** Decodifica y fija el contrato 1200x630 que prometen los metas og:image:width/height. */
   private void assertCanvasJpeg(Optional<byte[]> result) throws IOException {
     assertThat(result.isPresent(), is(true));
@@ -169,91 +134,38 @@ public class PlanOgImageServiceTest {
   }
 
   @Test
-  public void theFirstPlacePhotoBecomesThePreview() throws Exception {
-    serve("/foto.png", 200, "image/png", png(320, 200, false));
-    Plan plan = photoPlan("http://127.0.0.1:" + port + "/foto.png");
+  public void thePreviewIsTheCardCoverAndNeverAPlacePhoto() throws Exception {
+    ServletContext context = contextWithCover();
+    assertCanvasJpeg(new PlanOgImageService(context).ogImageFor(plan()));
 
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(plan));
+    // La portada pedida es exactamente la que pinta la card; la marca no se toca y el
+    // itinerario ni se lee: un plan privado con el lazy sin calentar funciona igual.
+    verify(context).getResourceAsStream("/resources" + PlanFeedCards.coverFor(PLAN_ID));
+    verify(context, never()).getResourceAsStream(startsWith("/resources/images/og-image.png"));
   }
 
   @Test
-  public void onlyRasterPhotoUrlsQualifyAndTheFirstWins() throws Exception {
-    // null, vacia y .svg se descartan; la primera valida se pide (404 aqui) y baja a portada.
-    Plan plan = photoPlan(
-      null,
-      "   ",
-      "https://cdn.example.com/portada.svg",
-      "http://127.0.0.1:" + port + "/no-existe.jpg"
-    );
-    serve("/no-existe.jpg", 404, "image/jpeg", new byte[0]);
-
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(plan));
+  public void everyPlanPreviewsWithTheCoverOfItsOwnCard() throws Exception {
+    // El bug que esto evita: el preview salia con una foto de lugar distinta de la portada que
+    // el usuario ve en la card. Cada portada de la rotacion (cover-1..6.svg) debe aparecer.
+    PlanOgImageService service = new PlanOgImageService(contextWithAllCovers());
+    Set<String> coversSeen = new HashSet<>();
+    for (int guard = 0; guard < 10000 && coversSeen.size() < COVER_COUNT; guard++) {
+      UUID id = UUID.randomUUID();
+      assertCanvasJpeg(service.ogImageFor(planWithId(id)));
+      coversSeen.add(PlanFeedCards.coverFor(id));
+    }
+    assertThat(coversSeen.size(), is(COVER_COUNT));
   }
 
   @Test
-  public void aLazyPrivateItineraryUsesTheCoverWithoutTouchingThePlaces() throws Exception {
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(coverOnlyPlan()));
-  }
-
-  @Test
-  public void nonHttpPhotoUrlsAreNeverFetched() throws Exception {
-    Plan plan = photoPlan("ftp://cdn.example.com/foto.jpg");
-
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(plan));
-  }
-
-  @Test
-  public void aNonImageContentTypeFallsBackToTheCover() throws Exception {
-    serve(
-      "/foto",
-      200,
-      "text/html",
-      "<html>no es una foto</html>".getBytes(StandardCharsets.UTF_8)
-    );
-    Plan plan = photoPlan("http://127.0.0.1:" + port + "/foto");
-
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(plan));
-  }
-
-  @Test
-  public void anUndecodableBodyFallsBackToTheCover() throws Exception {
-    // Content-type image/png pero bytes que no son ninguna imagen: ImageIO.read da null.
-    serve("/foto.png", 200, "image/png", "no soy png".getBytes(StandardCharsets.UTF_8));
-    Plan plan = photoPlan("http://127.0.0.1:" + port + "/foto.png");
-
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(plan));
-  }
-
-  @Test
-  public void anUnreachableHostFallsBackToTheCover() throws Exception {
-    // Puerto 1: la conexion lanza IOException contra el servidor.
-    Plan plan = photoPlan("http://127.0.0.1:1/foto.png");
-
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(plan));
-  }
-
-  @Test
-  public void anOversizedDownloadFallsBackToTheCover() throws Exception {
-    // MAX_DOWNLOAD_BYTES es 8_000_000; un byte mas tira el recurso antes de tocar memoria.
-    serve("/grande.png", 200, "image/png", new byte[8_000_001]);
-    Plan plan = photoPlan("http://127.0.0.1:" + port + "/grande.png");
-
-    assertCanvasJpeg(new PlanOgImageService(contextWithCover()).ogImageFor(plan));
-  }
-
-  @Test
-  public void theBrandImageIsTheLastCover() throws Exception {
-    // Contexto sin portada SVG: la foto falla y el preview cae al escalon de marca.
-    Plan plan = photoPlan("http://127.0.0.1:" + port + "/na.jpg");
-    serve("/na.jpg", 404, "image/jpeg", new byte[0]);
-
-    assertCanvasJpeg(new PlanOgImageService(contextWithBrand()).ogImageFor(plan));
+  public void theBrandImageIsTheFallbackWhenTheCoverIsMissing() throws Exception {
+    assertCanvasJpeg(new PlanOgImageService(contextWithBrand()).ogImageFor(plan()));
   }
 
   @Test
   public void withoutCoverOrBrandThePreviewIsEmpty() throws Exception {
-    Optional<byte[]> result = new PlanOgImageService(contextWith(Map.of()))
-      .ogImageFor(coverOnlyPlan());
+    Optional<byte[]> result = new PlanOgImageService(contextWith(Map.of())).ogImageFor(plan());
     assertThat(result.isEmpty(), is(true));
   }
 
@@ -266,7 +178,7 @@ public class PlanOgImageServiceTest {
     when(context.getResourceAsStream(anyString())).thenReturn(brokenCloseStream());
     when(context.getResourceAsStream(startsWith("/resources/images/plans/"))).thenReturn(null);
 
-    assertThat(new PlanOgImageService(context).ogImageFor(coverOnlyPlan()).isEmpty(), is(true));
+    assertThat(new PlanOgImageService(context).ogImageFor(plan()).isEmpty(), is(true));
   }
 
   private static InputStream brokenCloseStream() {
@@ -289,7 +201,7 @@ public class PlanOgImageServiceTest {
     when(context.getResourceAsStream(anyString())).thenReturn(throwingStream());
 
     try {
-      new PlanOgImageService(context).ogImageFor(coverOnlyPlan());
+      new PlanOgImageService(context).ogImageFor(plan());
       throw new AssertionError("esperaba IllegalStateException");
     } catch (IllegalStateException expected) {
       assertThat(
@@ -309,9 +221,7 @@ public class PlanOgImageServiceTest {
   }
 
   @Test
-  public void encodeFailuresWalkDownThePriorityChain() throws Exception {
-    serve("/foto.png", 200, "image/png", png(320, 200, false));
-    Plan plan = photoPlan("http://127.0.0.1:" + port + "/foto.png");
+  public void anEncodeFailureYieldsNoPreviewInsteadOfAnError() throws Exception {
     // El contexto se arma antes del static mock: armar el PNG de prueba usa ImageIO.write,
     // que con el mock encima rebotaria contra el encoder roto que estamos inyectando.
     ServletContext context = contextWithCover();
@@ -326,19 +236,18 @@ public class PlanOgImageServiceTest {
         .when(() -> ImageIO.getImageWritersByFormatName("jpeg"))
         .thenAnswer(invocation -> Collections.singletonList(failing).iterator());
 
-      // Foto y portada comparten el encoder roto: la foto baja a portada y la portada a empty.
-      assertThat(new PlanOgImageService(context).ogImageFor(plan).isEmpty(), is(true));
+      assertThat(new PlanOgImageService(context).ogImageFor(plan()).isEmpty(), is(true));
     }
   }
 
   @Test
   public void theLastQualityTierIsTakenWhenNoTierFitsTheCap() throws Exception {
-    // Ruido puro: ningun tramo de calidad entra bajo 250 KB y el servicio igual entrega el
-    // ultimo antes que rendirse con un 404 para el scraper.
-    serve("/ruido.png", 200, "image/png", png(1200, 630, true));
-    Plan plan = photoPlan("http://127.0.0.1:" + port + "/ruido.png");
+    // Ruido puro en la marca: ningun tramo de calidad entra bajo 250 KB y el servicio igual
+    // entrega el ultimo antes que rendirse con un 404 para el scraper.
+    Map<String, byte[]> resources = new HashMap<>();
+    resources.put("/resources/images/og-image.png", png(1200, 630, true));
 
-    Optional<byte[]> result = new PlanOgImageService(contextWithCover()).ogImageFor(plan);
+    Optional<byte[]> result = new PlanOgImageService(contextWith(resources)).ogImageFor(plan());
     assertThat(result.isPresent(), is(true));
     // No se asserta <= 250 KB: en este extremo se entrega el ultimo tramo aunque pase el tope;
     // si algun dia entrara, la linea del tope seguiria cubierta por el resto de la cadena.
@@ -346,23 +255,11 @@ public class PlanOgImageServiceTest {
   }
 
   @Test
-  public void theResultIsCachedPerPhotoAndPerCover() throws Exception {
-    serve("/foto.png", 200, "image/png", png(320, 200, false));
-    PlanOgImageService service = new PlanOgImageService(contextWithCover());
+  public void theResultIsCachedPerCover() throws Exception {
+    PlanOgImageService service = new PlanOgImageService(contextWithAllCovers());
 
-    byte[] first = service
-      .ogImageFor(photoPlan("http://127.0.0.1:" + port + "/foto.png"))
-      .orElseThrow();
-    // Misma clave, mismos bytes: el scraper que vuelve no recalcula nada.
-    assertThat(
-      service.ogImageFor(photoPlan("http://127.0.0.1:" + port + "/foto.png")).orElseThrow(),
-      is(first)
-    );
-
-    serve("/otra.png", 200, "image/png", png(200, 120, false));
-    assertThat(
-      service.ogImageFor(photoPlan("http://127.0.0.1:" + port + "/otra.png")).isPresent(),
-      is(true)
-    );
+    byte[] first = service.ogImageFor(plan()).orElseThrow();
+    // Misma portada, mismos bytes: el scraper que vuelve no recalcula nada.
+    assertThat(service.ogImageFor(plan()).orElseThrow(), is(first));
   }
 }

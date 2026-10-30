@@ -219,10 +219,9 @@ public class PlanController {
     model.put("pageDescription", ogDescription);
     model.put("ogDescription", ogDescription);
     // La og-image siempre sale de nuestro propio dominio por el endpoint dedicado
-    // (/plans/{id}/og-image): los scrapers no leen SVG, no hay que hacer hotlink de la foto
-    // externa de un lugar (se descarga y redimensiona en el servidor) y el bot nunca sigue
-    // redirecciones. La prioridad foto > portada > marca la resuelve PlanOgImageService; acá
-    // solo se anuncian el formato fijo que el endpoint garantiza.
+    // (/plans/{id}/og-image): los scrapers no leen SVG, así que la misma portada que pinta la
+    // card se rasteriza y codifica a JPEG aca (ver PlanOgImageService) y el bot nunca sigue
+    // redirecciones. Acá solo se anuncian el formato fijo que el endpoint garantiza.
     model.put("ogImage", "/plans/" + plan.getId() + "/og-image");
     model.put("ogImageType", "image/jpeg");
     model.put("ogImageWidth", 1200);
