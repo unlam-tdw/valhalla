@@ -105,6 +105,11 @@ a plan: removing it changes nothing about the Plan.
 
 ## Key Concepts
 
+**User calendar**: Monthly, read-only view at `/plans/calendar` of the User's owned
+Plans and Plans they participate in. Entries use the Plan's start date and time,
+link to its detail, and exclude pending invitations. Undated Plans appear separately.
+See `docs/calendar-prototype.md` for the initial scope.
+
 **Plan invitation**: A pending invitation sent by a registered User to another registered
 User for a Plan, with the proposed Participant or Editor role and the inviter's identity.
 Only the recipient can accept or reject it from My Plans. Email invitations also carry

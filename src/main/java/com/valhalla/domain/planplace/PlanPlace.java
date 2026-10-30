@@ -58,7 +58,7 @@ public class PlanPlace {
   // al comparar la hora guardada con la derivada, y esa comparacion confunde una hora vieja con una
   // elegida. Con la marca, D-6 ("un pin explicito corta la cadena") es implementable sin heuristica.
   @Column(name = "time_pinned")
-  private Boolean timePinned = Boolean.FALSE;
+  private Boolean timePinned = false;
 
   @Column(name = "sort_order")
   private Integer sortOrder = 0;
@@ -135,7 +135,6 @@ public class PlanPlace {
    * @return {@code true} si la hora de la parada no se puede recalcular
    */
   public boolean isTimePinned() {
-    // Las filas antiguas con NULL equivalen a una hora que el usuario no fijo.
     return Boolean.TRUE.equals(timePinned);
   }
 

@@ -306,6 +306,9 @@ public class ProfileController {
         )
         .toList()
     );
+    model.put("pageTitle", displayName(owner));
+    model.put("ogTitle", displayName(owner));
+    model.put("ogType", "profile");
     return model;
   }
 

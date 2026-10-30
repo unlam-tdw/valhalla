@@ -111,19 +111,10 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
   public void reorderPlaces(UUID planId, List<UUID> entryIds, String ownerEmail) {
     Plan plan = planService.getEditablePlan(planId, ownerEmail);
     List<PlanPlace> entries = repository.findByPlanId(planId);
-    // The same place can appear several times, so entries are identified by their own id.
-    if (
-      entryIds == null ||
-      entryIds.size() != entries.size() ||
-      !new HashSet<>(entryIds)
-        .equals(new HashSet<>(entries.stream().map(PlanPlace::getId).toList()))
-    ) {
+    if (!matches(entryIds, entries)) {
       throw new IllegalArgumentException("Provide each itinerary entry exactly once");
     }
-    for (PlanPlace entry : entries) {
-      entry.setSortOrder(entryIds.indexOf(entry.getId()) + 1);
-      repository.save(entry);
-    }
+    reorder(entries, entryIds);
     // [SCH] El planificador recorre la coleccion del plan, que conserva el orden con el que se
     // cargo: hay que reordenarla en memoria antes de derivar, o el horario nuevo seguiria al viejo.
     plan.getPlanPlaces().sort(Comparator.comparing(PlanPlace::getSortOrder));
@@ -131,6 +122,31 @@ public class PlanPlaceServiceImpl implements PlanPlaceService {
     // orden mueve la posicion de las paradas, no su horario.
     if (plan.getSettings().getAutoSchedule()) {
       PlanScheduler.apply(plan);
+    }
+  }
+
+  private boolean matches(List<UUID> entryIds, List<PlanPlace> entries) {
+    if (entryIds == null || entryIds.size() != entries.size()) {
+      return false;
+    }
+    java.util.Set<UUID> expected = new java.util.HashSet<>(entryIds);
+    java.util.Set<UUID> actual = new java.util.HashSet<>();
+    for (PlanPlace entry : entries) {
+      actual.add(entry.getId());
+    }
+    return expected.equals(actual);
+  }
+
+  private void reorder(List<PlanPlace> entries, List<UUID> entryIds) {
+    for (int i = 0; i < entryIds.size(); i++) {
+      UUID id = entryIds.get(i);
+      for (PlanPlace entry : entries) {
+        if (entry.getId().equals(id)) {
+          entry.setSortOrder(i + 1);
+          repository.save(entry);
+          break;
+        }
+      }
     }
   }
 
