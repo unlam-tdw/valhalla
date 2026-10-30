@@ -4,11 +4,16 @@ document.addEventListener('click', (event) => {
   event.preventDefault();
   const url = button.dataset.shareUrl;
   if (!url) return;
-  const absoluteUrl = new URL(url, window.location.origin).href;
-  const title = button.dataset.shareTitle || document.title;
-  const text = button.dataset.shareText || '';
+  // La URL publica sale de <meta name="public-base-url"> (PUBLIC_BASE_URL en el servidor):
+  // detras de ngrok el link que hay que compartir no es el host que ve el navegador.
+  const base =
+    document.querySelector('meta[name="public-base-url"]')?.content || window.location.origin;
+  const absoluteUrl = new URL(url, base).href;
+  // Solo la URL: con title o text en el payload, WhatsApp y compañía concatenan ese texto
+  // antes del link en el mensaje. La descripcion del plan ya la muestra la tarjeta OG del
+  // preview, asi que cualquier texto extra es redundancia.
   if (navigator.share) {
-    navigator.share({ title, text, url: absoluteUrl }).catch((error) => {
+    navigator.share({ url: absoluteUrl }).catch((error) => {
       if (error.name !== 'AbortError') copyLink(absoluteUrl, button);
     });
     return;

@@ -227,11 +227,11 @@ public class ProfileControllerIntegrationTest {
     );
     assertThat(
       html,
-      containsString("property=\"og:url\" content=\"http://localhost:80/profile/" + selfId + "\"")
+      containsString("property=\"og:url\" content=\"http://localhost/profile/" + selfId + "\"")
     );
     assertThat(
       html,
-      containsString("property=\"og:image\" content=\"http://localhost:80/images/og-image.png\"")
+      containsString("property=\"og:image\" content=\"http://localhost/images/og-image.png\"")
     );
     assertThat(html, containsString("name=\"twitter:card\" content=\"summary_large_image\""));
     // La card del plan publico comparte el link; la tarjeta la arma la plataforma con la OG.

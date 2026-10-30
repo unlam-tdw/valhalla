@@ -105,7 +105,9 @@ public class PlanController {
     model.put("canInviteInternal", plan.canInviteInternal(userEmail));
     model.put("canInviteByEmail", plan.canInviteByEmail(userEmail));
     model.put("canInvite", plan.canInviteInternal(userEmail) || plan.canInviteByEmail(userEmail));
-    model.put("canShare", plan.getIsPublic());
+    // El dueno y los editores comparten un plan privado; el resto de participantes no. Un plan
+    // publico lo comparte cualquiera (21-PET: la visibilidad gobierna el acceso).
+    model.put("canShare", plan.getIsPublic() || plan.canEdit(userEmail));
     model.put("canHandleRequests", plan.canHandleRequests(userEmail));
     if (plan.canHandleRequests(userEmail)) {
       model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
@@ -192,37 +194,39 @@ public class PlanController {
     return new ModelAndView(VIEW_PUBLIC_PLAN, model);
   }
 
+  /**
+   * Meta tags Open Graph/Twitter de la vista pública: los lee el scraper de WhatsApp/Discord/
+   * Teams sin ejecutar JS, así que todo sale del HTML ya renderizado (base.html los dibuja con
+   * el prefijo absoluto de siteOrigin, que respeta PUBLIC_BASE_URL).
+   */
   private void addPublicMeta(Map<String, Object> model, Plan plan) {
-    model.put("pageTitle", plan.getName());
-    model.put("ogTitle", plan.getName());
-    model.put("ogUrl", "/plans/" + plan.getId() + PUBLIC_SUFFIX);
-    model.put("ogType", "article");
     String creator = displayName(plan.getAdministrator());
-    StringBuilder descBuilder = new StringBuilder();
-    if (creator != null && !creator.isBlank()) {
-      descBuilder.append("Plan creado por ").append(creator).append(". ");
+    model.put("pageTitle", plan.getName());
+    model.put("ogTitle", creator.isBlank() ? plan.getName() : plan.getName() + " · por " + creator);
+    model.put("ogType", "website");
+    model.put("ogUrl", "/plans/" + plan.getId() + PUBLIC_SUFFIX);
+    String description = plan.getDescription() == null ? "" : plan.getDescription().trim();
+    if (description.isBlank()) {
+      description =
+        creator.isBlank()
+          ? "Un plan para descubrir en PlanIt."
+          : "Plan de " + creator + " en PlanIt.";
     }
-    if (plan.getEventDate() != null) {
-      descBuilder.append("Fecha: ").append(plan.getEventDate()).append(". ");
-    }
-    int placeCount = plan.getPlanPlaces() == null ? 0 : plan.getPlanPlaces().size();
-    descBuilder
-      .append(placeCount)
-      .append(" lugar")
-      .append(placeCount == 1 ? "" : "es")
-      .append(" en el itinerario.");
-    String built = descBuilder.toString().trim();
-    if (plan.getDescription() != null && !plan.getDescription().isBlank()) {
-      String fullDesc = plan.getDescription().trim() + " | " + built;
-      model.put("pageDescription", fullDesc);
-      model.put("ogDescription", fullDesc);
-    } else {
-      model.put("pageDescription", built);
-      model.put("ogDescription", built);
-    }
-    String cover =
-      "/images/plans/cover-" + (Math.floorMod(plan.getId().hashCode(), 6) + 1) + ".png";
-    model.put("ogImage", cover);
+    // Los scrapers cortan la descripción igual: se recorta acá para que el texto visto sea el enviado.
+    String ogDescription = description.length() <= 200
+      ? description
+      : description.substring(0, 199).stripTrailing() + "…";
+    model.put("pageDescription", ogDescription);
+    model.put("ogDescription", ogDescription);
+    // La og-image siempre sale de nuestro propio dominio por el endpoint dedicado
+    // (/plans/{id}/og-image): los scrapers no leen SVG, no hay que hacer hotlink de la foto
+    // externa de un lugar (se descarga y redimensiona en el servidor) y el bot nunca sigue
+    // redirecciones. La prioridad foto > portada > marca la resuelve PlanOgImageService; acá
+    // solo se anuncian el formato fijo que el endpoint garantiza.
+    model.put("ogImage", "/plans/" + plan.getId() + "/og-image");
+    model.put("ogImageType", "image/jpeg");
+    model.put("ogImageWidth", 1200);
+    model.put("ogImageHeight", 630);
   }
 
   private ModelAndView showJoinLanding(Plan plan, String email) {

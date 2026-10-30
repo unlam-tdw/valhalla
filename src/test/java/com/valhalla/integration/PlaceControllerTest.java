@@ -114,8 +114,9 @@ public class PlaceControllerTest {
       .andExpect(content().string(not(containsString("textContent.length > 2000"))));
   }
 
-  // [SHARE] El sidebar de /explore lo pinta Vue despues del load: el boton viaja con el link y el
-  // titulo atados a la card, y share-plan.js comparte el link (el listener delegado cubre el alta).
+  // [SHARE] El sidebar de /explore lo pinta Vue despues del load: el boton viaja solo con el
+  // link (share-plan.js comparte unicamente la URL; el mensaje no lleva titulo ni descripcion),
+  // y el listener delegado cubre el alta tardia.
   @Test
   @WithMockUser
   public void shouldShipTheShareButtonOnTheExplorePlanCards() throws Exception {
@@ -126,7 +127,8 @@ public class PlaceControllerTest {
       .andExpect(
         content().string(containsString(":data-share-url=\"'/plans/' + plan.id + '/public'\""))
       )
-      .andExpect(content().string(containsString(":data-share-title=\"plan.name\"")))
+      .andExpect(content().string(not(containsString(":data-share-title"))))
+      .andExpect(content().string(not(containsString(":data-share-text"))))
       .andExpect(content().string(not(containsString(":data-share-cover"))))
       .andExpect(content().string(containsString("/js/share-plan.js")));
   }
@@ -155,15 +157,12 @@ public class PlaceControllerTest {
           )
       )
       .andExpect(
-        content()
-          .string(containsString("property=\"og:url\" content=\"http://localhost:80/explore\""))
+        content().string(containsString("property=\"og:url\" content=\"http://localhost/explore\""))
       )
       .andExpect(
         content()
           .string(
-            containsString(
-              "property=\"og:image\" content=\"http://localhost:80/images/og-image.png\""
-            )
+            containsString("property=\"og:image\" content=\"http://localhost/images/og-image.png\"")
           )
       );
   }

@@ -29,7 +29,6 @@ import com.valhalla.domain.plan.TransportMode;
 import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
-import com.valhalla.presentation.plan.PlanFeedCards;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -40,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -1399,7 +1399,6 @@ public class PlanControllerIntegrationTest {
     Plan plan = this.planRepository.findById(planId).orElseThrow();
     plan.setDescription("Feria de Serrano y Don Julio");
     this.planRepository.save(plan);
-    String cover = PlanFeedCards.coverFor(planId).replace(".svg", ".png");
 
     // when
     String html =
@@ -1409,11 +1408,13 @@ public class PlanControllerIntegrationTest {
         .getResponse()
         .getContentAsString();
 
-    // then: el preview lleva creador, descripcion, URL absoluta y la portada PNG del plan (los
-    // scrapers no renderizan la portada SVG del feed).
+    // then: los meta tags OG/Twitter salen en el HTML renderizado (los scrapers no ejecutan JS):
+    // titulo con el creador, descripcion del plan, URL absoluta y la portada del plan como JPG
+    // fijo servido desde nuestro propio dominio (los bots no leen SVG ni siguen redirecciones).
+    assertThat(html, containsString("property=\"og:type\" content=\"website\""));
     assertThat(
       html,
-      containsString("property=\"og:title\" content=\"Test User · " + PUBLIC_PLAN_NAME + "\"")
+      containsString("property=\"og:title\" content=\"" + PUBLIC_PLAN_NAME + " · por Test User\"")
     );
     assertThat(
       html,
@@ -1421,23 +1422,117 @@ public class PlanControllerIntegrationTest {
     );
     assertThat(
       html,
+      containsString("property=\"og:url\" content=\"http://localhost/plans/" + planId + "/public\"")
+    );
+    assertThat(
+      html,
       containsString(
-        "property=\"og:url\" content=\"http://localhost:80/plans/" + planId + "/public\""
+        "property=\"og:image\" content=\"http://localhost/plans/" + planId + "/og-image\""
       )
     );
     assertThat(
       html,
-      containsString("property=\"og:image\" content=\"http://localhost:80" + cover + "\"")
+      containsString(
+        "property=\"og:image:secure_url\" content=\"http://localhost/plans/" +
+        planId +
+        "/og-image\""
+      )
     );
-    assertThat(html, containsString("property=\"og:image:height\" content=\"640\""));
+    assertThat(html, containsString("property=\"og:image:type\" content=\"image/jpeg\""));
+    assertThat(html, containsString("property=\"og:image:width\" content=\"1200\""));
+    assertThat(html, containsString("property=\"og:image:height\" content=\"630\""));
     assertThat(
       html,
-      containsString("name=\"twitter:image\" content=\"http://localhost:80" + cover + "\"")
+      containsString(
+        "name=\"twitter:image\" content=\"http://localhost/plans/" + planId + "/og-image\""
+      )
     );
+    assertThat(html, containsString("name=\"twitter:card\" content=\"summary_large_image\""));
     // El boton comparte solo el link: las etiquetas OG de arriba son las que arman la tarjeta.
     assertThat(html, containsString("data-share-url=\"/plans/" + planId + "/public\""));
     assertThat(html, containsString("/js/share-plan.js"));
     assertThat(html, not(containsString("data-share-cover")));
+  }
+
+  @Test
+  public void ogImageEndpointServesAFixedJpegAnonymously() throws Exception {
+    // given: cualquier plan (sin foto raster, la imagen es el cover generico deterministico
+    // por id rasterizado; no hace falta que el bot tenga sesion)
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+
+    // when: un bot sin sesion pide la portada rasterizada
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/" + planId + "/og-image"))
+        .andExpect(status().isOk())
+        .andReturn();
+
+    // then: JPEG valido, bajo el tope que exige WhatsApp, cacheable
+    byte[] jpg = result.getResponse().getContentAsByteArray();
+    assertThat(result.getResponse().getContentType(), is("image/jpeg"));
+    assertThat(
+      "firma JPEG",
+      new byte[] { jpg[0], jpg[1] },
+      is(new byte[] { (byte) 0xFF, (byte) 0xD8 })
+    );
+    assertThat("menos de 250 KB", jpg.length < 250_000, is(true));
+    java.awt.image.BufferedImage decoded = javax.imageio.ImageIO.read(
+      new java.io.ByteArrayInputStream(jpg)
+    );
+    assertThat("dimensiones", decoded.getWidth() + "x" + decoded.getHeight(), is("1200x630"));
+    assertThat(result.getResponse().getHeader("Cache-Control"), containsString("public"));
+
+    // y dos: la conversion queda cacheada, el segundo pedido responde lo mismo
+    byte[] again =
+      this.mockMvc.perform(get("/plans/" + planId + "/og-image"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsByteArray();
+    assertThat(again, is(jpg));
+  }
+
+  @Test
+  public void publicPlanPreviewNeverHotlinksThePlacePhoto() throws Exception {
+    // given: un plan publico cuyo primer lugar tiene foto externa
+    UUID planId = givenPublicPlanFor(this.ownerId, PUBLIC_PLAN_NAME);
+    Place place = new Place();
+    place.setName("Plaza Italia");
+    place.setImageUrl("https://cdn.example.com/fotos/plaza-italia.jpg");
+    this.placeRepository.save(place);
+    Plan plan = this.planRepository.findById(planId).orElseThrow();
+    PlanPlace entry = new PlanPlace();
+    entry.setPlace(place);
+    entry.setSortOrder(1);
+    plan.addPlanPlace(entry);
+    this.planRepository.save(plan);
+
+    // when
+    String html =
+      this.mockMvc.perform(get("/plans/" + planId + "/public"))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // then: la og:image es SIEMPRE nuestro dominio: la foto del lugar se descarga y
+    // redimensiona en el servidor (sin hotlink), y el bot ve un JPG fijo con dimensiones.
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:image\" content=\"http://localhost/plans/" + planId + "/og-image\""
+      )
+    );
+    assertThat(html, not(containsString("cdn.example.com/fotos/plaza-italia.jpg\"")));
+    assertThat(html, containsString("property=\"og:image:type\" content=\"image/jpeg\""));
+    assertThat(html, containsString("property=\"og:image:width\" content=\"1200\""));
+
+    // y el endpoint responde aunque el CDN sea inalcanzable (aca): cae en la portada rasterizada
+    MvcResult result =
+      this.mockMvc.perform(get("/plans/" + planId + "/og-image"))
+        .andExpect(status().isOk())
+        .andReturn();
+    assertThat(result.getResponse().getContentType(), is("image/jpeg"));
+    assertThat(result.getResponse().getContentAsByteArray().length < 250_000, is(true));
   }
 
   @Test
@@ -1516,10 +1611,12 @@ public class PlanControllerIntegrationTest {
         .getResponse()
         .getContentAsString();
 
-    // then: la card del feed comparte el link publico; la tarjeta la arma la plataforma con la OG.
+    // then: la card del feed comparte solo el link publico; la tarjeta la arma la plataforma
+    // con la OG, y ningun destino debe recibir titulo o descripcion como texto del mensaje.
     assertThat(html, containsString("data-share-plan"));
     assertThat(html, containsString("data-share-url=\"/plans/" + planId + "/public\""));
-    assertThat(html, containsString("data-share-title=\"" + PUBLIC_PLAN_NAME + "\""));
+    assertThat(html, not(containsString("data-share-title")));
+    assertThat(html, not(containsString("data-share-text")));
     assertThat(html, containsString("/js/share-plan.js"));
   }
 
