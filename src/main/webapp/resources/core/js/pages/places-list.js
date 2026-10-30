@@ -193,8 +193,10 @@ createApp({
     };
 
     /* [APL] Panel de detalle: agregar a plan inline, sin modal (AC-03). Los planes propios se
-       piden una sola vez al montar; uno que ya contiene el lugar no se ofrece, asi que el 409
-       es solo una carrera rara y se responde con el mismo texto de addToActivePlan. */
+       piden una sola vez al montar. Se listan TODOS, aunque el plan ya contenga el lugar (T7):
+       filtrarlo afuera escondia el picker entero para ese lugar, y tras un alta tambien se
+       desmontaba el mensaje de exito. El plan contenedor queda deshabilitado y marcado; el
+       backend no rechaza duplicados (no hay 409), asi que la UI es la unica guarda. */
     const planOptions = ref([]);
     const planPickId = ref('');
     const planBusy = ref(false);
@@ -203,33 +205,42 @@ createApp({
 
     const loadPlanOptions = async () => {
       const response = await apiFetch('/api/plans');
-      planOptions.value = await response.json();
+      const plans = await response.json();
+      // Un payload no-array no debe romper el picker: se trata como "sin planes".
+      planOptions.value = Array.isArray(plans) ? plans : [];
     };
 
-    const availablePlans = computed(() => {
+    const availablePlans = computed(() => planOptions.value);
+
+    const planContainsPlace = (plan) => {
       const place = selectedPlace.value;
-      if (!place) return [];
-      return planOptions.value.filter(plan =>
-        !(plan.planPlaces || []).some(entry => String(entry.placeId) === String(place.id)));
-    });
+      return (
+        !!place &&
+        (plan.planPlaces || []).some(entry => String(entry.placeId) === String(place.id))
+      );
+    };
+
+    const firstAddablePlan = (plans) =>
+      plans.find(plan => !planContainsPlace(plan))?.id || '';
 
     watch(selectedPlace, () => {
-      planPickId.value = availablePlans.value[0]?.id || '';
+      planPickId.value = firstAddablePlan(availablePlans.value);
       planMessage.value = '';
       planError.value = false;
     });
 
-    // Un alta exitosa saca el plan de la lista: si el select quedó apuntando a un plan
-    // que ya no se ofrece, vuelve al primero disponible.
+    // Tras una alta el plan sigue listado pero ya contiene el lugar: si el select quedó
+    // apuntando a él, vuelve al primero todavía agregable.
     watch(availablePlans, (plans) => {
-      if (!plans.some(plan => plan.id === planPickId.value)) {
-        planPickId.value = plans[0]?.id || '';
+      const current = plans.find(plan => plan.id === planPickId.value);
+      if (!current || planContainsPlace(current)) {
+        planPickId.value = firstAddablePlan(plans);
       }
     });
 
     const addSelectedToPlan = async () => {
       const plan = availablePlans.value.find(candidate => candidate.id === planPickId.value);
-      if (planBusy.value || !plan) return;
+      if (planBusy.value || !plan || planContainsPlace(plan)) return;
       planBusy.value = true;
       planMessage.value = '';
       planError.value = false;
@@ -647,6 +658,7 @@ createApp({
       nextPlanStep,
       onPlanSubmit,
       availablePlans,
+      planContainsPlace,
       planPickId,
       planBusy,
       planMessage,

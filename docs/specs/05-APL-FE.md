@@ -19,8 +19,8 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 
 | # | Criterio |
 |---|----------|
-| AC-01 | El panel lateral de `/places` ofrece un picker de plan inline (select de los planes propios que no contienen el lugar + botón "Agregar al plan"), sin modal; sin planes el picker no se pinta |
-| AC-02 | Al hacer click en un lugar de `/explore` nunca se abre un modal de "agregar a plan": el agregado desde la ficha es inline, con feedback en el mismo panel (éxito o 409 "El destino ya se encuentra en el plan.") |
+| AC-01 | El panel lateral de `/places` ofrece un picker de plan inline (select de TODOS los planes propios; los que ya contienen el lugar salen deshabilitados y marcados "(ya contiene el lugar)" + botón "Agregar al plan"), sin modal; sin planes el picker no se pinta |
+| AC-02 | Al hacer click en un lugar de `/explore` nunca se abre un modal de "agregar a plan": el agregado desde la ficha es inline, con feedback en el mismo panel (éxito o error); un plan que ya contiene el lugar no se puede re-agregar (opción deshabilitada, guard en el cliente porque el backend no rechaza duplicados) |
 | AC-03 | Al agregar un lugar desde el wizard o desde el detalle del plan se muestra feedback visual (redirect o mensaje) |
 | AC-04 | El detalle del plan (/plans/{id}) muestra el itinerario con los lugares en orden |
 | AC-05 | El itinerario agrupa las paradas por día y cada una muestra numero de orden, nombre, categoria y su horario como chip con rango `HH:mm – HH:mm`, duración y fecha (la fecha solo aparece cuando difiere del Día 1) |
@@ -39,7 +39,7 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| U-01 | El panel lateral de `/places` no contiene el botón "Add to plan" ni el modal; el picker inline existe con `id="plan-picker"` y `aria-label="Agregar al plan"`, tras `v-if="availablePlans.length"` | AC-01, AC-02 |
+| U-01 | El panel lateral de `/places` no contiene el botón "Add to plan" ni el modal; el picker inline existe con `id="plan-picker"` y `aria-label="Agregar al plan"`, tras `v-if="availablePlans.length"`; las opciones deshabilitadas llevan el sufijo "(ya contiene el lugar)" | AC-01, AC-02 |
 
 ### Tests de Integracion (`presentation/plan/PlanControllerTest.java`)
 
@@ -53,20 +53,22 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
 | E-01 | `AddPlaceToPlanE2E` | Crear plan desde /explore, agregar un lugar vía API en la sesión del navegador y verificar el itinerario | AC-04, AC-05 |
+| E-02 | `PlanPickerE2E` | Con sesión y un plan propio: el picker se pinta para un lugar que el plan ya contiene (opción deshabilitada y marcada), y para otro lugar el agregado inline funciona y la API confirma el itinerario | AC-01, AC-02 |
 
 ## Notas / decisiones de diseño
 
 - **El "Add to plan" y su modal se quitaron de `/places`; el picker volvió inline**. No existe
   `pages/places/detail.html` ni ruta `/places/{id}`: la ficha vive como
   `<aside aria-label="Details for ...">` dentro de `/places` (nombre, categoría,
-  dirección, descripción e imagen) y ahora cierra con un picker de plan: select de los planes
-  propios que no contienen ya el lugar (`availablePlans`, UUIDs comparados como string) +
-  botón "Agregar al plan" con `apiFetch` POST, sin modal y sin salir de la página. El picker
-  solo se pinta si hay planes elegibles (`v-if="availablePlans.length"`); sin sesión la API
-  devuelve `[]` y la ficha queda informativa. El 409 responde "El destino ya se encuentra en
-  el plan."; el resto usa el `failure` de la vista. El agregado también sigue vivo en el
-  wizard de creación de `/explore` (tarjeta "+" → borrador) y en el detalle del plan; el
-  usuario no pierde el mapa, el filtro aplicado ni la posición del scroll.
+  dirección, descripción e imagen) y ahora cierra con un picker de plan: select de TODOS los
+  planes propios (`availablePlans`, UUIDs comparados como string); el plan que ya contiene el
+  lugar sale deshabilitado y marcado "(ya contiene el lugar)", porque el backend no rechaza
+  duplicados (no hay 409) y la UI es la única guarda; el botón "Agregar al plan" hace
+  `apiFetch` POST, sin modal y sin salir de la página. El picker se pinta si hay planes
+  propios (`v-if="availablePlans.length"`); sin sesión la API devuelve `[]` y la ficha queda
+  informativa. El agregado también sigue vivo en el wizard de creación de `/explore` (tarjeta
+  "+" → borrador) y en el detalle del plan; el usuario no pierde el mapa, el filtro aplicado
+  ni la posición del scroll.
 - **`add-to-plan.js` queda como puente de eventos**: el click en la tarjeta "+" emite
   `add-to-plan` y `places-list.js` lo enruta al borrador del wizard o al plan activo. El camino
   que abría el modal (fetch de `/api/plans` + select) se reemplazó por el picker inline del
