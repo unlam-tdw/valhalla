@@ -66,6 +66,16 @@ public final class PlanScheduleCalculator {
    * Una parada tal como entra al planificador: los pines que fijo el usuario (fecha y/u hora), las
    * duraciones candidatas, los datos con los que se estima el traslado y el traslado fijado a mano
    * hacia la parada siguiente.
+   *
+   * @param pinnedDate fecha fijada a mano para la parada, o {@code null} si sigue la del plan
+   * @param pinnedTime hora fijada a mano para la parada, o {@code null} si sigue el calculo
+   * @param durationMinutes duracion de la visita usada para calcular (fijada o por defecto)
+   * @param placeDurationMinutes duracion propia del lugar, sin fijar a mano
+   * @param category categoria del lugar (define la duracion por defecto)
+   * @param latitude latitud del lugar, para estimar el traslado siguiente
+   * @param longitude longitud del lugar, para estimar el traslado siguiente
+   * @param transportModeToNext modo de traslado fijado a mano hacia la parada siguiente
+   * @param travelMinutesToNext minutos de traslado fijados a mano hacia la siguiente
    */
   public record Stop(
     LocalDate pinnedDate,
@@ -79,7 +89,13 @@ public final class PlanScheduleCalculator {
     Integer travelMinutesToNext
   ) {}
 
-  /** Horario calculado para una parada: dia, hora de inicio y hora de fin. */
+  /**
+   * Horario calculado para una parada: dia, hora de inicio y hora de fin.
+   *
+   * @param date dia en el que cae la parada
+   * @param start hora de inicio de la visita
+   * @param end hora de fin de la visita
+   */
   public record Slot(LocalDate date, LocalTime start, LocalTime end) {}
 
   /**
