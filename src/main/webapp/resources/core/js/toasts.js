@@ -16,17 +16,28 @@
     close.type = 'button';
     close.textContent = '\u00d7';
     close.setAttribute('aria-label', 'Cerrar aviso');
-    toast.append(text, close);
+    const progress = document.createElement('div');
+    progress.className = 'planit-toast-progress';
+    progress.setAttribute('aria-hidden', 'true');
+    toast.append(text, close, progress);
     region.appendChild(toast);
-    let timer;
-    const dismiss = () => { clearTimeout(timer); toast.remove(); };
-    const start = () => { clearTimeout(timer); timer = setTimeout(dismiss, 6000); };
+    const animation = progress.animate(
+      [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      { duration: 6000, easing: 'linear', fill: 'forwards' }
+    );
+    const dismiss = () => { animation.cancel(); toast.remove(); };
+    let hovered = false;
+    const syncPlayback = () => {
+      if (hovered || toast.contains(document.activeElement)) animation.pause();
+      else animation.play();
+    };
+    animation.finished.then(() => toast.remove()).catch(() => {});
     close.addEventListener('click', dismiss);
-    toast.addEventListener('mouseenter', () => clearTimeout(timer));
-    toast.addEventListener('mouseleave', start);
-    toast.addEventListener('focusin', () => clearTimeout(timer));
-    toast.addEventListener('focusout', start);
-    start();
+    toast.addEventListener('mouseenter', () => { hovered = true; syncPlayback(); });
+    toast.addEventListener('mouseleave', () => { hovered = false; syncPlayback(); });
+    toast.addEventListener('focusin', syncPlayback);
+    toast.addEventListener('focusout', () => queueMicrotask(syncPlayback));
+    syncPlayback();
   }
   document.querySelectorAll('[data-toast]').forEach(node => {
     show(node.textContent.trim());
