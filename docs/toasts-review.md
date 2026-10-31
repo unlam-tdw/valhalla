@@ -14,7 +14,7 @@ visiblemente la interfaz conservan su comportamiento original.
 
 | Área | Confirmaciones |
 | --- | --- |
-| Planes | Eliminar y salir |
+| Planes | Unirse, eliminar y salir |
 | Participación | Solicitar acceso, expulsar, bloquear y desbloquear |
 | Invitaciones | Enviar invitación y aceptar o rechazar desde Mis planes |
 | Configuración | Guardar permisos del plan |
@@ -23,7 +23,7 @@ visiblemente la interfaz conservan su comportamiento original.
 
 ## Acciones restauradas
 
-Crear, editar y clonar planes; unirse directamente a un plan; responder solicitudes;
+Crear, editar y clonar planes; responder solicitudes;
 cambiar roles; modificar el itinerario; calificar; guardar, quitar y clonar desde Guardados;
 editar el perfil; cerrar sesión; crear o editar lugares; editar, activar y desactivar usuarios.
 Cada una recupera la navegación, los cambios visibles y los avisos que tenía antes de esta tarea.

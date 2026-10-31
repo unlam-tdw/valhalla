@@ -81,7 +81,7 @@ public class PlanControllerTest {
   private static final Validator VALIDATOR = localValidator();
 
   @Test
-  public void visiblePlanChangesDoNotProduceToasts() {
+  public void visibleChangesStaySilentAndJoiningConfirmsParticipation() {
     var request = new org.springframework.mock.web.MockHttpServletRequest();
     var flash = new org.springframework.web.servlet.FlashMap();
     request.setAttribute(
@@ -101,10 +101,12 @@ public class PlanControllerTest {
       controller.clonePlan(PLAN_ID, authentication);
       controller.changeParticipantRole(PLAN_ID, "participant@test.com", "editor", authentication);
       controller.respondToJoinRequest(PLAN_ID, JOIN_REQUEST_ID, "accept", authentication);
+      assertThat(flash.isEmpty(), is(true));
+
       ModelAndView joined = controller.joinPlan("PUBLIC01", authentication);
 
       assertThat(joined.getViewName(), is("redirect:/plans/" + PLAN_ID));
-      assertThat(flash.isEmpty(), is(true));
+      assertThat(flash.get("successToast"), is("Ya participás del plan."));
     } finally {
       org.springframework.web.context.request.RequestContextHolder.resetRequestAttributes();
     }

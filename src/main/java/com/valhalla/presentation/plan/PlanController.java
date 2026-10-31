@@ -541,7 +541,7 @@ public class PlanController {
     if (awaitingApproval) {
       return confirmed(REDIRECT_PLANS, "Solicitud enviada.");
     }
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + plan.getId());
+    return confirmed(REDIRECT_PLAN_DETAIL + plan.getId(), "Ya participás del plan.");
   }
 
   /**
