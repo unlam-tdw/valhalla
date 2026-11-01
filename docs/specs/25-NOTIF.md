@@ -68,6 +68,14 @@ quedan como card separada.
   las dos partes debería tener que entrar al plan para saber en qué quedó. El hook vive en
   `addJoinRequest`, no en `requestToJoin`, porque `joinPlan` con short code sobre un plan privado
   toma el mismo camino; la solicitud repetida corta antes y no duplica.
+- **El centro es una bandeja de acciones, no un historial.** Cada fila enlaza al lugar donde esa
+  notificacion se resuelve, y cuando la accion vive a mitad de pagina se lleva el ancla: la
+  solicitud de union cae en `#join-requests-heading` del plan y la invitacion en
+  `#pending-invitations-heading` de `/plans`, no arriba. El rechazo no tiene acceso al plan, así
+  que enlaza al landing publico, que siempre muestra el resumen y permite volver a solicitar
+  (AC-07). El tile de pendiente se define en `brand.css` (`.notification-row*`) y no como
+  utilidad suelta: `bg-blue-50` no tiene complemento oscuro, así que en modo oscuro la fila no
+  leida quedaba con slab celeste brilloso y texto casi blanco encima (AC-17).
 - **Qué NO notifica (decisión de producto 2026-11-01).** Te sacaron de un plan, te banearon,
   cambiaron tu rol, alguien salió de tu plan y calificaron tu plan: silencio deliberado. Dejar de
   seguir tampoco avisa (AC-11). El criterio: se notifica lo que pide una acción o cierra un
@@ -83,16 +91,17 @@ quedan como card separada.
 | AC-04 | `GET /notifications` lista las notificaciones del usuario de la sesion, mas nuevas primero, 10 por pagina, con paginacion previa/siguiente por `?page=N` |
 | AC-05 | La navbar autenticada muestra una campana a `/notifications` con el numero de no-leidas; el numero desaparece en 0 |
 | AC-06 | Marcar una leida (individual o "Marcar todas") baja el badge en el render siguiente y es idempotente |
-| AC-07 | La notificacion linkia a su destino: actor → `/profile/{id}`, plan → `/plans/{id}` (propio) o `/plans/{id}/public` (ajeno) |
+| AC-07 | La notificacion linkia al lugar donde se resuelve: actor → `/profile/{id}`, plan propio → `/plans/{id}`, plan ajeno → `/plans/{id}/public`; cuando la accion vive en una seccion de la pagina, el link lleva su ancla (`/plans/{id}#join-requests-heading`, `/plans#pending-invitations-heading`) |
 | AC-08 | Sin sesion, `/notifications` redirige al login; los POST de marcado exigen CSRF |
 | AC-09 | El destinatario sale siempre de la sesion: marcar el id de una notificacion ajena no la modifica ni revela nada |
 | AC-10 | El centro vacio muestra "Todavía no tenés notificaciones." |
 | AC-11 | Borrar/deshacer el hecho origen (unfollow, salir del plan) no elimina ni marca notificaciones existentes |
 | AC-12 | El texto de la notificacion es historico: renombre o eliminacion posterior del plan no reescriben la fila |
 | AC-13 | `User` no gana una coleccion de notificaciones: listado, conteos y marcado son consultas sobre la tabla `notifications` |
-| AC-14 | Invitar a un usuario a un plan crea "X te invitó al plan Y" para el invitado, con link a `/plans`; una invitacion que falla no notifica |
-| AC-15 | Pedir unirse a un plan privado (solicitud o short code) crea "X solicitó unirse a tu plan Y" para el dueño; repetir la solicitud no duplica |
-| AC-16 | Aceptar o rechazar una solicitud crea "X aprobó/rechazó tu solicitud para el plan Y" para el solicitante |
+| AC-14 | Invitar a un usuario a un plan crea "X te invitó al plan Y" para el invitado, con link a las pendientes de `/plans`; una invitacion que falla no notifica |
+| AC-15 | Pedir unirse a un plan privado (solicitud o short code) crea "X solicitó unirse a tu plan Y" para el dueño, con link a la seccion Solicitudes del plan; repetir la solicitud no duplica |
+| AC-16 | Aceptar o rechazar una solicitud crea "X aprobó/rechazó tu solicitud para el plan Y" para el solicitante: aceptada abre el plan, rechazada abre el landing publico (donde puede volver a solicitar) |
+| AC-17 | La fila no leida se distingue de la leida (tinte + punto) y el tinte tiene su pareja oscura: ninguna fila queda con texto claro sobre fondo claro |
 
 ## Escenarios de Test
 
@@ -160,8 +169,8 @@ quedan como card separada.
 
 | # | Test | AC que cubre |
 |---|------|-------------|
-| I-01 | El follow crea la notificacion y el listado la muestra | AC-01, AC-04 |
-| I-03 | Marcar leida individual baja el badge | AC-06 |
+| I-01 | El follow crea la notificacion y el listado la muestra como fila de pendiente | AC-01, AC-04, AC-17 |
+| I-03 | Marcar leida individual baja el badge y la fila pasa a estado leido | AC-06, AC-17 |
 | I-04 | Dejar de seguir no borra ni marca la notificacion | AC-11 |
 | I-05 | Marcar todas vacia el badge de una accion | AC-06 |
 | I-06 | Paginacion de a 10 con ventana siguiente y links | AC-04 |
@@ -169,9 +178,9 @@ quedan como card separada.
 | I-08 | `GET /notifications` sin sesion redirige al login | AC-08 |
 | I-09 | Join por short code notifica al dueño del plan | AC-02 |
 | I-10 | Plan publico nuevo notifica a los seguidores | AC-03 |
-| I-11 | Invitacion notifica al invitado y el centro la traduce sin filtrar el email del invitador | AC-14, AC-12 |
-| I-12 | Solicitud de unión notifica al dueño y el centro la muestra | AC-15 |
-| I-13 | Aceptar y rechazar solicitudes notifican al solicitante | AC-16 |
+| I-11 | Invitacion notifica al invitado, linkia las pendientes y no filtra el email del invitador | AC-14, AC-12, AC-07 |
+| I-12 | Solicitud de unión notifica al dueño con link a la seccion Solicitudes | AC-15, AC-07 |
+| I-13 | Aceptar y rechazar notifican al solicitante, cada uno a su destino | AC-16, AC-07 |
 
 ### E2E (minimos)
 

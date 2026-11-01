@@ -83,6 +83,8 @@ public class NotificationIntegrationTest {
 
     assertThat(html, containsString("Ada Lovelace"));
     assertThat(html, containsString("te empezó a seguir"));
+    // AC-17: la fila recien creada se pinta como pendiente.
+    assertThat(html, containsString("notification-row--unread"));
     assertThat(this.notificationService.unreadCount(this.recipientId), is(1L));
     assertThat(this.notificationService.unreadCount(this.actorId), is(0L));
   }
@@ -102,6 +104,16 @@ public class NotificationIntegrationTest {
     assertThat(this.notificationService.unreadCount(this.recipientId), is(0L));
     List<Notification> all = this.notificationService.list(this.recipientId, 0, 10);
     assertThat(all.getFirst().isRead(), is(true));
+
+    // AC-17: leida, la fila pierde el estado de pendiente.
+    String html =
+      this.mockMvc.perform(get("/notifications").with(user(RECIPIENT_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(html, containsString("notification-row--read"));
+    assertThat(html, not(containsString("notification-row--unread")));
   }
 
   // --- I-04: no-leida y leida conviven en la vista ---
@@ -259,6 +271,8 @@ public class NotificationIntegrationTest {
         .getContentAsString();
     assertThat(html, containsString("te invitó al plan"));
     assertThat(html, containsString("Cena secreta"));
+    // AC-10: el destino es el aside de invitaciones pendientes, donde esta el Aceptar.
+    assertThat(html, containsString("href=\"/plans#pending-invitations-heading\""));
     // AC-12: la fila no filtra el email del invitador
     assertThat(html, not(containsString(RECIPIENT_EMAIL)));
   }
@@ -286,6 +300,8 @@ public class NotificationIntegrationTest {
         .getContentAsString();
     assertThat(html, containsString("solicitó unirse a tu plan"));
     assertThat(html, containsString("Taller secreto"));
+    // AC-10: la solicitud se resuelve en la seccion Solicitudes del plan, no arriba de la pagina.
+    assertThat(html, containsString("/plans/" + created.getId() + "#join-requests-heading"));
   }
 
   @Test
@@ -313,6 +329,8 @@ public class NotificationIntegrationTest {
         .getContentAsString();
     assertThat(html, containsString("aprobó tu solicitud para el plan"));
     assertThat(html, containsString("Coro"));
+    // AC-10: aprobada, la solicitud ya no corta: el link abre el plan.
+    assertThat(html, containsString("href=\"/plans/" + created.getId() + "\""));
 
     // when: otra solicitud, ahora rechazada
     UUID thirdId = givenUser("notif.new@test.com", "Rita", "Respuesta");
@@ -325,6 +343,17 @@ public class NotificationIntegrationTest {
     List<Notification> forNewUser = this.notificationService.list(thirdId, 0, 10);
     assertThat(forNewUser, hasSize(1));
     assertThat(forNewUser.getFirst().getRelatedPlanName(), is("Coro"));
+
+    // AC-10: sin acceso al plan, el unico destino que resuelve algo es el landing publico, donde
+    // se puede volver a solicitar.
+    String rejectedHtml =
+      this.mockMvc.perform(get("/notifications").with(user("notif.new@test.com")))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(rejectedHtml, containsString("rechazó tu solicitud para el plan"));
+    assertThat(rejectedHtml, containsString("/plans/" + created.getId() + "/public"));
   }
 
   // --- helpers ---

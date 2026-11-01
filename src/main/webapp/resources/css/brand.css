@@ -346,3 +346,49 @@ html[data-theme="dark"] details > summary:hover {
   line-height: 1rem;
   text-align: center;
 }
+
+/* --- [NOTIF] Tiles del centro de notificaciones ----------------------------
+ * El estado del pendiente vive aca y no como utilidad suelta en el template: bg-blue-50 no
+ * tiene complemento oscuro, asi que en modo oscuro la fila no leida quedaba con slab celeste
+ * brilloso y el texto casi blanco de --dark-text encima. Acada tile le da su pareja oscura:
+ * la misma --dark-link de los links al 12% sobre la tarjeta, celeste pero traslucido. El punto
+ * de pendiente usa --primary: es identidad y, como el resto de la marca, no cambia de modo. */
+.notification-row {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.notification-row--read {
+  background-color: #f9fafb;
+  border-color: #f3f4f6;
+}
+
+.notification-row--unread {
+  background-color: #eff6ff;
+  border-color: #dbeafe;
+}
+
+.notification-row:hover {
+  box-shadow: 0 1px 3px rgb(17 24 39 / 0.1);
+}
+
+.notification-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--primary);
+}
+
+html[data-theme="dark"] .notification-row--read {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+}
+
+html[data-theme="dark"] .notification-row--unread {
+  background-color: rgb(96 165 250 / 0.12);
+  border-color: rgb(96 165 250 / 0.32);
+}
+
+html[data-theme="dark"] .notification-row:hover {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
+}
