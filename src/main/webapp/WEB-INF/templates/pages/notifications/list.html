@@ -1,0 +1,111 @@
+<!DOCTYPE HTML>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{layouts/base :: head('Notificaciones - PlanIt')}"></head>
+
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+
+  <!-- [NOTIF] AC-04/AC-07/AC-08: centro de notificaciones. Lista mas nueva primero, paginada de
+       a 10, con estado visual de no-leida y accion de marcar. La identidad del destinatario sale
+       de la sesion en el controller; el template solo pinta lo que le llega. -->
+  <main class="flex-1 p-4">
+    <div class="mx-auto max-w-3xl space-y-6">
+
+      <div class="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-white p-6 shadow-md">
+        <h1 class="text-2xl font-semibold text-gray-900">Notificaciones</h1>
+        <!-- [NOTIF] AC-06: vaciar el badge de una accion; el boton solo existe si hay pendientes. -->
+        <form th:if="${unreadNotificationCount > 0}" method="post" th:action="@{/notifications/read-all}">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+          <button type="submit" id="btn-mark-all-read"
+            class="rounded-md bg-primary px-4 py-2 font-medium text-white transition hover:bg-secondary">
+            Marcar todas como leídas
+          </button>
+        </form>
+      </div>
+
+      <section class="rounded-lg bg-white p-6 shadow-md">
+        <p th:if="${notifications.isEmpty()}" id="notifications-empty" data-testid="notifications-empty"
+          class="py-8 text-center text-gray-500">
+          Todavía no tenés notificaciones.
+        </p>
+
+        <ul th:unless="${notifications.isEmpty()}" id="notifications-list" data-testid="notifications-list"
+          class="divide-y divide-gray-100">
+          <li th:each="n : ${notifications}" data-testid="notification"
+            class="flex flex-wrap items-center gap-3 rounded-md px-2 py-4"
+            th:classappend="${not n.read} ? 'bg-blue-50' : ''"
+            th:attr="data-read=${n.read}">
+            <div class="flex-1 space-y-1"
+              th:with="actorName=${((n.actor.firstName == null ? '' : n.actor.firstName) + ' ' + (n.actor.lastName == null ? '' : n.actor.lastName)).trim()}">
+              <!-- th:switch sobre el nombre del enum: el texto y el destino dependen del tipo (AC-10). -->
+              <th:block th:switch="${n.type.name()}">
+                <p th:case="'NEW_FOLLOWER'" class="text-sm text-gray-800">
+                  <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                  te empezó a seguir
+                </p>
+                <p th:case="'NEW_PARTICIPANT'" class="text-sm text-gray-800">
+                  <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                  se unió a tu plan
+                  <a th:if="${n.relatedPlanId != null}" th:href="@{/plans/{id}(id=${n.relatedPlanId})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${n.relatedPlanName}">Plan</a>
+                  <th:block th:unless="${n.relatedPlanId != null}"
+                    th:text="${n.relatedPlanName}">Plan</th:block>
+                </p>
+                <p th:case="'NEW_PLAN'" class="text-sm text-gray-800">
+                  <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                  publicó
+                  <a th:if="${n.relatedPlanId != null}"
+                    th:href="@{/plans/{id}/public(id=${n.relatedPlanId})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${n.relatedPlanName}">Plan</a>
+                  <th:block th:unless="${n.relatedPlanId != null}"
+                    th:text="${n.relatedPlanName}">Plan</th:block>
+                </p>
+              </th:block>
+              <time class="block text-xs text-gray-500"
+                th:attr="datetime=${n.createdAt}"
+                th:text="${#temporals.format(n.createdAt, 'dd/MM/yyyy HH:mm')}">01/01/2026 12:00</time>
+            </div>
+
+            <!-- [NOTIF] AC-06: marcar individual conserva la pagina; el E2E apunta por fila con el
+                 atributo data-read de arriba, no con un id unico por boton. -->
+            <form th:unless="${n.read}" method="post"
+              th:action="@{/notifications/{id}/read(id=${n.id})}">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+              <input type="hidden" name="page" th:value="${page}">
+              <button type="submit"
+                class="btn-mark-read rounded-md border border-primary px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary hover:text-white">
+                Marcar leída
+              </button>
+            </form>
+          </li>
+        </ul>
+
+        <!-- [NOTIF] AC-07: paginacion previa/siguiente; el numero de pagina viaja en la URL. -->
+        <nav th:if="${hasPrev or hasNext}" class="flex items-center justify-between pt-4"
+          aria-label="Paginación de notificaciones">
+          <a th:if="${hasPrev}" id="notifications-prev" data-testid="notifications-prev"
+            th:href="@{/notifications(page=${page - 1})}"
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+            Anteriores
+          </a>
+          <span th:text="'Página ' + ${page + 1}">Página 1</span>
+          <a th:if="${hasNext}" id="notifications-next" data-testid="notifications-next"
+            th:href="@{/notifications(page=${page + 1})}"
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+            Siguientes
+          </a>
+        </nav>
+      </section>
+    </div>
+  </main>
+</body>
+
+</html>

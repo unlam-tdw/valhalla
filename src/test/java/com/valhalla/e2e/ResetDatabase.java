@@ -43,6 +43,9 @@ public class ResetDatabase {
       // falla por FK en cuanto un E2E dejo una relacion (el test siguiente moriria en el reset,
       // no en el flujo).
       "DELETE FROM follows",
+      // [NOTIF] Lo mismo con las notificaciones: recipient/actor apuntan a users y el tipo viaja
+      // como varchar; se borra antes de follows/users para no atrapar el reset por la FK.
+      "DELETE FROM notifications",
       "DELETE FROM users",
       // [12-DATA] ResetDatabase habla SQL directo: los nombres mapean a firstname/lastname,
       // tal como Hibernate creó la tabla. [PROF] El perfil público muestra el nombre del

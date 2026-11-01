@@ -3,6 +3,7 @@ package com.valhalla.infrastructure.plan;
 import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.notification.NotificationService;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanInvitation;
@@ -44,6 +45,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   private final UserRepository userRepository;
   private final PlaceRepository placeRepository;
   private final PlanRatingRepository planRatingRepository;
+  private final NotificationService notificationService;
 
   @Override
   @Transactional(readOnly = true)
@@ -106,6 +108,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     ) {
       plan.getParticipants().add(requester);
       plan.getInvitations().removeIf(item -> item.getRecipient().getId().equals(requester.getId()));
+      // [NOTIF] AC-02: aceptar una solicitud convierte al solicitante en participante del plan.
+      notificationService.notifyNewParticipant(
+        requester,
+        plan.getAdministrator(),
+        plan.getId(),
+        plan.getName()
+      );
     }
     plan.getJoinRequests().remove(request);
     planRepository.save(plan);
@@ -166,12 +175,14 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     PlanRepository planRepository,
     UserRepository userRepository,
     PlaceRepository placeRepository,
-    PlanRatingRepository planRatingRepository
+    PlanRatingRepository planRatingRepository,
+    NotificationService notificationService
   ) {
     this.planRepository = planRepository;
     this.userRepository = userRepository;
     this.placeRepository = placeRepository;
     this.planRatingRepository = planRatingRepository;
+    this.notificationService = notificationService;
   }
 
   @Override
@@ -190,7 +201,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     // [SCH] El horario se deriva con los lugares ya resueltos: la calculadora necesita categoria y
     // coordenadas reales para estimar duraciones y traslados.
     PlanScheduler.apply(plan);
-    return planRepository.save(plan);
+    Plan saved = planRepository.save(plan);
+    // [NOTIF] AC-03: publicar al crear avisa a los seguidores del autor; un plan privado nace
+    // sin notificar a nadie.
+    if (Boolean.TRUE.equals(saved.getIsPublic())) {
+      notificationService.notifyNewPlan(owner, saved.getId(), saved.getName());
+    }
+    return saved;
   }
 
   @Override
@@ -471,6 +488,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       if (EDITOR_ROLE.equals(invitation.getRole())) {
         plan.getEditors().add(invitation.getRecipient());
       }
+      // [NOTIF] AC-02: aceptar una invitacion tambien suma un participante al plan del dueno.
+      notificationService.notifyNewParticipant(
+        invitation.getRecipient(),
+        plan.getAdministrator(),
+        plan.getId(),
+        plan.getName()
+      );
     }
     plan.getInvitations().remove(invitation);
     planRepository.save(plan);
@@ -493,11 +517,18 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Override
   public Plan updatePlan(UUID id, Plan changes, String ownerEmail) {
     Plan existing = getEditablePlan(id, ownerEmail);
+    boolean wasPublic = Boolean.TRUE.equals(existing.getIsPublic());
     existing.updateFrom(changes);
     // [SCH] Cambiar la fecha, la hora de inicio, el fin de dia o el modo recalcula el itinerario
     // entero: el horario es una funcion de esa configuracion, no un dato independiente.
     PlanScheduler.apply(existing);
-    return planRepository.save(existing);
+    Plan saved = planRepository.save(existing);
+    // [NOTIF] AC-03: publicar un plan existente es el "cambio relevante" que se notifica a los
+    // seguidores; editar un plan ya publico no genera ruido.
+    if (!wasPublic && Boolean.TRUE.equals(saved.getIsPublic())) {
+      notificationService.notifyNewPlan(saved.getAdministrator(), saved.getId(), saved.getName());
+    }
+    return saved;
   }
 
   @Override
@@ -580,6 +611,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
         plan.getParticipants().add(user);
         plan.getJoinRequests().removeIf(item -> item.getRequester().getEmail().equals(userEmail));
         planRepository.save(plan);
+        // [NOTIF] AC-02: unirse por short code suma el participante y avisa al dueno.
+        notificationService.notifyNewParticipant(
+          user,
+          plan.getAdministrator(),
+          plan.getId(),
+          plan.getName()
+        );
       } else {
         addJoinRequest(plan, user);
       }
