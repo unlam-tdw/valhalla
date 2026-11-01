@@ -74,6 +74,12 @@ Frontend para agregar lugares a planes: ficha de lugar de solo lectura en `/plac
   ficha queda informativa. El agregado también sigue vivo en el wizard de creación de `/explore` (tarjeta
   "+" → borrador) y en el detalle del plan; el usuario no pierde el mapa, el filtro aplicado
   ni la posición del scroll.
+- **El "+" "Create plan" del panel de planes manda al login sin sesión** (`th:if` server-side
+  con `isLogged`): `/explore` es `permitAll` pero `POST /plans` exige sesión, así que abrir el
+  wizard a un anónimo solo lo mandaría a chocar en el submit. El `<a>` lleva
+  `@{/auth/login?redirect=/explore}` para volver al explorador tras autenticarse, el mismo
+  patrón del CTA anónimo de la vista pública (T_PVP_007); con sesión sigue siendo el `<button>`
+  que abre la creación.
 - **`add-to-plan.js` queda como puente de eventos**: el click en la tarjeta "+" emite
   `add-to-plan` y `places-list.js` lo enruta al borrador del wizard o al plan activo. El camino
   que abría el modal (fetch de `/api/plans` + select) se reemplazó por el picker inline del

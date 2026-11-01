@@ -170,6 +170,25 @@ public class PlacesViewE2E extends E2eBase {
     assertThat(page.url(), equalTo(placesUrl()));
   }
 
+  /**
+   * [T12] Sin sesión el "+" "Create plan" del panel de planes manda al login conservando el
+   * retorno: abrir el wizard para un anónimo solo lo mandaría a fallar en el submit (POST
+   * /plans exige sesión).
+   */
+  @Test
+  void createPlanButtonSendsAnonymousUsersToLogin() {
+    newContext();
+    page.navigate(placesUrl());
+    // Sin sesión el "+" es un <a> al login, no un <button> que abre el wizard.
+    String createPlan = "aside[aria-label='Plans'] a:has-text('Create plan')";
+    page.waitForSelector(createPlan);
+
+    page.locator(createPlan).click();
+
+    page.waitForSelector("input[type='email']");
+    assertThat(page.url(), containsString("/auth/login?redirect="));
+  }
+
   @Test
   void shouldKeepPageFixedWhilePlacesSidebarScrolls() {
     Locator sidebar = page.locator("#explore-app > aside");

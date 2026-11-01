@@ -41,6 +41,9 @@ public class PlaceDetailViewTest {
     // [T10] Con el wizard abierto el mismo bloque agrega al plan en proceso.
     assertThat(html, containsString("v-if=\"showCreatePlan\""));
     assertThat(html, containsString("@click=\"addSelectedToDraft\""));
+    // [T12] Sin sesión el "+" del panel de planes manda al login, no al wizard.
+    assertThat(html, containsString("th:if=\"${!isLogged}\""));
+    assertThat(html, containsString("@{/auth/login?redirect=/explore}"));
     assertThat(html, not(containsString("role=\"dialog\"")));
 
     // Queda el boton de las tarjetas que agrega al borrador mientras el wizard esta abierto.

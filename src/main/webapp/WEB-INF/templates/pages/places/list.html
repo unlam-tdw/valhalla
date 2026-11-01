@@ -295,7 +295,18 @@
           <input v-model="plansQuery" type="search" placeholder="Search public plans..."
             aria-label="Search public plans"
             class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" />
-          <button type="button" @click="openCreatePlan"
+          <!-- [APL/T12] Sin sesión el "+" no abre el wizard: manda al login conservando a
+               dónde volver (mismo patrón que el CTA anónimo de la vista pública, T_PVP_007).
+               Con sesión sigue abriendo la creación. th:if es server-side (guide-js R3). -->
+          <a th:if="${!isLogged}" th:href="@{/auth/login?redirect=/explore}"
+            class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            Create plan
+          </a>
+          <button th:if="${isLogged}" type="button" @click="openCreatePlan"
             class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M5 12h14" />
