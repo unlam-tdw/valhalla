@@ -54,4 +54,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   public void markAllRead(UUID recipientId) {
     jpaNotificationRepository.markAllRead(recipientId);
   }
+
+  @Override
+  public void delete(Notification notification) {
+    jpaNotificationRepository.delete(notification);
+  }
 }

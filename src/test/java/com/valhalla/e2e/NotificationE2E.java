@@ -81,6 +81,12 @@ public class NotificationE2E extends E2eBase {
       page.locator("#navbar-notifications").getAttribute("data-notifications-count")
     );
     assertEquals(0, page.locator(".btn-mark-read").count());
+
+    // --- AC-18: el tachito tira la fila y la bandeja queda vacia ---
+    page.locator(".btn-delete-notification").first().click();
+    web.waitForPath("/notifications");
+    assertEquals(0, page.locator("[data-testid=\"notification\"]").count());
+    assertEquals(1, page.locator("#notifications-empty").count());
   }
 
   /** Ruta del perfil del autor, leida de la tarjeta del plan en el feed (como FollowE2E). */

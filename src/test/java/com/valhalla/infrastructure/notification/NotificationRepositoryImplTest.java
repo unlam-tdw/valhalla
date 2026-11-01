@@ -87,4 +87,13 @@ public class NotificationRepositoryImplTest {
 
     verify(this.jpaMock, times(1)).markAllRead(RECIPIENT_ID);
   }
+
+  @Test
+  public void deleteDelegatesTheRemoval() {
+    Notification found = mock(Notification.class);
+
+    this.repository.delete(found);
+
+    verify(this.jpaMock, times(1)).delete(found);
+  }
 }

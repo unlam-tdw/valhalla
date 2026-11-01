@@ -142,4 +142,12 @@ public class NotificationServiceImpl implements NotificationService {
   public void markAllRead(UUID recipientId) {
     notificationRepository.markAllRead(recipientId);
   }
+
+  @Override
+  @Transactional
+  public void delete(UUID recipientId, UUID notificationId) {
+    notificationRepository
+      .findByIdAndRecipientId(notificationId, recipientId)
+      .ifPresent(notificationRepository::delete);
+  }
 }

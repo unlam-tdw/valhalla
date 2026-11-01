@@ -266,6 +266,31 @@ public class NotificationServiceImplTest {
     verify(this.repositoryMock, never()).findByRecipientId(any(UUID.class), anyInt(), anyInt());
   }
 
+  @Test
+  public void U14_delete_tiraLaFilaPropiaYNiRopaAjenaNiInexistente() {
+    // given: una fila del destinatario y una busqueda que no encuentra nada para el resto
+    Notification found = new Notification(
+      user(RECIPIENT_ID, "grace@test.com"),
+      user(ACTOR_ID, "ana@test.com"),
+      NotificationType.NEW_FOLLOWER
+    );
+    when(this.repositoryMock.findByIdAndRecipientId(NOTIFICATION_ID, RECIPIENT_ID))
+      .thenReturn(Optional.of(found));
+
+    this.notificationService.delete(RECIPIENT_ID, NOTIFICATION_ID);
+
+    // then (AC-18)
+    verify(this.repositoryMock, times(1)).delete(found);
+
+    // when: id ajeno o ya borrado
+    when(this.repositoryMock.findByIdAndRecipientId(any(UUID.class), any(UUID.class)))
+      .thenReturn(Optional.empty());
+    this.notificationService.delete(RECIPIENT_ID, UUID.randomUUID());
+
+    // then: el mismo no-op silencioso de markRead (AC-09)
+    verify(this.repositoryMock, times(1)).delete(any(Notification.class));
+  }
+
   private static User user(UUID id, String email) {
     User user = new User();
     user.setId(id);

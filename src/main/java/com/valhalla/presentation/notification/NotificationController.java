@@ -31,6 +31,7 @@ public class NotificationController {
 
   private static final String VIEW_LIST = "pages/notifications/list";
   private static final String REDIRECT_LIST = "redirect:/notifications";
+  private static final String PAGE_PARAM = "page";
 
   private final NotificationService notificationService;
   private final UserService userService;
@@ -43,7 +44,7 @@ public class NotificationController {
 
   @GetMapping
   public ModelAndView list(
-    @RequestParam(name = "page", defaultValue = "0") int page,
+    @RequestParam(name = PAGE_PARAM, defaultValue = "0") int page,
     Authentication authentication
   ) {
     User me = userService.getByEmail(authentication.getName());
@@ -56,7 +57,7 @@ public class NotificationController {
     List<?> notifications = notificationService.list(me.getId(), currentPage, PAGE_SIZE);
     ModelAndView model = new ModelAndView(VIEW_LIST);
     model.addObject("notifications", notifications);
-    model.addObject("page", currentPage);
+    model.addObject(PAGE_PARAM, currentPage);
     model.addObject("hasPrev", currentPage > 0);
     model.addObject("hasNext", currentPage + 1 < totalPages);
     model.addObject("pageTitle", "Notificaciones - PlanIt");
@@ -70,7 +71,7 @@ public class NotificationController {
   @PostMapping("/{id}/read")
   public ModelAndView markRead(
     @PathVariable UUID id,
-    @RequestParam(name = "page", defaultValue = "0") int page,
+    @RequestParam(name = PAGE_PARAM, defaultValue = "0") int page,
     Authentication authentication
   ) {
     User me = userService.getByEmail(authentication.getName());
@@ -84,5 +85,20 @@ public class NotificationController {
     User me = userService.getByEmail(authentication.getName());
     notificationService.markAllRead(me.getId());
     return new ModelAndView(REDIRECT_LIST);
+  }
+
+  /**
+   * [NOTIF] AC-18: tirar una fila. La bandeja no es un archivo: lo que ya no sirve se borra y el
+   * badge descuenta solo, porque el conteo se recalcula en el render siguiente.
+   */
+  @PostMapping("/{id}/delete")
+  public ModelAndView delete(
+    @PathVariable UUID id,
+    @RequestParam(name = PAGE_PARAM, defaultValue = "0") int page,
+    Authentication authentication
+  ) {
+    User me = userService.getByEmail(authentication.getName());
+    notificationService.delete(me.getId(), id);
+    return new ModelAndView(REDIRECT_LIST + "?page=" + Math.max(0, page));
   }
 }

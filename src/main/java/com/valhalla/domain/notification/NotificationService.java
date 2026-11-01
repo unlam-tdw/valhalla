@@ -53,4 +53,7 @@ public interface NotificationService {
   void markRead(UUID recipientId, UUID notificationId);
 
   void markAllRead(UUID recipientId);
+
+  /** Borrar una fila propia (AC-18). Ajena o inexistente: el mismo no-op silencioso de arriba. */
+  void delete(UUID recipientId, UUID notificationId);
 }

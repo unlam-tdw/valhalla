@@ -128,4 +128,12 @@ public class NotificationControllerTest {
     verify(this.notificationServiceMock, times(1)).markAllRead(ME_ID);
     assertThat(view.getViewName(), is("redirect:/notifications"));
   }
+
+  @Test
+  public void U08_delete_tiraLaFilaDelDestinatarioYConservaLaPagina() {
+    ModelAndView view = this.controller.delete(NOTIFICATION_ID, 3, this.me);
+
+    verify(this.notificationServiceMock, times(1)).delete(ME_ID, NOTIFICATION_ID);
+    assertThat(view.getViewName(), is("redirect:/notifications?page=3"));
+  }
 }

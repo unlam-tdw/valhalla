@@ -140,6 +140,7 @@ html[data-theme="dark"] .text-gray-300 { color: var(--dark-text-decor); }
 html[data-theme="dark"] .hover\:text-gray-900:hover { color: var(--dark-text); }
 html[data-theme="dark"] .text-blue-600 { color: var(--dark-link); }
 html[data-theme="dark"] .text-red-600 { color: var(--dark-danger); }
+html[data-theme="dark"] .hover\:text-red-600:hover { color: var(--dark-danger); }
 /* text-black solo donde cae el contenido principal: en el navbar es el avatar
    sobre --secondary, que no cambia de modo, y detail.html además lo re-pinnea
    con !important dentro de nav. */

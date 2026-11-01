@@ -76,6 +76,12 @@ quedan como card separada.
   (AC-07). El tile de pendiente se define en `brand.css` (`.notification-row*`) y no como
   utilidad suelta: `bg-blue-50` no tiene complemento oscuro, así que en modo oscuro la fila no
   leida quedaba con slab celeste brilloso y texto casi blanco encima (AC-17).
+- **Vaciar la bandeja (decisión de producto 2026-11-01).** Además de marcar leída, cada fila se
+  puede tirar con un tachito: la borrada es física, no un `read=true` tardío, porque la bandeja es
+  una lista de pendientes y no un archivo histórico. El destinatario vuelve a salir de la sesión
+  (`findByIdAndRecipientId` + `delete`), así que borrar por id ajeno no-opera igual que marcarlo
+  (AC-09/AC-18). Desaparecer una fila no toca el hecho origen: unfollow, salida del plan y
+  renombre siguen sin limpiar nada (AC-11).
 - **Qué NO notifica (decisión de producto 2026-11-01).** Te sacaron de un plan, te banearon,
   cambiaron tu rol, alguien salió de tu plan y calificaron tu plan: silencio deliberado. Dejar de
   seguir tampoco avisa (AC-11). El criterio: se notifica lo que pide una acción o cierra un
@@ -102,6 +108,7 @@ quedan como card separada.
 | AC-15 | Pedir unirse a un plan privado (solicitud o short code) crea "X solicitó unirse a tu plan Y" para el dueño, con link a la seccion Solicitudes del plan; repetir la solicitud no duplica |
 | AC-16 | Aceptar o rechazar una solicitud crea "X aprobó/rechazó tu solicitud para el plan Y" para el solicitante: aceptada abre el plan, rechazada abre el landing publico (donde puede volver a solicitar) |
 | AC-17 | La fila no leida se distingue de la leida (tinte + punto) y el tinte tiene su pareja oscura: ninguna fila queda con texto claro sobre fondo claro |
+| AC-18 | Cada fila tiene un tachito: `POST /notifications/{id}/delete` (con CSRF) saca la fila propia de la bandeja y conserva la pagina; una fila ajena o inexistente es el mismo no-op silencioso de AC-09 |
 
 ## Escenarios de Test
 
@@ -131,6 +138,7 @@ quedan como card separada.
 | U-11 | `notifyJoinRequest` guarda al dueño con el plan congelado | AC-15 |
 | U-12 | `notifyJoinRequestResponse` aceptada guarda al solicitante con tipo `JOIN_REQUEST_ACCEPTED` | AC-16 |
 | U-13 | `notifyJoinRequestResponse` rechazada usa `JOIN_REQUEST_REJECTED` | AC-16 |
+| U-14 | `delete` tira la fila del destinatario; id ajeno o inexistente no borra nada | AC-18, AC-09 |
 
 ### Tests Unitarios (`infrastructure/follow/FollowServiceImplTest.java` y `infrastructure/plan/PlanServiceImplTest.java`)
 
@@ -156,6 +164,7 @@ quedan como card separada.
 | U-23 | Cero notificaciones: vacio en pagina 0 | AC-10 |
 | U-24 | `markRead` marca al destinatario de la sesion y conserva la pagina | AC-06, AC-09 |
 | U-25 | `markAllRead` delega la escritura masiva y redirige al centro | AC-06 |
+| U-26 | `delete` saca la fila del destinatario de la sesion y conserva la pagina | AC-18 |
 
 ### Tests Unitarios (`infrastructure/web/CurrentUserControllerAdviceTest.java`)
 
@@ -181,12 +190,13 @@ quedan como card separada.
 | I-11 | Invitacion notifica al invitado, linkia las pendientes y no filtra el email del invitador | AC-14, AC-12, AC-07 |
 | I-12 | Solicitud de unión notifica al dueño con link a la seccion Solicitudes | AC-15, AC-07 |
 | I-13 | Aceptar y rechazar notifican al solicitante, cada uno a su destino | AC-16, AC-07 |
+| I-14 | El tachito saca la fila propia y la bandeja queda vacia; el id de una fila ajena no borra nada y sin CSRF es 403 | AC-18, AC-09, AC-13, AC-10 |
 
 ### E2E (minimos)
 
 | # | Test | Flujo | AC que cubre |
 |---|------|-------|-------------|
-| E-01 | `NotificationE2E` | Seguir a un autor por UI; el autor ve el badge en la campana, navega al centro, marca leida y el badge vuelve a 0 | AC-01, AC-05, AC-06, AC-07 |
+| E-01 | `NotificationE2E` | Seguir a un autor por UI; el autor ve el badge en la campana, navega al centro, marca leida, el badge vuelve a 0 y el tachito deja la bandeja vacia | AC-01, AC-05, AC-06, AC-07, AC-18 |
 
 ## Referencia de Implementacion
 
@@ -240,8 +250,8 @@ borrar `notifications` antes de `users` por las dos FK.
 ### 2. Puertos y adaptadores
 
 `domain/notification/NotificationRepository` (save, saveAll, `findByRecipientId(id, page, size)`,
-`countByRecipientId`, `countUnreadByRecipientId`, `findByIdAndRecipientId`, `markAllRead`) con
-`infrastructure/notification/NotificationRepositoryImpl` delegando en `JpaNotificationRepository`
+`countByRecipientId`, `countUnreadByRecipientId`, `findByIdAndRecipientId`, `markAllRead`, `delete`)
+con `infrastructure/notification/NotificationRepositoryImpl` delegando en `JpaNotificationRepository`
 (Spring Data; la ventana usa `Pageable` para no ensuciar el puerto).
 
 ### 3. Servicio
@@ -256,6 +266,7 @@ List<Notification> list(UUID recipientId, int page, int size);
 long count(UUID recipientId);  long unreadCount(UUID recipientId);
 void markRead(UUID recipientId, UUID notificationId);            // findByIdAndRecipientId -> no-op si ajeno
 void markAllRead(UUID recipientId);
+void delete(UUID recipientId, UUID notificationId);              // mismo cruce: ajena o inexistente, no-op (AC-18)
 ```
 
 ### 4. Hooks en origen

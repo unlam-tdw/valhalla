@@ -356,6 +356,48 @@ public class NotificationIntegrationTest {
     assertThat(rejectedHtml, containsString("/plans/" + created.getId() + "/public"));
   }
 
+  // --- I-14: tirar una fila ---
+
+  @Test
+  public void I14_deleteSacaLaFilaPropiaYUnaAjenaNoHaceNada() throws Exception {
+    followAdaToGrace();
+    UUID notificationId = this.notificationService.list(this.recipientId, 0, 10).getFirst().getId();
+    givenUser("notif.deleter@test.com", "Tercero", "Ajeno");
+
+    // AC-13: sin CSRF el centro no acepta escrituras
+    this.mockMvc.perform(
+        post("/notifications/" + notificationId + "/delete").with(user(RECIPIENT_EMAIL))
+      )
+      .andExpect(status().isForbidden());
+    assertThat(this.notificationService.count(this.recipientId), is(1L));
+
+    // AC-09: un tercero tampoco puede tirar la fila de Grace
+    this.mockMvc.perform(
+        post("/notifications/" + notificationId + "/delete")
+          .with(user("notif.deleter@test.com"))
+          .with(csrf())
+      )
+      .andExpect(status().is3xxRedirection());
+    assertThat(this.notificationService.count(this.recipientId), is(1L));
+
+    // AC-18: Grace si la borra, y la bandeja queda vacia
+    this.mockMvc.perform(
+        post("/notifications/" + notificationId + "/delete")
+          .with(user(RECIPIENT_EMAIL))
+          .with(csrf())
+      )
+      .andExpect(status().is3xxRedirection());
+    assertThat(this.notificationService.count(this.recipientId), is(0L));
+
+    String html =
+      this.mockMvc.perform(get("/notifications").with(user(RECIPIENT_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(html, containsString("Todavía no tenés notificaciones."));
+  }
+
   // --- helpers ---
 
   private void followAdaToGrace() throws Exception {
