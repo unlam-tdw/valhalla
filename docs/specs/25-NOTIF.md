@@ -56,6 +56,22 @@ quedan como card separada.
   sesion redirige al login; los POST exigen CSRF como en [FOLLOW] (AC-08/AC-13).
 - **Dejarse de seguir no retrocede el badge.** Las notificaciones viejas siguen contando hasta que
   el usuario las marca (AC-11).
+- **Invitar también notifica (extensión, decisión de producto 2026-10-31).** La card original
+  enumeraba tres eventos y las invitaciones no estaban ni a favor ni en contra; se decidió que el
+  invitado reciba "X te invitó al plan Y". El destinatario siempre existe como `User`
+  (`findInvitationRecipient` corta antes si no), así que la fila se escribe siempre, incluso si
+  uno se invita a sí mismo. El link va a `/plans` (donde se aceptan las pendientes), no a
+  `/plans/{id}`: el invitado todavía no participa y el detalle lo cortaría (AC-14).
+- **Solicitudes de unión: ida y vuelta (decisión de producto 2026-11-01).** Pedir unirse a un plan
+  privado notifica al dueño ("X solicitó unirse a tu plan Y", AC-15) y la respuesta —aceptada o
+  rechazada— notifica al solicitante (AC-16): la solicitud es un pendiente de los dos y ninguna de
+  las dos partes debería tener que entrar al plan para saber en qué quedó. El hook vive en
+  `addJoinRequest`, no en `requestToJoin`, porque `joinPlan` con short code sobre un plan privado
+  toma el mismo camino; la solicitud repetida corta antes y no duplica.
+- **Qué NO notifica (decisión de producto 2026-11-01).** Te sacaron de un plan, te banearon,
+  cambiaron tu rol, alguien salió de tu plan y calificaron tu plan: silencio deliberado. Dejar de
+  seguir tampoco avisa (AC-11). El criterio: se notifica lo que pide una acción o cierra un
+  pendiente propio, no todo lo que otros hacen con cosas mías.
 
 ## Criterios de Aceptacion
 
@@ -74,6 +90,9 @@ quedan como card separada.
 | AC-11 | Borrar/deshacer el hecho origen (unfollow, salir del plan) no elimina ni marca notificaciones existentes |
 | AC-12 | El texto de la notificacion es historico: renombre o eliminacion posterior del plan no reescriben la fila |
 | AC-13 | `User` no gana una coleccion de notificaciones: listado, conteos y marcado son consultas sobre la tabla `notifications` |
+| AC-14 | Invitar a un usuario a un plan crea "X te invitó al plan Y" para el invitado, con link a `/plans`; una invitacion que falla no notifica |
+| AC-15 | Pedir unirse a un plan privado (solicitud o short code) crea "X solicitó unirse a tu plan Y" para el dueño; repetir la solicitud no duplica |
+| AC-16 | Aceptar o rechazar una solicitud crea "X aprobó/rechazó tu solicitud para el plan Y" para el solicitante |
 
 ## Escenarios de Test
 
@@ -84,7 +103,7 @@ quedan como card separada.
 | U-01 | La notificacion nace no-leida, sin id ni timestamp (los pone la base) | AC-01 |
 | U-02 | La notificacion con plan congela id y nombre | AC-12 |
 | U-03 | `markAsRead` es idempotente | AC-06 |
-| U-04 | Los tres tipos existen y `valueOf` round-tripa | AC-01..AC-03 |
+| U-04 | Los siete tipos existen y `valueOf` round-tripa | AC-01..AC-03, AC-14..AC-16 |
 
 ### Tests Unitarios (`infrastructure/notification/NotificationServiceImplTest.java`)
 
@@ -99,6 +118,10 @@ quedan como card separada.
 | U-07 | `markRead` encuentra la fila del destinatario y la marca | AC-06 |
 | U-08 | `markRead` con id inexistente o ajeno es no-op silencioso | AC-09 |
 | U-09 | `markAllRead` delega en una sola escritura | AC-06 |
+| U-10 | `notifyInvitation` guarda al invitado con el plan congelado | AC-14 |
+| U-11 | `notifyJoinRequest` guarda al dueño con el plan congelado | AC-15 |
+| U-12 | `notifyJoinRequestResponse` aceptada guarda al solicitante con tipo `JOIN_REQUEST_ACCEPTED` | AC-16 |
+| U-13 | `notifyJoinRequestResponse` rechazada usa `JOIN_REQUEST_REJECTED` | AC-16 |
 
 ### Tests Unitarios (`infrastructure/follow/FollowServiceImplTest.java` y `infrastructure/plan/PlanServiceImplTest.java`)
 
@@ -108,8 +131,11 @@ quedan como card separada.
 | U-11 | `createPlan` publico notifica plan nuevo; privado no | AC-03 |
 | U-12 | `updatePlan` privado→publico notifica una vez; editar un publico no | AC-03 |
 | U-13 | `joinPlan` publico notifica al dueño; el que ya participa no | AC-02 |
-| U-14 | Aceptar solicitud de unión notifica al dueño; rechazar no | AC-02 |
+| U-14 | Aceptar solicitud de unión notifica al dueño y cierra la del solicitante | AC-02, AC-16 |
 | U-15 | Aceptar invitación notifica al dueño | AC-02 |
+| U-16 | `inviteParticipant` notifica al invitado; una invitacion rechazada por permisos no notifica | AC-14 |
+| U-17 | `requestToJoin` notifica al dueño; solicitud repetida no duplica | AC-15 |
+| U-18 | Rechazar una solicitud no suma participante pero si notifica al solicitante | AC-16 |
 
 ### Tests Unitarios (`presentation/notification/NotificationControllerTest.java`)
 
@@ -143,6 +169,9 @@ quedan como card separada.
 | I-08 | `GET /notifications` sin sesion redirige al login | AC-08 |
 | I-09 | Join por short code notifica al dueño del plan | AC-02 |
 | I-10 | Plan publico nuevo notifica a los seguidores | AC-03 |
+| I-11 | Invitacion notifica al invitado y el centro la traduce sin filtrar el email del invitador | AC-14, AC-12 |
+| I-12 | Solicitud de unión notifica al dueño y el centro la muestra | AC-15 |
+| I-13 | Aceptar y rechazar solicitudes notifican al solicitante | AC-16 |
 
 ### E2E (minimos)
 
@@ -268,11 +297,11 @@ boton "Marcar leída" por fila no-leida y paginacion Anteriores/Siguientes.
 | `templates/pages/notifications/list.html` | Crear (centro) |
 | `resources/css/brand.css` | Actualizar (badge por `::after attr()`) |
 | `domain/follow/FollowService.java` (javadoc) / `CONTEXT.md` | Actualizar ("no envía notificaciones" deja de ser cierto) |
-| `infrastructure/notification/*Test.java`, `domain/notification/NotificationTest.java` | Crear (U-01..U-09) |
+| `infrastructure/notification/*Test.java`, `domain/notification/NotificationTest.java` | Crear (U-01..U-13) |
 | `infrastructure/follow/FollowServiceImplTest.java` | Actualizar (U-10) |
-| `infrastructure/plan/PlanServiceImplTest.java` | Actualizar (U-11..U-15) |
+| `infrastructure/plan/PlanServiceImplTest.java` | Actualizar (U-11..U-18) |
 | `presentation/notification/NotificationControllerTest.java` | Crear (U-20..U-25) |
 | `infrastructure/web/CurrentUserControllerAdviceTest.java` | Actualizar (U-30..U-32) |
-| `integration/NotificationIntegrationTest.java` | Crear (I-01..I-10) |
+| `integration/NotificationIntegrationTest.java` | Crear (I-01..I-13) |
 | `e2e/NotificationE2E.java` | Crear (E-01) |
 | `e2e/ResetDatabase.java` | Actualizar (`DELETE FROM notifications`) |

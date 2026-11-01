@@ -236,6 +236,97 @@ public class NotificationIntegrationTest {
     assertThat(forAda.getFirst().getActor().getId(), is(this.recipientId));
   }
 
+  @Test
+  public void I11_invitacionNotificaAlInvitadoYElCentroLaTraduce() throws Exception {
+    // given: Grace crea un plan privado e invita a Ada por el canal de la app
+    Plan plan = new Plan();
+    plan.setName("Cena secreta");
+    plan.setIsPublic(false);
+    Plan created = this.planService.createPlan(plan, RECIPIENT_EMAIL);
+    this.planService.inviteParticipant(created.getId(), ACTOR_EMAIL, "guest", RECIPIENT_EMAIL);
+
+    // then: AC-03 (extension), Ada es la destinataria con el nombre del plan congelado
+    List<Notification> forAda = this.notificationService.list(this.actorId, 0, 10);
+    assertThat(forAda, hasSize(1));
+    assertThat(forAda.getFirst().getRelatedPlanName(), is("Cena secreta"));
+    assertThat(forAda.getFirst().getActor().getId(), is(this.recipientId));
+
+    String html =
+      this.mockMvc.perform(get("/notifications").with(user(ACTOR_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(html, containsString("te invitó al plan"));
+    assertThat(html, containsString("Cena secreta"));
+    // AC-12: la fila no filtra el email del invitador
+    assertThat(html, not(containsString(RECIPIENT_EMAIL)));
+  }
+
+  @Test
+  public void I12_solicitudDeUnionNotificaAlDueno() throws Exception {
+    // given: plan privado de Grace; Ada pide unirse
+    Plan plan = new Plan();
+    plan.setName("Taller secreto");
+    plan.setIsPublic(false);
+    Plan created = this.planService.createPlan(plan, RECIPIENT_EMAIL);
+    this.planService.requestToJoin(created.getId(), ACTOR_EMAIL);
+
+    // then: AC-15, el dueno ve la solicitud en el centro
+    List<Notification> forGrace = this.notificationService.list(this.recipientId, 0, 10);
+    assertThat(forGrace, hasSize(1));
+    assertThat(forGrace.getFirst().getActor().getId(), is(this.actorId));
+    assertThat(forGrace.getFirst().getRelatedPlanName(), is("Taller secreto"));
+
+    String html =
+      this.mockMvc.perform(get("/notifications").with(user(RECIPIENT_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(html, containsString("solicitó unirse a tu plan"));
+    assertThat(html, containsString("Taller secreto"));
+  }
+
+  @Test
+  public void I13_respuestaASolicitudNotificaAlSolicitante() throws Exception {
+    // given: Ada solicito unirse al plan privado de Grace
+    Plan plan = new Plan();
+    plan.setName("Coro");
+    plan.setIsPublic(false);
+    Plan created = this.planService.createPlan(plan, RECIPIENT_EMAIL);
+    this.planService.requestToJoin(created.getId(), ACTOR_EMAIL);
+    UUID requestId =
+      this.planService.getPendingJoinRequests(created.getId(), RECIPIENT_EMAIL).getFirst().id();
+
+    // when: Grace acepta
+    this.planService.respondToJoinRequest(created.getId(), requestId, "accept", RECIPIENT_EMAIL);
+
+    // then: AC-16, Ada cierra su pendiente con la aprobacion (y Grace ademas ve el participante)
+    List<Notification> forAda = this.notificationService.list(this.actorId, 0, 10);
+    assertThat(forAda, hasSize(1));
+    String html =
+      this.mockMvc.perform(get("/notifications").with(user(ACTOR_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(html, containsString("aprobó tu solicitud para el plan"));
+    assertThat(html, containsString("Coro"));
+
+    // when: otra solicitud, ahora rechazada
+    UUID thirdId = givenUser("notif.new@test.com", "Rita", "Respuesta");
+    this.planService.requestToJoin(created.getId(), "notif.new@test.com");
+    UUID second =
+      this.planService.getPendingJoinRequests(created.getId(), RECIPIENT_EMAIL).getFirst().id();
+    this.planService.respondToJoinRequest(created.getId(), second, "reject", RECIPIENT_EMAIL);
+
+    // then: el rechazo tambien es una respuesta
+    List<Notification> forNewUser = this.notificationService.list(thirdId, 0, 10);
+    assertThat(forNewUser, hasSize(1));
+    assertThat(forNewUser.getFirst().getRelatedPlanName(), is("Coro"));
+  }
+
   // --- helpers ---
 
   private void followAdaToGrace() throws Exception {

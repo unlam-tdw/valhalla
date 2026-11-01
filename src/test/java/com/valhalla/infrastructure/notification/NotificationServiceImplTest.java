@@ -142,6 +142,78 @@ public class NotificationServiceImplTest {
     verify(this.repositoryMock, never()).saveAll(any());
   }
 
+  // --- notifyInvitation ---
+
+  @Test
+  public void U10_invitation_guardaAlInvitadoConElPlanCongelado() {
+    this.notificationService.notifyInvitation(
+        user(ACTOR_ID, "grace@test.com"),
+        user(RECIPIENT_ID, "ana@test.com"),
+        PLAN_ID,
+        "Cena secreta"
+      );
+
+    ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    verify(this.repositoryMock, times(1)).save(captor.capture());
+    Notification saved = captor.getValue();
+    assertThat(saved.getRecipient().getId(), is(RECIPIENT_ID));
+    assertThat(saved.getActor().getId(), is(ACTOR_ID));
+    assertThat(saved.getType(), is(NotificationType.PLAN_INVITATION));
+    assertThat(saved.getRelatedPlanId(), is(PLAN_ID));
+    assertThat(saved.getRelatedPlanName(), is("Cena secreta"));
+  }
+
+  // --- solicitudes de unión ---
+
+  @Test
+  public void U11_joinRequest_guardaAlDuenoConElPlanCongelado() {
+    this.notificationService.notifyJoinRequest(
+        user(ACTOR_ID, "ana@test.com"),
+        user(RECIPIENT_ID, "grace@test.com"),
+        PLAN_ID,
+        "Cena navideña"
+      );
+
+    ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    verify(this.repositoryMock, times(1)).save(captor.capture());
+    Notification saved = captor.getValue();
+    assertThat(saved.getRecipient().getId(), is(RECIPIENT_ID));
+    assertThat(saved.getType(), is(NotificationType.JOIN_REQUESTED));
+    assertThat(saved.getRelatedPlanName(), is("Cena navideña"));
+  }
+
+  @Test
+  public void U12_joinRequestResponse_laAceptacionNaceEnElSolicitante() {
+    this.notificationService.notifyJoinRequestResponse(
+        user(ACTOR_ID, "grace@test.com"),
+        user(RECIPIENT_ID, "ana@test.com"),
+        PLAN_ID,
+        "Cena navideña",
+        true
+      );
+
+    ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    verify(this.repositoryMock, times(1)).save(captor.capture());
+    Notification saved = captor.getValue();
+    assertThat(saved.getRecipient().getId(), is(RECIPIENT_ID));
+    assertThat(saved.getType(), is(NotificationType.JOIN_REQUEST_ACCEPTED));
+  }
+
+  @Test
+  public void U13_joinRequestResponse_elRechazoUsaElTipoPropio() {
+    this.notificationService.notifyJoinRequestResponse(
+        user(ACTOR_ID, "grace@test.com"),
+        user(RECIPIENT_ID, "ana@test.com"),
+        PLAN_ID,
+        "Cena navideña",
+        false
+      );
+
+    ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    verify(this.repositoryMock, times(1)).save(captor.capture());
+    assertThat(captor.getValue().getType(), is(NotificationType.JOIN_REQUEST_REJECTED));
+  }
+
   // --- lecturas ---
 
   @Test

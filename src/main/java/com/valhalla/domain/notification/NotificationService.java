@@ -22,6 +22,27 @@ public interface NotificationService {
   /** "X publicó un plan nuevo": una fila por cada seguidor del autor. */
   void notifyNewPlan(User owner, UUID planId, String planName);
 
+  /**
+   * "X te invitó al plan": el destinatario es el invitado. A diferencia del participante, el
+   * invitado todavia no es nada del plan: la notificacion es el aviso de entrada.
+   */
+  void notifyInvitation(User inviter, User recipient, UUID planId, String planName);
+
+  /** "X solicitó unirse a tu plan": el destinatario es el dueño, que tiene que responder. */
+  void notifyJoinRequest(User requester, User owner, UUID planId, String planName);
+
+  /**
+   * "X aprobó/rechazó tu solicitud": el destinatario es el solicitante. La respuesta se notifica
+   * en los dos sentidos: mientras la solicitud estaba abierta, el pendiente era del solicitante.
+   */
+  void notifyJoinRequestResponse(
+    User owner,
+    User requester,
+    UUID planId,
+    String planName,
+    boolean accepted
+  );
+
   List<Notification> list(UUID recipientId, int page, int size);
 
   long count(UUID recipientId);

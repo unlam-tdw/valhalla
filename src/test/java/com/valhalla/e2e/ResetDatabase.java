@@ -18,6 +18,12 @@ public class ResetDatabase {
 
     String bcryptHash = new BCryptPasswordEncoder().encode("password");
     String[] statements = {
+      // [NOTIF] Hibernate creó `type` con un CHECK que enumera los valores del enum al nacer la
+      // tabla, y hbm2ddl=update nunca lo actualiza: agregar tipos (PLAN_INVITATION, JOIN_REQUESTED)
+      // inserta filas que violan el viejo y tumba requestToJoin/inviteParticipant enteros. Se
+      // suelta antes de limpiar; el CHECK no vuelve porque update no crea constraints en tablas
+      // existentes.
+      "ALTER TABLE IF EXISTS notifications DROP CONSTRAINT IF EXISTS notifications_type_check",
       // [MARK] Los guardados referencian users: si un E2E deja uno, el DELETE FROM users de este
       // reset muere por FK. Las paradas van primero porque referencian plan_bookmarks.
       "DELETE FROM plan_bookmark_places",

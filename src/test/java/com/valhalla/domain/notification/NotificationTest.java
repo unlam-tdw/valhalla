@@ -63,14 +63,24 @@ public class NotificationTest {
   }
 
   @Test
-  public void U04_losTresTiposExistenYNombreRoundTrip() {
-    assertThat(NotificationType.values().length, is(3));
+  public void U04_losSieteTiposExistenYNombreRoundTrip() {
+    assertThat(NotificationType.values().length, is(7));
     assertThat(
       NotificationType.valueOf(NotificationType.NEW_FOLLOWER.name()),
       is(NotificationType.NEW_FOLLOWER)
     );
     assertThat(NotificationType.valueOf("NEW_PARTICIPANT"), is(NotificationType.NEW_PARTICIPANT));
     assertThat(NotificationType.valueOf("NEW_PLAN"), is(NotificationType.NEW_PLAN));
+    assertThat(NotificationType.valueOf("PLAN_INVITATION"), is(NotificationType.PLAN_INVITATION));
+    assertThat(NotificationType.valueOf("JOIN_REQUESTED"), is(NotificationType.JOIN_REQUESTED));
+    assertThat(
+      NotificationType.valueOf("JOIN_REQUEST_ACCEPTED"),
+      is(NotificationType.JOIN_REQUEST_ACCEPTED)
+    );
+    assertThat(
+      NotificationType.valueOf("JOIN_REQUEST_REJECTED"),
+      is(NotificationType.JOIN_REQUEST_REJECTED)
+    );
   }
 
   @Test

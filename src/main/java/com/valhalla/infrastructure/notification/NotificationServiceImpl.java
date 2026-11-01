@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * [NOTIF] Alta de eventos y lecturas del centro.
  *
- * <p>Las tres escrituras comparten la regla de fondo: una notificacion nunca es motivo de fallo
+ * <p>Las escrituras comparten la regla de fondo: una notificacion nunca es motivo de fallo
  * de la accion que la dispara, y no se notifica a nadie sobre si mismo. {@code notifyNewPlan} es
  * la unica que resuelve destinatarias ella sola (los seguidores del autor via
  * {@link FollowRepository}): quien publica no tiene la lista a mano.
@@ -69,6 +69,42 @@ public class NotificationServiceImpl implements NotificationService {
           new Notification(follower, owner, NotificationType.NEW_PLAN, planId, planName)
         )
         .toList()
+    );
+  }
+
+  @Override
+  @Transactional
+  public void notifyInvitation(User inviter, User recipient, UUID planId, String planName) {
+    notificationRepository.save(
+      new Notification(recipient, inviter, NotificationType.PLAN_INVITATION, planId, planName)
+    );
+  }
+
+  @Override
+  @Transactional
+  public void notifyJoinRequest(User requester, User owner, UUID planId, String planName) {
+    notificationRepository.save(
+      new Notification(owner, requester, NotificationType.JOIN_REQUESTED, planId, planName)
+    );
+  }
+
+  @Override
+  @Transactional
+  public void notifyJoinRequestResponse(
+    User owner,
+    User requester,
+    UUID planId,
+    String planName,
+    boolean accepted
+  ) {
+    notificationRepository.save(
+      new Notification(
+        requester,
+        owner,
+        accepted ? NotificationType.JOIN_REQUEST_ACCEPTED : NotificationType.JOIN_REQUEST_REJECTED,
+        planId,
+        planName
+      )
     );
   }
 

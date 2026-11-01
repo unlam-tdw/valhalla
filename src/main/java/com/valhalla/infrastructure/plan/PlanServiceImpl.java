@@ -83,6 +83,15 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (!plan.hasPendingJoinRequest(requester.getEmail())) {
       plan.getJoinRequests().add(new PlanJoinRequest(plan, requester));
       planRepository.save(plan);
+      // [NOTIF] AC-15: la solicitud es un pendiente del dueno, vive tambien en la campanita. La
+      // pongo aca y no en requestToJoin porque joinPlan con codigo a un plan privado pasa por el
+      // mismo camino. La solicitud repetida corta arriba y no notifica de nuevo.
+      notificationService.notifyJoinRequest(
+        requester,
+        plan.getAdministrator(),
+        plan.getId(),
+        plan.getName()
+      );
     }
   }
 
@@ -93,6 +102,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (!"accept".equals(action) && !"reject".equals(action)) {
       throw new IllegalArgumentException("Respuesta de solicitud inválida.");
     }
+    boolean accepted = "accept".equals(action);
     PlanJoinRequest request = plan
       .getJoinRequests()
       .stream()
@@ -102,7 +112,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     User requester = request.getRequester();
     validateJoinResponse(plan, requester, action);
     if (
-      "accept".equals(action) &&
+      accepted &&
       !plan.isAdministrator(requester.getEmail()) &&
       !plan.isParticipant(requester.getEmail())
     ) {
@@ -118,6 +128,14 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     }
     plan.getJoinRequests().remove(request);
     planRepository.save(plan);
+    // [NOTIF] AC-16: la respuesta cierra el pendiente del solicitante en los dos sentidos.
+    notificationService.notifyJoinRequestResponse(
+      plan.getAdministrator(),
+      requester,
+      plan.getId(),
+      plan.getName(),
+      accepted
+    );
   }
 
   @Override
@@ -387,6 +405,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (EMAIL_CHANNEL.equals(channel)) {
       emailNotifier.sendInvitation(participant.getEmail(), plan.getId(), invitation.getToken());
     }
+    // [NOTIF] La campanita también avisa al invitado: el mail puede no llegar nunca (no hay SMTP
+    // en dev ni en el TP) y la lista de pendientes solo se ve si ya sabés dónde mirar.
+    notificationService.notifyInvitation(inviter, participant, plan.getId(), plan.getName());
   }
 
   private void validateInvitationChannel(Plan plan, String channel, String role, String userEmail) {

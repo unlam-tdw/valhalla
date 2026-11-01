@@ -68,6 +68,45 @@
                   <th:block th:unless="${n.relatedPlanId != null}"
                     th:text="${n.relatedPlanName}">Plan</th:block>
                 </p>
+                <p th:case="'PLAN_INVITATION'" class="text-sm text-gray-800">
+                  <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                  te invitó al plan
+                  <!-- El invitado todavia no participa: /plans/{id} lo cortaria. La invitacion se
+                       resuelve en /plans, que lista las pendientes con Aceptar/Rechazar. -->
+                  <a th:href="@{/plans}" class="font-semibold text-primary hover:underline"
+                    th:text="${n.relatedPlanName}">Plan</a>
+                </p>
+                <p th:case="'JOIN_REQUESTED'" class="text-sm text-gray-800">
+                  <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                  solicitó unirse a tu plan
+                  <a th:if="${n.relatedPlanId != null}" th:href="@{/plans/{id}(id=${n.relatedPlanId})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${n.relatedPlanName}">Plan</a>
+                  <th:block th:unless="${n.relatedPlanId != null}"
+                    th:text="${n.relatedPlanName}">Plan</th:block>
+                </p>
+                <p th:case="'JOIN_REQUEST_ACCEPTED'" class="text-sm text-gray-800">
+                  <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                  aprobó tu solicitud para el plan
+                  <a th:if="${n.relatedPlanId != null}" th:href="@{/plans/{id}(id=${n.relatedPlanId})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${n.relatedPlanName}">Plan</a>
+                  <th:block th:unless="${n.relatedPlanId != null}"
+                    th:text="${n.relatedPlanName}">Plan</th:block>
+                </p>
+                <p th:case="'JOIN_REQUEST_REJECTED'" class="text-sm text-gray-800">
+                  <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                    class="font-semibold text-primary hover:underline"
+                    th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                  rechazó tu solicitud para el plan
+                  <span class="font-semibold text-gray-700" th:text="${n.relatedPlanName}">Plan</span>
+                </p>
               </th:block>
               <time class="block text-xs text-gray-500"
                 th:attr="datetime=${n.createdAt}"

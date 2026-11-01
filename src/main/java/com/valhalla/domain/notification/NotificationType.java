@@ -14,4 +14,16 @@ public enum NotificationType {
 
   /** Un usuario seguido publicó un plan nuevo. */
   NEW_PLAN,
+
+  /** Un usuario invitó al destinatario a un plan (decisión de producto, ver 25-NOTIF). */
+  PLAN_INVITATION,
+
+  /** Un usuario pidió unirse al plan cuyo dueño es el destinatario. */
+  JOIN_REQUESTED,
+
+  /** El dueño aprobó la solicitud de unión del destinatario. */
+  JOIN_REQUEST_ACCEPTED,
+
+  /** El dueño rechazó la solicitud de unión del destinatario. */
+  JOIN_REQUEST_REJECTED,
 }
