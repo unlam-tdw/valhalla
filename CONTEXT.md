@@ -33,8 +33,8 @@ read public Plans.
 The owner and Editors can inspect the Plan's banned Users and lift any ban.
 Lifting a ban does not restore participation or the Editor role. The User can
 join again using the Short Code or a new invitation. The banned Users list is
-only exposed to the owner and Editors, in a dialog opened from More options
-beside the clone and delete actions in Plan detail.
+only exposed to the owner and Editors, in the "Baneados" block of the unified
+Plan configuration section in Plan detail.
 
 **PlanManager**: Embedded component of a Plan that groups its Participants, Editors
 and pending Invitations and Join Requests. It preserves the existing persistence tables and the Plan's
@@ -46,11 +46,12 @@ authorized, accepts it. Rejection removes the request without granting participa
 The visitor sees only the name, description, date, place count and generic cover.
 
 **Plan settings**: Owner-managed permissions for inviting internally, inviting by email
-and handling join requests. Internal invitations default to Editors; other capabilities
-default to Owner. Inviting can extend to all Participants; handling requests can extend
-only to Editors. There is no in-app share-link control: Plan visibility governs access.
-Only owners and Editors can propose the Editor role. Bans also prevent requesting or
-accepting access to a private Plan.
+and handling join requests, edited in the `Roles y permisos` block of the unified Plan
+configuration section in Plan detail. Internal invitations default to Editors; other
+capabilities default to Owner. Inviting can extend to all Participants; handling requests
+can extend only to Editors. There is no in-app share-link control: Plan visibility governs
+access. Only owners and Editors can propose the Editor role. Bans also prevent requesting
+or accepting access to a private Plan.
 
 **Schedule derivation**: visit date/time stay persisted in `visitDate`/`visitTime` even when
 they are derived, so the public view, the plan listing and cloning read them unchanged.
@@ -60,6 +61,12 @@ cap; null means computed from distance and transport mode), and the Plan setting
 `autoSchedule` (default on) turns the automatic
 rescheduling off altogether. When the itinerary runs past the day end time it
 continues on the next day, with no limit on the number of days.
+
+**Plan configuration**: The single `#configuracion` section in Plan detail groups basic
+data, role permissions and bans; join requests sit with participants, between the plan
+summary and the invite form. `/plans/{id}/settings` is a
+compatibility redirect to that section. The `/explore` wizard step 3 uses the same
+permission selectors and defaults as the detail.
 
 ## Categories
 
@@ -99,6 +106,11 @@ a plan: removing it changes nothing about the Plan.
 | **Clone from bookmark** | Creates a private plan owned by the bookmark's user. With a live plan it reuses the clone flow; otherwise it rebuilds the plan from the snapshot, skipping places that no longer exist. When the live plan is reachable, its current data wins over the snapshot. |
 
 ## Key Concepts
+
+**User calendar**: Monthly, read-only view at `/plans/calendar` of the User's owned
+Plans and Plans they participate in. Entries use the Plan's start date and time,
+link to its detail, and exclude pending invitations. Undated Plans appear separately.
+See `docs/calendar-prototype.md` for the initial scope.
 
 **Plan invitation**: A pending invitation sent by a registered User to another registered
 User for a Plan, with the proposed Participant or Editor role and the inviter's identity.
