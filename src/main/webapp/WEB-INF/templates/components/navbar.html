@@ -111,9 +111,13 @@
       th:if="${userInitial != null}"
       th:attr="aria-label=${userDisplayName}, title=${userDisplayName}"
       aria-haspopup="true" aria-expanded="false" aria-controls="navbar-menu">
-      <span th:unless="${userAvatarUrl != null}" th:text="${userInitial}">U</span>
-      <img th:if="${userAvatarUrl != null}" th:src="${userAvatarUrl}" alt=""
-        class="h-full w-full object-cover" />
+      <span class="relative inline-flex h-full w-full items-center justify-center">
+        <!-- La inicial va siempre: si la foto no responde, el onerror se borra a si mismo y el
+             disco ya tiene su pareja dibujada underneath. Evita el icono roto en el navbar. -->
+        <span th:text="${userInitial}">U</span>
+        <img th:if="${userAvatarUrl != null}" th:src="${userAvatarUrl}" alt=""
+          onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover" />
+      </span>
     </button>
 
     <!-- [PROF+THEME] El toggle standalone ya no vive en la rama autenticada: el control de
