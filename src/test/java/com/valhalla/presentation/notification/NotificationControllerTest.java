@@ -93,6 +93,22 @@ public class NotificationControllerTest {
   }
 
   @Test
+  public void U04_feedPartial_devuelveLaBandejaSinLayout() {
+    List<Notification> page = List.of(mock(Notification.class));
+    when(this.notificationServiceMock.count(ME_ID)).thenReturn(25L);
+    when(this.notificationServiceMock.list(ME_ID, 1, NotificationController.PAGE_SIZE))
+      .thenReturn(page);
+
+    ModelAndView view = this.controller.feedPartial(1, this.me);
+
+    assertThat(view.getViewName(), is("pages/notifications/list :: feed"));
+    assertThat(view.getModel().get("notifications"), is(page));
+    assertThat(view.getModel().get("page"), is(1));
+    assertThat(view.getModel().get("hasPrev"), is(true));
+    assertThat(view.getModel().get("hasNext"), is(true));
+  }
+
+  @Test
   public void U04_list_sinNotificacionesVaciaLaPaginaCero() {
     // given: cuenta 0 — ni siquiera existe una pagina -1
     when(this.notificationServiceMock.count(ME_ID)).thenReturn(0L);

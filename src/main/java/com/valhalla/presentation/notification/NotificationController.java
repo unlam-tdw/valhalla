@@ -47,6 +47,23 @@ public class NotificationController {
     @RequestParam(name = PAGE_PARAM, defaultValue = "0") int page,
     Authentication authentication
   ) {
+    return feed(new ModelAndView(VIEW_LIST), page, authentication);
+  }
+
+  /**
+   * [NOTIF] La misma bandeja sola, sin layout: el script de list la pide al tocar
+   * Anteriores/Siguientes y reemplaza el fragmento ahi mismo, sin recargar la pagina entera.
+   */
+  @GetMapping(params = "partial")
+  public ModelAndView feedPartial(
+    @RequestParam(name = PAGE_PARAM, defaultValue = "0") int page,
+    Authentication authentication
+  ) {
+    return feed(new ModelAndView(VIEW_LIST + " :: feed"), page, authentication);
+  }
+
+  /** Ventana pedida fuera de rango: aclamp a la ultima, para que F5 y fragmento pinten lo mismo. */
+  private ModelAndView feed(ModelAndView model, int page, Authentication authentication) {
     User me = userService.getByEmail(authentication.getName());
     int currentPage = Math.max(0, page);
     long total = notificationService.count(me.getId());
@@ -55,9 +72,9 @@ public class NotificationController {
       currentPage = Math.max(0, totalPages - 1);
     }
     List<?> notifications = notificationService.list(me.getId(), currentPage, PAGE_SIZE);
-    ModelAndView model = new ModelAndView(VIEW_LIST);
     model.addObject("notifications", notifications);
     model.addObject(PAGE_PARAM, currentPage);
+    model.addObject("totalPages", Math.max(1, totalPages));
     model.addObject("hasPrev", currentPage > 0);
     model.addObject("hasNext", currentPage + 1 < totalPages);
     model.addObject("pageTitle", "Notificaciones - PlanIt");

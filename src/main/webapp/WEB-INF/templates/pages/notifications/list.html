@@ -36,7 +36,12 @@
         </form>
       </div>
 
-      <section class="rounded-xl bg-white p-4 shadow-md sm:p-6">
+      <section id="notifications-section" class="rounded-xl bg-white p-4 shadow-md sm:p-6">
+        <!-- [NOTIF] AC-07 + pedido del usuario: el cambio de pagina no navega, se resuelve aca
+             mismo. Este div es el fragmento "feed" que responde el endpoint partial; el script
+             lo reemplaza entero al tocar Anteriores/Siguientes. Las mas nuevas van en la pagina 1
+             y el paginador solo existe si hay mas notificaciones que las que entran. -->
+        <div id="notifications-feed" data-testid="notifications-feed" th:fragment="feed">
         <div th:if="${notifications.isEmpty()}" id="notifications-empty" data-testid="notifications-empty"
           class="rounded-xl border border-dashed border-gray-300 px-6 py-14 text-center">
           <p class="text-sm font-medium text-gray-900">Todavía no tenés notificaciones.</p>
@@ -47,7 +52,8 @@
 
         <ul th:unless="${notifications.isEmpty()}" id="notifications-list" data-testid="notifications-list"
           class="space-y-2">
-          <li th:each="n : ${notifications}" data-testid="notification" th:attr="data-read=${n.read}"
+          <li th:each="n : ${notifications}" data-testid="notification"
+            th:attr="data-read=${n.read}"
             th:with="actorName=${((n.actor.firstName == null ? '' : n.actor.firstName) + ' ' + (n.actor.lastName == null ? '' : n.actor.lastName)).trim()}"
             class="notification-row flex items-start gap-3 rounded-xl border px-4 py-3.5"
             th:classappend="${not n.read} ? 'notification-row--unread' : 'notification-row--read'">
@@ -191,39 +197,77 @@
           </li>
         </ul>
 
-        <!-- [NOTIF] AC-07: paginacion previa/siguiente; el numero de pagina viaja en la URL. -->
-        <nav th:if="${hasPrev or hasNext}" class="flex items-center justify-between pt-5"
+        <!-- [NOTIF] AC-07: paginacion previa/siguiente; el numero de pagina viaja en la URL.
+             Con JS el click no recarga la pagina: el script pide el fragmento y lo reemplaza. -->
+        <nav th:if="${hasPrev or hasNext}" class="flex items-center justify-between gap-4 pt-5"
           aria-label="Paginación de notificaciones">
           <a th:if="${hasPrev}" id="notifications-prev" data-testid="notifications-prev"
             th:href="@{/notifications(page=${page - 1})}"
             class="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-blue-600 transition hover:border-primary hover:bg-primary hover:text-white">
             Anteriores
           </a>
-          <span class="text-sm text-gray-500" th:text="'Página ' + ${page + 1}">Página 1</span>
+          <span id="notifications-page-label" class="text-sm text-gray-500"
+            th:text="'Página ' + ${page + 1} + ' de ' + ${totalPages}">Página 1 de 2</span>
           <a th:if="${hasNext}" id="notifications-next" data-testid="notifications-next"
             th:href="@{/notifications(page=${page + 1})}"
             class="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-blue-600 transition hover:border-primary hover:bg-primary hover:text-white">
             Siguientes
           </a>
         </nav>
+        </div>
       </section>
     </div>
 
-    <!-- [NOTIF] El servidor no conoce la zona horaria de quien lee (y en Docker la suya es UTC),
-         asi que la marca temporal viaja en datetime y se reescribe a la hora local del browser.
-         Sin JS queda la del servidor: texto de fallback, no pagina rota. -->
     <script>
       (function () {
-        document.querySelectorAll("#notifications-list time[datetime]").forEach(function (el) {
-          const at = new Date(el.getAttribute("datetime"));
-          if (isNaN(at.getTime())) return;
-          el.textContent = at.toLocaleString("es-AR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+        // [NOTIF] El servidor no conoce la zona horaria de quien lee (y en Docker la suya es UTC),
+        // asi que la marca temporal viaja en datetime y se reescribe a la hora local del browser.
+        // Sin JS queda la del servidor: texto de fallback, no pagina rota.
+        function formatTimes(root) {
+          root.querySelectorAll("time[datetime]").forEach(function (el) {
+            const at = new Date(el.getAttribute("datetime"));
+            if (isNaN(at.getTime())) return;
+            el.textContent = at.toLocaleString("es-AR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
           });
+        }
+
+        // [NOTIF] Cambio de pagina SIN recargar la pagina entera: Anteriores/Siguientes piden el
+        // fragmento "feed" (?partial=1) y reemplazan la bandeja ahi mismo; la URL se actualiza con
+        // replaceState para que un F5 caiga en la pagina que se esta viendo. Sin JS los links
+        // siguen siendo navegacion normal, y el paginador no existe si las notificaciones entran
+        // todas en la pagina 1.
+        const section = document.getElementById("notifications-section");
+        let feed = document.getElementById("notifications-feed");
+        formatTimes(feed);
+
+        let loading = false;
+        section.addEventListener("click", function (e) {
+          const link = e.target.closest("#notifications-prev, #notifications-next");
+          if (!link || loading) return;
+          e.preventDefault();
+          loading = true;
+          const url = new URL(link.href);
+          url.searchParams.set("partial", "1");
+          fetch(url)
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+              const next = new DOMParser().parseFromString(html, "text/html")
+                .getElementById("notifications-feed");
+              if (!next) return;
+              feed.replaceWith(next);
+              feed = next;
+              formatTimes(feed);
+              history.replaceState(null, "", link.href);
+              feed.scrollIntoView({ behavior: "smooth", block: "start" });
+            })
+            .catch(function () { window.location.href = link.href; })
+            .finally(function () { loading = false; });
         });
       })();
     </script>
