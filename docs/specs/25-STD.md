@@ -321,30 +321,36 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
 - [STD-005] "Agregar lugar al plan" → botón en la cabecera de "Tu recorrido" (AC-05). ✔ (commit e28b3e8)
 - [STD-006] Orden mobile con `order`, sin mover el DOM (AC-06) y techos de scroll (AC-07). ✔ (commit e28b3e8)
 - [STD-007] Spec y docs: nota de actualización en 17-DIS (AC-09) + hand-off de la card. ✔ (este commit)
-- [STD-008] **Variante B (prueba):** mapa primero a todo el ancho + cards como pestañas
-  exclusivas sobre el mapa estilo explore (barra con radios/labels, cerradas por defecto, ✕),
-  desktop y mobile (AC-08).
-- [STD-009] Cabecera sin "Más opciones": título de banda a ~1.35 rem y banda más baja (AC-09).
+- [STD-008] **Variante B (descartada el 2026-11-03):** mapa primero a todo el ancho + cards como
+  pestañas exclusivas sobre el mapa estilo explore. No se commiteó: la reemplaza la variante C
+  (AC-08 supersedido).
+- [STD-009] Cabecera sin "Más opciones": título de banda a ~1.35 rem y banda más baja (AC-09). ✔
+  (commit 5834257)
 - [STD-010] "Ver miembros baneados" → botón dentro de Participantes con el mismo diálogo,
-  `aria-controls` y retorno de foco; el ancla de solicitudes abre su pestaña (AC-09).
+  `aria-controls` y retorno de foco; el ancla de solicitudes deja de abrir pestañas (AC-09). ✔
+  (commit 5834257)
 - [STD-011] **Variante C:** tablero de tres columnas (ficha fija + recorrido a la izquierda, mapa
   al centro, participantes a la derecha) con stage de altura viewport y scroll propio por columna;
   en mobile apilado ficha → mapa → recorrido → participantes (AC-10). Se van las pestañas y la
-  barra de la variante B.
-- [STD-012] Acciones de cada card en fila propia al pie para columnas angostas (AC-11).
-- [STD-013] Claro y oscuro con variables `--bs-*` (AC-12) y capturas de ambos temas.
+  barra de la variante B. ✔ (commit 874bd24)
+- [STD-012] Acciones de cada card en fila propia al pie para columnas angostas (AC-11). ✔
+  (commit 874bd24)
+- [STD-013] Claro y oscuro con variables `--bs-*` (AC-12) y capturas de ambos temas. ✔
+  (commit 874bd24)
 - [STD-014] **Ficha del lugar estandarizada (AC-13):** clase compartida `.plan-modal` para los
   tres diálogos del detalle (ficha del lugar, "Editar plan" y baneados) con el chrome de las cards
   —`margin: auto` para vencer el reset de Tailwind, radio 16, `padding` 24, superficie y sombra,
-  backdrop—, y los `.place-fact` como chips (`--bs-secondary-bg`, radio 10, sin líneas).
-- [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde.
+  backdrop—, y los `.place-fact` como chips (`--bs-secondary-bg`, radio 10, sin líneas). ✔
+  (commit 874bd24)
+- [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde. ✔
+  (commit 5834257 — PlanPlaceDetailE2E 8/8)
 - [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithTheMapInTheMiddleAndParticipantsOnTheRight`
-  en verde y la suite de detalle sin `openCard` (variante C sin pestañas).
+  en verde y la suite de detalle sin `openCard` (variante C sin pestañas). ✔ (commit 5834257)
 - [T-STD-001] E2E: los tres métodos de "### E2E" en verde. ✔ (commit e28b3e8 — PlanPlaceDetailE2E 7/7)
   → en variante B: `deploysTheCardsAsExclusiveTabsOverTheMap` reemplaza al de orden.
-- [T-STD-001] E2E: los tres métodos de "### E2E" en verde. ✔ (commit e28b3e8 — PlanPlaceDetailE2E 7/7)
-- [T-STD-002] Gate: `gate.ps1 all` en verde con los counts al cierre. ✔ (exit 0: surefire
-  998/0/0 · E2E 84/0/0 en 26 clases · checkstyle 0 · prettier/PMD/CPD · gate js -Strict 0 FAIL)
+- [T-STD-002] Gate: `gate.ps1 all` con los counts al cierre. ✔ (surefire 998/0/0 · E2E 85/0/1 ·
+  checkstyle 0 · prettier/PMD/CPD · `gate js -Strict` 0 FAIL; el único error E2E es
+  `PublicPlansRankingE2E`, previo y ajeno — falla igual en `HEAD`)
 
 ## Archivos a crear/modificar
 
@@ -353,7 +359,7 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
 | `templates/pages/plans/detail.html` | Actualizar (tablero de tres columnas: ficha con chips + "Editar" al pie, recorrido con acciones en su fila, mapa central y participantes con acciones bajo el nombre; `<dialog>` "Editar plan" después de Participantes y antes de `banned-participants`; badge de solicitudes en la cabecera y card solo con ≥ 1; accordion "Invitar a alguien" dentro de Participantes; botón "Agregar lugar al plan" en la cabecera de "Tu recorrido"; mobile apilado con `grid-template-areas`) |
 | `resources/core/js/pages/plans-detail.js` | Actualizar (refs del diálogo de edición: abrir con foco y cerrar con Escape, misma mecánica que `bannedParticipantsDialog`; toggles del accordion y del picker de lugares con los refs Vue que hagan falta) |
 | `resources/css/brand.css` (o el `<style>` de `detail.html`) | Actualizar/crear (chips, badge, estados del accordion, clamp de la descripción, estilos del diálogo — claro y oscuro) |
-| `test/java/com/valhalla/e2e/PlanPlaceDetailE2E.java` | Actualizar (3 métodos nuevos + abrir el modal en `addsPersistsAndDisplaysVisitDetails`) |
+| `test/java/com/valhalla/e2e/PlanPlaceDetailE2E.java` | Actualizar (4 métodos nuevos + abrir el modal en `addsPersistsAndDisplaysVisitDetails`) |
 | `test/java/com/valhalla/e2e/views/PlansPage.java` | Actualizar (helper `openEditDialog()` compartido por los tests que editan metadatos) |
 | `test/java/com/valhalla/e2e/PlanParticipantsE2E.java` | Actualizar (expandir el accordion antes de `#invitation-email`) |
 | `test/java/com/valhalla/e2e/PublicPlanCloneE2E.java` | Actualizar (`makePlanPublic` abre el modal antes de `#isPublic`) |
