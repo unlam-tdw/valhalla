@@ -62,8 +62,6 @@ createApp({
         const requestError = ref('');
         const saving = ref(false);
         const placeDialog = ref(null);
-        const planOptionsOpen = ref(false);
-        const planOptionsButton = ref(null);
         const bannedParticipantsDialog = ref(null);
         // [STD] 25-STD: los dos paneles plegables (invitar, agregar lugar) arrancan cerrados
         // para que la vista base no pinte formularios ni consuma scroll, y el editor de
@@ -72,11 +70,9 @@ createApp({
         const addPlaceOpen = ref(false);
         const editDialog = ref(null);
         const openEdit = () => editDialog.value.showModal();
-        const closePlanOptions = (event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) {
-                planOptionsOpen.value = false;
-            }
-        };
+        // [STD-009] "Más opciones" se fue de la cabecera; el boton de baneados vive
+        // en Participantes y es el que recibe el foco cuando Escape cierra su dialogo.
+        const bannedTrigger = ref(null);
 
         // Leaflet owns these three and the template never reads them, so they are not refs.
         let map = null;
@@ -306,6 +302,12 @@ createApp({
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
 
+            // [STD-VB] El mapa ya no mide 480 px fijos: llena el stage, cuya altura cambia con
+            // el viewport. Sin invalidateSize Leaflet conserva el tamaño viejo y las tiles
+            // quedan corridas (mismo patrón que places-list.js).
+            new ResizeObserver(() => map.invalidateSize({ pan: false })).observe(map.getContainer());
+            requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+
             renderMarkers();
         };
 
@@ -452,9 +454,9 @@ createApp({
 
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
-            // [MERGE] Sin estos cuatro en el retorno, el menú "Más opciones" no abre: el handler
-            // escribe sobre una propiedad inexistente y Vue la descarta en silencio.
-            planOptionsOpen, planOptionsButton, bannedParticipantsDialog, closePlanOptions,
+            // [STD-009] bannedTrigger devuelve el foco al boton de Participantes al cerrar el
+            // dialogo de baneados.
+            bannedParticipantsDialog, bannedTrigger,
             inviteOpen, addPlaceOpen, editDialog, openEdit,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,

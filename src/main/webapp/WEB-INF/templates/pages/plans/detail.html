@@ -19,13 +19,38 @@
 
     <style>
         [v-cloak] { display: none; }
-        #banned-participants::backdrop { background: rgb(0 0 0 / 0.35); }
+        /* [STD-014/AC-13] Los tres diálogos del detalle (ficha del lugar, edición del plan y
+           baneados) comparten el chrome de las cards del tablero: radio 16, padding 24,
+           superficie --bs-*, sombra y backdrop. El reset de Tailwind (margin:0 en *) pisa el
+           margin:auto nativo del <dialog>: sin esta regla el modal queda pegado al borde
+           superior izquierdo (0 / 720 px de aire). */
+        .plan-modal {
+            inset: 0;
+            margin: auto;
+            width: min(560px, 92vw);
+            max-height: 86dvh;
+            overflow-y: auto;
+            padding: 24px;
+            border: 0;
+            border-radius: 16px;
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            box-shadow: 0 18px 44px rgb(0 0 0 / 0.35);
+        }
+        .plan-modal::backdrop { background: rgb(0 0 0 / 0.45); }
+        /* [STD-011] Variante C: el mapa es la celda central del tablero (no el fondo del stage);
+           su alto lo da la grilla y el radius/recorte queda aca. */
         #map {
-            height: 480px;
+            grid-area: map;
+            position: relative;
             width: 100%;
-            border-radius: 8px;
+            height: 100%;
+            min-height: 0;
+            border-radius: 16px;
+            overflow: hidden;
         }
         .itinerary-panel { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: 8px; padding: 20px; }
+        .itinerary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .itinerary-heading { color: var(--bs-body-color); letter-spacing: -0.03em; }
         .itinerary-count { background: var(--bs-secondary-bg); color: var(--bs-body-color); border-radius: 20px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
         .itinerary-list { list-style: none; padding: 0; margin: 12px 0 0; }
@@ -59,18 +84,25 @@
            apoya en los .cat-* del mapa (mismos colores, definidos más abajo en este style, así
            que ganan al fondo base del chip). Los bloques usan variables --bs-* para que
            Bootstrap re-coloree en modo oscuro como el resto de la página. */
-        .place-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+        .place-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
         .place-head-text { min-width: 0; }
-        .place-chip { display: inline-block; margin-top: 4px; padding: 2px 10px; border-radius: 999px; background-color: #6c757d; color: #fff; font-size: .72rem; font-weight: 700; letter-spacing: .02em; }
-        .place-facts { margin: 0; }
-        .place-fact { padding: 10px 0; border-top: 1px solid var(--bs-border-color); }
-        .place-fact:first-child { padding-top: 0; border-top: 0; }
+        .place-head h4 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.03em; }
+        .place-chip { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; padding: 2px 10px; border-radius: 999px; background-color: #6c757d; color: #fff; font-size: .72rem; font-weight: 700; letter-spacing: .02em; }
+        /* [STD-014/AC-13] Los bloques del dl se leen como los chips de la ficha del plan:
+           misma superficie --bs-secondary-bg y mismo radio, sin líneas separadoras. En >= 576 px
+           van en dos columnas; las descripciones largas ocupan la fila entera. */
+        .place-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+        .place-fact { padding: 10px 12px; border-radius: 10px; background: var(--bs-secondary-bg); }
+        .place-fact--wide { grid-column: 1 / -1; }
         .place-fact dt { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; color: var(--bs-secondary-color); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
         .place-fact dt svg { flex: 0 0 auto; }
         .place-fact dd { margin: 0; color: var(--bs-body-color); font-size: .95rem; overflow-wrap: anywhere; }
         .place-schedule { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-        .visit-editor { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--bs-border-color); }
+        .visit-editor { margin-top: 16px; padding: 12px; border: 1px solid var(--bs-border-color); border-radius: 12px; background: var(--bs-tertiary-bg); }
         .visit-editor-heading { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color); margin-bottom: 8px; }
+        @media (max-width: 575px) {
+            .place-facts { grid-template-columns: minmax(0, 1fr); }
+        }
         .stop-description { color: var(--bs-secondary-color); font-size: .85rem; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .stop-directions { display: inline-flex; align-items: center; margin-top: 6px; color: var(--bs-primary); font-size: .85rem; font-weight: 600; text-decoration: none; }
         .stop-directions:hover { text-decoration: underline; }
@@ -261,11 +293,16 @@
            La imagen decorativa queda para la card [IMG]. Sin backend. */
         .plan-header {
             background-color: var(--primary);
-            min-height: 96px;
+            /* [STD-009] Banda más baja: con el título chico (1.35 rem) no hace falta la altura
+               de 96 px, y la fila de acciones gana aire sin desplazar el stage. */
+            min-height: 72px;
             border-radius: 0.5rem;
         }
 
         .plan-header h2 {
+            /* [STD-009/AC-09] Título sin protagonismo: 2 rem (main h2) → 1.35 rem, para que
+               Configuración/Eliminar respiren en la misma fila. */
+            font-size: 1.35rem;
             color: var(--white);
             text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
         }
@@ -329,28 +366,98 @@
             white-space: pre-wrap;
         }
 
-        /* [STD] AC-06: orden de mobile SIN mover el DOM. .row sigue siendo flex y en <768 los
-             dos wrappers sueltan su caja (display: contents) para que cada bloque entre en la
-             corrida de orden: ficha -> Tu recorrido -> Mapa -> Solicitudes -> Participantes.
-             Los hijos promovidos dejan de calificar como .row > *, asi que heredan aca el
-             width, el gutter y el margin-top que Bootstrap les daba. En desktop no toca nada:
-             los wrappers vuelven a ser columnas y la composicion es la de siempre (mapa +
-             recorrido a la izquierda, ficha + participantes a la derecha). */
-        @media (max-width: 767.98px) {
-            .itinerary-col, .plan-cols { display: contents; }
-            .itinerary-col > *, .plan-cols > * {
-                width: 100%;
-                max-width: 100%;
-                min-width: 0;
-                padding-left: calc(var(--bs-gutter-x) * .5);
-                padding-right: calc(var(--bs-gutter-x) * .5);
-                margin-top: calc(var(--bs-gutter-y) * 1);
+        /* [STD-011] Variante C (AC-10): tablero de tres columnas dentro de un stage con el alto
+             restante del viewport. Izquierda: la ficha (fila auto, siempre visible) y el
+             recorrido debajo (fila 1fr con scroll propio), asi la ficha queda quieta mientras
+             scrollea el recorrido sin usar position: fixed. Centro: el mapa, que ocupa las dos
+             filas. Derecha: solicitudes (si hay) y participantes. En < 992 px se apila en el
+             orden pedido: ficha -> mapa -> recorrido -> participantes. */
+        .plan-stage {
+            display: grid;
+            grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) minmax(280px, 340px);
+            /* La ficha se lleva su alto de contenido (el clamp de la descripción lo acota) y el
+               recorrido todo el resto con scroll propio: por eso la ficha queda quieta. */
+            grid-template-rows: auto minmax(0, 1fr);
+            grid-template-areas:
+                'ficha map side'
+                'recorrido map side';
+            gap: 16px;
+            height: calc(100dvh - 15rem);
+            min-height: 520px;
+            max-height: 980px;
+        }
+        #plan-summary { grid-area: ficha; }
+        #itinerary-panel { grid-area: recorrido; }
+        .plan-side {
+            grid-area: side;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+            overflow-y: auto;
+        }
+        .plan-sheet {
+            min-height: 0;
+            overflow-y: auto;
+            border-radius: 16px;
+            /* El .mb-4 del markup sumaria 24 px dentro de una celda de grilla: el aire lo da
+               el gap del tablero. */
+            margin-bottom: 0 !important;
+        }
+        #join-requests-section.plan-sheet { background: var(--bs-body-bg); }
+        /* [STD-012] Claro y oscuro: .btn-outline-secondary hereda --bs-secondary, que sobre la
+           card oscura queda casi ilegible. En oscuro se aclara al color de texto. */
+        html[data-theme="dark"] .plan-stage .btn-outline-secondary {
+            color: var(--bs-body-color);
+            border-color: var(--bs-border-color);
+        }
+        /* [STD-011/AC-11] Las acciones de la parada bajan a su propia fila: en una columna de
+           ~360 px, al lado del contenido se aplastaban. El bloque mobile de mas abajo repite la
+           idea con su propia alineacion. */
+        .itinerary-stop { flex-wrap: wrap; }
+        .stop-actions { flex: 1 1 100%; justify-content: flex-end; }
+        /* [STD-011/AC-11] Ficha: chips en grilla de dos columnas y el boton Editar al pie, en su
+           propia fila, para que no compita con los chips. */
+        .plan-chips {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .plan-chips .plan-chip { min-width: 0; }
+        /* [STD-011/AC-11] Participantes: nombre y badge arriba, acciones en su fila debajo. */
+        .participants-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+        /* La card ocupa el alto libre de la columna derecha, como el panel de explore. */
+        #participants-section { flex: 1 1 auto; }
+        .participant-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+        .participant-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
+        }
+        .participant-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+        @media (max-width: 991.98px) {
+            .plan-stage {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: auto;
+                grid-template-areas: 'ficha' 'map' 'recorrido' 'side';
+                height: auto;
+                min-height: 0;
+                max-height: none;
             }
-            #plan-summary { order: 1; }
-            .itinerary-panel { order: 2; }
-            #map-card { order: 3; }
-            #join-requests-section { order: 4; }
-            #participants-section { order: 5; }
+            #map { height: 320px; }
+            .plan-sheet, .plan-side { overflow: visible; }
         }
     </style>
 </head>
@@ -370,7 +477,8 @@
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
             <!-- [STD] AC-03: el ancla de solicitudes vive en la cabecera y solo se pinta con
-                 >=1 para no sumar estado vacio; el clic salta a la card del recuento. -->
+                 >=1 para no sumar estado vacio. [STD-VB] Variante B: el clic abre la pestaña
+                 Solicitudes en vez de saltar a una card del layout. -->
             <a th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" href="#join-requests-section"
                class="badge rounded-pill text-bg-warning text-decoration-none flex-shrink-0">Solicitudes <span th:text="${#lists.size(joinRequests)}">1</span></a>
             <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
@@ -390,193 +498,173 @@
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>Clonar plan</button>
             </form>
-        <div th:if="${canEditPlan}" class="position-relative" @focusout="closePlanOptions" @keydown.esc.prevent="planOptionsOpen = false; planOptionsButton.focus()">
-            <button ref="planOptionsButton" type="button" class="btn btn-outline-secondary" @click="planOptionsOpen = !planOptionsOpen" :aria-expanded="planOptionsOpen" aria-controls="plan-options-menu">
-                <span class="me-1" v-html="iconHtml('ellipsis', 16)"></span> M&aacute;s opciones
-            </button>
-            <div v-cloak v-show="planOptionsOpen" id="plan-options-menu" class="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-2">
-                <button type="button" class="dropdown-item" aria-haspopup="dialog" aria-controls="banned-participants" @click="planOptionsOpen = false; bannedParticipantsDialog.showModal()">Ver miembros baneados</button>
-            </div>
-        </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- [STD] AC-03: sin solicitudes no hay card ni mensaje de vacio — la seccion no se
-             pinta y el unico indicador es el ancla de la cabecera (que tambien exige >=1).
-             Con >=1 el titulo lleva el conteo junto a las acciones de aceptar/rechazar. -->
-        <section th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" id="join-requests-section" class="col-12" aria-labelledby="join-requests-heading">
-            <div class="card border-0 shadow-sm p-4">
-                <h5 id="join-requests-heading" class="fw-bold">Solicitudes <span class="badge text-bg-warning" th:text="${#lists.size(joinRequests)}">1</span></h5>
-                <ul class="list-group list-group-flush">
-                    <li th:each="request : ${joinRequests}" class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3">
-                        <a th:href="@{/profile/{id}(id=${request.requesterId})}" th:text="${request.requesterName}">Ver perfil</a>
-                        <form th:action="@{/plans/{id}/join-requests/{rid}/respond(id=${plan.id},rid=${request.id})}" method="post" class="d-flex gap-2 mb-0">
-                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                            <button type="submit" name="action" value="accept" class="btn btn-primary btn-sm">Aceptar</button>
-                            <button type="submit" name="action" value="reject" class="btn btn-outline-danger btn-sm">Rechazar</button>
-                        </form>
-                    </li>
-                </ul>
+    <!-- [STD-011] Variante C (AC-10): tablero de tres columnas —ficha fija a la izquierda con el
+         recorrido debajo, mapa al centro y participantes a la derecha—, sin pestañas: las tres
+         cards se ven al cargar. El DOM sigue el orden visual y de lectura (ficha, mapa,
+         recorrido, solicitudes, participantes, diálogo), que es el que esperan los recortes de
+         integración: no escribir acá los literales que esos tests usan como anclas. -->
+    <div class="plan-stage">
+        <div id="plan-summary" class="card border-0 shadow-sm p-4 mb-4 plan-sheet">
+            <div class="plan-chips mb-3">
+                <span class="plan-chip">
+                    <small class="plan-chip__label">FECHA</small>
+                    <!-- [SCH] dd/mm/yyyy, el mismo formato visible que la vista pública y el
+                         itinerario; el input del form de edición sigue pidiendo ISO. -->
+                    <span class="plan-chip__value" th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'dd/MM/yyyy') : 'Sin fecha'}">01/12/2026</span>
+                </span>
+                <span class="plan-chip">
+                    <small class="plan-chip__label">HORA</small>
+                    <span class="plan-chip__value" th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
+                </span>
+                <span class="plan-chip">
+                    <small class="plan-chip__label">VISIBILIDAD</small>
+                    <span class="plan-chip__value" th:text="${plan.isPublic != null && plan.isPublic ? 'Público' : 'Privado'}">Privado</span>
+                </span>
+                <span class="plan-chip">
+                    <small class="plan-chip__label">CÓDIGO</small>
+                    <span class="plan-chip__value" th:text="${plan.shortCode}">BD0F615A</span>
+                </span>
             </div>
-        </section>
-        <div class="col-md-7 itinerary-col">
-            <div id="map-card" class="card border-0 shadow-sm p-3 mb-4">
-                <div id="map"></div>
+            <p id="plan-description" class="mb-0 text-break plan-description-clamp"
+               th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
+            <!-- [STD-011/AC-11] El boton de edicion vive al pie de la ficha: en una columna de
+                 ~360 px, al lado de los chips quedaba aplastado. Mismo trigger y mismo dialog. -->
+            <div th:if="${canEditPlan}" class="d-flex justify-content-end mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        aria-controls="plan-edit-dialog" @click="openEdit">Editar</button>
             </div>
-
-            <section class="itinerary-panel" aria-labelledby="itinerary-heading">
-                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                    <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
-                        <!-- [STD] AC-05: agregar lugar es una accion del recorrido, no una card
-                             propia: el boton va en la cabecera y el picker se despliega colapsado
-                             debajo, sin consumir layout hasta que se pide. -->
-                        <button th:if="${canEditPlan}" type="button" class="btn btn-outline-success btn-sm"
-                                aria-controls="add-place-panel" :aria-expanded="addPlaceOpen"
-                                @click="addPlaceOpen = !addPlaceOpen">Agregar lugar al plan</button>
-                    </div>
-                </div>
-                <div th:if="${canEditPlan}" id="add-place-panel" v-cloak v-show="addPlaceOpen">
-                    <div class="row g-2 mt-3">
-                        <div class="col-md-9">
-                            <select v-model="selectedPlaceId" class="form-select" aria-label="Lugar para agregar al plan">
-                                <option :value="null" disabled>-- Seleccionar un lugar disponible --</option>
-                                <option v-for="place in availablePlaces" :key="place.id" :value="place.id">
-                                    {{ place.name }} ({{ place.category }})
-                                </option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId || saving">
-                                + Agregar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
-                <div v-if="planPlaces.length === 0" class="itinerary-empty">
-                    <span class="mb-3 d-inline-block" v-html="iconHtml('map-pinned', 28)"></span>
-                    <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
-                    <span class="small">Los lugares del plan aparecer&aacute;n ac&aacute;.</span>
-                </div>
-                <div v-for="group in dayGroups" :key="group.key" class="itinerary-day">
-                    <h6 v-if="dayCount > 1" class="itinerary-day-heading">{{ group.label }}</h6>
-                    <ol class="itinerary-list">
-                        <li v-for="stop in group.stops"
-                            :key="stop.item.entryId || stop.index"
-                            class="place-item"
-                            th:attr="draggable=${canEditPlan}"
-                            @dragstart="onDragStart(stop.index)"
-                            @dragover.prevent
-                            @drop="onDrop(stop.index)">
-                            <!-- [DIS] AC-12: handle decorativo en el borde izquierdo de la card,
-                                 solo con permiso de edicion. El arrastre real sigue mandado en el
-                                 <li> draggable: place-item y sus selectores no cambian. -->
-                            <span th:if="${canEditPlan}" class="drag-handle" aria-hidden="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="9" cy="12" r="1" />
-                                    <circle cx="9" cy="5" r="1" />
-                                    <circle cx="9" cy="19" r="1" />
-                                    <circle cx="15" cy="12" r="1" />
-                                    <circle cx="15" cy="5" r="1" />
-                                    <circle cx="15" cy="19" r="1" />
-                                </svg>
-                            </span>
-                            <!-- La numeración es global (no por día): es la misma que usan los
-                                 marcadores del mapa. -->
-                            <span class="itinerary-step">{{ stop.index + 1 }}</span>
-                            <!-- [DIS] AC-01: clase doble — .place-card aporta el chrome compartido
-                                 con el landing; .itinerary-stop conserva las reglas propias del
-                                 detalle (fondo --bs-body-bg, ajuste mobile, reduced-motion). -->
-                            <div class="itinerary-stop place-card">
-                                <div class="stop-content">
-                                    <div class="stop-heading">
-                                        <button type="button" class="stop-title" @click="showPlace(stop.item)">{{ stop.item.name }}</button>
-                                        <span class="stop-category"><span v-html="categoryIconHtml(stop.item.category, 14)"></span>{{ getCategoryLabel(stop.item.category) }}</span>
-                                        <span v-if="stop.item.timePinned" class="stop-pinned" title="Horario fijado a mano">
-                                            <span v-html="iconHtml('pin', 12)"></span>Fijado
-                                        </span>
-                                    </div>
-                                    <div class="stop-schedule">
-                                        <span v-if="stop.timeRange"><span class="me-1" v-html="iconHtml('clock', 14)"></span>{{ stop.timeRange }}</span>
-                                        <span v-if="stop.durationLabel"><span class="me-1" v-html="iconHtml('hourglass', 14)"></span>{{ stop.durationLabel }}</span>
-                                        <!-- La fecha solo aparece cuando la parada cae fuera de la
-                                             jornada del plan: repetir el Día 1 en cada parada sobra. -->
-                                        <span v-if="stop.dateLabel"><span class="me-1" v-html="iconHtml('calendar', 14)"></span>{{ stop.dateLabel }}</span>
-                                        <span v-if="!stop.timeRange">Horario por definir</span>
-                                    </div>
-                                    <p v-if="stop.item.description" class="stop-description">{{ stop.item.description }}</p>
-                                    <!-- [MAPS] Como llegar en la lista del itinerario, ademas del mapa:
-                                         mismo link que la ficha y el popup (direccion de texto). -->
-                                    <a v-if="stop.item.address" class="stop-directions" :href="directionsUrl(stop.item)"
-                                        target="_blank" rel="noopener">
-                                        <span class="me-1" v-html="iconHtml('navigation', 14)"></span>C&oacute;mo llegar
-                                    </a>
-                                </div>
-                                <div class="stop-actions">
-                                    <button type="button" class="stop-details" @click="showPlace(stop.item)">Ver m&aacute;s</button>
-                                    <button th:if="${canEditPlan}" @click="removePlace(stop.index)" type="button" class="stop-remove" :disabled="saving">
-                                        <span class="me-1" v-html="iconHtml('trash-2', 14)"></span>Eliminar
-                                    </button>
-                                </div>
-                            </div>
-                        </li>
-                    </ol>
-                </div>
-            </section>
         </div>
 
-        <div class="col-md-5 plan-cols">
-            <!-- [STD] AC-01: la ficha es la fuente de lectura de la vista base — cuatro chips
-                 (fecha, hora, visibilidad, codigo) y la descripcion con clamp de 3 lineas. Se fue
-                 el tile ADMINISTRADOR (el badge "Dueño" vive en Participantes, que es donde se
-                 administra a la gente) y con el, la celda vacia del grid. El trigger de edicion
-                 se llama solo "Editar": el titulo del editor queda reservado para el
-                 <dialog> (ahi lo leen los substring() de integracion), y los values crudos
-                 viven en su propio span para que enganchen igual que antes. -->
-            <div id="plan-summary" class="card border-0 shadow-sm p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
-                    <div class="d-flex flex-wrap gap-2">
-                        <span class="plan-chip">
-                            <small class="plan-chip__label">FECHA</small>
-                            <!-- [SCH] dd/mm/yyyy, el mismo formato visible que la vista pública y el
-                                 itinerario; el input del form de edición sigue pidiendo ISO. -->
-                            <span class="plan-chip__value" th:text="${plan.eventDate != null ? #temporals.format(plan.eventDate, 'dd/MM/yyyy') : 'Sin fecha'}">01/12/2026</span>
-                        </span>
-                        <span class="plan-chip">
-                            <small class="plan-chip__label">HORA</small>
-                            <span class="plan-chip__value" th:text="${plan.eventTime != null ? #temporals.format(plan.eventTime, 'HH:mm') : 'Sin hora'}">18:30</span>
-                        </span>
-                        <span class="plan-chip">
-                            <small class="plan-chip__label">VISIBILIDAD</small>
-                            <span class="plan-chip__value" th:text="${plan.isPublic != null && plan.isPublic ? 'Público' : 'Privado'}">Privado</span>
-                        </span>
-                        <span class="plan-chip">
-                            <small class="plan-chip__label">CÓDIGO</small>
-                            <span class="plan-chip__value" th:text="${plan.shortCode}">BD0F615A</span>
-                        </span>
-                    </div>
-                    <!-- [STD] AC-02: abrir el editor no es navegar: el boton levanta el dialog. -->
-                    <button th:if="${canEditPlan}" type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0"
-                            aria-controls="plan-edit-dialog" @click="openEdit">Editar</button>
-                </div>
-                <p id="plan-description" class="mb-0 text-break plan-description-clamp"
-                   th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
-            </div>
+        <div id="map"></div>
 
-            <section id="participants-section" class="card border-0 shadow-sm p-4 mb-4" aria-labelledby="participants-heading">
+        <section id="itinerary-panel" class="itinerary-panel plan-sheet" aria-labelledby="itinerary-heading">
+            <div class="itinerary-head">
+                <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
+                <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
+            </div>
+            <!-- [STD] AC-05: agregar lugar es una accion del recorrido, no una card propia: el
+             boton vive en la cabecera del panel y el picker se despliega colapsado debajo,
+             sin consumir layout hasta que se pide. [STD-011/AC-11] A todo el ancho: la
+             columna del recorrido mide ~360 px. -->
+            <button th:if="${canEditPlan}" type="button" class="btn btn-outline-success btn-sm w-100 mt-2"
+                aria-controls="add-place-panel" :aria-expanded="addPlaceOpen"
+                @click="addPlaceOpen = !addPlaceOpen">Agregar lugar al plan</button>
+            <div th:if="${canEditPlan}" id="add-place-panel" v-cloak v-show="addPlaceOpen">
+                <div class="d-flex flex-column gap-2 mt-3">
+                    <select v-model="selectedPlaceId" class="form-select" aria-label="Lugar para agregar al plan">
+                        <option :value="null" disabled>-- Seleccionar un lugar disponible --</option>
+                        <option v-for="place in availablePlaces" :key="place.id" :value="place.id">
+                            {{ place.name }} ({{ place.category }})
+                        </option>
+                    </select>
+                    <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId || saving">
+                        + Agregar
+                    </button>
+                </div>
+            </div>
+            <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
+            <div v-if="planPlaces.length === 0" class="itinerary-empty">
+                <span class="mb-3 d-inline-block" v-html="iconHtml('map-pinned', 28)"></span>
+                <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
+                <span class="small">Los lugares del plan aparecer&aacute;n ac&aacute;.</span>
+            </div>
+            <div v-for="group in dayGroups" :key="group.key" class="itinerary-day">
+                <h6 v-if="dayCount > 1" class="itinerary-day-heading">{{ group.label }}</h6>
+                <ol class="itinerary-list">
+                    <li v-for="stop in group.stops"
+                        :key="stop.item.entryId || stop.index"
+                        class="place-item"
+                        th:attr="draggable=${canEditPlan}"
+                        @dragstart="onDragStart(stop.index)"
+                        @dragover.prevent
+                        @drop="onDrop(stop.index)">
+                        <!-- [DIS] AC-12: handle decorativo en el borde izquierdo de la card,
+                             solo con permiso de edicion. El arrastre real sigue mandado en el
+                             <li> draggable: place-item y sus selectores no cambian. -->
+                        <span th:if="${canEditPlan}" class="drag-handle" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="9" cy="12" r="1" />
+                                <circle cx="9" cy="5" r="1" />
+                                <circle cx="9" cy="19" r="1" />
+                                <circle cx="15" cy="12" r="1" />
+                                <circle cx="15" cy="5" r="1" />
+                                <circle cx="15" cy="19" r="1" />
+                            </svg>
+                        </span>
+                        <!-- La numeración es global (no por día): es la misma que usan los
+                             marcadores del mapa. -->
+                        <span class="itinerary-step">{{ stop.index + 1 }}</span>
+                        <!-- [DIS] AC-01: clase doble — .place-card aporta el chrome compartido
+                             con el landing; .itinerary-stop conserva las reglas propias del
+                             detalle (fondo --bs-body-bg, ajuste mobile, reduced-motion). -->
+                        <div class="itinerary-stop place-card">
+                            <div class="stop-content">
+                                <div class="stop-heading">
+                                    <button type="button" class="stop-title" @click="showPlace(stop.item)">{{ stop.item.name }}</button>
+                                    <span class="stop-category"><span v-html="categoryIconHtml(stop.item.category, 14)"></span>{{ getCategoryLabel(stop.item.category) }}</span>
+                                    <span v-if="stop.item.timePinned" class="stop-pinned" title="Horario fijado a mano">
+                                        <span v-html="iconHtml('pin', 12)"></span>Fijado
+                                    </span>
+                                </div>
+                                <div class="stop-schedule">
+                                    <span v-if="stop.timeRange"><span class="me-1" v-html="iconHtml('clock', 14)"></span>{{ stop.timeRange }}</span>
+                                    <span v-if="stop.durationLabel"><span class="me-1" v-html="iconHtml('hourglass', 14)"></span>{{ stop.durationLabel }}</span>
+                                    <!-- La fecha solo aparece cuando la parada cae fuera de la
+                                         jornada del plan: repetir el Día 1 en cada parada sobra. -->
+                                    <span v-if="stop.dateLabel"><span class="me-1" v-html="iconHtml('calendar', 14)"></span>{{ stop.dateLabel }}</span>
+                                    <span v-if="!stop.timeRange">Horario por definir</span>
+                                </div>
+                                <p v-if="stop.item.description" class="stop-description">{{ stop.item.description }}</p>
+                                <!-- [MAPS] Como llegar en la lista del itinerario, ademas del mapa:
+                                     mismo link que la ficha y el popup (direccion de texto). -->
+                                <a v-if="stop.item.address" class="stop-directions" :href="directionsUrl(stop.item)"
+                                    target="_blank" rel="noopener">
+                                    <span class="me-1" v-html="iconHtml('navigation', 14)"></span>C&oacute;mo llegar
+                                </a>
+                            </div>
+                            <div class="stop-actions">
+                                <button type="button" class="stop-details" @click="showPlace(stop.item)">Ver m&aacute;s</button>
+                                <button th:if="${canEditPlan}" @click="removePlace(stop.index)" type="button" class="stop-remove" :disabled="saving">
+                                    <span class="me-1" v-html="iconHtml('trash-2', 14)"></span>Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+        <aside class="plan-side">
+            <section th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" id="join-requests-section" class="plan-sheet" aria-labelledby="join-requests-heading">
+                <div class="card border-0 shadow-sm p-4">
+                    <h5 id="join-requests-heading" class="fw-bold">Solicitudes <span class="badge text-bg-warning" th:text="${#lists.size(joinRequests)}">1</span></h5>
+                    <ul class="list-group list-group-flush">
+                        <li th:each="request : ${joinRequests}" class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <a th:href="@{/profile/{id}(id=${request.requesterId})}" th:text="${request.requesterName}">Ver perfil</a>
+                            <form th:action="@{/plans/{id}/join-requests/{rid}/respond(id=${plan.id},rid=${request.id})}" method="post" class="d-flex gap-2 mb-0">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                                <button type="submit" name="action" value="accept" class="btn btn-primary btn-sm">Aceptar</button>
+                                <button type="submit" name="action" value="reject" class="btn btn-outline-danger btn-sm">Rechazar</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="participants-section" class="card border-0 shadow-sm p-4 mb-4 plan-sheet" aria-labelledby="participants-heading">
                 <div th:if="${participantSuccess}" class="alert alert-success" role="status" th:text="${participantSuccess}"></div>
                 <div th:if="${invitationSuccess}" class="alert alert-success" role="status" th:text="${invitationSuccess}"></div>
                 <div th:if="${invitationError}" class="alert alert-danger" role="alert" th:text="${invitationError}"></div>
                 <!-- [STD] AC-04: invitar pasa a un accordion de la seccion — el boton en la fila
                      del titulo con aria-expanded y el form dentro del panel colapsado. -->
-                <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                <div class="participants-head mb-3">
                     <h5 id="participants-heading" class="fw-bold m-0">
                         Participantes <span class="badge bg-secondary" th:text="${participantEmails == null ? 0 : #lists.size(participantEmails)}">0</span>
                     </h5>
-                    <button th:if="${canInvite}" type="button" class="btn btn-outline-primary btn-sm"
+                    <button th:if="${canInvite}" type="button" class="btn btn-outline-primary btn-sm text-nowrap"
                             aria-controls="invite-panel" :aria-expanded="inviteOpen"
                             @click="inviteOpen = !inviteOpen">Invitar a alguien</button>
                 </div>
@@ -604,18 +692,21 @@
                 </div>
                 <p class="text-muted small mb-0" th:if="${#lists.isEmpty(participantEmails)}">Todav&iacute;a no se ha unido nadie al plan.</p>
                 <ol class="list-group list-group-numbered" th:unless="${#lists.isEmpty(participantEmails)}">
-                    <li class="list-group-item d-flex flex-wrap align-items-center gap-2" th:each="participant : ${participants}" th:with="email=${participant.email}, displayName=${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">
-                        <div class="flex-grow-1 text-break" style="min-width: 0;">
+                    <li class="list-group-item participant-row" th:each="participant : ${participants}" th:with="email=${participant.email}, displayName=${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">
+                        <div class="participant-main">
+                            <div class="text-break" style="min-width: 0;">
                             <!-- [PROF] AC-22/PROF-014: el nombre del participante linkea a su
                                  perfil publico. El email es interno: no se muestra como texto,
                                  solo viaja en los inputs hidden de las acciones autorizadas. -->
                             <a th:href="@{/profile/{id}(id=${participant.id})}" class="text-decoration-none"
                               th:text="${#strings.isEmpty(displayName) ? 'Sin nombre' : displayName}">Nombre completo</a>
-                        </div>
+                            </div>
                         <span th:if="${plan.isAdministrator(email)}" class="badge bg-primary flex-shrink-0">Due&ntilde;o</span>
                         <!-- El dueño es el único que reasigna roles existentes; los editores ven el
                              rol como badge (siguen pudiendo invitar y proponer Editor). -->
                         <span th:if="${!isPlanAdministrator and !plan.isAdministrator(email)}" class="badge bg-secondary flex-shrink-0" th:text="${plan.isEditor(email) ? 'Editor' : 'Participante'}">Participante</span>
+                        </div>
+                        <div class="participant-actions">
                         <form th:if="${isPlanAdministrator and !plan.isAdministrator(email)}" th:action="@{/plans/{id}/participants/role(id=${plan.id})}" method="POST" class="d-flex align-items-center gap-2 flex-shrink-0 mb-0">
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                             <input type="hidden" name="participantEmail" th:value="${email}" />
@@ -635,9 +726,24 @@
                             <input type="hidden" name="participantEmail" th:value="${email}" />
                             <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap" th:aria-label="${'Banear del plan a ' + (#strings.isEmpty(displayName) ? 'esta persona' : displayName)}" title="No podr&aacute; volver a unirse al plan">Banear</button>
                         </form>
+                        </div>
                     </li>
                 </ol>
+                <!-- [STD-010/AC-09] "Ver miembros baneados" sale de "Más opciones" (fuera de la
+                     cabecera) y vive al pie de Participantes: mismo <dialog>, mismo
+                     aria-controls y el mismo retorno de foco con Escape (bannedTrigger). -->
+                <div th:if="${canEditPlan}" class="mt-3 pt-3 border-top">
+                    <button ref="bannedTrigger" type="button" class="btn btn-outline-secondary btn-sm"
+                            aria-haspopup="dialog" aria-controls="banned-participants"
+                            @click="bannedParticipantsDialog.showModal()">
+                        Ver miembros baneados
+                        <span th:if="${bannedParticipants != null and !#lists.isEmpty(bannedParticipants)}"
+                              class="badge bg-secondary ms-1" th:text="${#lists.size(bannedParticipants)}">0</span>
+                    </button>
+                </div>
             </section>
+        </aside>
+    </div>
 
             <!-- [STD] AC-02: la edicion de metadatos vive en un <dialog> con el a11y del AC-18
                  de 17-DIS (aria-labelledby, foco al abrir, Escape cierra) y sigue EXACTAMENTE
@@ -645,7 +751,7 @@
                  el <h5> de este dialog (su texto es el del editor, ver 25-STD; ojo con escribir
                  ese literal en comentarios: se sirven crudos y rompen los not(contains)).
                  Mismo form, mismo POST. -->
-            <dialog th:if="${canEditPlan}" id="plan-edit-dialog" ref="editDialog" aria-labelledby="plan-edit-title" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 92%; max-height: 85dvh; overflow-y: auto; margin: auto;">
+            <dialog th:if="${canEditPlan}" id="plan-edit-dialog" ref="editDialog" aria-labelledby="plan-edit-title" class="plan-modal">
                 <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                     <h5 id="plan-edit-title" class="fw-bold m-0">Editar plan</h5>
                     <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar la edición del plan" @click="editDialog.close()"></button>
@@ -714,10 +820,8 @@
                     </div>
                 </form>
             </dialog>
-        </div>
-    </div>
     <p v-if="requestError" class="alert alert-danger mt-3" role="alert">{{ requestError }}</p>
-    <dialog th:if="${canEditPlan}" id="banned-participants" ref="bannedParticipantsDialog" aria-labelledby="banned-participants-title" @close="planOptionsButton.focus()" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%; max-height: 80dvh; overflow-y: auto; margin: auto;">
+    <dialog th:if="${canEditPlan}" id="banned-participants" ref="bannedParticipantsDialog" aria-labelledby="banned-participants-title" @close="bannedTrigger && bannedTrigger.focus()" class="plan-modal">
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h4 id="banned-participants-title" class="m-0">Miembros baneados <span class="badge bg-secondary" th:text="${bannedParticipants == null ? 0 : #lists.size(bannedParticipants)}">0</span></h4>
             <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar miembros baneados" @click="bannedParticipantsDialog.close()"></button>
@@ -745,12 +849,12 @@
          horario para quien puede editar. tabindex="-1" y el render previo a showModal
          (plans-detail.js) hacen que el dialog abra con su título ya montado: aria-labelledby
          resuelve y el foco cae dentro; Escape lo cierra (nativo del <dialog>). -->
-    <dialog ref="placeDialog" aria-labelledby="place-detail-title" tabindex="-1" class="border-0 rounded shadow p-4" style="max-width: 560px; width: 90%;">
+    <dialog ref="placeDialog" aria-labelledby="place-detail-title" tabindex="-1" class="plan-modal">
         <template v-if="selectedEntry">
             <div class="place-head">
                 <div class="place-head-text">
                     <h4 id="place-detail-title" class="m-0">{{ selectedEntry.name }}</h4>
-                    <span class="place-chip" :class="'cat-' + (selectedEntry.category || 'DEFAULT')">{{ selectedEntry.category || 'Sin categoría' }}</span>
+                    <span class="place-chip" :class="'cat-' + (selectedEntry.category || 'DEFAULT')"><span v-html="categoryIconHtml(selectedEntry.category, 12)"></span>{{ getCategoryLabel(selectedEntry.category) }}</span>
                 </div>
                 <button type="button" class="btn-close" aria-label="Cerrar" @click="placeDialog.close()"></button>
             </div>
@@ -771,11 +875,11 @@
                             target="_blank" rel="noopener">Abrir en Google Maps</a></dd>
                     </div>
                 </template>
-                <div class="place-fact">
+                <div class="place-fact place-fact--wide">
                     <dt><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" /><path d="M14 2v5a1 1 0 0 0 1 1h5" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>Descripción del lugar</dt>
                     <dd>{{ selectedEntry.placeDescription || 'Sin descripción' }}</dd>
                 </div>
-                <div class="place-fact">
+                <div class="place-fact place-fact--wide">
                     <dt><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H3" /><path d="M15 12H3" /><path d="M17 19H3" /></svg>Descripción de la visita</dt>
                     <dd>{{ selectedEntry.description || 'Sin descripción' }}</dd>
                 </div>
