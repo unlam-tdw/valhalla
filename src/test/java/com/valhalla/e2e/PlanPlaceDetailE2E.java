@@ -501,13 +501,14 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
-   * [STD-011/AC-10] Variante C (2026-11-03): tablero de tres columnas —ficha fija a la izquierda
-   * con el recorrido debajo, mapa al centro y participantes a la derecha—, sin pestañas: las
-   * tres cards se ven al cargar. La ficha no se mueve al scrollear el recorrido y la página sigue
-   * bajo el presupuesto de scroll de la spec: ≤1.500 px en desktop y ≤2.800 px en 390.
+   * [STD-011/AC-10] Variante C (2026-11-03, intercambio del 2026-11-04): tablero de tres columnas
+   * —ficha fija a la izquierda con Participantes debajo, mapa al centro y "Tu recorrido" a la
+   * derecha—, sin pestañas: las tres cards se ven al cargar. La ficha no se mueve al scrollear el
+   * recorrido y la página sigue bajo el presupuesto de scroll de la spec: ≤1.500 px en desktop y
+   * ≤2.800 px en 390.
    */
   @Test
-  void laysOutTheFichaFixedOnTheLeftWithTheMapInTheMiddleAndParticipantsOnTheRight() {
+  void laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight() {
     createPlanWithAVisit();
     page.waitForLoadState(LoadState.NETWORKIDLE);
     page.waitForTimeout(300);
@@ -526,11 +527,18 @@ public class PlanPlaceDetailE2E extends E2eBase {
     double fichaX = ficha.boundingBox().x;
     double mapaX = mapa.boundingBox().x;
     double participantesX = participantes.boundingBox().x;
+    double recorridoX = recorrido.boundingBox().x;
     assertTrue(fichaX < mapaX, "la ficha va a la izquierda del mapa");
-    assertTrue(mapaX < participantesX, "participantes va a la derecha del mapa");
+    assertTrue(mapaX < recorridoX, "el recorrido va a la derecha del mapa");
+    assertTrue(participantesX < mapaX, "participantes va a la izquierda del mapa");
+    assertEquals(fichaX, participantesX, 1.0, "participantes comparte la columna de la ficha");
     assertTrue(
-      recorrido.boundingBox().y > ficha.boundingBox().y,
-      "el recorrido va debajo de la ficha"
+      participantes.boundingBox().y > ficha.boundingBox().y,
+      "participantes va debajo de la ficha"
+    );
+    assertTrue(
+      recorrido.boundingBox().y <= ficha.boundingBox().y,
+      "el recorrido arranca a la altura de la ficha, en su propia columna"
     );
 
     // La ficha queda quieta: scrollear el recorrido no la mueve.
@@ -543,16 +551,16 @@ public class PlanPlaceDetailE2E extends E2eBase {
     long desktop = scrollHeight();
     assertTrue(desktop <= 1500, "desktop quedó en " + desktop + " px, techo 1500");
 
-    // Mobile 390: apilado ficha -> mapa -> recorrido -> participantes, bajo el techo.
+    // Mobile 390: apilado ficha -> mapa -> participantes -> recorrido, bajo el techo.
     page.setViewportSize(390, 844);
     page.waitForTimeout(300);
     double yFicha = ficha.boundingBox().y;
     double yMapa = mapa.boundingBox().y;
-    double yRecorrido = recorrido.boundingBox().y;
     double yParticipantes = participantes.boundingBox().y;
+    double yRecorrido = recorrido.boundingBox().y;
     assertTrue(yFicha < yMapa, "390: la ficha va primero");
-    assertTrue(yMapa < yRecorrido, "390: el mapa va antes que el recorrido");
-    assertTrue(yRecorrido < yParticipantes, "390: el recorrido va antes que participantes");
+    assertTrue(yMapa < yParticipantes, "390: participantes va antes que el recorrido");
+    assertTrue(yParticipantes < yRecorrido, "390: el recorrido va último");
     long mobile = scrollHeight();
     assertTrue(mobile <= 2800, "390 quedó en " + mobile + " px, techo 2800");
   }

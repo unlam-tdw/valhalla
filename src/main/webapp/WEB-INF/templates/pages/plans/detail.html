@@ -367,20 +367,22 @@
         }
 
         /* [STD-011] Variante C (AC-10): tablero de tres columnas dentro de un stage con el alto
-             restante del viewport. Izquierda: la ficha (fila auto, siempre visible) y el
-             recorrido debajo (fila 1fr con scroll propio), asi la ficha queda quieta mientras
-             scrollea el recorrido sin usar position: fixed. Centro: el mapa, que ocupa las dos
-             filas. Derecha: solicitudes (si hay) y participantes. En < 992 px se apila en el
-             orden pedido: ficha -> mapa -> recorrido -> participantes. */
+             restante del viewport. Izquierda: la ficha (fila auto, siempre visible) y
+             Participantes debajo (fila 1fr con scroll propio), asi la ficha queda quieta mientras
+             scrollea la lista de participantes sin usar position: fixed. Centro: el mapa, que
+             ocupa las dos filas. Derecha: "Tu recorrido", con scroll propio en toda la altura.
+             En < 992 px se apila en el orden pedido: ficha -> mapa -> solicitudes ->
+             participantes -> recorrido. El DOM no se mueve (los recortes de integracion dependen
+             de su orden): las areas de la grilla son las que ubican cada card. */
         .plan-stage {
             display: grid;
-            grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) minmax(280px, 340px);
-            /* La ficha se lleva su alto de contenido (el clamp de la descripción lo acota) y el
-               recorrido todo el resto con scroll propio: por eso la ficha queda quieta. */
+            grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(280px, 360px);
+            /* La ficha se lleva su alto de contenido (el clamp de la descripción lo acota) y
+               Participantes todo el resto con scroll propio: por eso la ficha queda quieta. */
             grid-template-rows: auto minmax(0, 1fr);
             grid-template-areas:
-                'ficha map side'
-                'recorrido map side';
+                'ficha map recorrido'
+                'side  map recorrido';
             gap: 16px;
             height: calc(100dvh - 15rem);
             min-height: 520px;
@@ -451,7 +453,7 @@
             .plan-stage {
                 grid-template-columns: minmax(0, 1fr);
                 grid-template-rows: auto;
-                grid-template-areas: 'ficha' 'map' 'recorrido' 'side';
+                grid-template-areas: 'ficha' 'map' 'side' 'recorrido';
                 height: auto;
                 min-height: 0;
                 max-height: none;
@@ -501,9 +503,9 @@
         </div>
     </div>
 
-    <!-- [STD-011] Variante C (AC-10): tablero de tres columnas —ficha fija a la izquierda con el
-         recorrido debajo, mapa al centro y participantes a la derecha—, sin pestañas: las tres
-         cards se ven al cargar. El DOM sigue el orden visual y de lectura (ficha, mapa,
+    <!-- [STD-011] Variante C (AC-10): tablero de tres columnas —ficha fija a la izquierda con la
+         lista de participantes debajo, mapa al centro y "Tu recorrido" a la derecha—, sin
+         pestañas: las tres cards se ven al cargar. El DOM conserva su orden (ficha, mapa,
          recorrido, solicitudes, participantes, diálogo), que es el que esperan los recortes de
          integración: no escribir acá los literales que esos tests usan como anclas. -->
     <div class="plan-stage">

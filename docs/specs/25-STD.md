@@ -81,7 +81,7 @@ La hora/fecha de las tarjetas del recorrido son dato de parada, no duplicados.
 | AC-07 | El alto total queda en **≤ 1.500 px en 1440×900** (−30 % vs 2.145) y **≤ 2.800 px en 390×844** (−22 % vs 3.589), sin perder ninguna acción actual. Se mide con `document.documentElement.scrollHeight` sobre el arrange estándar de los E2E. **Vigente en todas las variantes** |
 | AC-08 | ~~**Variante B:** el mapa va **primero**, a todo el ancho dentro de un stage con altura tipo viewport (`calc(100dvh − 15rem)`); las cards son **pestañas exclusivas** que se despliegan **sobre** el mapa desde una barra al pie del stage — el patrón de radios `sr-only` + labels de explore —, **cerradas por defecto**; la ✕ (`card-none`) las cierra todas~~ **SUPEREDIDO por AC-10** (la usuaria descartó las pestañas el 2026-11-03) |
 | AC-09 | La cabecera queda **sin "Más opciones"**: el título de la banda baja a ~1.35 rem (sin protagonismo) para que "Configuración" y "Eliminar" respiren, y **"Ver miembros baneados" pasa a un botón dentro de Participantes** (mismo `aria-controls="banned-participants"`, mismo `<dialog>` y retorno de foco con Escape). **Vigente en las variantes B y C** |
-| AC-10 | **Variante C:** en ≥ 992 px la vista es un **tablero de tres columnas** dentro de un stage con altura tipo viewport (`calc(100dvh − 15rem)`): **izquierda** la ficha, siempre visible, con "Tu recorrido" debajo y scroll propio dentro de su columna; **centro** el mapa, que ocupa todo el alto restante; **derecha** Participantes, con Solicitudes (≥ 1) arriba. La ficha **no se mueve mientras scrollea el recorrido** (fila `auto` + `1fr` en la columna izquierda, sin `position: fixed`). En < 992 px se apila con scroll de página en el orden **ficha → mapa → recorrido → participantes**. El DOM sigue el mismo orden (ficha → mapa → recorrido → solicitudes → participantes → diálogo) para los `substring()` de integración |
+| AC-10 | **Variante C:** en ≥ 992 px la vista es un **tablero de tres columnas** dentro de un stage con altura tipo viewport (`calc(100dvh − 15rem)`): **izquierda** la ficha, siempre visible, con **Participantes debajo** (y Solicitudes, con ≥ 1, arriba de Participantes) y scroll propio dentro de su columna; **centro** el mapa, que ocupa todo el alto restante; **derecha** "Tu recorrido", con scroll propio. La ficha **no se mueve mientras se scrollea el recorrido** (fila `auto` + `1fr` en la columna izquierda, sin `position: fixed`). En < 992 px se apila con scroll de página en el orden **ficha → mapa → solicitudes → participantes → recorrido**. El DOM sigue el orden ficha → mapa → recorrido → solicitudes → participantes → diálogo para los `substring()` de integración; las áreas de la grilla ubican las cards |
 | AC-11 | **Variante C:** las acciones de cada card se agrupan en **una fila propia al pie de la card** para que no se aplasten en columnas angostas: en Participantes, nombre + badge arriba y las acciones (rol, Eliminar del plan, Banear) en una fila debajo; en el recorrido, "Ver más" y "Eliminar" debajo del contenido de la parada; en la ficha, "Editar" en la cabecera junto a los chips. Ninguna acción existente desaparece |
 | AC-12 | **Claro y oscuro:** el tablero usa solo variables `--bs-*` (superficie, borde, texto, secundarios) y no colores fijos, así que ambas opciones del tema se ven correctas. Se verifica con capturas en los dos temas |
 | AC-13 | **La ficha del lugar ("Ver más" dentro de "Tu recorrido") se estandariza como una card más:** los tres `<dialog>` del detalle (ficha del lugar, "Editar plan" y baneados) comparten el mismo chrome —centrado en el viewport, radio de 16 px, `padding` de 24 px, superficie `--bs-body-bg`, sombra y backdrop—, y los bloques del `dl` de la ficha se leen como los chips de la ficha del plan (fondo `--bs-secondary-bg`, radio de 10 px, sin líneas separadoras). El chip de categoría repite el label en español y el icono de la card del recorrido, no el enum del catálogo. Antes el reset de márgenes de Tailwind dejaba el `<dialog>` nativo pegado al borde superior izquierdo, con radio de 6 px |
@@ -101,7 +101,7 @@ completa.
 | V-03 | Con 0 solicitudes: no hay card, no hay mensaje de vacío ni badge. Con ≥ 1 (otra sesión se une al plan): aparece la card con Aceptar/Rechazar y el badge con el conteo en la cabecera | AC-03 |
 | V-04 | Participantes: la lista siempre visible; "Invitar a alguien" colapsado con `aria-expanded="false"`, al expandir muestra el form completo (email, rol, canal) y al colapsar lo oculta | AC-04 |
 | V-05 | "Tu recorrido": el botón "Agregar lugar al plan" vive en su cabecera y no existe card propia de agregar; el picker se despliega y agrega una parada al recorrido | AC-05 |
-| V-06 | A 1440×900 la ficha queda a la izquierda del mapa y Participantes a la derecha; el recorrido va debajo de la ficha y la ficha no se mueve al scrollear el recorrido. A 390×844 el `y` cumple ficha < mapa < recorrido < participantes | AC-10 |
+| V-06 | A 1440×900 la ficha queda a la izquierda del mapa y "Tu recorrido" a la derecha, con Participantes debajo de la ficha; la ficha no se mueve al scrollear el recorrido. A 390×844 el `y` cumple ficha < mapa < participantes < recorrido | AC-10 |
 | V-07 | `scrollHeight` ≤ 1.500 px @1440×900 y ≤ 2.800 px @390×844, medido antes/después con Playwright | AC-07 |
 | V-08 | Capturas en claro y oscuro: el tablero, las cards y los botones se leen con el tema del sistema en ambas opciones | AC-12 |
 | V-09 | En 340–380 px de columna, las acciones de Participantes y del recorrido bajan a su propia fila y ninguna queda aplastada ni se solapa | AC-11 |
@@ -123,11 +123,11 @@ visita y abre el detalle), más el del modal estandarizado:
 - `editsPlanMetadataFromAModalWithDialogA11y` → AC-02: abrir con foco dentro del diálogo, cierre
   con Escape, round-trip de guardado (cambia la hora → el chip de la ficha refleja el valor nuevo) y
   que el form no existe fuera del diálogo.
-- `laysOutTheFichaFixedOnTheLeftWithTheMapInTheMiddleAndParticipantsOnTheRight` (reemplaza a
+- `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight` (reemplaza a
   `deploysTheCardsAsExclusiveTabsOverTheMap`) → AC-10, AC-11 y AC-07: a 1440×900 la ficha queda a
-  la izquierda del mapa y Participantes a la derecha, con el recorrido debajo de la ficha; al
+  la izquierda del mapa y "Tu recorrido" a la derecha, con Participantes debajo de la ficha; al
   scrollear el recorrido la ficha no se mueve; las tres cards están visibles al cargar; a 390×844
-  el orden vertical es ficha < mapa < recorrido < participantes; y `scrollHeight` queda bajo ambos
+  el orden vertical es ficha < mapa < participantes < recorrido; y `scrollHeight` queda bajo ambos
   techos.
 - `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` → AC-13: "Ver más" abre el `<dialog>`
   centrado en horizontal (mismo gap a ambos lados), sin tocar los bordes superior/inferior, con
@@ -274,9 +274,11 @@ El cierre de la card es el gate completo en verde con los counts escritos en el 
   abierto): los chips heredan `--bs-*` y no dejaron manchas blancas.
 - **Variante C — mediciones (2026-11-03, script `shot.js` sobre la app dev):** desktop 1440×900 →
   **900 px** de `scrollHeight` (el tablero ocupa el viewport; techo 1.500) y 390×844 → **1.815 px**
-  (techo 2.800). Orden mobile medido (y): ficha 292 → mapa 588 → recorrido 943 → participantes
-  1512. Los dos temas verificados con capturas (desktop y 390): las cards usan `--bs-*`; en oscuro
-  los `btn-outline-secondary` del tablero se aclaran al color de texto porque heredaban
+  (techo 2.800). Orden mobile medido (y) tras el intercambio del 2026-11-04: ficha 292 → mapa 588
+  → participantes 924 → recorrido 1.220. En desktop las tres columnas miden 340 / 612 / 360 px y
+  la ficha (280 px de alto) queda quieta mientras scrollea la columna de participantes o el
+  recorrido. Los dos temas verificados con capturas (desktop y 390): las cards usan `--bs-*`; en
+  oscuro los `btn-outline-secondary` del tablero se aclaran al color de texto porque heredaban
   `--bs-secondary` y quedaban casi ilegibles.
 - **Ficha del lugar estandarizada (AC-13, 2026-11-04):** el `<dialog>` nativo salía pegado al
   borde superior izquierdo porque el preflight de Tailwind (`*, ::before, ::after { margin: 0 }`)
@@ -329,10 +331,11 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
 - [STD-010] "Ver miembros baneados" → botón dentro de Participantes con el mismo diálogo,
   `aria-controls` y retorno de foco; el ancla de solicitudes deja de abrir pestañas (AC-09). ✔
   (commit 5834257)
-- [STD-011] **Variante C:** tablero de tres columnas (ficha fija + recorrido a la izquierda, mapa
-  al centro, participantes a la derecha) con stage de altura viewport y scroll propio por columna;
-  en mobile apilado ficha → mapa → recorrido → participantes (AC-10). Se van las pestañas y la
-  barra de la variante B. ✔ (commit 874bd24)
+- [STD-011] **Variante C:** tablero de tres columnas (ficha fija + Participantes a la izquierda,
+  mapa al centro, "Tu recorrido" a la derecha) con stage de altura viewport y scroll propio por
+  columna; en mobile apilado ficha → mapa → solicitudes → participantes → recorrido (AC-10). Se
+  van las pestañas y la barra de la variante B. ✔ (commit 874bd24; intercambio recorrido ↔
+  participantes el 2026-11-04)
 - [STD-012] Acciones de cada card en fila propia al pie para columnas angostas (AC-11). ✔
   (commit 874bd24)
 - [STD-013] Claro y oscuro con variables `--bs-*` (AC-12) y capturas de ambos temas. ✔
