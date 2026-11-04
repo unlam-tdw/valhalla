@@ -85,6 +85,7 @@ La hora/fecha de las tarjetas del recorrido son dato de parada, no duplicados.
 | AC-11 | **Variante C:** las acciones de cada card se agrupan en **una fila propia al pie de la card** para que no se aplasten en columnas angostas: en Participantes, nombre + badge arriba y las acciones (rol, Eliminar del plan, Banear) en una fila debajo; en el recorrido, "Ver más" y "Eliminar" debajo del contenido de la parada; en la ficha, "Editar" en la cabecera junto a los chips. Ninguna acción existente desaparece |
 | AC-12 | **Claro y oscuro:** el tablero usa solo variables `--bs-*` (superficie, borde, texto, secundarios) y no colores fijos, así que ambas opciones del tema se ven correctas. Se verifica con capturas en los dos temas |
 | AC-13 | **La ficha del lugar ("Ver más" dentro de "Tu recorrido") se estandariza como una card más:** los tres `<dialog>` del detalle (ficha del lugar, "Editar plan" y baneados) comparten el mismo chrome —centrado en el viewport, radio de 16 px, `padding` de 24 px, superficie `--bs-body-bg`, sombra y backdrop—, y los bloques del `dl` de la ficha se leen como los chips de la ficha del plan (fondo `--bs-secondary-bg`, radio de 10 px, sin líneas separadoras). El chip de categoría repite el label en español y el icono de la card del recorrido, no el enum del catálogo. Antes el reset de márgenes de Tailwind dejaba el `<dialog>` nativo pegado al borde superior izquierdo, con radio de 6 px |
+| AC-14 | **La cabecera comparte la grilla del tablero:** la banda azul del título ocupa las dos primeras columnas (termina exactamente donde termina el mapa) y las acciones viven en la tercera, sobre la columna derecha. "Configuración del plan" pasa a **"Configuración"** y las dos acciones comparten alto; el borrado va en `btn-outline-danger` para no competir con la banda. En < 992 px la banda y las acciones se apilan y las acciones se alinean a la izquierda |
 
 ## Escenarios de Test
 
@@ -106,6 +107,7 @@ completa.
 | V-08 | Capturas en claro y oscuro: el tablero, las cards y los botones se leen con el tema del sistema en ambas opciones | AC-12 |
 | V-09 | En 340–380 px de columna, las acciones de Participantes y del recorrido bajan a su propia fila y ninguna queda aplastada ni se solapa | AC-11 |
 | V-10 | "Ver más" abre la ficha del lugar centrada (mismo aire a izquierda y derecha, sin tocar los bordes del viewport), con radio de 16 px, sombra y los bloques del `dl` como chips; el chip de categoría dice lo mismo que el de la card ("Restaurante", no "RESTAURANT") y lleva icono. Se compara contra "Editar plan" y baneados, que usan el mismo chrome | AC-13 |
+| V-11 | A 1440×900 la banda azul termina en la misma coordenada que el borde derecho del mapa y las acciones quedan en la columna derecha; el botón dice "Configuración" (sin "del plan") y las dos acciones comparten alto. En 390 la banda y las acciones se apilan, alineadas a la izquierda | AC-14 |
 
 Verificar como administrador y como editor, en 1440×900 y 390×844, en **claro y oscuro**.
 
@@ -124,11 +126,12 @@ visita y abre el detalle), más el del modal estandarizado:
   con Escape, round-trip de guardado (cambia la hora → el chip de la ficha refleja el valor nuevo) y
   que el form no existe fuera del diálogo.
 - `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight` (reemplaza a
-  `deploysTheCardsAsExclusiveTabsOverTheMap`) → AC-10, AC-11 y AC-07: a 1440×900 la ficha queda a
-  la izquierda del mapa y "Tu recorrido" a la derecha, con Participantes debajo de la ficha; al
-  scrollear el recorrido la ficha no se mueve; las tres cards están visibles al cargar; a 390×844
-  el orden vertical es ficha < mapa < participantes < recorrido; y `scrollHeight` queda bajo ambos
-  techos.
+  `deploysTheCardsAsExclusiveTabsOverTheMap`) → AC-10, AC-11, AC-14 y AC-07: a 1440×900 la ficha
+  queda a la izquierda del mapa y "Tu recorrido" a la derecha, con Participantes debajo de la ficha
+  y compartiendo su columna; la banda del título termina donde termina el mapa, el botón dice
+  "Configuración" y las dos acciones comparten alto; al scrollear el recorrido la ficha no se
+  mueve; las tres cards están visibles al cargar; a 390×844 el orden vertical es ficha < mapa <
+  participantes < recorrido; y `scrollHeight` queda bajo ambos techos.
 - `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` → AC-13: "Ver más" abre el `<dialog>`
   centrado en horizontal (mismo gap a ambos lados), sin tocar los bordes superior/inferior, con
   radio de 16 px, `padding` de 24 px y sombra; cada `.place-fact` comparte el fondo de los chips de
@@ -345,10 +348,18 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
   —`margin: auto` para vencer el reset de Tailwind, radio 16, `padding` 24, superficie y sombra,
   backdrop—, y los `.place-fact` como chips (`--bs-secondary-bg`, radio 10, sin líneas). ✔
   (commit 874bd24)
+- [STD-015] **Cabecera alineada al tablero (AC-14):** `.plan-toolbar` reusa las tres columnas del
+  stage, la banda ocupa las dos primeras y las acciones la tercera; "Configuración del plan" pasa a
+  "Configuración" y las dos acciones comparten alto, con el borrado en outline.
+- [STD-016] **Intercambio Participantes ↔ "Tu recorrido" (AC-10, 2026-11-04):** la columna
+  izquierda pasa a ficha + Participantes y el recorrido a la derecha; en mobile el orden queda
+  ficha → mapa → solicitudes → participantes → recorrido. Solo cambian las áreas de la grilla (el
+  DOM no se mueve). ✔ (commit 219e97a)
 - [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde. ✔
   (commit 5834257 — PlanPlaceDetailE2E 8/8)
-- [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithTheMapInTheMiddleAndParticipantsOnTheRight`
-  en verde y la suite de detalle sin `openCard` (variante C sin pestañas). ✔ (commit 5834257)
+- [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight`
+  en verde (AC-10, AC-14 y techos) y la suite de detalle sin `openCard` (variante C sin pestañas). ✔
+  (commit 5834257; renombrado e intercambio en 219e97a)
 - [T-STD-001] E2E: los tres métodos de "### E2E" en verde. ✔ (commit e28b3e8 — PlanPlaceDetailE2E 7/7)
   → en variante B: `deploysTheCardsAsExclusiveTabsOverTheMap` reemplaza al de orden.
 - [T-STD-002] Gate: `gate.ps1 all` con los counts al cierre. ✔ (surefire 1035/0/0 tras el merge de

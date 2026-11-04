@@ -541,6 +541,30 @@ public class PlanPlaceDetailE2E extends E2eBase {
       "el recorrido arranca a la altura de la ficha, en su propia columna"
     );
 
+    // [STD-015/AC-14] La banda del título termina donde termina el mapa: el encabezado usa las
+    // mismas tres columnas del tablero y las acciones viven en la tercera. "Configuración del
+    // plan" pasa a "Configuración" y los dos botones comparten alto.
+    Locator banda = page.locator(".plan-header");
+    double bandaRight = banda.boundingBox().x + banda.boundingBox().width;
+    double mapaRight = mapa.boundingBox().x + mapa.boundingBox().width;
+    assertEquals(mapaRight, bandaRight, 2.0, "la banda azul termina donde termina el mapa");
+
+    Locator configuracion = page.locator("a[href$='/settings']");
+    assertEquals(
+      "Configuración",
+      configuracion.innerText().trim(),
+      "el botón ya no dice 'del plan'"
+    );
+    double configH = configuracion.boundingBox().height;
+    double eliminarH = page
+      .getByRole(
+        com.microsoft.playwright.options.AriaRole.BUTTON,
+        new Page.GetByRoleOptions().setName("Eliminar plan")
+      )
+      .boundingBox()
+      .height;
+    assertEquals(configH, eliminarH, 1.0, "las dos acciones de la cabecera comparten alto");
+
     // La ficha queda quieta: scrollear el recorrido no la mueve.
     double fichaY = ficha.boundingBox().y;
     page.locator(".itinerary-panel").evaluate("el => el.scrollTop = el.scrollHeight");
