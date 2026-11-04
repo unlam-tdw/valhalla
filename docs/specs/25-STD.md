@@ -7,6 +7,14 @@
 > **Estado (2026-10-28):** implementada y verde — TDD (rojo `64b3995`, verde `e28b3e8`) y
 > `gate.ps1 all` exit 0 (surefire 998/0/0 · E2E 84/0/0). Decisiones de diseño cerradas con la
 > usuaria (ver Notas). Card pendiente de pegar en Trello (hand-off preparado).
+> **Variante B (2026-10-29, descartada):** la usuaria pidió probar "explore de verdad": mapa
+> primero a todo el ancho y las cards como pestañas exclusivas que se despliegan **sobre** el
+> mapa desde una barra inferior (ver "Variante B"). Se implementó y quedó verde en el lote, pero
+> la usuaria la reemplazó por la variante C antes de publicarla.
+> **Variante C (2026-11-03, en curso):** tablero de tres columnas — **ficha fija a la izquierda**
+> con el recorrido debajo, **mapa al centro** y **participantes a la derecha** —, tomado del
+> layout de explore que mostró como referencia. En mobile se apila en el orden ficha → mapa →
+> recorrido → participantes. Reemplaza a AC-06 y AC-08 (ver AC-10..AC-12).
 
 ## Objetivo
 
@@ -69,8 +77,14 @@ La hora/fecha de las tarjetas del recorrido son dato de parada, no duplicados.
 | AC-03 | Sin solicitudes pendientes **no se renderiza la card de Solicitudes** (desaparece el mensaje "No hay solicitudes pendientes."). Con ≥ 1 pendiente la card aparece con la lista de Aceptar/Rechazar y la fila de cabecera muestra un badge ancla con el conteo (también solo con ≥ 1) |
 | AC-04 | "Invitar a alguien" deja de ser una card permanente y pasa a un **accordion dentro de Participantes**: la lista de participantes siempre visible; un botón "Invitar a alguien" con `aria-expanded` expande y colapsa el form actual completo (mismo action, mismos campos, mismo `th:if="${canInvite}"`) |
 | AC-05 | "Agregar lugar al plan" deja de ser una card propia y pasa a un **botón en la cabecera de "Tu recorrido"** (`th:if="${canEditPlan}"`): al presionarlo se despliega el mismo picker (select de lugares disponibles + "+ Agregar") debajo del título, sin recargar la página |
-| AC-06 | En 390×844 el orden vertical es: **cabecera → ficha (resumen) → Tu recorrido (+ Agregar lugar) → Mapa → Solicitudes (con ≥ 1) → Participantes (+ accordion Invitar)**. En desktop se conserva la composición de dos columnas actual (mapa/recorrido a la izquierda, ficha/participantes a la derecha). El reordenamiento se hace con utilities CSS `order`, sin mover el DOM |
-| AC-07 | El alto total queda en **≤ 1.500 px en 1440×900** (−30 % vs 2.145) y **≤ 2.800 px en 390×844** (−22 % vs 3.589), sin perder ninguna acción actual. Se mide con `document.documentElement.scrollHeight` sobre el arrange estándar de los E2E |
+| AC-06 | ~~En 390×844 el orden vertical es cabecera → ficha → Tu recorrido → Mapa → Solicitudes → Participantes; en desktop se conserva la composición de dos columnas~~ **SUPEREDIDO por AC-10** (variante C: el orden mobile pasa a ficha → mapa → recorrido → participantes) |
+| AC-07 | El alto total queda en **≤ 1.500 px en 1440×900** (−30 % vs 2.145) y **≤ 2.800 px en 390×844** (−22 % vs 3.589), sin perder ninguna acción actual. Se mide con `document.documentElement.scrollHeight` sobre el arrange estándar de los E2E. **Vigente en todas las variantes** |
+| AC-08 | ~~**Variante B:** el mapa va **primero**, a todo el ancho dentro de un stage con altura tipo viewport (`calc(100dvh − 15rem)`); las cards son **pestañas exclusivas** que se despliegan **sobre** el mapa desde una barra al pie del stage — el patrón de radios `sr-only` + labels de explore —, **cerradas por defecto**; la ✕ (`card-none`) las cierra todas~~ **SUPEREDIDO por AC-10** (la usuaria descartó las pestañas el 2026-11-03) |
+| AC-09 | La cabecera queda **sin "Más opciones"**: el título de la banda baja a ~1.35 rem (sin protagonismo) para que "Configuración" y "Eliminar" respiren, y **"Ver miembros baneados" pasa a un botón dentro de Participantes** (mismo `aria-controls="banned-participants"`, mismo `<dialog>` y retorno de foco con Escape). **Vigente en las variantes B y C** |
+| AC-10 | **Variante C:** en ≥ 992 px la vista es un **tablero de tres columnas** dentro de un stage con altura tipo viewport (`calc(100dvh − 15rem)`): **izquierda** la ficha, siempre visible, con "Tu recorrido" debajo y scroll propio dentro de su columna; **centro** el mapa, que ocupa todo el alto restante; **derecha** Participantes, con Solicitudes (≥ 1) arriba. La ficha **no se mueve mientras scrollea el recorrido** (fila `auto` + `1fr` en la columna izquierda, sin `position: fixed`). En < 992 px se apila con scroll de página en el orden **ficha → mapa → recorrido → participantes**. El DOM sigue el mismo orden (ficha → mapa → recorrido → solicitudes → participantes → diálogo) para los `substring()` de integración |
+| AC-11 | **Variante C:** las acciones de cada card se agrupan en **una fila propia al pie de la card** para que no se aplasten en columnas angostas: en Participantes, nombre + badge arriba y las acciones (rol, Eliminar del plan, Banear) en una fila debajo; en el recorrido, "Ver más" y "Eliminar" debajo del contenido de la parada; en la ficha, "Editar" en la cabecera junto a los chips. Ninguna acción existente desaparece |
+| AC-12 | **Claro y oscuro:** el tablero usa solo variables `--bs-*` (superficie, borde, texto, secundarios) y no colores fijos, así que ambas opciones del tema se ven correctas. Se verifica con capturas en los dos temas |
+| AC-13 | **La ficha del lugar ("Ver más" dentro de "Tu recorrido") se estandariza como una card más:** los tres `<dialog>` del detalle (ficha del lugar, "Editar plan" y baneados) comparten el mismo chrome —centrado en el viewport, radio de 16 px, `padding` de 24 px, superficie `--bs-body-bg`, sombra y backdrop—, y los bloques del `dl` de la ficha se leen como los chips de la ficha del plan (fondo `--bs-secondary-bg`, radio de 10 px, sin líneas separadoras). El chip de categoría repite el label en español y el icono de la card del recorrido, no el enum del catálogo. Antes el reset de márgenes de Tailwind dejaba el `<dialog>` nativo pegado al borde superior izquierdo, con radio de 6 px |
 
 ## Escenarios de Test
 
@@ -87,25 +101,39 @@ completa.
 | V-03 | Con 0 solicitudes: no hay card, no hay mensaje de vacío ni badge. Con ≥ 1 (otra sesión se une al plan): aparece la card con Aceptar/Rechazar y el badge con el conteo en la cabecera | AC-03 |
 | V-04 | Participantes: la lista siempre visible; "Invitar a alguien" colapsado con `aria-expanded="false"`, al expandir muestra el form completo (email, rol, canal) y al colapsar lo oculta | AC-04 |
 | V-05 | "Tu recorrido": el botón "Agregar lugar al plan" vive en su cabecera y no existe card propia de agregar; el picker se despliega y agrega una parada al recorrido | AC-05 |
-| V-06 | A 390×844 el `y` de las secciones cumple ficha < recorrido < mapa < participantes; a 1440×900 las dos columnas quedan como hoy | AC-06 |
+| V-06 | A 1440×900 la ficha queda a la izquierda del mapa y Participantes a la derecha; el recorrido va debajo de la ficha y la ficha no se mueve al scrollear el recorrido. A 390×844 el `y` cumple ficha < mapa < recorrido < participantes | AC-10 |
 | V-07 | `scrollHeight` ≤ 1.500 px @1440×900 y ≤ 2.800 px @390×844, medido antes/después con Playwright | AC-07 |
+| V-08 | Capturas en claro y oscuro: el tablero, las cards y los botones se leen con el tema del sistema en ambas opciones | AC-12 |
+| V-09 | En 340–380 px de columna, las acciones de Participantes y del recorrido bajan a su propia fila y ninguna queda aplastada ni se solapa | AC-11 |
+| V-10 | "Ver más" abre la ficha del lugar centrada (mismo aire a izquierda y derecha, sin tocar los bordes del viewport), con radio de 16 px, sombra y los bloques del `dl` como chips; el chip de categoría dice lo mismo que el de la card ("Restaurante", no "RESTAURANT") y lleva icono. Se compara contra "Editar plan" y baneados, que usan el mismo chrome | AC-13 |
 
 Verificar como administrador y como editor, en 1440×900 y 390×844, en **claro y oscuro**.
 
 ### E2E
 
 Tres métodos nuevos en `e2e/PlanPlaceDetailE2E`, sobre el arranque existente (crea un plan con una
-visita y abre el detalle):
+visita y abre el detalle), más el del modal estandarizado:
 
 - `keepsTheOwnerViewCompactAndWithoutRepeatedData` → AC-01, AC-03, AC-04 y AC-05: cada dato
   ocurre una vez (texto visible + `value`, sin abrir el modal), chips en `#plan-summary`, ausencia
   de la card de solicitudes con la lista vacía, accordion de Invitar colapsado que se expande, y el
   botón "Agregar lugar al plan" dentro de la cabecera de "Tu recorrido" que muestra el select.
+  En la variante C todas las cards están visibles a la vez: no hace falta abrir nada antes de
+  leer texto visible (`innerText`) o clickear dentro de una card.
 - `editsPlanMetadataFromAModalWithDialogA11y` → AC-02: abrir con foco dentro del diálogo, cierre
   con Escape, round-trip de guardado (cambia la hora → el chip de la ficha refleja el valor nuevo) y
   que el form no existe fuera del diálogo.
-- `followsTheSectionOrderAndScrollBudget` → AC-06 y AC-07: posiciones `y` a 390 y `scrollHeight`
-  bajo ambos techos.
+- `laysOutTheFichaFixedOnTheLeftWithTheMapInTheMiddleAndParticipantsOnTheRight` (reemplaza a
+  `deploysTheCardsAsExclusiveTabsOverTheMap`) → AC-10, AC-11 y AC-07: a 1440×900 la ficha queda a
+  la izquierda del mapa y Participantes a la derecha, con el recorrido debajo de la ficha; al
+  scrollear el recorrido la ficha no se mueve; las tres cards están visibles al cargar; a 390×844
+  el orden vertical es ficha < mapa < recorrido < participantes; y `scrollHeight` queda bajo ambos
+  techos.
+- `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` → AC-13: "Ver más" abre el `<dialog>`
+  centrado en horizontal (mismo gap a ambos lados), sin tocar los bordes superior/inferior, con
+  radio de 16 px, `padding` de 24 px y sombra; cada `.place-fact` comparte el fondo de los chips de
+  `#plan-summary`, radio de 10 px y ya no lleva borde superior; el chip de categoría repite el texto
+  y el icono de la card del recorrido.
 
 La suite E2E existente debe seguir en verde: si un selector se rompe por el markup nuevo se
 actualiza el page object, no la lógica del test; cuando el **flujo** cambia (abrir el modal antes
@@ -124,7 +152,10 @@ de editar) se actualiza el test y queda listado abajo.
   click "Guardar cambios" → abrir el modal antes con el mismo helper.
 - `PlanParticipantsE2E`: `#invitation-email`.fill requiere expandir el accordion antes.
 - `PlanScheduleE2E`: `hasValue` sobre `eventTime` / `dayEndTime` / `transportMode` con el diálogo
-  cerrado (esperado OK; abrir solo si Playwright lo exige).
+  cerrado (esperado OK; abrir solo si Playwright lo exige). **[STD-011] En la variante C el
+  reorden pasa a `DragEvent` sintéticos** (los mismos de `PlanPlaceDetailE2E`): con el recorrido en
+  una columna con scroll propio, el arrastre por coordenadas de Playwright se quedaba a mitad de
+  camino y el `POST /reorder` nunca salía.
 - `PlanControllerIntegrationTest` (**no se modifica**; sus anclajes están preservados por diseño y
   se verifica en el gate): el literal "Editar plan" vive solo en el `<dialog>` en la misma posición
   de DOM que hoy ocupa el bloque de edición (los `substring(participants-heading → "Editar plan")`
@@ -139,6 +170,17 @@ de editar) se actualiza el test y queda listado abajo.
 - `PlanBanE2E` y `PublicPlanJoinRequestE2E`: el form `join-requests` sigue existiendo cuando hay
   ≥ 1 solicitud (los tests crean la solicitud antes de aceptarla; al aceptar la última, la card
   desaparece — comportamiento nuevo esperado).
+- **Variante B (pestañas):** toda interacción dentro de una card exige abrir su pestaña antes —
+  helper `PlansPage.openCard("ficha|participantes|recorrido|solicitudes")` (click en
+  `label[for='card-…']`). Ajustes previstos: `PlanBanE2E` (aceptar solicitud → pestaña
+  Solicitudes; ban/baneados → pestaña Participantes; el trigger de baneados es ahora
+  `[aria-controls='banned-participants']` directamente — "Más opciones" ya no existe),
+  `PlanParticipantsE2E` (invite → Participantes; `innerText` de la sección con la pestaña
+  abierta), `PlanScheduleE2E` y `MobileLayoutE2E.T_MOB_008` (recorrido abierto para
+  `isVisible`/`innerText`/`boundingBox`/drag), `PublicPlanJoinRequestE2E` (aceptar → Solicitudes)
+  y los helpers de `PlanPlaceDetailE2E` (`openStopDetails`, `addPlaceToPlan`,
+  `screenshotItinerary` abren Recorrido). Las aserciones de texto (`containsText`/`hasCount`) y
+  `hasValue` funcionan con la pestaña cerrada (v-show mantiene el DOM) y no se tocan.
 
 ### Puerta
 
@@ -150,6 +192,26 @@ El cierre de la card es el gate completo en verde con los counts escritos en el 
 - **Decisiones cerradas (2026-10-28, con la usuaria):** edición → modal; solicitudes → badge y
   card solo con ≥ 1; invitar → accordion; "Agregar lugar" → dentro de "Tu recorrido"; orden mobile
   resumen → recorrido → mapa → personas; techos de scroll ≤ 1.500 / ≤ 2.800 px.
+- **Variante B — descartada (2026-10-29):** la usuaria pidió "el resto de las cards en acordeón
+  como en la vista de explore" + "mapa primero" + título más chico para que Eliminar/Configuración
+  tengan espacio + "Más opciones" fuera de la cabecera + miembros baneados dentro de la card de
+  Participantes. Se implementó (pestañas exclusivas sobre el mapa, barra al pie) y quedó verde en
+  el lote, pero el 2026-11-03 la usuaria la reemplazó por la variante C. Del trabajo de B quedan
+  vigentes el título chico de la banda (AC-09) y el botón de baneados dentro de Participantes.
+- **Variante C — en curso (2026-11-03):** la usuaria mostró la vista de explore como referencia y
+  pidió "la ficha del lado izquierdo de forma fija, ya que es información predeterminada, y debajo
+  el recorrido; del lado derecho la card de participantes". Concretado como:
+  1. **Tablero de tres columnas** (≥ 992 px): izquierda ficha + recorrido, centro mapa, derecha
+     participantes (solicitudes ≥ 1 arriba). Altura del stage tipo viewport, como en B.
+  2. **Ficha quieta:** la columna izquierda es una grilla `fit-content(40%)` + `1fr`; la ficha no
+     se mueve mientras el recorrido scrollea dentro de su celda.
+  3. **Mobile:** apilado con scroll de página en el orden **ficha → mapa → recorrido →
+     participantes** (pedido de la usuaria: "la ficha primero, después el mapa y después el
+     resto").
+  4. **Botones dentro de las cards:** fila propia al pie de cada card para que no se aplasten en
+     columnas angostas (AC-11).
+  5. **Claro y oscuro** con variables `--bs-*` (AC-12), como el resto de la app.
+  - Supersede: AC-06 y AC-08. Vigentes: AC-01..AC-05, AC-07 y AC-09.
 - **Alternativas descartadas:** (B) edición en `/plans/{id}/settings` — esa página es de permisos,
   requeriría backend nuevo y saca al usuario del contexto del plan; (C) accordion en línea para
   todo — cambio mínimo pero mucho menor ahorro de scroll.
@@ -210,9 +272,34 @@ El cierre de la card es el gate completo en verde con los counts escritos en el 
   (techo 2.800; baseline 3.589). Orden mobile medido: ficha y=332 → recorrido y=628 → mapa
   y=1116 → participantes y=1689. Los dos temas verificados (claro/oscuro, desktop/móvil, diálogo
   abierto): los chips heredan `--bs-*` y no dejaron manchas blancas.
+- **Variante C — mediciones (2026-11-03, script `shot.js` sobre la app dev):** desktop 1440×900 →
+  **900 px** de `scrollHeight` (el tablero ocupa el viewport; techo 1.500) y 390×844 → **1.815 px**
+  (techo 2.800). Orden mobile medido (y): ficha 292 → mapa 588 → recorrido 943 → participantes
+  1512. Los dos temas verificados con capturas (desktop y 390): las cards usan `--bs-*`; en oscuro
+  los `btn-outline-secondary` del tablero se aclaran al color de texto porque heredaban
+  `--bs-secondary` y quedaban casi ilegibles.
+- **Ficha del lugar estandarizada (AC-13, 2026-11-04):** el `<dialog>` nativo salía pegado al
+  borde superior izquierdo porque el preflight de Tailwind (`*, ::before, ::after { margin: 0 }`)
+  pisa el `margin: auto` del user-agent: medido, `leftGap 0 / rightGap 720`, radio 6 px y bloques
+  del `dl` sin superficie. Los tres diálogos pasaron a `.plan-modal` (margin auto, radio 16,
+  padding 24, sombra y backdrop) y los `.place-fact` a chips (`--bs-secondary-bg`, radio 10, las
+  descripciones a todo el ancho). Medición final: desktop 1440×900 → 440/440 de aire, 560×634;
+  390×844 → 19/19, 352×726. El chip de categoría ahora repite label en español + icono de la card
+  del recorrido ("Restaurante", no `RESTAURANT`).
+- **Nota de entorno (no es de la card):** `PublicPlansRankingE2E.T_TOP_001_elPlanCalificadoLideraElFeed`
+  falla en el paso 3 del modal de crear plan de explore (`#plan-public` interceptado por el track
+  del carrusel, timeout de 30 s). Se reprodujo con y sin los cambios de esta card (stash sobre
+  `HEAD`), así que es previo y ajeno a 25-STD.
 - **Tests existentes migrados en la fase verde:** `PlanPlaceDetailE2E.addsPersistsAndDisplaysVisitDetails`
   y los dos `makePlanPublic` abren el diálogo con `PlansPage.openEditDialog()` antes de tocar los
   inputs; `PlanParticipantsE2E` despliega el accordion antes de `#invitation-email`.
+- **Comentarios de plantilla servidos crudos:** los `substring()` de integración buscan literales
+  en el HTML, y los comentarios `<!-- -->` viajan tal cual al cliente. En la variante C un
+  comentario nuevo mencionaba dos de esas anclas y movió el recorte de participantes: los 4 tests
+  de integración fallaron con la sección vacía. Pasó de nuevo con AC-13: el comentario de
+  `.plan-modal` decía `"Editar plan"` y `participantsSection()` cortaba desde `participants-heading`
+  hasta esa primera aparición (antes del heading) → `substring` invertido. La regla que ya estaba
+  anotada en el template se reescribió: los comentarios no repiten los literales ancla.
 - **Nota de entorno (no es de la card):** `PlacesViewE2E.shouldShowDetailsFromMarkerWithoutLeavingPlacesPage`
   fallaba en local por el orden **físico** de la tabla `places` en `valhalla_e2e`: `findAll()`
   sin `ORDER BY` devuelve el orden de heap, y "Estadio Monumental" (noroeste, fuera de la vista
@@ -234,6 +321,27 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
 - [STD-005] "Agregar lugar al plan" → botón en la cabecera de "Tu recorrido" (AC-05). ✔ (commit e28b3e8)
 - [STD-006] Orden mobile con `order`, sin mover el DOM (AC-06) y techos de scroll (AC-07). ✔ (commit e28b3e8)
 - [STD-007] Spec y docs: nota de actualización en 17-DIS (AC-09) + hand-off de la card. ✔ (este commit)
+- [STD-008] **Variante B (prueba):** mapa primero a todo el ancho + cards como pestañas
+  exclusivas sobre el mapa estilo explore (barra con radios/labels, cerradas por defecto, ✕),
+  desktop y mobile (AC-08).
+- [STD-009] Cabecera sin "Más opciones": título de banda a ~1.35 rem y banda más baja (AC-09).
+- [STD-010] "Ver miembros baneados" → botón dentro de Participantes con el mismo diálogo,
+  `aria-controls` y retorno de foco; el ancla de solicitudes abre su pestaña (AC-09).
+- [STD-011] **Variante C:** tablero de tres columnas (ficha fija + recorrido a la izquierda, mapa
+  al centro, participantes a la derecha) con stage de altura viewport y scroll propio por columna;
+  en mobile apilado ficha → mapa → recorrido → participantes (AC-10). Se van las pestañas y la
+  barra de la variante B.
+- [STD-012] Acciones de cada card en fila propia al pie para columnas angostas (AC-11).
+- [STD-013] Claro y oscuro con variables `--bs-*` (AC-12) y capturas de ambos temas.
+- [STD-014] **Ficha del lugar estandarizada (AC-13):** clase compartida `.plan-modal` para los
+  tres diálogos del detalle (ficha del lugar, "Editar plan" y baneados) con el chrome de las cards
+  —`margin: auto` para vencer el reset de Tailwind, radio 16, `padding` 24, superficie y sombra,
+  backdrop—, y los `.place-fact` como chips (`--bs-secondary-bg`, radio 10, sin líneas).
+- [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde.
+- [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithTheMapInTheMiddleAndParticipantsOnTheRight`
+  en verde y la suite de detalle sin `openCard` (variante C sin pestañas).
+- [T-STD-001] E2E: los tres métodos de "### E2E" en verde. ✔ (commit e28b3e8 — PlanPlaceDetailE2E 7/7)
+  → en variante B: `deploysTheCardsAsExclusiveTabsOverTheMap` reemplaza al de orden.
 - [T-STD-001] E2E: los tres métodos de "### E2E" en verde. ✔ (commit e28b3e8 — PlanPlaceDetailE2E 7/7)
 - [T-STD-002] Gate: `gate.ps1 all` en verde con los counts al cierre. ✔ (exit 0: surefire
   998/0/0 · E2E 84/0/0 en 26 clases · checkstyle 0 · prettier/PMD/CPD · gate js -Strict 0 FAIL)
@@ -242,7 +350,7 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
 
 | Archivo | Accion |
 |---------|--------|
-| `templates/pages/plans/detail.html` | Actualizar (chips de `#plan-summary` sin tile ADMINISTRADOR; botón "Editar" + `<dialog>` "Editar plan" después de Participantes y antes de `banned-participants`; badge de solicitudes en la cabecera y card solo con ≥ 1; accordion "Invitar a alguien" dentro de Participantes; botón "Agregar lugar al plan" en la cabecera de "Tu recorrido"; utilities `order` para el orden mobile) |
+| `templates/pages/plans/detail.html` | Actualizar (tablero de tres columnas: ficha con chips + "Editar" al pie, recorrido con acciones en su fila, mapa central y participantes con acciones bajo el nombre; `<dialog>` "Editar plan" después de Participantes y antes de `banned-participants`; badge de solicitudes en la cabecera y card solo con ≥ 1; accordion "Invitar a alguien" dentro de Participantes; botón "Agregar lugar al plan" en la cabecera de "Tu recorrido"; mobile apilado con `grid-template-areas`) |
 | `resources/core/js/pages/plans-detail.js` | Actualizar (refs del diálogo de edición: abrir con foco y cerrar con Escape, misma mecánica que `bannedParticipantsDialog`; toggles del accordion y del picker de lugares con los refs Vue que hagan falta) |
 | `resources/css/brand.css` (o el `<style>` de `detail.html`) | Actualizar/crear (chips, badge, estados del accordion, clamp de la descripción, estilos del diálogo — claro y oscuro) |
 | `test/java/com/valhalla/e2e/PlanPlaceDetailE2E.java` | Actualizar (3 métodos nuevos + abrir el modal en `addsPersistsAndDisplaysVisitDetails`) |

@@ -27,11 +27,15 @@ public class PlanBanE2E extends E2eBase {
       page.locator("form[action*='/join-requests/'] button[value='accept']").click();
       guest.navigate(detailUrl);
       assertThat(guest.locator("main h2")).containsText("Plan BAN");
-      assertThat(guest.locator("#plan-options-menu")).hasCount(0);
+      // El invitado no tiene el botón de baneados (vive en Participantes con th:if de edición).
+      assertThat(guest.locator("[aria-controls='banned-participants']")).hasCount(0);
+      // [STD-009/AC-09] "Más opciones" salió de la cabecera: ni menú, ni su trigger.
+      assertThat(page.locator("#plan-options-menu")).hasCount(0);
+      assertThat(page.locator("[aria-controls='plan-options-menu']")).hasCount(0);
       page.locator("form[action$='/participants/ban'] button").click();
       guest.reload();
       assertThat(guest.locator("main")).containsText("Fuiste baneado");
-      page.locator("[aria-controls='plan-options-menu']").click();
+      // El banear es un POST: la página recarga y la card de Participantes vuelve a su estado.
       page.locator("[aria-controls='banned-participants']").click();
       assertThat(page.locator("#banned-participants")).isVisible();
       assertThat(page.locator("#banned-participants")).containsText("Visitante BAN");
@@ -40,8 +44,8 @@ public class PlanBanE2E extends E2eBase {
         .containsText("visitante.ban@unlam.edu.ar");
       page.locator("#banned-participants").press("Escape");
       assertThat(page.locator("#banned-participants")).not().isVisible();
-      assertThat(page.locator("[aria-controls='plan-options-menu']")).isFocused();
-      page.locator("[aria-controls='plan-options-menu']").click();
+      // [STD-010] Escape devuelve el foco al botón de Participantes que abrió el diálogo.
+      assertThat(page.locator("[aria-controls='banned-participants']")).isFocused();
       page.locator("[aria-controls='banned-participants']").click();
       page.locator("form[action$='/participants/unban'] button").click();
       guest.navigate(detailUrl + "/public");

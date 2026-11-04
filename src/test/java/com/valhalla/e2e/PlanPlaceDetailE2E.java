@@ -292,6 +292,82 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
+   * [STD-014] "Ver más" abre la ficha del lugar como una card más del tablero: centrada en el
+   * viewport, con el mismo radio de 16 px, la misma superficie y sombra que las cards, y con
+   * cada bloque del {@code dl} como chip de lectura (mismo fondo que los chips de la ficha del
+   * plan). Antes el reset de márgenes de Tailwind dejaba el {@code <dialog>} nativo pegado al
+   * borde superior izquierdo, con radio de 6 px y bloques separados por líneas.
+   */
+  @Test
+  void opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards() {
+    createPlanWithAVisit();
+
+    Locator dialog = openStopDetails(0);
+
+    Map<String, Object> chrome = (Map<String, Object>) page.evaluate(
+      """
+      () => {
+        const d = document.querySelector('dialog[aria-labelledby=place-detail-title]');
+        const r = d.getBoundingClientRect();
+        const s = getComputedStyle(d);
+        const chip = getComputedStyle(document.querySelector('#plan-summary .plan-chip'));
+        const fact = getComputedStyle(d.querySelector('.place-fact'));
+        return {
+          leftGap: r.left,
+          rightGap: window.innerWidth - r.right,
+          topGap: r.top,
+          bottomGap: window.innerHeight - r.bottom,
+          radius: s.borderTopLeftRadius,
+          padding: s.paddingTop,
+          shadow: s.boxShadow,
+          background: s.backgroundColor,
+          factBackground: fact.backgroundColor,
+          factRadius: fact.borderTopLeftRadius,
+          factBorderTop: fact.borderTopWidth,
+          chipBackground: chip.backgroundColor
+        };
+      }
+      """
+    );
+
+    double leftGap = ((Number) chrome.get("leftGap")).doubleValue();
+    double rightGap = ((Number) chrome.get("rightGap")).doubleValue();
+    assertTrue(
+      Math.abs(leftGap - rightGap) <= 2,
+      "la card tiene que quedar centrada en horizontal, no pegada a un borde: " + chrome
+    );
+    assertTrue(
+      ((Number) chrome.get("topGap")).doubleValue() > 0 &&
+      ((Number) chrome.get("bottomGap")).doubleValue() > 0,
+      "la card no puede tocar el borde superior ni inferior del viewport: " + chrome
+    );
+    assertEquals("16px", chrome.get("radius"), "mismo radio que las cards del tablero");
+    assertEquals("24px", chrome.get("padding"), "mismo aire interno que el resto de las cards");
+    assertFalse(
+      "none".equals(chrome.get("shadow")),
+      "la card flota con sombra, como las demás: " + chrome
+    );
+    assertEquals(
+      chrome.get("chipBackground"),
+      chrome.get("factBackground"),
+      "cada bloque de la ficha del lugar se lee como un chip de la ficha del plan"
+    );
+    assertEquals("10px", chrome.get("factRadius"), "los chips comparten radio con los del plan");
+    assertEquals("0px", chrome.get("factBorderTop"), "los bloques ya no se separan con líneas");
+
+    // El chip de categoría se lee igual que en la card del recorrido: label en español + icono,
+    // no el enum crudo del catálogo.
+    String cardCategory = page.locator(".place-item .stop-category").first().innerText().trim();
+    String dialogCategory = dialog.locator(".place-chip").innerText().trim();
+    assertEquals(
+      cardCategory,
+      dialogCategory,
+      "el chip de la ficha del lugar repite el label de la card del recorrido"
+    );
+    assertThat(dialog.locator(".place-chip svg")).hasCount(1);
+  }
+
+  /**
    * [STD-001/003/004/005] La vista de dueño queda compacta: cada dato del plan aparece una sola
    * vez (la ficha manda y el form ya no vive en el layout), sin card de solicitudes en estado
    * vacío, con "Invitar a alguien" plegado dentro de Participantes y con "Agregar lugar al plan"
@@ -425,49 +501,60 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
-   * [STD-006/007] El orden en 390 es resumen → Tu recorrido → Mapa → Participantes (el
-   * recorrido, no el mapa de 514 px, queda a una pantalla) y la página cabe bajo el presupuesto
-   * de scroll de la spec: ≤1.500 px en desktop y ≤2.800 px en 390, sin perder acciones.
+   * [STD-011/AC-10] Variante C (2026-11-03): tablero de tres columnas —ficha fija a la izquierda
+   * con el recorrido debajo, mapa al centro y participantes a la derecha—, sin pestañas: las
+   * tres cards se ven al cargar. La ficha no se mueve al scrollear el recorrido y la página sigue
+   * bajo el presupuesto de scroll de la spec: ≤1.500 px en desktop y ≤2.800 px en 390.
    */
   @Test
-  void followsTheSectionOrderAndScrollBudget() {
+  void laysOutTheFichaFixedOnTheLeftWithTheMapInTheMiddleAndParticipantsOnTheRight() {
     createPlanWithAVisit();
     page.waitForLoadState(LoadState.NETWORKIDLE);
     page.waitForTimeout(300);
 
-    // Presupuesto desktop.
+    // Desktop: las tres cards visibles, cada una en su columna.
     page.setViewportSize(1440, 900);
+    page.waitForTimeout(300);
+    assertThat(page.locator("#plan-summary")).isVisible();
+    assertThat(page.locator(".itinerary-panel")).isVisible();
+    assertThat(page.locator("#participants-section")).isVisible();
+
+    Locator ficha = page.locator("#plan-summary");
+    Locator mapa = page.locator("#map");
+    Locator recorrido = page.locator(".itinerary-panel");
+    Locator participantes = page.locator("#participants-section");
+    double fichaX = ficha.boundingBox().x;
+    double mapaX = mapa.boundingBox().x;
+    double participantesX = participantes.boundingBox().x;
+    assertTrue(fichaX < mapaX, "la ficha va a la izquierda del mapa");
+    assertTrue(mapaX < participantesX, "participantes va a la derecha del mapa");
+    assertTrue(
+      recorrido.boundingBox().y > ficha.boundingBox().y,
+      "el recorrido va debajo de la ficha"
+    );
+
+    // La ficha queda quieta: scrollear el recorrido no la mueve.
+    double fichaY = ficha.boundingBox().y;
+    page.locator(".itinerary-panel").evaluate("el => el.scrollTop = el.scrollHeight");
     page.waitForTimeout(200);
+    assertEquals(fichaY, ficha.boundingBox().y, "la ficha no se mueve al scrollear el recorrido");
+
+    // Presupuesto desktop.
     long desktop = scrollHeight();
     assertTrue(desktop <= 1500, "desktop quedó en " + desktop + " px, techo 1500");
 
-    // Presupuesto y orden en 390: resumen → Tu recorrido → Mapa → Participantes.
+    // Mobile 390: apilado ficha -> mapa -> recorrido -> participantes, bajo el techo.
     page.setViewportSize(390, 844);
-    page.waitForTimeout(200);
+    page.waitForTimeout(300);
+    double yFicha = ficha.boundingBox().y;
+    double yMapa = mapa.boundingBox().y;
+    double yRecorrido = recorrido.boundingBox().y;
+    double yParticipantes = participantes.boundingBox().y;
+    assertTrue(yFicha < yMapa, "390: la ficha va primero");
+    assertTrue(yMapa < yRecorrido, "390: el mapa va antes que el recorrido");
+    assertTrue(yRecorrido < yParticipantes, "390: el recorrido va antes que participantes");
     long mobile = scrollHeight();
     assertTrue(mobile <= 2800, "390 quedó en " + mobile + " px, techo 2800");
-
-    double resumen = page.locator("#plan-summary").boundingBox().y;
-    double recorrido = page.locator("#itinerary-heading").boundingBox().y;
-    double mapa = page.locator("#map").boundingBox().y;
-    double participantes = page.locator("#participants-heading").boundingBox().y;
-    assertTrue(resumen < recorrido, "el resumen va antes que el recorrido");
-    assertTrue(recorrido < mapa, "el recorrido va antes que el mapa");
-    assertTrue(mapa < participantes, "el mapa va antes que participantes");
-
-    // En desktop la composición de dos columnas no se mueve: mapa arriba con el recorrido
-    // debajo, ficha arriba con participantes debajo.
-    page.setViewportSize(1440, 900);
-    page.waitForTimeout(200);
-    assertTrue(
-      page.locator("#map").boundingBox().y < page.locator("#itinerary-heading").boundingBox().y,
-      "en desktop el mapa sigue encima del recorrido"
-    );
-    assertTrue(
-      page.locator("#plan-summary").boundingBox().y <
-      page.locator("#participants-heading").boundingBox().y,
-      "en desktop la ficha sigue encima de participantes"
-    );
   }
 
   /**
