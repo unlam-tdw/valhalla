@@ -348,9 +348,10 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
   en verde y la suite de detalle sin `openCard` (variante C sin pestañas). ✔ (commit 5834257)
 - [T-STD-001] E2E: los tres métodos de "### E2E" en verde. ✔ (commit e28b3e8 — PlanPlaceDetailE2E 7/7)
   → en variante B: `deploysTheCardsAsExclusiveTabsOverTheMap` reemplaza al de orden.
-- [T-STD-002] Gate: `gate.ps1 all` con los counts al cierre. ✔ (surefire 998/0/0 · E2E 85/0/1 ·
-  checkstyle 0 · prettier/PMD/CPD · `gate js -Strict` 0 FAIL; el único error E2E es
-  `PublicPlansRankingE2E`, previo y ajeno — falla igual en `HEAD`)
+- [T-STD-002] Gate: `gate.ps1 all` con los counts al cierre. ✔ (surefire 1035/0/0 tras el merge de
+  `main` con el calendario; 998 en la rama sola · E2E 88/0/1 · checkstyle 0 · prettier/PMD/CPD ·
+  `gate js -Strict` 0 FAIL; el único error E2E es `PublicPlansRankingE2E`, previo y ajeno — falla
+  igual en `HEAD`)
 
 ## Archivos a crear/modificar
 
