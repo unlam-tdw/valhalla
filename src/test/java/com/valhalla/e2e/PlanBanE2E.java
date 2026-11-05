@@ -13,10 +13,10 @@ import org.junit.jupiter.api.Test;
 public class PlanBanE2E extends E2eBase {
 
   @Test
-  void banAndUnbanDialogPreservesPrivatePlanApproval() {
+  void banAndUnbanInlineSectionPreservesPrivatePlanApproval() {
     signInAsAdmin();
     PlansPage plans = new PlansPage(page);
-    plans.createPlanViaExplore("Plan BAN", "Recorrido privado", "2026-12-31");
+    plans.createPlanViaExplore("Plan BAN", "Recorrido privado", isoDateIn(30));
     String detailUrl = page.url();
     try (BrowserContext visitor = browser.newContext()) {
       Page guest = visitor.newPage();
@@ -42,11 +42,6 @@ public class PlanBanE2E extends E2eBase {
       assertThat(page.locator("#banned-participants"))
         .not()
         .containsText("visitante.ban@unlam.edu.ar");
-      page.locator("#banned-participants").press("Escape");
-      assertThat(page.locator("#banned-participants")).not().isVisible();
-      // [STD-010] Escape devuelve el foco al botón de Participantes que abrió el diálogo.
-      assertThat(page.locator("[aria-controls='banned-participants']")).isFocused();
-      page.locator("[aria-controls='banned-participants']").click();
       page.locator("form[action$='/participants/unban'] button").click();
       guest.navigate(detailUrl + "/public");
       assertThat(guest.locator("button:has-text('Solicitar participación')")).isVisible();

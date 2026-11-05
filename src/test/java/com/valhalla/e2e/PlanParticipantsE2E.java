@@ -43,7 +43,7 @@ public class PlanParticipantsE2E extends E2eBase {
       // El dueño crea el plan e invita a la editora con el rol Editor.
       signInAsAdmin();
       PlansPage plans = new PlansPage(page);
-      plans.createPlanViaExplore(PLAN_NAME, "Prueba de roles y privacidad", "2026-12-31");
+      plans.createPlanViaExplore(PLAN_NAME, "Prueba de roles y privacidad", isoDateIn(30));
       String detailUrl = page.url();
       // [STD] Invitar es un accordion dentro de Participantes: se despliega antes de llenar.
       page.locator("button[aria-controls='invite-panel']").click();

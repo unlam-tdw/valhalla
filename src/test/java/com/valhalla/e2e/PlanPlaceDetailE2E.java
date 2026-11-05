@@ -31,16 +31,15 @@ import org.junit.jupiter.api.Test;
  */
 public class PlanPlaceDetailE2E extends E2eBase {
 
-  private static final String EVENT_DATE = "2026-12-01";
   // [SCH] El tile FECHA del resumen se unificó a dd/mm/yyyy con el resto de la feature; el
-  // input del form de edición sigue value ISO (EVENT_DATE de arriba).
-  private static final String EVENT_DATE_LABEL = "01/12/2026";
+  // input del form de edición sigue value ISO. Ambas fechas se computan en el @BeforeEach:
+  // el #plan-date del wizard lleva min=${today}, así que un literal duro vence contra el reloj.
   private static final String PLAN_TIME = "20:00";
   private static final String START_TIME = "18:30";
   private static final String PLAN_DESCRIPTION = "Itinerario con horarios de visita";
-  private static final String PINNED_DATE = "2026-12-02";
-  private static final String PINNED_DATE_LABEL = "02/12/2026";
   private static final String PINNED_TIME = "10:30";
+  private String eventDate;
+  private String pinnedDate;
   // Playwright manda el Pattern de Java tal cual a una regex de JavaScript, donde no existen
   // (?s) ni \Q...\E: por eso el "any" explícito es [\s\S]* en lugar de (?s).*.
   private static final Pattern RANGE = Pattern.compile(
@@ -63,6 +62,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
     signInAsAdmin();
     this.plans = new PlansPage(page);
     this.planName = "Detalle E2E " + System.nanoTime();
+    // Relative order matters: the pinned day (+2) must differ from the plan's own day (+1).
+    this.eventDate = isoDateIn(1);
+    this.pinnedDate = isoDateIn(2);
   }
 
   @Test
@@ -76,12 +78,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(page.locator(".stop-details")).hasCount(1);
     assertThat(page.locator(".stop-schedule").first()).hasText(rangeFrom(START_TIME));
     assertThat(page.locator(".stop-pinned")).hasCount(0);
-    assertThat(page.locator("#plan-summary")).containsText(EVENT_DATE_LABEL);
+    assertThat(page.locator("#plan-summary")).containsText(dateLabel(eventDate));
     assertThat(page.locator("#plan-summary")).containsText(START_TIME);
-    // [STD] El form de edicion vive en el dialog de la ficha: se abre antes de leer o tocar
-    // sus inputs (cerrado, el <dialog> los esconde).
-    plans.openEditDialog();
-    assertThat(page.locator("input[name='eventDate']")).hasValue(EVENT_DATE);
+    assertThat(page.locator("input[name='eventDate']")).hasValue(eventDate);
     assertThat(page.locator("input[name='eventTime']")).hasValue(START_TIME);
 
     // The start time belongs to the edit form: changing it re-derives the whole chain, so the
@@ -109,14 +108,14 @@ public class PlanPlaceDetailE2E extends E2eBase {
     // app calls. Pinning the stop onto another day moves it out of the plan's own day: the
     // dialog and the itinerary both pick up the new time and the dd/mm/yyyy day, and the stop is
     // now marked as pinned instead of derived.
-    updateVisitDetails(PINNED_DATE, PINNED_TIME);
+    updateVisitDetails(pinnedDate, PINNED_TIME);
     dialog = openStopDetails(0);
     assertThat(dialog).containsText(PINNED_TIME);
-    assertThat(dialog).containsText(PINNED_DATE_LABEL);
+    assertThat(dialog).containsText(dateLabel(pinnedDate));
     closeStopDetails();
     page.reload();
     assertThat(page.locator(".stop-schedule").first()).containsText(PINNED_TIME);
-    assertThat(page.locator(".stop-schedule").first()).containsText(PINNED_DATE_LABEL);
+    assertThat(page.locator(".stop-schedule").first()).containsText(dateLabel(pinnedDate));
     assertThat(page.locator(".stop-pinned")).hasCount(1);
 
     // A second stop added from the page's own form carries no schedule of its own: the server
@@ -126,7 +125,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     dialog = openStopDetails(1);
     assertThat(dialog).containsText("Horario de visita");
     assertThat(dialog).containsText(RANGE);
-    assertThat(dialog).containsText(PINNED_DATE_LABEL);
+    assertThat(dialog).containsText(dateLabel(pinnedDate));
     assertThat(dialog.locator("dd").last()).hasText("2");
     closeStopDetails();
 
@@ -198,7 +197,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
   void keepsTheSharedNavbarOnThePlanDetailPage() {
     createPlanWithAVisit();
 
-    Map<String, Object> nav = (Map<String, Object>) page.evaluate(
+    Map<?, ?> nav = (Map<?, ?>) page.evaluate(
       """
       () => {
         const avatarStyle = getComputedStyle(document.querySelector('#navbar-avatar'));
@@ -270,8 +269,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(dialog.locator(".visit-editor input[type='time']")).isVisible();
 
     // [DIS-B04] aria-labelledby y foco dentro del diálogo al abrir. El selector se ancla al
-    // dialog de este detalle: desde el merge de main hay otro <dialog> (banned-participants)
-    // antes en el DOM y document.querySelector('dialog') lo agarra a él.
+    // diálogo de este detalle para no depender del orden de los <dialog> del DOM.
     assertThat(dialog).hasAttribute("aria-labelledby", "place-detail-title");
     boolean focusInside = Boolean.TRUE.equals(
       page.evaluate(
@@ -369,19 +367,19 @@ public class PlanPlaceDetailE2E extends E2eBase {
 
   /**
    * [STD-001/003/004/005] La vista de dueño queda compacta: cada dato del plan aparece una sola
-   * vez (la ficha manda y el form ya no vive en el layout), sin card de solicitudes en estado
-   * vacío, con "Invitar a alguien" plegado dentro de Participantes y con "Agregar lugar al plan"
-   * como botón de la cabecera de "Tu recorrido".
+   * vez en el tablero (la ficha manda y el form de edición vive en la configuración al pie, PLN
+   * #58), la card de solicitudes avisa cuando no hay pendientes, "Invitar a alguien" está plegado
+   * dentro de Participantes y "Agregar lugar al plan" es botón de la cabecera de "Tu recorrido".
    */
   @Test
   void keepsTheOwnerViewCompactAndWithoutRepeatedData() {
     createPlanWithAVisit();
 
-    // AC-01: los values del form de edición no están en la vista base. El <dialog> cerrado no
-    // cuenta: display:none lo saca del texto visible y del filtro de inputs visibles.
+    // AC-01: el tablero no muestra values de formularios; la configuración al pie es otra
+    // superficie (se abre desde "Configuración" / "Editar").
     String visibleValues = (String) page.evaluate(
       """
-      () => [...document.querySelectorAll('input, textarea, select')]
+      () => [...document.querySelectorAll('.plan-stage input, .plan-stage textarea, .plan-stage select')]
         .filter(el => el.type !== 'hidden' && el.offsetParent !== null)
         .map(el => el.value)
         .filter(Boolean)
@@ -390,16 +388,16 @@ public class PlanPlaceDetailE2E extends E2eBase {
     );
     assertFalse(
       visibleValues.contains(planName),
-      "el nombre no vive en un input visible: " + visibleValues
+      "el nombre no vive en un input del tablero: " + visibleValues
     );
-    assertFalse(visibleValues.contains(EVENT_DATE), "la fecha solo en la ficha: " + visibleValues);
+    assertFalse(visibleValues.contains(eventDate), "la fecha solo en la ficha: " + visibleValues);
     assertFalse(visibleValues.contains(START_TIME), "la hora solo en la ficha: " + visibleValues);
 
     // AC-01: la ficha es la fuente de lectura — 4 chips (fecha, hora, visibilidad, código) y una
     // descripción con clamp de 3 líneas; el tile ADMINISTRADOR ya no existe.
     Locator summary = page.locator("#plan-summary");
     assertThat(summary.locator(".plan-chip")).hasCount(4);
-    assertThat(summary).containsText("01/12/2026");
+    assertThat(summary).containsText(dateLabel(eventDate));
     assertThat(summary).containsText(START_TIME);
     assertThat(summary).containsText("Privado");
     assertThat(summary).containsText("CÓDIGO");
@@ -414,21 +412,26 @@ public class PlanPlaceDetailE2E extends E2eBase {
     String text = page.locator("body").innerText();
     assertEquals(1, occurrences(text, planName), "el nombre se ve una sola vez");
     assertEquals(1, occurrences(text, PLAN_DESCRIPTION), "la descripción se ve una sola vez");
-    assertEquals(1, occurrences(text, "01/12/2026"), "la fecha se ve una sola vez");
+    assertEquals(1, occurrences(text, dateLabel(eventDate)), "la fecha se ve una sola vez");
     assertEquals(
       1,
       occurrences(summary.innerText(), START_TIME),
       "la hora se ve una sola vez en la ficha"
     );
     assertFalse(summary.innerText().contains("ADMINISTRADOR"), "el admin sale de la ficha");
-    assertThat(page.locator("input[name='eventDate']:visible")).hasCount(0);
+    assertThat(page.locator(".plan-stage input[name='eventDate']:visible")).hasCount(0);
 
     // AC-01: Participantes es la única fuente del administrador (badge "Dueño").
     assertThat(page.locator("section:has(#participants-heading)")).containsText("Dueño");
 
-    // AC-03: sin solicitudes pendientes no hay card ni mensaje de vacío.
-    assertFalse(text.contains("No hay solicitudes pendientes."), "el estado vacío no ocupa layout");
-    assertThat(page.locator("#join-requests-heading")).hasCount(0);
+    // AC-03: sin solicitudes pendientes la card muestra el estado vacío (PLN #58) y el badge de
+    // la cabecera no se pinta.
+    assertTrue(
+      text.contains("No hay solicitudes pendientes."),
+      "la card avisa que no hay solicitudes"
+    );
+    assertThat(page.locator("#config-solicitudes")).isVisible();
+    assertThat(page.locator(".plan-toolbar a[href='#config-solicitudes']")).hasCount(0);
 
     // AC-04: "Invitar a alguien" es un accordion dentro de Participantes: colapsado, con
     // aria-expanded, que despliega el form y lo vuelve a ocultar.
@@ -453,51 +456,30 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
-   * [STD-002] La edición de metadatos vive en un diálogo con el a11y del AC-18 de 17-DIS:
-   * aria-labelledby hacia su título, foco al abrir y Escape cierra. Se abre desde el botón
-   * "Editar" de la ficha, guarda con el mismo POST de siempre y la vista base no muestra form.
+   * [STD-002] La edición de metadatos vive en la configuración al pie del detalle (PLN #58): el
+   * botón "Editar" de la ficha ancla a `#config-datos`, el form es el mismo POST de siempre y
+   * guardar actualiza la ficha sin salir de la página.
    */
   @Test
-  void editsPlanMetadataFromAModalWithDialogA11y() {
+  void editsPlanMetadataFromTheConfigurationSection() {
     createPlanWithAVisit();
 
-    Locator dialog = page.locator("dialog[aria-labelledby='plan-edit-title']");
-    Locator trigger = page.locator("#plan-summary button:has-text('Editar')");
+    Locator trigger = page.locator("#plan-summary a:has-text('Editar')");
     assertThat(trigger).isVisible();
+    assertThat(trigger).hasAttribute("href", "#configuracion");
 
-    // Cerrado hasta que se pide: el form no está en el layout.
-    assertThat(dialog).isHidden();
-    assertThat(page.locator("input[name='eventDate']:visible")).hasCount(0);
-
-    // Abrir: nombre declarado, foco adentro y los valores del plan dentro del diálogo.
     trigger.click();
-    assertThat(dialog).isVisible();
-    assertThat(dialog).hasAttribute("aria-labelledby", "plan-edit-title");
-    boolean focusInside = Boolean.TRUE.equals(
-      page.evaluate(
-        "() => document.querySelector('dialog[aria-labelledby=plan-edit-title]').contains(document.activeElement)"
-      )
-    );
-    assertTrue(focusInside, "abrir el diálogo tiene que dejar el foco adentro");
-    assertThat(dialog.locator("input[name='eventDate']")).hasValue(EVENT_DATE);
-    assertThat(dialog.locator("input[name='name']")).hasValue(planName);
+    assertThat(page.locator("#configuracion")).isVisible();
+    assertThat(page.locator("#config-datos input[name='eventDate']")).hasValue(eventDate);
+    assertThat(page.locator("#config-datos input[name='name']")).hasValue(planName);
 
-    // Escape cierra (comportamiento nativo del <dialog>).
-    page.keyboard().press("Escape");
-    page.waitForTimeout(150);
-    boolean stillOpen = Boolean.TRUE.equals(
-      page.evaluate("() => document.querySelector('dialog[aria-labelledby=plan-edit-title]').open")
-    );
-    assertFalse(stillOpen, "Escape tiene que cerrar el diálogo");
-
-    // Round trip: cambiar la hora desde el modal y guardar rederige con el valor nuevo en la
-    // ficha, y la vista base sigue sin form visible.
-    trigger.click();
-    dialog.locator("input[name='eventTime']").fill(PLAN_TIME);
-    dialog.locator("button:has-text('Guardar cambios')").click();
+    // Round trip: cambiar la hora desde la configuración y guardar rederige con el valor nuevo
+    // en la ficha.
+    page.locator("#config-datos input[name='eventTime']").fill(PLAN_TIME);
+    page.locator("#config-datos button:has-text('Guardar cambios')").click();
     plans.waitForDetailPath();
     assertThat(page.locator("#plan-summary")).containsText(PLAN_TIME);
-    assertThat(page.locator("input[name='eventTime']:visible")).hasCount(0);
+    assertThat(page.locator("#config-datos input[name='eventTime']")).hasValue(PLAN_TIME);
   }
 
   /**
@@ -549,7 +531,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     double mapaRight = mapa.boundingBox().x + mapa.boundingBox().width;
     assertEquals(mapaRight, bandaRight, 2.0, "la banda azul termina donde termina el mapa");
 
-    Locator configuracion = page.locator("a[href$='/settings']");
+    Locator configuracion = page.locator(".plan-toolbar a[href='#configuracion']");
     assertEquals(
       "Configuración",
       configuracion.innerText().trim(),
@@ -571,8 +553,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
     page.waitForTimeout(200);
     assertEquals(fichaY, ficha.boundingBox().y, "la ficha no se mueve al scrollear el recorrido");
 
-    // Presupuesto desktop.
-    long desktop = scrollHeight();
+    // Presupuesto desktop (tablero: cabecera + stage; la configuración al pie de PLN #58 es otra
+    // superficie y no entra en el techo).
+    long desktop = boardBottom();
     assertTrue(desktop <= 1500, "desktop quedó en " + desktop + " px, techo 1500");
 
     // Mobile 390: apilado ficha -> mapa -> participantes -> recorrido, bajo el techo.
@@ -585,7 +568,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertTrue(yFicha < yMapa, "390: la ficha va primero");
     assertTrue(yMapa < yParticipantes, "390: participantes va antes que el recorrido");
     assertTrue(yParticipantes < yRecorrido, "390: el recorrido va último");
-    long mobile = scrollHeight();
+    long mobile = boardBottom();
     assertTrue(mobile <= 2800, "390 quedó en " + mobile + " px, techo 2800");
   }
 
@@ -597,7 +580,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     plans.navigateToCreatePlanModal();
     plans.typeName(planName);
     plans.typeDescription(PLAN_DESCRIPTION);
-    plans.typeEventDate(EVENT_DATE);
+    plans.typeEventDate(eventDate);
     plans.typeStartTime(START_TIME);
     plans.clickNextStep();
     plans.addFirstDraftPlace();
@@ -712,8 +695,16 @@ public class PlanPlaceDetailE2E extends E2eBase {
     return count;
   }
 
-  private long scrollHeight() {
-    return ((Number) page.evaluate("() => document.documentElement.scrollHeight")).longValue();
+  /**
+   * Alto del tablero (cabecera + stage) en coordenadas de página. La configuración al pie de PLN
+   * #58 es otra superficie: el presupuesto de AC-07 mide la vista de tablero.
+   */
+  private long boardBottom() {
+    return (
+      (Number) page.evaluate(
+        "() => Math.round(document.querySelector('.plan-stage').getBoundingClientRect().bottom + window.scrollY)"
+      )
+    ).longValue();
   }
 
   private void screenshotItinerary() {

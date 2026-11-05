@@ -26,7 +26,9 @@ public class PublicPlanViewE2E extends E2eBase {
 
   private static final String PLAN_NAME = "Viaje publico E2E";
   private static final String PLAN_DESCRIPTION = "Un plan para compartir por link";
-  private static final String PLAN_DATE = "2026-12-31";
+
+  /** The date the wizard got for the current plan; the assertion below renders it as dd/MM/yyyy. */
+  private String planDate;
 
   @Test
   void T_PVP_007_sinSesionMuestraLosDatosDelPlanPublico() {
@@ -43,7 +45,7 @@ public class PublicPlanViewE2E extends E2eBase {
     String body = page.locator("body").innerText();
     assertThat(body, containsString(PLAN_NAME));
     assertThat(body, containsString(PLAN_DESCRIPTION));
-    assertThat(body, containsString("31/12/2026"));
+    assertThat(body, containsString(dateLabel(planDate)));
     assertThat(page.locator("ol li").count() > 0, is(true));
 
     // El mapa del itinerario se renderiza con los tiles de OpenStreetMap y marcadores con el
@@ -126,7 +128,9 @@ public class PublicPlanViewE2E extends E2eBase {
   private String givenAPublicPlanUrl() {
     signInAsAdmin();
     PlansPage plans = new PlansPage(page);
-    plans.createPlanViaExplore(PLAN_NAME, PLAN_DESCRIPTION, PLAN_DATE);
+    // Fecha dinámica: el #plan-date del wizard lleva min=${today}, un literal duro vence.
+    this.planDate = isoDateIn(30);
+    plans.createPlanViaExplore(PLAN_NAME, PLAN_DESCRIPTION, planDate);
     plans.waitForDetailPath();
 
     String planId = planIdFrom(page.url());
@@ -140,9 +144,10 @@ public class PublicPlanViewE2E extends E2eBase {
   }
 
   /**
-   * Adds a second stop through the API while the admin session is still open (05-APL-FE owns the
-   * add-to-plan UI, so the backend is exercised via fetch — same pattern as AddPlaceToPlanE2E).
-   * Picks a place the itinerary does not have yet, since the create modal already added the first
+   * Adds a second stop through the API while the admin session is still open (the add-place UI
+   * lives in the plan detail and the create wizard, so the backend is exercised via fetch — same
+   * pattern as AddPlaceToPlanE2E).
+   * Picks a place the itinerary does not have yet, since the create flow already added the first
    * catalog place. The whole seeded catalog has coordinates, so the polyline test gets two stops
    * that qualify.
    */
@@ -184,8 +189,7 @@ public class PublicPlanViewE2E extends E2eBase {
       .locator(".place-item")
       .first()
       .waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
-    // [STD] El form de edicion vive en el dialog de la ficha: se abre antes del switch.
-    plans.openEditDialog();
+    // [PLN #58] La edición de datos vive en la configuración al pie: el form ya está visible.
     page.locator("#isPublic").check();
     page.locator("button:has-text('Guardar cambios')").click();
     plans.waitForDetailPath();

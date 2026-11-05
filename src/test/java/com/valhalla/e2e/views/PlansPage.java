@@ -50,11 +50,6 @@ public class PlansPage extends WebPage {
     this.typeIntoElement("#plan-start-time", time);
   }
 
-  /** Paso 1 del modal: hora en que cierra la jornada; lo que no entra rueda al día siguiente. */
-  public void typeDayEndTime(String time) {
-    this.typeIntoElement("#plan-day-end", time);
-  }
-
   /** Paso 1 del modal: modo de traslado por defecto, por su {@code value} (WALK, BIKE, BUS, CAR). */
   public void selectTransportMode(String mode) {
     this.page.selectOption("#plan-transport", mode);
@@ -130,7 +125,7 @@ public class PlansPage extends WebPage {
       Pattern.compile(
         "[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*" +
         Pattern.quote(LIST_PATH) +
-        "/[0-9a-f-]{36}(?:[?;][^#]*)?$"
+        "/[0-9a-f-]{36}(?:[?;][^#]*)?(?:#.*)?$"
       )
     );
   }
@@ -140,17 +135,6 @@ public class PlansPage extends WebPage {
   }
 
   /** Rows of the listing table. Zero is the only value that proves a delete really deleted. */
-  /**
-   * [STD] El editor de metadatos vive en un diálogo, no en el layout: se abre con el botón
-   * "Editar" de la ficha. Idempotente — si ya está abierto no vuelve a clicar.
-   */
-  public void openEditDialog() {
-    Locator dialog = page.locator("dialog[aria-labelledby='plan-edit-title']");
-    if (!dialog.isVisible()) {
-      page.locator("#plan-summary").locator("button:has-text('Editar')").click();
-    }
-  }
-
   public int getPlanCount() {
     return this.page.locator("tbody tr").count();
   }
