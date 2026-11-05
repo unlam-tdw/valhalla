@@ -587,7 +587,7 @@
              aria-labelledby="configuracion-heading">
         <h5 id="configuracion-heading" class="fw-bold mb-4">Configuración del plan</h5>
 
-        <span hidden data-toast th:if="${settingsSaved}" th:text="${settingsSaved}"></span>
+        <div th:if="${settingsSaved}" class="alert alert-success" role="status" th:text="${settingsSaved}"></div>
 
         <div class="d-flex flex-column gap-4">
             <article id="config-datos" class="border rounded p-3" aria-labelledby="config-datos-heading">
