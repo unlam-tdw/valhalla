@@ -6,8 +6,8 @@
 |------|------------|
 | **User** | Registered person. Has email, password, role. Can create plans. |
 | **Place** | A location in Buenos Aires. Has name, description, category, address, coordinates, image, and a typical visit duration (`defaultDurationMinutes`, editable in the place admin form). |
-| **Plan** | A curated collection of places with schedule. Owned by a User. Is public or private. Its schedule is a daily window: Day 1 date, start time, day end time and transport mode (`WALK`/`BIKE`/`BUS`/`CAR`). |
-| **PlanPlace** | A place within a plan, with visit date, time, and order in the itinerary. Order is the source of truth: visit date/time are derived from it (stop duration, else the place's default duration, else its category default, plus the leg to the next stop) and re-derived whenever the itinerary changes, unless the User pins them by hand. |
+| **Plan** | A curated collection of places with schedule. Owned by a User. Is public or private. Its schedule is a daily window: Day 1 date, start time and transport mode (`WALK`/`BIKE`/`BUS`/`CAR`); the day end is a fixed internal default of 23:00, not user-set. |
+| **PlanPlace** | A place within a plan, with visit date, time, and order in the itinerary. Order is the source of truth: visit date/time are derived from it (stop duration, else the place's default duration, else its category default, plus the leg to the next stop, overridden by `travelMinutesToNext` when set) and re-derived whenever the itinerary changes, unless the User pins them by hand. |
 | **Plan participant** | Registered User who joins a public Plan using its Short Code, or a private Plan after an accepted join request or invitation. Can read its detail and leave it; cannot edit or delete it unless assigned the Editor role. The plan detail shows their full name, role and profile link, never their email as visible text. The administrator owns the Plan and can delete it. |
 | **Rating** | A 1–5 star score a logged-in User gives to a public Plan. One per User per Plan (updatable). Authorship is stored but never shown: only the average and count are public. |
 | **Seguidor / Seguido** | Directed follow relation between two Users: one `follows` row per (follower, followed) pair. It grants no extra visibility — only the followed user's public plans reach the "Siguiendo" feed scope — and it sends no notifications. |
@@ -33,8 +33,8 @@ read public Plans.
 The owner and Editors can inspect the Plan's banned Users and lift any ban.
 Lifting a ban does not restore participation or the Editor role. The User can
 join again using the Short Code or a new invitation. The banned Users list is
-only exposed to the owner and Editors, in a dialog opened from More options
-beside the clone and delete actions in Plan detail.
+only exposed to the owner and Editors, in the "Baneados" block of the unified
+Plan configuration section in Plan detail.
 
 **PlanManager**: Embedded component of a Plan that groups its Participants, Editors
 and pending Invitations and Join Requests. It preserves the existing persistence tables and the Plan's
@@ -46,18 +46,27 @@ authorized, accepts it. Rejection removes the request without granting participa
 The visitor sees only the name, description, date, place count and generic cover.
 
 **Plan settings**: Owner-managed permissions for inviting internally, inviting by email
-and handling join requests. Internal invitations default to Editors; other capabilities
-default to Owner. Inviting can extend to all Participants; handling requests can extend
-only to Editors. There is no in-app share-link control: Plan visibility governs access.
-Only owners and Editors can propose the Editor role. Bans also prevent requesting or
-accepting access to a private Plan.
+and handling join requests, edited in the `Roles y permisos` block of the unified Plan
+configuration section in Plan detail. Internal invitations default to Editors; other
+capabilities default to Owner. Inviting can extend to all Participants; handling requests
+can extend only to Editors. There is no in-app share-link control: Plan visibility governs
+access. Only owners and Editors can propose the Editor role. Bans also prevent requesting
+or accepting access to a private Plan.
 
 **Schedule derivation**: visit date/time stay persisted in `visitDate`/`visitTime` even when
 they are derived, so the public view, the plan listing and cloning read them unchanged.
 `timePinned` marks what the user fixed by hand and breaks the chain of derivation for the
-stops that follow, and the Plan setting `autoSchedule` (default on) turns the automatic
+stops that follow, `travelMinutesToNext` fixes the travel minutes of one leg (min 1, no
+cap; null means computed from distance and transport mode), and the Plan setting
+`autoSchedule` (default on) turns the automatic
 rescheduling off altogether. When the itinerary runs past the day end time it
 continues on the next day, with no limit on the number of days.
+
+**Plan configuration**: The single `#configuracion` section in Plan detail groups basic
+data, role permissions and bans; join requests sit with participants, between the plan
+summary and the invite form. `/plans/{id}/settings` is a
+compatibility redirect to that section. The `/explore` wizard step 3 uses the same
+permission selectors and defaults as the detail.
 
 ## Categories
 
