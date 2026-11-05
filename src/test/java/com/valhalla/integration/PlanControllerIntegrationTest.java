@@ -699,7 +699,6 @@ public class PlanControllerIntegrationTest {
 
   // --- GET /for-you con busqueda, filtros y orden [SEARCH] ---
 
-
   @Test
   public void I01_search_porTextoMuestraSoloLosPlanesQueMatchean() throws Exception {
     // given: dos planes publicos, solo uno menciona el texto buscado
@@ -1398,7 +1397,6 @@ public class PlanControllerIntegrationTest {
     throws Exception {
     // given: un plan publico ajeno con itinerario
     UUID planId = givenPublicPlanWithPlace();
-
 
     // when
     String html =
@@ -2100,7 +2098,6 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-
   @WithMockUser(username = OTHER_EMAIL)
   public void visitorCannotInviteToPublicPlan() throws Exception {
     UUID planId = givenPlanFor(this.ownerId, PLAN_NAME);
