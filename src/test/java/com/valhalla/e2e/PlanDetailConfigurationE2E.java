@@ -23,12 +23,14 @@ public class PlanDetailConfigurationE2E extends E2eBase {
     assertThat(page.locator("#plan-app")).isVisible();
     assertThat(page.locator("main h2")).containsText("Plan configurable");
 
-    page.locator("a:has-text('Configuración del plan')").click();
+    page.locator("a[href='#configuracion']").first().click();
     assertThat(page.locator("#configuracion")).isVisible();
     assertThat(page.locator("#config-datos")).isVisible();
     assertThat(page.locator("#config-roles")).isVisible();
     assertThat(page.locator("#banned-participants")).isVisible();
     assertThat(page.locator("#config-solicitudes")).isVisible();
+    // [STD] AC-04: invitar vive plegado dentro de Participantes; se abre antes de verlo.
+    page.locator("button[aria-controls='invite-panel']").click();
     assertThat(page.locator("form[action*='/participants/invite']")).isVisible();
 
     assertThat(page.getByText("Datos, solicitudes, roles y baneos en un solo lugar.")).hasCount(0);

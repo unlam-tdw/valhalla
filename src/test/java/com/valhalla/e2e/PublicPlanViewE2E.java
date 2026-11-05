@@ -189,6 +189,7 @@ public class PublicPlanViewE2E extends E2eBase {
       .locator(".place-item")
       .first()
       .waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
+    // [PLN #58] La edición de datos vive en la configuración al pie: el form ya está visible.
     page.locator("#isPublic").check();
     page.locator("button:has-text('Guardar cambios')").click();
     plans.waitForDetailPath();
