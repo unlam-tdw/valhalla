@@ -109,6 +109,48 @@ public class NotificationServiceImpl implements NotificationService {
   }
 
   @Override
+  @Transactional
+  public void notifyParticipantRemoved(User actor, User participant, String planName) {
+    if (!sameUser(actor, participant)) {
+      notificationRepository.save(
+        new Notification(participant, actor, NotificationType.PARTICIPANT_REMOVED, null, planName)
+      );
+    }
+  }
+
+  @Override
+  @Transactional
+  public void notifyParticipantBanned(User actor, User participant, String planName) {
+    if (!sameUser(actor, participant)) {
+      notificationRepository.save(
+        new Notification(participant, actor, NotificationType.PARTICIPANT_BANNED, null, planName)
+      );
+    }
+  }
+
+  @Override
+  @Transactional
+  public void notifyEditorRoleChanged(
+    User owner,
+    User participant,
+    UUID planId,
+    String planName,
+    boolean editor
+  ) {
+    if (sameUser(owner, participant)) {
+      return;
+    }
+    NotificationType type = editor
+      ? NotificationType.EDITOR_ROLE_GRANTED
+      : NotificationType.EDITOR_ROLE_REVOKED;
+    notificationRepository.save(new Notification(participant, owner, type, planId, planName));
+  }
+
+  private boolean sameUser(User first, User second) {
+    return first != null && second != null && Objects.equals(first.getId(), second.getId());
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public List<Notification> list(UUID recipientId, int page, int size) {
     return notificationRepository.findByRecipientId(recipientId, page, size);

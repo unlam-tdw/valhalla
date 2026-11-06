@@ -43,6 +43,21 @@ public interface NotificationService {
     boolean accepted
   );
 
+  /** Removal and ban notices retain the plan name without a linkable plan ID. */
+  void notifyParticipantRemoved(User actor, User participant, String planName);
+
+  /** Ban notice with the same no-plan-link privacy behavior as participant removal. */
+  void notifyParticipantBanned(User actor, User participant, String planName);
+
+  /** The participant keeps access to this plan after an editor-role change. */
+  void notifyEditorRoleChanged(
+    User owner,
+    User participant,
+    UUID planId,
+    String planName,
+    boolean editor
+  );
+
   List<Notification> list(UUID recipientId, int page, int size);
 
   long count(UUID recipientId);

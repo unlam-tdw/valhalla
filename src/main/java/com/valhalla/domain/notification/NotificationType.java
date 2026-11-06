@@ -26,4 +26,16 @@ public enum NotificationType {
 
   /** El dueño rechazó la solicitud de unión del destinatario. */
   JOIN_REQUEST_REJECTED,
+
+  /** The recipient was removed from a Plan without being banned. */
+  PARTICIPANT_REMOVED,
+
+  /** The recipient was removed and banned from a Plan. */
+  PARTICIPANT_BANNED,
+
+  /** The recipient was granted the Editor role. */
+  EDITOR_ROLE_GRANTED,
+
+  /** The recipient's Editor role was revoked. */
+  EDITOR_ROLE_REVOKED,
 }

@@ -312,11 +312,22 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       .filter(user -> user.getEmail().equals(participantEmail))
       .findFirst()
       .orElseThrow(PlanNotFoundException::new);
+    boolean wasEditor = plan.isEditor(participantEmail);
+    boolean becomesEditor = EDITOR_ROLE.equals(role);
     plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
-    if (EDITOR_ROLE.equals(role)) {
+    if (becomesEditor) {
       plan.getEditors().add(participant);
     }
     planRepository.save(plan);
+    if (wasEditor != becomesEditor) {
+      notificationService.notifyEditorRoleChanged(
+        plan.getAdministrator(),
+        participant,
+        plan.getId(),
+        plan.getName(),
+        becomesEditor
+      );
+    }
   }
 
   @Override
@@ -363,13 +374,14 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     ) {
       throw new PlanNotFoundException();
     }
+    User participant = plan
+      .getParticipants()
+      .stream()
+      .filter(user -> user.getEmail().equals(participantEmail))
+      .findFirst()
+      .orElseThrow(PlanNotFoundException::new);
+    User actor = findPlanActor(plan, userEmail);
     if (ban) {
-      User participant = plan
-        .getParticipants()
-        .stream()
-        .filter(user -> user.getEmail().equals(participantEmail))
-        .findFirst()
-        .orElseThrow(PlanNotFoundException::new);
       plan.getBannedUsers().add(participant);
     }
     plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
@@ -378,6 +390,23 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       .getInvitations()
       .removeIf(invitation -> invitation.getRecipient().getEmail().equals(participantEmail));
     planRepository.save(plan);
+    if (ban) {
+      notificationService.notifyParticipantBanned(actor, participant, plan.getName());
+    } else {
+      notificationService.notifyParticipantRemoved(actor, participant, plan.getName());
+    }
+  }
+
+  private User findPlanActor(Plan plan, String userEmail) {
+    if (plan.isAdministrator(userEmail)) {
+      return plan.getAdministrator();
+    }
+    return plan
+      .getEditors()
+      .stream()
+      .filter(user -> user.getEmail().equals(userEmail))
+      .findFirst()
+      .orElseThrow(PlanNotFoundException::new);
   }
 
   @Override

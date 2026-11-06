@@ -63,8 +63,8 @@ public class NotificationTest {
   }
 
   @Test
-  public void U04_losSieteTiposExistenYNombreRoundTrip() {
-    assertThat(NotificationType.values().length, is(7));
+  public void U04_losOnceTiposExistenYNombreRoundTrip() {
+    assertThat(NotificationType.values().length, is(11));
     assertThat(
       NotificationType.valueOf(NotificationType.NEW_FOLLOWER.name()),
       is(NotificationType.NEW_FOLLOWER)

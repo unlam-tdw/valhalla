@@ -46,7 +46,7 @@
           class="rounded-xl border border-dashed border-gray-300 px-6 py-14 text-center">
           <p class="text-sm font-medium text-gray-900">Todavía no tenés notificaciones.</p>
           <p class="mt-1 text-sm text-gray-500">
-            Acá aparecen cuando alguien te sigue, te invita a un plan o solicita unirse al tuyo.
+            Acá aparecen novedades sobre tus seguidores, tus planes y los cambios de acceso.
           </p>
         </div>
 
@@ -149,6 +149,40 @@
                          volver a solicitar: ahi queda la unica accion posible. -->
                     <a th:if="${n.relatedPlanId != null}"
                       th:href="@{/plans/{id}/public(id=${n.relatedPlanId})}"
+                      class="font-semibold text-blue-600 hover:underline" th:text="${n.relatedPlanName}">Plan</a>
+                    <span th:unless="${n.relatedPlanId != null}" class="font-semibold text-gray-700"
+                      th:text="${n.relatedPlanName}">Plan</span>
+                  </th:block>
+                  <th:block th:case="'PARTICIPANT_REMOVED'">
+                    <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                      class="font-semibold text-gray-900 hover:underline"
+                      th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                    <span class="text-gray-600">te expulsó del plan</span>
+                    <span class="font-semibold text-gray-700" th:text="${n.relatedPlanName}">Plan</span>
+                  </th:block>
+                  <th:block th:case="'PARTICIPANT_BANNED'">
+                    <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                      class="font-semibold text-gray-900 hover:underline"
+                      th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                    <span class="text-gray-600">te bloqueó el acceso al plan</span>
+                    <span class="font-semibold text-gray-700" th:text="${n.relatedPlanName}">Plan</span>
+                  </th:block>
+                  <th:block th:case="'EDITOR_ROLE_GRANTED'">
+                    <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                      class="font-semibold text-gray-900 hover:underline"
+                      th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                    <span class="text-gray-600">te asignó el rol de Editor en el plan</span>
+                    <a th:if="${n.relatedPlanId != null}" th:href="@{/plans/{id}(id=${n.relatedPlanId})}"
+                      class="font-semibold text-blue-600 hover:underline" th:text="${n.relatedPlanName}">Plan</a>
+                    <span th:unless="${n.relatedPlanId != null}" class="font-semibold text-gray-700"
+                      th:text="${n.relatedPlanName}">Plan</span>
+                  </th:block>
+                  <th:block th:case="'EDITOR_ROLE_REVOKED'">
+                    <a th:href="@{/profile/{id}(id=${n.actor.id})}"
+                      class="font-semibold text-gray-900 hover:underline"
+                      th:text="${#strings.isEmpty(actorName)} ? 'Alguien' : ${actorName}">Nombre</a>
+                    <span class="text-gray-600">te quitó el rol de Editor del plan</span>
+                    <a th:if="${n.relatedPlanId != null}" th:href="@{/plans/{id}(id=${n.relatedPlanId})}"
                       class="font-semibold text-blue-600 hover:underline" th:text="${n.relatedPlanName}">Plan</a>
                     <span th:unless="${n.relatedPlanId != null}" class="font-semibold text-gray-700"
                       th:text="${n.relatedPlanName}">Plan</span>

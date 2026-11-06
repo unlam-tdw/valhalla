@@ -11,6 +11,7 @@ actividad relevante sobre el:
 - **Nuevos seguidores** — "X te empezó a seguir" (evento de [FOLLOW]).
 - **Nuevos participantes en planes propios** — "X se unió a tu plan Y".
 - **Actividad de usuarios seguidos** — "X publicó un plan nuevo Y".
+- **Acceso a planes propios** — alguien te expulsó o bloqueó tu acceso, o el dueño cambió tu rol de participante/editor.
 
 La navbar muestra una **campana con el contador de no-leidas** (badge). El centro lista leidas y no
 leidas, mas nuevas primero, paginado de a 10, y permite marcar una o todas como leidas.
@@ -82,10 +83,9 @@ quedan como card separada.
   (`findByIdAndRecipientId` + `delete`), así que borrar por id ajeno no-opera igual que marcarlo
   (AC-09/AC-18). Desaparecer una fila no toca el hecho origen: unfollow, salida del plan y
   renombre siguen sin limpiar nada (AC-11).
-- **Qué NO notifica (decisión de producto 2026-11-01).** Te sacaron de un plan, te banearon,
-  cambiaron tu rol, alguien salió de tu plan y calificaron tu plan: silencio deliberado. Dejar de
-  seguir tampoco avisa (AC-11). El criterio: se notifica lo que pide una acción o cierra un
-  pendiente propio, no todo lo que otros hacen con cosas mías.
+- **Qué NO notifica.** Que alguien salga de un plan, levante un baneo, edite un plan público ya
+  publicado o califique un plan. Dejar de seguir tampoco avisa. Las expulsiones, los baneos y los
+  cambios de rol sí se notifican porque cambian el acceso o las capacidades de la persona.
 
 ## Criterios de Aceptacion
 
@@ -109,6 +109,9 @@ quedan como card separada.
 | AC-16 | Aceptar o rechazar una solicitud crea "X aprobó/rechazó tu solicitud para el plan Y" para el solicitante: aceptada abre el plan, rechazada abre el landing publico (donde puede volver a solicitar) |
 | AC-17 | La fila no leida se distingue de la leida (tinte + punto) y el tinte tiene su pareja oscura: ninguna fila queda con texto claro sobre fondo claro |
 | AC-18 | Cada fila tiene un tachito: `POST /notifications/{id}/delete` (con CSRF) saca la fila propia de la bandeja y conserva la pagina; una fila ajena o inexistente es el mismo no-op silencioso de AC-09 |
+| AC-19 | Expulsar a un participante crea una notificación para esa persona con el nombre del plan, pero sin `relatedPlanId` ni enlace al plan |
+| AC-20 | Banear a un participante crea una notificación para esa persona con el nombre del plan, pero sin `relatedPlanId` ni enlace al plan |
+| AC-21 | Promover o degradar a un participante crea una notificación con enlace al plan; repetir el rol actual no crea otra |
 
 ## Escenarios de Test
 
@@ -119,7 +122,7 @@ quedan como card separada.
 | U-01 | La notificacion nace no-leida, sin id ni timestamp (los pone la base) | AC-01 |
 | U-02 | La notificacion con plan congela id y nombre | AC-12 |
 | U-03 | `markAsRead` es idempotente | AC-06 |
-| U-04 | Los siete tipos existen y `valueOf` round-tripa | AC-01..AC-03, AC-14..AC-16 |
+| U-04 | Los once tipos existen y `valueOf` round-tripa | AC-01..AC-03, AC-14..AC-16, AC-19..AC-21 |
 
 ### Tests Unitarios (`infrastructure/notification/NotificationServiceImplTest.java`)
 
@@ -225,7 +228,7 @@ public class Notification {
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private NotificationType type; // NEW_FOLLOWER | NEW_PARTICIPANT | NEW_PLAN
+  private NotificationType type; // incluye eventos de seguimiento, planes, acceso y rol
 
   @Column(name = "related_plan_id")
   private UUID relatedPlanId;

@@ -22,7 +22,8 @@ import org.hibernate.annotations.UuidGenerator;
  * <p>Tabla propia, mismo patron que {@code Follow}: {@link User} no gana la coleccion inversa y
  * el listado se lee por consultas paginadas sobre esta tabla (AC-07). El nombre del plan se
  * congela al crear la notificacion: si el plan se renombra o se borra despues, la fila conserva
- * el texto con el que nacio y el link decide su destino al leerse (AC-12).
+ * el texto con el que nacio. Solo los eventos que mantienen acceso guardan el ID para un link;
+ * las expulsiones y baneos guardan el nombre sin un destino navegable (AC-12, AC-19, AC-20).
  */
 @Entity
 @Table(name = "notifications")
@@ -46,7 +47,7 @@ public class Notification {
   @Column(nullable = false)
   private NotificationType type;
 
-  /** Plan relacionado: destino del link para {@code NEW_PARTICIPANT} y {@code NEW_PLAN}. */
+  /** Plan relacionado. Removal and ban notices intentionally keep no plan ID or navigable link. */
   @Column(name = "related_plan_id")
   private UUID relatedPlanId;
 
