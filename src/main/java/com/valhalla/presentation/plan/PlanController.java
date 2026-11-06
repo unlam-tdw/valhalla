@@ -17,6 +17,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -109,29 +110,8 @@ public class PlanController {
     if (plan.canHandleRequests(userEmail)) {
       model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
     }
-    model.put(
-      "participants",
-      Stream
-        .concat(Stream.ofNullable(plan.getAdministrator()), plan.getParticipants().stream())
-        .collect(
-          java.util.stream.Collectors.toMap(User::getEmail, user -> user, (first, second) -> first)
-        )
-        .values()
-        .stream()
-        .sorted(Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
-        .toList()
-    );
-    model.put(
-      "participantEmails",
-      Stream
-        .concat(
-          Stream.ofNullable(plan.getAdministrator()).map(User::getEmail),
-          plan.getParticipants().stream().map(User::getEmail)
-        )
-        .distinct()
-        .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
-        .toList()
-    );
+    model.put("participants", participantViews(plan));
+    model.put("participantEmails", participantEmails(plan));
     model.put(
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
@@ -141,6 +121,29 @@ public class PlanController {
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
+  }
+
+  /** Autor + participantes sin duplicados, ordenados por email (la vista pinta el rol). */
+  private static List<User> participantViews(Plan plan) {
+    return Stream
+      .concat(Stream.ofNullable(plan.getAdministrator()), plan.getParticipants().stream())
+      .collect(java.util.stream.Collectors.toMap(User::getEmail, user -> user, (a, b) -> a))
+      .values()
+      .stream()
+      .sorted(Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
+      .toList();
+  }
+
+  /** Emails de autor + participantes, unicos y ordenados: con esto se arma la lista de @mention. */
+  private static List<String> participantEmails(Plan plan) {
+    return Stream
+      .concat(
+        Stream.ofNullable(plan.getAdministrator()).map(User::getEmail),
+        plan.getParticipants().stream().map(User::getEmail)
+      )
+      .distinct()
+      .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
+      .toList();
   }
 
   @GetMapping("/{id}/public")
@@ -256,11 +259,11 @@ public class PlanController {
 
   @GetMapping("/{id}/settings")
   public ModelAndView showSettings(@PathVariable UUID id, Authentication authentication) {
-    return new ModelAndView(
-      "pages/plans/settings",
-      ATTR_PLAN,
-      planService.getOwnedPlan(id, authentication.getName())
-    );
+    // La configuracion vive en el detalle. Se conserva la ruta como redireccion para
+    // enlaces viejos, pero sigue pasando por getOwnedPlan: el dueño es el unico que puede
+    // ver y cambiar los selectores de permisos.
+    planService.getOwnedPlan(id, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "#config-roles");
   }
 
   @PostMapping("/{id}/settings")
@@ -269,7 +272,8 @@ public class PlanController {
     @RequestParam PlanPermission handleRequests,
     @RequestParam PlanPermission inviteInternal,
     @RequestParam PlanPermission inviteByEmail,
-    Authentication authentication
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
   ) {
     planService.updateSettings(
       id,
@@ -278,7 +282,8 @@ public class PlanController {
       inviteByEmail,
       authentication.getName()
     );
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "/settings?saved=true");
+    redirectAttributes.addFlashAttribute("settingsSaved", "Configuración guardada");
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "#config-roles");
   }
 
   /**
@@ -575,6 +580,7 @@ public class PlanController {
       entry.setPlace(place);
       entry.setDescription(row.getDescription());
       entry.setTransportModeToNext(row.getTransportModeToNext());
+      entry.setTravelMinutesToNext(row.getTravelMinutesToNext());
       entry.setSortOrder(order);
       order++;
       plan.addPlanPlace(entry);
