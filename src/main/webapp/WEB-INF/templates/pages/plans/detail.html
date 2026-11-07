@@ -420,6 +420,19 @@
             margin-bottom: 0 !important;
         }
         #config-solicitudes.plan-sheet { background: var(--bs-body-bg); }
+        /* [STD] Cards resumen de la columna: muestran el vistazo y el detalle completo se abre en
+           una card centrada. Sin scroll interno, así ninguna queda recortada. */
+        .plan-summary-card { overflow: visible; flex: 0 0 auto; }
+        .plan-summary-card .list-group-item { background: transparent; }
+        .plan-request-notice {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        /* Aviso de solicitud pendiente: la card resumen se destaca y abre la card centrada. */
+        .plan-summary-card--alert {
+            box-shadow: 0 0 0 2px rgb(255 193 7 / 0.6);
+        }
         /* [STD-012] Claro y oscuro: .btn-outline-secondary hereda --bs-secondary, que sobre la
            card oscura queda casi ilegible. En oscuro se aclara al color de texto. */
         html[data-theme="dark"] .plan-stage .btn-outline-secondary {
@@ -441,8 +454,8 @@
         .plan-chips .plan-chip { min-width: 0; }
         /* [STD-011/AC-11] Participantes: nombre y badge arriba, acciones en su fila debajo. */
         .participants-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-        /* La card ocupa el alto libre de la columna derecha, como el panel de explore. */
-        #participants-section { flex: 1 1 auto; }
+        /* La card resumen de participantes no estira: el detalle vive en la card centrada. */
+        #participants-section { flex: 0 0 auto; }
         .participant-row {
             display: flex;
             flex-direction: column;
@@ -496,11 +509,12 @@
             <h2 class="fw-bold m-0" th:text="${plan.name}">Nombre del plan</h2>
         </div>
         <div class="plan-toolbar-actions d-flex flex-wrap align-items-center gap-2">
-            <!-- [STD] AC-03: el ancla de solicitudes vive en la cabecera y solo se pinta con
-                 >=1 para no sumar estado vacio. [STD-VB] Variante B: el clic abre la pestaña
-                 Solicitudes en vez de saltar a una card del layout. -->
-            <a th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" href="#config-solicitudes"
-               class="badge rounded-pill text-bg-warning text-decoration-none flex-shrink-0">Solicitudes <span th:text="${#lists.size(joinRequests)}">1</span></a>
+            <!-- [STD] AC-03: el aviso de solicitudes vive en la cabecera y solo se pinta con >=1.
+                 Es un botón: abre la card centrada de solicitudes, sin saltos dentro del tablero. -->
+            <button th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" type="button"
+                    class="badge rounded-pill text-bg-warning border-0 flex-shrink-0"
+                    aria-haspopup="dialog" aria-controls="join-requests-dialog"
+                    @click="openRequests">Solicitudes <span th:text="${#lists.size(joinRequests)}">1</span></button>
             <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
             <div th:if="${canBookmark}" class="flex-shrink-0">
                 <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
@@ -661,37 +675,70 @@
         </section>
 
         <aside class="plan-side">
-            <!-- [PLN] La card de solicitudes se muestra siempre que la persona pueda gestionarlas;
-                 sin pendientes avisa que no hay en vez de desaparecer. -->
-            <section th:if="${canHandleRequests}" id="config-solicitudes" class="card border-0 shadow-sm p-4 mb-4 plan-sheet" aria-labelledby="join-requests-heading">
-                <h5 id="join-requests-heading" class="fw-bold mb-3">Solicitudes <span th:if="${!#lists.isEmpty(joinRequests)}" class="badge text-bg-warning" th:text="${#lists.size(joinRequests)}">1</span></h5>
-                <p th:if="${#lists.isEmpty(joinRequests)}" class="text-muted mb-0">No hay solicitudes pendientes.</p>
-                <ul th:unless="${#lists.isEmpty(joinRequests)}" class="list-group list-group-flush">
-                    <li th:each="request : ${joinRequests}" class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3 px-0">
-                        <a th:href="@{/profile/{id}(id=${request.requesterId})}" th:text="${request.requesterName}">Ver perfil</a>
-                        <form th:action="@{/plans/{id}/join-requests/{rid}/respond(id=${plan.id},rid=${request.id})}" method="post" class="d-flex gap-2 mb-0">
-                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                            <button type="submit" name="action" value="accept" class="btn btn-primary btn-sm">Aceptar</button>
-                            <button type="submit" name="action" value="reject" class="btn btn-outline-danger btn-sm">Rechazar</button>
-                        </form>
-                    </li>
-                </ul>
+            <!-- [STD] Solicitudes y Participantes quedan como cards resumen en la columna: el
+                 contenido completo se abre en una card centrada, sin scroll interno que las
+                 recorte. Cuando hay pedidos pendientes, Solicitudes avisa y abre la card. -->
+            <section th:if="${canHandleRequests}" id="config-solicitudes" class="card border-0 shadow-sm p-4 mb-4 plan-sheet plan-summary-card"
+                     th:classappend="${!#lists.isEmpty(joinRequests)} ? 'plan-summary-card--alert'" aria-labelledby="join-requests-heading">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                    <h5 id="join-requests-heading" class="fw-bold m-0">
+                        Solicitudes
+                        <span th:if="${!#lists.isEmpty(joinRequests)}" class="badge text-bg-warning ms-1" th:text="${#lists.size(joinRequests)}">1</span>
+                    </h5>
+                    <button th:if="${!#lists.isEmpty(joinRequests)}" type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
+                            aria-haspopup="dialog" aria-controls="join-requests-dialog" @click="openRequests">Ver</button>
+                </div>
+                <p th:if="${#lists.isEmpty(joinRequests)}" class="text-muted mb-0 mt-2">No hay solicitudes pendientes.</p>
+                <p th:unless="${#lists.isEmpty(joinRequests)}" class="plan-request-notice mb-0 mt-2">
+                    <span class="badge text-bg-warning">Nueva</span>
+                    <span th:text="${#lists.size(joinRequests) == 1 ? 'Tenés 1 solicitud para responder.' : 'Tenés ' + #lists.size(joinRequests) + ' solicitudes para responder.'}">Tenés 1 solicitud para responder.</span>
+                </p>
             </section>
 
-            <section id="participants-section" class="card border-0 shadow-sm p-4 mb-4 plan-sheet" aria-labelledby="participants-heading">
+            <section id="participants-section" class="card border-0 shadow-sm p-4 mb-4 plan-sheet plan-summary-card" aria-labelledby="participants-heading">
+                <!-- Los avisos de invitación viven en la card resumen: tras el redirect se ven sin
+                     tener que abrir la card centrada. -->
                 <div th:if="${participantSuccess}" class="alert alert-success" role="status" th:text="${participantSuccess}"></div>
                 <div th:if="${invitationSuccess}" class="alert alert-success" role="status" th:text="${invitationSuccess}"></div>
                 <div th:if="${invitationError}" class="alert alert-danger" role="alert" th:text="${invitationError}"></div>
-                <!-- [STD] AC-04: invitar pasa a un accordion de la seccion — el boton en la fila
-                     del titulo con aria-expanded y el form dentro del panel colapsado. -->
-                <div class="participants-head mb-3">
+                <div class="d-flex align-items-center justify-content-between gap-3">
                     <h5 id="participants-heading" class="fw-bold m-0">
                         Participantes <span class="badge bg-secondary" th:text="${participantEmails == null ? 0 : #lists.size(participantEmails)}">0</span>
                     </h5>
-                    <button th:if="${canInvite}" type="button" class="btn btn-outline-primary btn-sm text-nowrap"
-                            aria-controls="invite-panel" :aria-expanded="inviteOpen"
-                            @click="inviteOpen = !inviteOpen">Invitar a alguien</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
+                            aria-haspopup="dialog" aria-controls="participants-dialog" @click="openParticipants">Ver</button>
                 </div>
+                <ul th:unless="${#lists.isEmpty(participantEmails)}" class="list-group list-group-flush mt-1">
+                    <li th:each="participant, stat : ${participants}" th:if="${stat.count lt 4}"
+                        class="list-group-item px-0 py-1 border-0 d-flex align-items-center gap-2 text-break"
+                        th:with="email=${participant.email}, displayName=${#strings.trim((participant.firstName == null ? '' : participant.firstName) + ' ' + (participant.lastName == null ? '' : participant.lastName))}">
+                        <span th:text="${#strings.isEmpty(displayName) ? 'Sin nombre' : displayName}">Nombre</span>
+                        <span th:if="${plan.isAdministrator(email)}" class="badge bg-primary flex-shrink-0">Due&ntilde;o</span>
+                        <span th:if="${!isPlanAdministrator and !plan.isAdministrator(email)}" class="badge bg-secondary flex-shrink-0" th:text="${plan.isEditor(email) ? 'Editor' : 'Participante'}">Participante</span>
+                    </li>
+                </ul>
+                <p th:if="${#lists.size(participants) gt 3}" class="text-muted small mb-0 mt-1" th:text="${'+' + (#lists.size(participants) - 3) + ' más'}">+2 más</p>
+                <p th:if="${#lists.isEmpty(participantEmails)}" class="text-muted small mb-0 mt-2">Todav&iacute;a no se ha unido nadie al plan.</p>
+            </section>
+        </aside>
+    </div>
+
+    <!-- [STD] Participantes en card centrada: lista completa, invitar y baneados. -->
+    <dialog id="participants-dialog" ref="participantsDialog" class="plan-modal"
+            aria-labelledby="participants-dialog-heading" tabindex="-1">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <h5 id="participants-dialog-heading" class="fw-bold m-0">
+                Participantes <span class="badge bg-secondary" th:text="${participantEmails == null ? 0 : #lists.size(participantEmails)}">0</span>
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <button th:if="${canInvite}" type="button" class="btn btn-outline-primary btn-sm text-nowrap"
+                        aria-controls="invite-panel" :aria-expanded="inviteOpen"
+                        @click="inviteOpen = !inviteOpen">Invitar a alguien</button>
+                <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar participantes"
+                        @click="participantsDialog.close()"></button>
+            </div>
+        </div>
+        <div class="participants-dialog-body">
                 <div th:if="${canInvite}" id="invite-panel" v-cloak v-show="inviteOpen" class="mb-4 border-top">
                     <form th:action="@{/plans/{id}/participants/invite(id=${plan.id})}" method="POST" class="pt-3">
                         <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
@@ -765,9 +812,29 @@
                               class="badge bg-secondary ms-1" th:text="${#lists.size(bannedParticipants)}">0</span>
                     </button>
                 </div>
-            </section>
-        </aside>
-    </div>
+        </div>
+    </dialog>
+
+    <!-- [STD] Solicitudes en card centrada: aceptar o rechazar sin recortes. -->
+    <dialog th:if="${canHandleRequests}" id="join-requests-dialog" ref="requestsDialog" class="plan-modal"
+            aria-labelledby="join-requests-dialog-heading" tabindex="-1">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <h5 id="join-requests-dialog-heading" class="fw-bold m-0">Solicitudes</h5>
+            <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar solicitudes"
+                    @click="requestsDialog.close()"></button>
+        </div>
+        <p th:if="${#lists.isEmpty(joinRequests)}" class="text-muted mb-0">No hay solicitudes pendientes.</p>
+        <ul th:unless="${#lists.isEmpty(joinRequests)}" class="list-group list-group-flush">
+            <li th:each="request : ${joinRequests}" class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3 px-0">
+                <a th:href="@{/profile/{id}(id=${request.requesterId})}" th:text="${request.requesterName}">Ver perfil</a>
+                <form th:action="@{/plans/{id}/join-requests/{rid}/respond(id=${plan.id},rid=${request.id})}" method="post" class="d-flex gap-2 mb-0">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                    <button type="submit" name="action" value="accept" class="btn btn-primary btn-sm">Aceptar</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-outline-danger btn-sm">Rechazar</button>
+                </form>
+            </li>
+        </ul>
+    </dialog>
 
     <!-- [STD] La configuración es una card centrada (mismo chrome que la ficha del lugar): el
          botón "Configuración" de la cabecera y el "Editar" de la ficha la abren sin navegar y

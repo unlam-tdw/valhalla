@@ -24,10 +24,13 @@ public class PlanDetailConfigurationE2E extends E2eBase {
     assertThat(page.locator("#plan-app")).isVisible();
     assertThat(page.locator("main h2")).containsText("Plan configurable");
 
-    // [STD] AC-04: invitar vive plegado dentro de Participantes; se abre antes de verlo (con una
-    // card modal abierta el resto del documento queda inerte).
+    // [STD] AC-04: invitar vive plegado dentro de la card centrada de Participantes; se abre esa
+    // card y después el accordion (con un modal abierto el resto del documento queda inerte).
+    plans.openParticipants();
     page.locator("button[aria-controls='invite-panel']").click();
     assertThat(page.locator("form[action*='/participants/invite']")).isVisible();
+    page.keyboard().press("Escape");
+    assertThat(page.locator("#participants-dialog")).isHidden();
 
     assertThat(page.getByText("Datos, solicitudes, roles y baneos en un solo lugar.")).hasCount(0);
     assertThat(page.locator("#configuracion nav")).hasCount(0);
@@ -99,12 +102,15 @@ public class PlanDetailConfigurationE2E extends E2eBase {
     page.keyboard().press("Escape");
     assertThat(config).isHidden();
 
-    // Los baneados tienen su propio diálogo, abierto desde Participantes.
+    // Los baneados tienen su propio diálogo, abierto desde la card centrada de Participantes.
+    plans.openParticipants();
     page.locator("[aria-controls='banned-participants']").click();
     assertThat(page.locator("#banned-participants"))
       .containsText("No hay usuarios baneados en este plan.");
     page.keyboard().press("Escape");
     assertThat(page.locator("#banned-participants")).isHidden();
+    page.keyboard().press("Escape");
+    assertThat(page.locator("#participants-dialog")).isHidden();
 
     assertThat(page.locator("#config-solicitudes")).containsText("Solicitudes");
     assertThat(page.locator("#plan-share-link")).hasCount(0);

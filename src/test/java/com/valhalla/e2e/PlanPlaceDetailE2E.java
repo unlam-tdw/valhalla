@@ -435,8 +435,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(page.locator("#config-solicitudes")).isVisible();
     assertThat(page.locator(".plan-toolbar a[href='#config-solicitudes']")).hasCount(0);
 
-    // AC-04: "Invitar a alguien" es un accordion dentro de Participantes: colapsado, con
-    // aria-expanded, que despliega el form y lo vuelve a ocultar.
+    // AC-04: "Invitar a alguien" es un accordion dentro de la card centrada de Participantes:
+    // colapsado, con aria-expanded, que despliega el form y lo vuelve a ocultar.
+    plans.openParticipants();
     Locator inviteToggle = page.locator("button[aria-controls='invite-panel']");
     assertThat(inviteToggle).hasText("Invitar a alguien");
     assertThat(inviteToggle).hasAttribute("aria-expanded", "false");
@@ -446,6 +447,8 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(page.locator("#invitation-email")).isVisible();
     inviteToggle.click();
     assertThat(page.locator("#invite-panel")).isHidden();
+    page.keyboard().press("Escape");
+    assertThat(page.locator("#participants-dialog")).isHidden();
 
     // AC-05: "Agregar lugar al plan" es un botón de la cabecera de "Tu recorrido" que despliega
     // el picker; la card propia ya no existe.

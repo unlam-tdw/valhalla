@@ -24,6 +24,8 @@ public class PlanBanE2E extends E2eBase {
       guest.navigate(detailUrl + "/public");
       guest.locator("button:has-text('Solicitar participación')").click();
       page.navigate(detailUrl);
+      // [STD] Las solicitudes se responden en su card centrada.
+      plans.openRequests();
       page.locator("form[action*='/join-requests/'] button[value='accept']").click();
       guest.navigate(detailUrl);
       assertThat(guest.locator("main h2")).containsText("Plan BAN");
@@ -32,10 +34,13 @@ public class PlanBanE2E extends E2eBase {
       // [STD-009/AC-09] "Más opciones" salió de la cabecera: ni menú, ni su trigger.
       assertThat(page.locator("#plan-options-menu")).hasCount(0);
       assertThat(page.locator("[aria-controls='plan-options-menu']")).hasCount(0);
+      // [STD] Banear vive en la card centrada de Participantes.
+      plans.openParticipants();
       page.locator("form[action$='/participants/ban'] button").click();
       guest.reload();
       assertThat(guest.locator("main")).containsText("Fuiste baneado");
       // El banear es un POST: la página recarga y la card de Participantes vuelve a su estado.
+      plans.openParticipants();
       page.locator("[aria-controls='banned-participants']").click();
       assertThat(page.locator("#banned-participants")).isVisible();
       assertThat(page.locator("#banned-participants")).containsText("Visitante BAN");
@@ -53,6 +58,7 @@ public class PlanBanE2E extends E2eBase {
       assertThat(guest.locator(".stop-details")).hasCount(0);
       guest.locator("button:has-text('Solicitar participación')").click();
       page.reload();
+      plans.openRequests();
       page.locator("form[action*='/join-requests/'] button[value='accept']").click();
       guest.navigate(detailUrl);
       assertThat(guest.locator("main h2")).containsText("Plan BAN");

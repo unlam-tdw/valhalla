@@ -71,6 +71,12 @@ createApp({
         // [STD-009] bannedTrigger devuelve el foco al botón de Participantes al cerrar el diálogo.
         const bannedTrigger = ref(null);
         const openBanned = () => bannedDialog.value.showModal();
+        // [STD] Solicitudes y Participantes son cards resumen: el contenido completo se abre en
+        // una card centrada (la notificación de solicitudes abre la misma card).
+        const participantsDialog = ref(null);
+        const openParticipants = () => participantsDialog.value.showModal();
+        const requestsDialog = ref(null);
+        const openRequests = () => requestsDialog.value.showModal();
         // [STD] 25-STD: los dos paneles plegables (invitar, agregar lugar) arrancan cerrados
         // para que la vista base no pinte formularios ni consuma scroll.
         const inviteOpen = ref(false);
@@ -463,6 +469,7 @@ createApp({
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
             inviteOpen, addPlaceOpen,
             configDialog, openConfig, bannedDialog, bannedTrigger, openBanned,
+            participantsDialog, openParticipants, requestsDialog, openRequests,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
             removePlace, onDragStart, onDrop
