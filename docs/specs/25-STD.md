@@ -378,6 +378,14 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
 - [STD-018] **Estáticos con `Cache-Control: no-cache`:** un módulo JS viejo en caché dejaba sin
   handler los `@click` nuevos (botones "Ver" de las cards resumen). Revalida con 304; test en
   `BrandingPagesTest`. ✔ (commit 5a807ad)
+- [STD-019] **Red nativa para abrir y cerrar las cards:** `no-cache` no destraba una respuesta que
+  el navegador ya tiene guardada, así que el disparador ("Ver", cabecera, "Editar", baneados)
+  lleva `data-dialog` y la X `data-close-dialog`, resueltos por un listener clásico en la
+  plantilla. Un `plans-detail.js` viejo pierde el `@click` (Vue lo compila como
+  `_ctx.openParticipants && ...` y no falla ni avisa), pero la card abre igual porque el markup
+  siempre llega fresco. Con el módulo al día el `@click` abre primero y `!dialog.open` evita el
+  `showModal` duplicado. Verificado sirviendo a propósito un módulo sin los dos handlers. ✔
+  (commit PENDIENTE)
 - [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde. ✔
   (commit 5834257 — PlanPlaceDetailE2E 8/8)
 - [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight`

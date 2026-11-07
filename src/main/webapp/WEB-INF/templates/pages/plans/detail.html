@@ -514,12 +514,12 @@
             <button th:if="${canHandleRequests and !#lists.isEmpty(joinRequests)}" type="button"
                     class="badge rounded-pill text-bg-warning border-0 flex-shrink-0"
                     aria-haspopup="dialog" aria-controls="join-requests-dialog"
-                    @click="openRequests">Solicitudes <span th:text="${#lists.size(joinRequests)}">1</span></button>
+                    data-dialog="join-requests-dialog" @click="openRequests">Solicitudes <span th:text="${#lists.size(joinRequests)}">1</span></button>
             <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
             <div th:if="${canBookmark}" class="flex-shrink-0">
                 <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
             </div>
-            <button th:if="${canEditPlan}" type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" aria-haspopup="dialog" aria-controls="plan-config-dialog" @click="openConfig"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>Configuración</button>
+            <button th:if="${canEditPlan}" type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" aria-haspopup="dialog" aria-controls="plan-config-dialog" data-dialog="plan-config-dialog" @click="openConfig"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>Configuración</button>
             <form th:if="${isPlanAdministrator}" th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>Eliminar plan</button>
@@ -570,7 +570,7 @@
                  configuración centrada, sin sumar scroll a la página. -->
             <div th:if="${canEditPlan}" class="d-flex justify-content-end mt-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm"
-                        aria-haspopup="dialog" aria-controls="plan-config-dialog"
+                        aria-haspopup="dialog" aria-controls="plan-config-dialog" data-dialog="plan-config-dialog"
                         @click="openConfig">Editar</button>
             </div>
         </div>
@@ -686,7 +686,7 @@
                         <span th:if="${!#lists.isEmpty(joinRequests)}" class="badge text-bg-warning ms-1" th:text="${#lists.size(joinRequests)}">1</span>
                     </h5>
                     <button th:if="${!#lists.isEmpty(joinRequests)}" type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
-                            aria-haspopup="dialog" aria-controls="join-requests-dialog" @click="openRequests">Ver</button>
+                            aria-haspopup="dialog" aria-controls="join-requests-dialog" data-dialog="join-requests-dialog" @click="openRequests">Ver</button>
                 </div>
                 <p th:if="${#lists.isEmpty(joinRequests)}" class="text-muted mb-0 mt-2">No hay solicitudes pendientes.</p>
                 <p th:unless="${#lists.isEmpty(joinRequests)}" class="plan-request-notice mb-0 mt-2">
@@ -706,7 +706,7 @@
                         Participantes <span class="badge bg-secondary" th:text="${participantEmails == null ? 0 : #lists.size(participantEmails)}">0</span>
                     </h5>
                     <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
-                            aria-haspopup="dialog" aria-controls="participants-dialog" @click="openParticipants">Ver</button>
+                            aria-haspopup="dialog" aria-controls="participants-dialog" data-dialog="participants-dialog" @click="openParticipants">Ver</button>
                 </div>
                 <ul th:unless="${#lists.isEmpty(participantEmails)}" class="list-group list-group-flush mt-1">
                     <li th:each="participant, stat : ${participants}" th:if="${stat.count lt 4}"
@@ -735,7 +735,7 @@
                         aria-controls="invite-panel" :aria-expanded="inviteOpen"
                         @click="inviteOpen = !inviteOpen">Invitar a alguien</button>
                 <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar participantes"
-                        @click="participantsDialog.close()"></button>
+                        data-close-dialog @click="participantsDialog.close()"></button>
             </div>
         </div>
         <div class="participants-dialog-body">
@@ -806,7 +806,7 @@
                 <div th:if="${canEditPlan}" class="mt-3 pt-3 border-top">
                     <button ref="bannedTrigger" type="button" class="btn btn-outline-secondary btn-sm"
                             aria-haspopup="dialog" aria-controls="banned-participants"
-                            @click="openBanned">
+                            data-dialog="banned-participants" @click="openBanned">
                         Ver miembros baneados
                         <span th:if="${bannedParticipants != null and !#lists.isEmpty(bannedParticipants)}"
                               class="badge bg-secondary ms-1" th:text="${#lists.size(bannedParticipants)}">0</span>
@@ -821,7 +821,7 @@
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h5 id="join-requests-dialog-heading" class="fw-bold m-0">Solicitudes</h5>
             <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar solicitudes"
-                    @click="requestsDialog.close()"></button>
+                    data-close-dialog @click="requestsDialog.close()"></button>
         </div>
         <p th:if="${#lists.isEmpty(joinRequests)}" class="text-muted mb-0">No hay solicitudes pendientes.</p>
         <ul th:unless="${#lists.isEmpty(joinRequests)}" class="list-group list-group-flush">
@@ -844,7 +844,7 @@
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h5 id="configuracion-heading" class="fw-bold m-0">Configuración del plan</h5>
             <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar la configuración"
-                    @click="configDialog.close()"></button>
+                    data-close-dialog @click="configDialog.close()"></button>
         </div>
         <div id="configuracion">
             <div th:if="${settingsSaved}" class="alert alert-success" role="status" th:text="${settingsSaved}"></div>
@@ -935,7 +935,7 @@
                 <span class="badge bg-secondary" th:text="${bannedParticipants == null ? 0 : #lists.size(bannedParticipants)}">0</span>
             </h6>
             <button type="button" class="btn-close flex-shrink-0" aria-label="Cerrar miembros baneados"
-                    @click="bannedDialog.close()"></button>
+                    data-close-dialog @click="bannedDialog.close()"></button>
         </div>
 <p th:if="${bannedParticipants == null or #lists.isEmpty(bannedParticipants)}" class="text-muted small mb-0">No hay usuarios baneados en este plan.</p>
                 <div th:unless="${bannedParticipants == null or #lists.isEmpty(bannedParticipants)}">
@@ -969,7 +969,7 @@
                     <h4 id="place-detail-title" class="m-0">{{ selectedEntry.name }}</h4>
                     <span class="place-chip" :class="'cat-' + (selectedEntry.category || 'DEFAULT')"><span v-html="categoryIconHtml(selectedEntry.category, 12)"></span>{{ getCategoryLabel(selectedEntry.category) }}</span>
                 </div>
-                <button type="button" class="btn-close" aria-label="Cerrar" @click="placeDialog.close()"></button>
+                <button type="button" class="btn-close" aria-label="Cerrar" data-close-dialog @click="placeDialog.close()"></button>
             </div>
             <dl class="place-facts">
                 <div class="place-fact">
@@ -1064,6 +1064,27 @@
     <!-- Lucide vendorizado: un script clasico se ejecuta antes que el type="module" de abajo,
          asi window.lucide ya existe cuando el modulo arma sus iconos. -->
     <script th:src="@{/js/lucide.min.js}"></script>
+
+    <!-- [STD] Red de seguridad para las cards. Cada disparador lleva data-dialog y cada X
+         data-close-dialog; este listener nativo los resuelve. El modulo JS se cachea aparte de
+         la plantilla: si el navegador conserva una version vieja, los @click nuevos no existen y
+         "Ver" quedaria muerto. El markup siempre llega fresco. Con el modulo al dia el @click
+         abre primero y el guard (!dialog.open) evita el showModal duplicado. -->
+    <script>
+      document.addEventListener('click', function (event) {
+        var opener = event.target.closest('[data-dialog]');
+        if (opener) {
+          var dialog = document.getElementById(opener.getAttribute('data-dialog'));
+          if (dialog && !dialog.open) dialog.showModal();
+          return;
+        }
+        var closer = event.target.closest('[data-close-dialog]');
+        if (closer) {
+          var openDialog = closer.closest('dialog');
+          if (openDialog && openDialog.open) openDialog.close();
+        }
+      });
+    </script>
 
     <!-- The module cannot read Thymeleaf, so the page hands it exactly these five values.
          `th:inline` is the accepted literal form (docs/guide-js.md R3): the two lists are
