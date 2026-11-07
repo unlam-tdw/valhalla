@@ -364,6 +364,11 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
   izquierda pasa a ficha + Participantes y el recorrido a la derecha; en mobile el orden queda
   ficha → mapa → solicitudes → participantes → recorrido. Solo cambian las áreas de la grilla (el
   DOM no se mueve). ✔ (commit 219e97a)
+- [STD-017] **Solicitudes y Participantes como cards resumen (AC-03/AC-04/AC-10, pedido 2026-11-05):**
+  la columna izquierda no scrollea sus cards; cada una muestra el vistazo y abre su contenido
+  completo en una card centrada (`#join-requests-dialog`, `#participants-dialog`). Solicitudes se
+  destaca con "Nueva" cuando hay pedidos y comparte el disparador con el badge de la cabecera. ✔
+  (commit 64433a4)
 - [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde. ✔
   (commit 5834257 — PlanPlaceDetailE2E 8/8)
 - [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight`
@@ -384,7 +389,7 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
 | `resources/core/js/pages/plans-detail.js` | Actualizar (refs del diálogo de edición: abrir con foco y cerrar con Escape, misma mecánica que `bannedParticipantsDialog`; toggles del accordion y del picker de lugares con los refs Vue que hagan falta) |
 | `resources/css/brand.css` (o el `<style>` de `detail.html`) | Actualizar/crear (chips, badge, estados del accordion, clamp de la descripción, estilos del diálogo — claro y oscuro) |
 | `test/java/com/valhalla/e2e/PlanPlaceDetailE2E.java` | Actualizar (4 métodos nuevos + abrir el modal en `addsPersistsAndDisplaysVisitDetails`) |
-| `test/java/com/valhalla/e2e/views/PlansPage.java` | Actualizar (helper `openEditDialog()` compartido por los tests que editan metadatos) |
+| `test/java/com/valhalla/e2e/views/PlansPage.java` | Actualizar (helpers idempotentes `openPlanConfig()`, `openParticipants()` y `openRequests()` para los tests que tocan las cards centradas, también tras cada reload) |
 | `test/java/com/valhalla/e2e/PlanParticipantsE2E.java` | Actualizar (expandir el accordion antes de `#invitation-email`) |
 | `test/java/com/valhalla/e2e/PublicPlanCloneE2E.java` | Actualizar (`makePlanPublic` abre el modal antes de `#isPublic`) |
 | `test/java/com/valhalla/e2e/PublicPlanViewE2E.java` | Actualizar (`makePlanPublic` abre el modal antes de `#isPublic`) |
