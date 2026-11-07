@@ -300,6 +300,12 @@ El cierre de la card es el gate completo en verde con los counts escritos en el 
   descripciones a todo el ancho). Medición final: desktop 1440×900 → 440/440 de aire, 560×634;
   390×844 → 19/19, 352×726. El chip de categoría ahora repite label en español + icono de la card
   del recorrido ("Restaurante", no `RESTAURANT`).
+- **Estáticos con revalidación (2026-11-05):** los `@click` nuevos vivían en `plans-detail.js` y la
+  plantilla sí se servía fresca, pero el módulo no tenía `Cache-Control`: el navegador le aplicaba
+  frescura heurística y podía usar el JS anterior contra el HTML nuevo, con lo que los botones
+  "Ver" de Solicitudes y Participantes no hacían nada. `BaseWebConfig` ahora manda
+  `Cache-Control: no-cache` en `/css/**`, `/js/**`, `/images/**` y `/manifest.json`, y
+  `BrandingPagesTest` fija la cabecera. no-cache no apaga la caché: revalida y responde 304.
 - **Nota de entorno (no es de la card):** `PublicPlansRankingE2E.T_TOP_001_elPlanCalificadoLideraElFeed`
   falla en el paso 3 del modal de crear plan de explore (`#plan-public` interceptado por el track
   del carrusel, timeout de 30 s). Se reprodujo con y sin los cambios de esta card (stash sobre
@@ -369,6 +375,9 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
   completo en una card centrada (`#join-requests-dialog`, `#participants-dialog`). Solicitudes se
   destaca con "Nueva" cuando hay pedidos y comparte el disparador con el badge de la cabecera. ✔
   (commit 64433a4)
+- [STD-018] **Estáticos con `Cache-Control: no-cache`:** un módulo JS viejo en caché dejaba sin
+  handler los `@click` nuevos (botones "Ver" de las cards resumen). Revalida con 304; test en
+  `BrandingPagesTest`. ✔ (commit c4723c9)
 - [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde. ✔
   (commit 5834257 — PlanPlaceDetailE2E 8/8)
 - [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight`
