@@ -63,9 +63,16 @@ createApp({
         const requestError = ref('');
         const saving = ref(false);
         const placeDialog = ref(null);
+        // [STD] La configuración del plan y los miembros baneados son cards centradas: se abren
+        // desde la cabecera y desde Participantes, sin navegar ni sumar scroll a la página.
+        const configDialog = ref(null);
+        const openConfig = () => configDialog.value.showModal();
+        const bannedDialog = ref(null);
+        // [STD-009] bannedTrigger devuelve el foco al botón de Participantes al cerrar el diálogo.
+        const bannedTrigger = ref(null);
+        const openBanned = () => bannedDialog.value.showModal();
         // [STD] 25-STD: los dos paneles plegables (invitar, agregar lugar) arrancan cerrados
-        // para que la vista base no pinte formularios ni consuma scroll. [PLN #58] La edición
-        // de datos y los baneados viven en la configuración al pie, no en diálogos.
+        // para que la vista base no pinte formularios ni consuma scroll.
         const inviteOpen = ref(false);
         const addPlaceOpen = ref(false);
 
@@ -455,6 +462,7 @@ createApp({
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
             inviteOpen, addPlaceOpen,
+            configDialog, openConfig, bannedDialog, bannedTrigger, openBanned,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
             removePlace, onDragStart, onDrop

@@ -84,7 +84,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(page.locator("input[name='eventTime']")).hasValue(START_TIME);
 
     // The start time belongs to the edit form: changing it re-derives the whole chain, so the
-    // summary and the stop's chip have to move together.
+    // summary and the stop's chip have to move together. La configuración vive en una card
+    // centrada: se abre antes de tocar el form.
+    plans.openPlanConfig();
     page.locator("input[name='eventTime']").fill(PLAN_TIME);
     page.getByText("Guardar cambios", new Page.GetByTextOptions().setExact(true)).click();
     plans.waitForDetailPath();
@@ -367,19 +369,19 @@ public class PlanPlaceDetailE2E extends E2eBase {
 
   /**
    * [STD-001/003/004/005] La vista de dueño queda compacta: cada dato del plan aparece una sola
-   * vez en el tablero (la ficha manda y el form de edición vive en la configuración al pie, PLN
-   * #58), la card de solicitudes avisa cuando no hay pendientes, "Invitar a alguien" está plegado
-   * dentro de Participantes y "Agregar lugar al plan" es botón de la cabecera de "Tu recorrido".
+   * vez en el tablero (la ficha manda y el form de edición vive en la card de configuración), la
+   * card de solicitudes avisa cuando no hay pendientes, "Invitar a alguien" está plegado dentro de
+   * Participantes y "Agregar lugar al plan" es botón de la cabecera de "Tu recorrido".
    */
   @Test
   void keepsTheOwnerViewCompactAndWithoutRepeatedData() {
     createPlanWithAVisit();
 
-    // AC-01: el tablero no muestra values de formularios; la configuración al pie es otra
-    // superficie (se abre desde "Configuración" / "Editar").
+    // AC-01: los values del form de edición no están en la vista base. La card de configuración
+    // cerrada no cuenta: display:none la saca del texto visible y del filtro de inputs visibles.
     String visibleValues = (String) page.evaluate(
       """
-      () => [...document.querySelectorAll('.plan-stage input, .plan-stage textarea, .plan-stage select')]
+      () => [...document.querySelectorAll('input, textarea, select')]
         .filter(el => el.type !== 'hidden' && el.offsetParent !== null)
         .map(el => el.value)
         .filter(Boolean)
@@ -388,7 +390,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     );
     assertFalse(
       visibleValues.contains(planName),
-      "el nombre no vive en un input del tablero: " + visibleValues
+      "el nombre no vive en un input visible: " + visibleValues
     );
     assertFalse(visibleValues.contains(eventDate), "la fecha solo en la ficha: " + visibleValues);
     assertFalse(visibleValues.contains(START_TIME), "la hora solo en la ficha: " + visibleValues);
@@ -419,7 +421,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
       "la hora se ve una sola vez en la ficha"
     );
     assertFalse(summary.innerText().contains("ADMINISTRADOR"), "el admin sale de la ficha");
-    assertThat(page.locator(".plan-stage input[name='eventDate']:visible")).hasCount(0);
+    assertThat(page.locator("input[name='eventDate']:visible")).hasCount(0);
 
     // AC-01: Participantes es la única fuente del administrador (badge "Dueño").
     assertThat(page.locator("section:has(#participants-heading)")).containsText("Dueño");
@@ -456,30 +458,48 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
-   * [STD-002] La edición de metadatos vive en la configuración al pie del detalle (PLN #58): el
-   * botón "Editar" de la ficha ancla a `#config-datos`, el form es el mismo POST de siempre y
-   * guardar actualiza la ficha sin salir de la página.
+   * [STD-002] La edición de metadatos se abre desde el botón "Editar" de la ficha en una card
+   * centrada con el a11y del AC-18 de 17-DIS: aria-labelledby hacia su título, foco al abrir y
+   * Escape cierra devolviendo el foco. Guarda con el mismo POST y la vista base no muestra form.
    */
   @Test
-  void editsPlanMetadataFromTheConfigurationSection() {
+  void editsPlanMetadataFromAModalWithDialogA11y() {
     createPlanWithAVisit();
 
-    Locator trigger = page.locator("#plan-summary a:has-text('Editar')");
+    Locator dialog = page.locator("#plan-config-dialog");
+    Locator trigger = page.locator("#plan-summary button:has-text('Editar')");
     assertThat(trigger).isVisible();
-    assertThat(trigger).hasAttribute("href", "#configuracion");
+
+    // Cerrada hasta que se pide: el form no está en el layout.
+    assertThat(dialog).isHidden();
+    assertThat(page.locator("input[name='eventDate']:visible")).hasCount(0);
 
     trigger.click();
-    assertThat(page.locator("#configuracion")).isVisible();
+    assertThat(dialog).isVisible();
+    assertThat(dialog).hasAttribute("aria-labelledby", "configuracion-heading");
+    boolean focusInside = Boolean.TRUE.equals(
+      page.evaluate(
+        "() => document.getElementById('plan-config-dialog').contains(document.activeElement)"
+      )
+    );
+    assertTrue(focusInside, "abrir la configuración tiene que dejar el foco adentro");
     assertThat(page.locator("#config-datos input[name='eventDate']")).hasValue(eventDate);
     assertThat(page.locator("#config-datos input[name='name']")).hasValue(planName);
 
-    // Round trip: cambiar la hora desde la configuración y guardar rederige con el valor nuevo
-    // en la ficha.
+    // Escape cierra (comportamiento nativo del <dialog>) y devuelve el foco al botón.
+    page.keyboard().press("Escape");
+    page.waitForTimeout(150);
+    assertThat(dialog).isHidden();
+    assertThat(trigger).isFocused();
+
+    // Round trip: cambiar la hora desde la card y guardar rederige con el valor nuevo en la
+    // ficha, y la vista base sigue sin form visible.
+    trigger.click();
     page.locator("#config-datos input[name='eventTime']").fill(PLAN_TIME);
     page.locator("#config-datos button:has-text('Guardar cambios')").click();
     plans.waitForDetailPath();
     assertThat(page.locator("#plan-summary")).containsText(PLAN_TIME);
-    assertThat(page.locator("#config-datos input[name='eventTime']")).hasValue(PLAN_TIME);
+    assertThat(page.locator("input[name='eventTime']:visible")).hasCount(0);
   }
 
   /**
@@ -531,7 +551,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
     double mapaRight = mapa.boundingBox().x + mapa.boundingBox().width;
     assertEquals(mapaRight, bandaRight, 2.0, "la banda azul termina donde termina el mapa");
 
-    Locator configuracion = page.locator(".plan-toolbar a[href='#configuracion']");
+    Locator configuracion = page.locator(
+      ".plan-toolbar button[aria-controls='plan-config-dialog']"
+    );
     assertEquals(
       "Configuración",
       configuracion.innerText().trim(),
@@ -553,9 +575,8 @@ public class PlanPlaceDetailE2E extends E2eBase {
     page.waitForTimeout(200);
     assertEquals(fichaY, ficha.boundingBox().y, "la ficha no se mueve al scrollear el recorrido");
 
-    // Presupuesto desktop (tablero: cabecera + stage; la configuración al pie de PLN #58 es otra
-    // superficie y no entra en el techo).
-    long desktop = boardBottom();
+    // Presupuesto desktop.
+    long desktop = scrollHeight();
     assertTrue(desktop <= 1500, "desktop quedó en " + desktop + " px, techo 1500");
 
     // Mobile 390: apilado ficha -> mapa -> participantes -> recorrido, bajo el techo.
@@ -568,7 +589,7 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertTrue(yFicha < yMapa, "390: la ficha va primero");
     assertTrue(yMapa < yParticipantes, "390: participantes va antes que el recorrido");
     assertTrue(yParticipantes < yRecorrido, "390: el recorrido va último");
-    long mobile = boardBottom();
+    long mobile = scrollHeight();
     assertTrue(mobile <= 2800, "390 quedó en " + mobile + " px, techo 2800");
   }
 
@@ -695,16 +716,8 @@ public class PlanPlaceDetailE2E extends E2eBase {
     return count;
   }
 
-  /**
-   * Alto del tablero (cabecera + stage) en coordenadas de página. La configuración al pie de PLN
-   * #58 es otra superficie: el presupuesto de AC-07 mide la vista de tablero.
-   */
-  private long boardBottom() {
-    return (
-      (Number) page.evaluate(
-        "() => Math.round(document.querySelector('.plan-stage').getBoundingClientRect().bottom + window.scrollY)"
-      )
-    ).longValue();
+  private long scrollHeight() {
+    return ((Number) page.evaluate("() => document.documentElement.scrollHeight")).longValue();
   }
 
   private void screenshotItinerary() {

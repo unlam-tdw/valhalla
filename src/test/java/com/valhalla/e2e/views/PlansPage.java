@@ -134,6 +134,18 @@ public class PlansPage extends WebPage {
     return this.getElementText("main h2");
   }
 
+  /**
+   * [STD] La configuración del plan vive en una card centrada: se abre desde la cabecera antes
+   * de tocar sus inputs. Idempotente — si ya está abierta no vuelve a clicar.
+   */
+  public void openPlanConfig() {
+    Locator dialog = page.locator("#plan-config-dialog");
+    if (!dialog.isVisible()) {
+      page.locator(".plan-toolbar button[aria-controls='plan-config-dialog']").click();
+      dialog.waitFor();
+    }
+  }
+
   /** Rows of the listing table. Zero is the only value that proves a delete really deleted. */
   public int getPlanCount() {
     return this.page.locator("tbody tr").count();
