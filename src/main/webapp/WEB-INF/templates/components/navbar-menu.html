@@ -41,6 +41,10 @@
           class="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100">
           Places
         </a>
+        <a role="menuitem" th:if="${showAdminNav}" th:href="@{/admin/plans}" data-menu-item
+          class="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100">
+          Plans
+        </a>
         <a role="menuitem" th:unless="${showAdminNav}" th:href="@{/for-you}" data-menu-item
           class="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100">
           Para vos

@@ -61,6 +61,10 @@
       class="btn-cta">
       Places
     </a>
+    <a th:href="@{/admin/plans}" th:if="${showAdminNav}"
+      class="btn-cta">
+      Plans
+    </a>
 
     <!-- Rutas del usuario común: /for-you es el feed (el home post-login) y /plans su
          listado. /explore es el catálogo. Se muestran en todo el área de usuario, también
