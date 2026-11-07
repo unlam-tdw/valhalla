@@ -385,7 +385,7 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
   `_ctx.openParticipants && ...` y no falla ni avisa), pero la card abre igual porque el markup
   siempre llega fresco. Con el módulo al día el `@click` abre primero y `!dialog.open` evita el
   `showModal` duplicado. Verificado sirviendo a propósito un módulo sin los dos handlers. ✔
-  (commit PENDIENTE)
+  (commit fff9909)
 - [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde. ✔
   (commit 5834257 — PlanPlaceDetailE2E 8/8)
 - [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight`
