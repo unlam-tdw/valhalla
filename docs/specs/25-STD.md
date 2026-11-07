@@ -377,7 +377,7 @@ Items de la card (se van tildando con su commit, `(commit <hash>)` al landing) �
   (commit 64433a4)
 - [STD-018] **Estáticos con `Cache-Control: no-cache`:** un módulo JS viejo en caché dejaba sin
   handler los `@click` nuevos (botones "Ver" de las cards resumen). Revalida con 304; test en
-  `BrandingPagesTest`. ✔ (commit c4723c9)
+  `BrandingPagesTest`. ✔ (commit 5a807ad)
 - [T-STD-004] E2E: `opensThePlaceCardAsACenteredModalLikeTheRestOfTheCards` en verde. ✔
   (commit 5834257 — PlanPlaceDetailE2E 8/8)
 - [T-STD-003] E2E: `laysOutTheFichaFixedOnTheLeftWithParticipantsUnderItAndTheItineraryOnTheRight`
