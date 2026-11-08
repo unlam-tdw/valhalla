@@ -1071,16 +1071,16 @@
          "Ver" quedaria muerto. El markup siempre llega fresco. Con el modulo al dia el @click
          abre primero y el guard (!dialog.open) evita el showModal duplicado. -->
     <script>
-      document.addEventListener('click', function (event) {
-        var opener = event.target.closest('[data-dialog]');
+      document.addEventListener('click', (event) => {
+        const opener = event.target.closest('[data-dialog]');
         if (opener) {
-          var dialog = document.getElementById(opener.getAttribute('data-dialog'));
+          const dialog = document.getElementById(opener.getAttribute('data-dialog'));
           if (dialog && !dialog.open) dialog.showModal();
           return;
         }
-        var closer = event.target.closest('[data-close-dialog]');
+        const closer = event.target.closest('[data-close-dialog]');
         if (closer) {
-          var openDialog = closer.closest('dialog');
+          const openDialog = closer.closest('dialog');
           if (openDialog && openDialog.open) openDialog.close();
         }
       });
