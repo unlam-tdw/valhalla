@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.exception.PlanNotFoundException;
+import com.valhalla.domain.notification.NotificationService;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanPermission;
@@ -48,6 +49,7 @@ public class PlanServiceImplAdminTest {
   private UserRepository userRepositoryMock;
   private PlaceRepository placeRepositoryMock;
   private PlanRatingRepository planRatingRepositoryMock;
+  private NotificationService notificationServiceMock;
 
   @BeforeEach
   public void init() {
@@ -55,12 +57,14 @@ public class PlanServiceImplAdminTest {
     this.userRepositoryMock = mock(UserRepository.class);
     this.placeRepositoryMock = mock(PlaceRepository.class);
     this.planRatingRepositoryMock = mock(PlanRatingRepository.class);
+    this.notificationServiceMock = mock(NotificationService.class);
     this.planService =
       new PlanServiceImpl(
         this.planRepositoryMock,
         this.userRepositoryMock,
         this.placeRepositoryMock,
-        this.planRatingRepositoryMock
+        this.planRatingRepositoryMock,
+        this.notificationServiceMock
       );
   }
 

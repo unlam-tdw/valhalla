@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -334,9 +335,12 @@ public class PlanAdminControllerTest {
 
   @Test
   public void removeParticipantGoesThroughTheServiceAndRedirectsToTheEdit() {
-    ModelAndView view = controller.removeParticipant(PLAN_ID, "guest@test.com");
+    Authentication admin = mock(Authentication.class);
+    when(admin.getName()).thenReturn(APP_EMAIL);
 
-    verify(planServiceMock).removeParticipantAny(PLAN_ID, "guest@test.com");
+    ModelAndView view = controller.removeParticipant(PLAN_ID, "guest@test.com", admin);
+
+    verify(planServiceMock).removeParticipantAny(PLAN_ID, "guest@test.com", APP_EMAIL);
     assertThat(view.getViewName(), is(equalTo("redirect:/admin/plans/" + PLAN_ID + "/edit")));
     assertThat(toast(), is(equalTo("Participante eliminado del plan.")));
   }

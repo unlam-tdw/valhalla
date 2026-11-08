@@ -85,7 +85,7 @@ public interface PlanService {
   void deleteAnyPlan(UUID id);
   void togglePlanActive(UUID id, boolean active);
   void changeParticipantRoleAny(UUID id, String participantEmail, String role);
-  void removeParticipantAny(UUID id, String participantEmail);
+  void removeParticipantAny(UUID id, String participantEmail, String adminEmail);
   /**
    * [PABM] AC-20: invitación desde el admin. Actúa con la autoridad del dueño del plan, así que
    * las reglas de {@link #inviteParticipant(UUID, String, String, String, String)} no cambian.

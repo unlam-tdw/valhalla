@@ -3,6 +3,7 @@ package com.valhalla.infrastructure.plan;
 import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.exception.PlanNotFoundException;
 import com.valhalla.domain.exception.UserNotFoundException;
+import com.valhalla.domain.notification.NotificationService;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanDiscovery;
@@ -51,6 +52,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   private final UserRepository userRepository;
   private final PlaceRepository placeRepository;
   private final PlanRatingRepository planRatingRepository;
+  private final NotificationService notificationService;
 
   @Override
   @Transactional(readOnly = true)
@@ -88,6 +90,15 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (!plan.hasPendingJoinRequest(requester.getEmail())) {
       plan.getJoinRequests().add(new PlanJoinRequest(plan, requester));
       planRepository.save(plan);
+      // [NOTIF] AC-15: la solicitud es un pendiente del dueno, vive tambien en la campanita. La
+      // pongo aca y no en requestToJoin porque joinPlan con codigo a un plan privado pasa por el
+      // mismo camino. La solicitud repetida corta arriba y no notifica de nuevo.
+      notificationService.notifyJoinRequest(
+        requester,
+        plan.getAdministrator(),
+        plan.getId(),
+        plan.getName()
+      );
     }
   }
 
@@ -98,6 +109,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (!"accept".equals(action) && !"reject".equals(action)) {
       throw new IllegalArgumentException("Respuesta de solicitud inválida.");
     }
+    boolean accepted = "accept".equals(action);
     PlanJoinRequest request = plan
       .getJoinRequests()
       .stream()
@@ -107,15 +119,30 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     User requester = request.getRequester();
     validateJoinResponse(plan, requester, action);
     if (
-      "accept".equals(action) &&
+      accepted &&
       !plan.isAdministrator(requester.getEmail()) &&
       !plan.isParticipant(requester.getEmail())
     ) {
       plan.getParticipants().add(requester);
       plan.getInvitations().removeIf(item -> item.getRecipient().getId().equals(requester.getId()));
+      // [NOTIF] AC-02: aceptar una solicitud convierte al solicitante en participante del plan.
+      notificationService.notifyNewParticipant(
+        requester,
+        plan.getAdministrator(),
+        plan.getId(),
+        plan.getName()
+      );
     }
     plan.getJoinRequests().remove(request);
     planRepository.save(plan);
+    // [NOTIF] AC-16: la respuesta cierra el pendiente del solicitante en los dos sentidos.
+    notificationService.notifyJoinRequestResponse(
+      plan.getAdministrator(),
+      requester,
+      plan.getId(),
+      plan.getName(),
+      accepted
+    );
   }
 
   @Override
@@ -173,12 +200,14 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     PlanRepository planRepository,
     UserRepository userRepository,
     PlaceRepository placeRepository,
-    PlanRatingRepository planRatingRepository
+    PlanRatingRepository planRatingRepository,
+    NotificationService notificationService
   ) {
     this.planRepository = planRepository;
     this.userRepository = userRepository;
     this.placeRepository = placeRepository;
     this.planRatingRepository = planRatingRepository;
+    this.notificationService = notificationService;
   }
 
   @Override
@@ -205,7 +234,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     // [SCH] El horario se deriva con los lugares ya resueltos: la calculadora necesita categoria y
     // coordenadas reales para estimar duraciones y traslados.
     PlanScheduler.apply(plan);
-    return planRepository.save(plan);
+    Plan saved = planRepository.save(plan);
+    // [NOTIF] AC-03: publicar al crear avisa a los seguidores del autor; un plan privado nace
+    // sin notificar a nadie.
+    if (Boolean.TRUE.equals(saved.getIsPublic())) {
+      notificationService.notifyNewPlan(owner, saved.getId(), saved.getName());
+    }
+    return saved;
   }
 
   @Override
@@ -313,11 +348,22 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       .filter(user -> user.getEmail().equals(participantEmail))
       .findFirst()
       .orElseThrow(PlanNotFoundException::new);
+    boolean wasEditor = plan.isEditor(participantEmail);
+    boolean becomesEditor = EDITOR_ROLE.equals(role);
     plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
-    if (EDITOR_ROLE.equals(role)) {
+    if (becomesEditor) {
       plan.getEditors().add(participant);
     }
     planRepository.save(plan);
+    if (wasEditor != becomesEditor) {
+      notificationService.notifyEditorRoleChanged(
+        plan.getAdministrator(),
+        participant,
+        plan.getId(),
+        plan.getName(),
+        becomesEditor
+      );
+    }
   }
 
   @Override
@@ -325,12 +371,18 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     moderateParticipant(id, participantEmail, userEmail, false);
   }
 
-  /** [PABM] AC-10: el admin saca participantes de cualquier plan, guest o editor. */
+  /**
+   * [PABM] AC-10: el admin saca participantes de cualquier plan, guest o editor.
+   *
+   * <p>[NOTIF] La notificación se firma con el admin real, no con el dueño: el aviso le dice al
+   * expulsado quién lo sacó. Por eso el email llega como parámetro y no se infiere del plan.
+   */
   @Override
-  public void removeParticipantAny(UUID id, String participantEmail) {
+  public void removeParticipantAny(UUID id, String participantEmail, String adminEmail) {
     Plan plan = getAnyPlan(id);
     requireRemovableParticipant(plan, participantEmail);
-    ejectParticipant(plan, participantEmail, false);
+    User admin = userRepository.findByEmail(adminEmail).orElseThrow(UserNotFoundException::new);
+    ejectParticipant(plan, admin, participantEmail, false);
   }
 
   /** [PABM] AC-20: el admin invita con la autoridad del dueño; el resto de las reglas son las mismas. */
@@ -386,7 +438,7 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       throw new PlanNotFoundException();
     }
     requireRemovableParticipant(plan, participantEmail);
-    ejectParticipant(plan, participantEmail, ban);
+    ejectParticipant(plan, findPlanActor(plan, userEmail), participantEmail, ban);
   }
 
   /** [PABM] Ni al dueño ni a un ajeno al plan: los guardas de la expulsión, ahora compartidos. */
@@ -396,14 +448,19 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     }
   }
 
-  private void ejectParticipant(Plan plan, String participantEmail, boolean ban) {
+  /**
+   * [NOTIF] Saca al participante y avisa al afectado. El {@code actor} es quien ejecuta la
+   * expulsión —el dueño/editor para {@code removeParticipant}, el admin para
+   * {@code removeParticipantAny}—, no el dueño del plan: la notificación dice quién lo hizo.
+   */
+  private void ejectParticipant(Plan plan, User actor, String participantEmail, boolean ban) {
+    User participant = plan
+      .getParticipants()
+      .stream()
+      .filter(user -> user.getEmail().equals(participantEmail))
+      .findFirst()
+      .orElseThrow(PlanNotFoundException::new);
     if (ban) {
-      User participant = plan
-        .getParticipants()
-        .stream()
-        .filter(user -> user.getEmail().equals(participantEmail))
-        .findFirst()
-        .orElseThrow(PlanNotFoundException::new);
       plan.getBannedUsers().add(participant);
     }
     plan.getEditors().removeIf(user -> user.getEmail().equals(participantEmail));
@@ -412,6 +469,23 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       .getInvitations()
       .removeIf(invitation -> invitation.getRecipient().getEmail().equals(participantEmail));
     planRepository.save(plan);
+    if (ban) {
+      notificationService.notifyParticipantBanned(actor, participant, plan.getName());
+    } else {
+      notificationService.notifyParticipantRemoved(actor, participant, plan.getName());
+    }
+  }
+
+  private User findPlanActor(Plan plan, String userEmail) {
+    if (plan.isAdministrator(userEmail)) {
+      return plan.getAdministrator();
+    }
+    return plan
+      .getEditors()
+      .stream()
+      .filter(user -> user.getEmail().equals(userEmail))
+      .findFirst()
+      .orElseThrow(PlanNotFoundException::new);
   }
 
   @Override
@@ -439,6 +513,9 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
     if (EMAIL_CHANNEL.equals(channel)) {
       emailNotifier.sendInvitation(participant.getEmail(), plan.getId(), invitation.getToken());
     }
+    // [NOTIF] La campanita también avisa al invitado: el mail puede no llegar nunca (no hay SMTP
+    // en dev ni en el TP) y la lista de pendientes solo se ve si ya sabés dónde mirar.
+    notificationService.notifyInvitation(inviter, participant, plan.getId(), plan.getName());
   }
 
   private void validateInvitationChannel(Plan plan, String channel, String role, String userEmail) {
@@ -540,6 +617,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       if (EDITOR_ROLE.equals(invitation.getRole())) {
         plan.getEditors().add(invitation.getRecipient());
       }
+      // [NOTIF] AC-02: aceptar una invitacion tambien suma un participante al plan del dueno.
+      notificationService.notifyNewParticipant(
+        invitation.getRecipient(),
+        plan.getAdministrator(),
+        plan.getId(),
+        plan.getName()
+      );
     }
     plan.getInvitations().remove(invitation);
     planRepository.save(plan);
@@ -562,11 +646,18 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   @Override
   public Plan updatePlan(UUID id, Plan changes, String ownerEmail) {
     Plan existing = getEditablePlan(id, ownerEmail);
+    boolean wasPublic = Boolean.TRUE.equals(existing.getIsPublic());
     existing.updateFrom(changes);
     // [SCH] Cambiar la fecha, la hora de inicio, el fin de dia o el modo recalcula el itinerario
     // entero: el horario es una funcion de esa configuracion, no un dato independiente.
     PlanScheduler.apply(existing);
-    return planRepository.save(existing);
+    Plan saved = planRepository.save(existing);
+    // [NOTIF] AC-03: publicar un plan existente es el "cambio relevante" que se notifica a los
+    // seguidores; editar un plan ya publico no genera ruido.
+    if (!wasPublic && Boolean.TRUE.equals(saved.getIsPublic())) {
+      notificationService.notifyNewPlan(saved.getAdministrator(), saved.getId(), saved.getName());
+    }
+    return saved;
   }
 
   @Override
@@ -652,6 +743,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
         plan.getParticipants().add(user);
         plan.getJoinRequests().removeIf(item -> item.getRequester().getEmail().equals(userEmail));
         planRepository.save(plan);
+        // [NOTIF] AC-02: unirse por short code suma el participante y avisa al dueno.
+        notificationService.notifyNewParticipant(
+          user,
+          plan.getAdministrator(),
+          plan.getId(),
+          plan.getName()
+        );
       } else {
         addJoinRequest(plan, user);
       }

@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -189,9 +190,10 @@ public class PlanAdminController {
   @PostMapping("/{id}/participants/remove")
   public ModelAndView removeParticipant(
     @PathVariable UUID id,
-    @RequestParam String participantEmail
+    @RequestParam String participantEmail,
+    Authentication authentication
   ) {
-    planService.removeParticipantAny(id, participantEmail);
+    planService.removeParticipantAny(id, participantEmail, authentication.getName());
     return confirmed(REDIRECT_PLAN_EDIT + id + EDIT_SUFFIX, "Participante eliminado del plan.");
   }
 
