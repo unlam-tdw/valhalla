@@ -55,6 +55,9 @@ createApp({
     const pois = ref([]);
     const search = ref('');
     const error = ref('');
+    /* Aviso de un refresh que no consulto Overpass porque la zona todavia valia: sin esto el
+       boton "Actualizar" parece no hacer nada. */
+    const note = ref('');
     const loading = ref(false);
     /* Ingesta en curso: el boton no puede disparar dos y una lectura no la cancela. */
     const refreshing = ref(false);
@@ -121,6 +124,7 @@ createApp({
     const statusText = computed(() => {
       if (refreshing.value) return 'Consultando OpenStreetMap: puede tardar hasta 30 s...';
       if (!loaded.value) return loading.value ? 'Leyendo los puntos guardados...' : '';
+      if (note.value) return note.value;
       return filtered.value.length < pois.value.length
         ? filtered.value.length + ' de ' + pois.value.length + ' punto(s)'
         : pois.value.length + ' punto(s) encontrados';
@@ -228,10 +232,14 @@ createApp({
         if (current !== pending) return;
         pois.value = data.pois || [];
         fetchedAt.value = data.fetchedAt || null;
+        note.value = isRefresh && data.refreshed === false
+          ? 'Esta zona se actualizó hace instantes: se usaron los puntos guardados.'
+          : '';
         loaded.value = true;
       } catch (loadError) {
         if (current !== pending || loadError.name === 'AbortError') return;
         console.error(loadError);
+        note.value = '';
         error.value = loadError.status === 401 ? loadError.message : failure;
       } finally {
         if (current === pending) {
