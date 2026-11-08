@@ -50,11 +50,6 @@ public class PlansPage extends WebPage {
     this.typeIntoElement("#plan-start-time", time);
   }
 
-  /** Paso 1 del modal: hora en que cierra la jornada; lo que no entra rueda al día siguiente. */
-  public void typeDayEndTime(String time) {
-    this.typeIntoElement("#plan-day-end", time);
-  }
-
   /** Paso 1 del modal: modo de traslado por defecto, por su {@code value} (WALK, BIKE, BUS, CAR). */
   public void selectTransportMode(String mode) {
     this.page.selectOption("#plan-transport", mode);
@@ -130,13 +125,46 @@ public class PlansPage extends WebPage {
       Pattern.compile(
         "[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*" +
         Pattern.quote(LIST_PATH) +
-        "/[0-9a-f-]{36}(?:[?;][^#]*)?$"
+        "/[0-9a-f-]{36}(?:[?;][^#]*)?(?:#.*)?$"
       )
     );
   }
 
   public String getDetailHeading() {
     return this.getElementText("main h2");
+  }
+
+  /**
+   * [STD] La configuración del plan vive en una card centrada: se abre desde la cabecera antes
+   * de tocar sus inputs. Idempotente — si ya está abierta no vuelve a clicar.
+   */
+  public void openPlanConfig() {
+    Locator dialog = page.locator("#plan-config-dialog");
+    if (!dialog.isVisible()) {
+      page.locator(".plan-toolbar button[aria-controls='plan-config-dialog']").click();
+      dialog.waitFor();
+    }
+  }
+
+  /**
+   * [STD] Participantes es una card resumen: el contenido completo se abre en una card centrada.
+   * Idempotente, para poder llamarlo también después de cada reload.
+   */
+  public void openParticipants() {
+    Locator dialog = page.locator("#participants-dialog");
+    if (!dialog.isVisible()) {
+      page.locator(".plan-side button[aria-controls='participants-dialog']").click();
+      dialog.waitFor();
+    }
+  }
+
+  /** [STD] Solicitudes también abre su propia card centrada (y su aviso de la cabecera). */
+  public void openRequests() {
+    Locator dialog = page.locator("#join-requests-dialog");
+    if (!dialog.isVisible()) {
+      page.locator(".plan-side button[aria-controls='join-requests-dialog']").click();
+      dialog.waitFor();
+    }
   }
 
   /** Rows of the listing table. Zero is the only value that proves a delete really deleted. */

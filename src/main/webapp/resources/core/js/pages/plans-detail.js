@@ -36,6 +36,7 @@ const parsePlace = (p) => {
         // quedan neutros para que una parada del catálogo no herede un horario que no tiene.
         durationMinutes: p.durationMinutes ?? null,
         transportModeToNext: p.transportModeToNext || '',
+        travelMinutesToNext: p.travelMinutesToNext ?? null,
         timePinned: p.timePinned === true,
         id: target.id,
         name: target.name || 'Sin nombre',
@@ -62,14 +63,24 @@ createApp({
         const requestError = ref('');
         const saving = ref(false);
         const placeDialog = ref(null);
-        const planOptionsOpen = ref(false);
-        const planOptionsButton = ref(null);
-        const bannedParticipantsDialog = ref(null);
-        const closePlanOptions = (event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) {
-                planOptionsOpen.value = false;
-            }
-        };
+        // [STD] La configuración del plan y los miembros baneados son cards centradas: se abren
+        // desde la cabecera y desde Participantes, sin navegar ni sumar scroll a la página.
+        const configDialog = ref(null);
+        const openConfig = () => configDialog.value.showModal();
+        const bannedDialog = ref(null);
+        // [STD-009] bannedTrigger devuelve el foco al botón de Participantes al cerrar el diálogo.
+        const bannedTrigger = ref(null);
+        const openBanned = () => bannedDialog.value.showModal();
+        // [STD] Solicitudes y Participantes son cards resumen: el contenido completo se abre en
+        // una card centrada (la notificación de solicitudes abre la misma card).
+        const participantsDialog = ref(null);
+        const openParticipants = () => participantsDialog.value.showModal();
+        const requestsDialog = ref(null);
+        const openRequests = () => requestsDialog.value.showModal();
+        // [STD] 25-STD: los dos paneles plegables (invitar, agregar lugar) arrancan cerrados
+        // para que la vista base no pinte formularios ni consuma scroll.
+        const inviteOpen = ref(false);
+        const addPlaceOpen = ref(false);
 
         // Leaflet owns these three and the template never reads them, so they are not refs.
         let map = null;
@@ -299,6 +310,12 @@ createApp({
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
 
+            // [STD-VB] El mapa ya no mide 480 px fijos: llena el stage, cuya altura cambia con
+            // el viewport. Sin invalidateSize Leaflet conserva el tamaño viejo y las tiles
+            // quedan corridas (mismo patrón que places-list.js).
+            new ResizeObserver(() => map.invalidateSize({ pan: false })).observe(map.getContainer());
+            requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+
             renderMarkers();
         };
 
@@ -319,11 +336,12 @@ createApp({
             } catch (error) { requestError.value = error.message; }
         };
 
-        /* El PUT reemplaza los cuatro campos del horario, así que el payload viaja completo: el
-           campo editado y los otros tres tal como están. Los dos de fecha y hora solo se repiten
+        /* El PUT reemplaza los campos del horario, así que el payload viaja completo: el
+           campo editado y los otros tal como están. Los dos de fecha y hora solo se repiten
            si la parada está fijada a mano o si se está editando justamente uno de ellos; si no,
            van en null para que cambiar solo la duración no convierta una parada derivada en una
-           fijada. */
+           fijada. El traslado fijo no tiene pin: viaja como está, y vaciarlo lo devuelve al
+           cálculo (null en el servidor). */
         const updateEntry = async (entry, field, value) => {
             if (saving.value || !entry) return;
             saving.value = true;
@@ -335,6 +353,9 @@ createApp({
                     ? (value === '' ? null : Number(value))
                     : (entry.durationMinutes ?? null),
                 transportModeToNext: entry.transportModeToNext || null,
+                travelMinutesToNext: field === 'travelMinutesToNext'
+                    ? (value === '' ? null : Number(value))
+                    : (entry.travelMinutesToNext ?? null),
                 visitDate: field === 'visitDate'
                     ? (value || null)
                     : (keepsSchedule ? (entry.visitDate || null) : null),
@@ -374,7 +395,8 @@ createApp({
                         visitTime: entry.visitTime,
                         durationMinutes: entry.durationMinutes,
                         timePinned: entry.timePinned,
-                        transportModeToNext: entry.transportModeToNext || ''
+                        transportModeToNext: entry.transportModeToNext || '',
+                        travelMinutesToNext: entry.travelMinutesToNext ?? null
                     });
                     selectedPlaceId.value = null;
                     renderMarkers(addedId);
@@ -445,9 +467,9 @@ createApp({
 
         return {
             allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
-            // [MERGE] Sin estos cuatro en el retorno, el menú "Más opciones" no abre: el handler
-            // escribe sobre una propiedad inexistente y Vue la descarta en silencio.
-            planOptionsOpen, planOptionsButton, bannedParticipantsDialog, closePlanOptions,
+            inviteOpen, addPlaceOpen,
+            configDialog, openConfig, bannedDialog, bannedTrigger, openBanned,
+            participantsDialog, openParticipants, requestsDialog, openRequests,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
             removePlace, onDragStart, onDrop

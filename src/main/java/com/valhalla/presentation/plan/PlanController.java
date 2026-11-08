@@ -1,5 +1,7 @@
 package com.valhalla.presentation.plan;
 
+import static com.valhalla.presentation.shared.SuccessRedirects.confirmed;
+
 import com.valhalla.domain.bookmark.PlanBookmarkService;
 import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.place.Place;
@@ -17,6 +19,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -51,7 +54,7 @@ public class PlanController {
 
   // [SCH] Defaults del planificador cuando el form no manda la ventana del dia ni el modo: los
   // mismos que asume un plan viejo sin esas columnas.
-  private static final LocalTime DEFAULT_DAY_END = LocalTime.of(23, 0);
+  static final LocalTime DEFAULT_DAY_END = LocalTime.of(23, 0);
 
   // [SCH] El fin de la visita viaja ya formateado: la vista publica no calcula nada y el formato
   // es el mismo HH:mm (24 h, cero a la izquierda) que dibuja el detalle del plan.
@@ -112,29 +115,8 @@ public class PlanController {
     if (plan.canHandleRequests(userEmail)) {
       model.put("joinRequests", planService.getPendingJoinRequests(id, userEmail));
     }
-    model.put(
-      "participants",
-      Stream
-        .concat(Stream.ofNullable(plan.getAdministrator()), plan.getParticipants().stream())
-        .collect(
-          java.util.stream.Collectors.toMap(User::getEmail, user -> user, (first, second) -> first)
-        )
-        .values()
-        .stream()
-        .sorted(Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
-        .toList()
-    );
-    model.put(
-      "participantEmails",
-      Stream
-        .concat(
-          Stream.ofNullable(plan.getAdministrator()).map(User::getEmail),
-          plan.getParticipants().stream().map(User::getEmail)
-        )
-        .distinct()
-        .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
-        .toList()
-    );
+    model.put("participants", participantViews(plan));
+    model.put("participantEmails", participantEmails(plan));
     model.put(
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
@@ -144,6 +126,29 @@ public class PlanController {
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
+  }
+
+  /** Autor + participantes sin duplicados, ordenados por email (la vista pinta el rol). */
+  private static List<User> participantViews(Plan plan) {
+    return Stream
+      .concat(Stream.ofNullable(plan.getAdministrator()), plan.getParticipants().stream())
+      .collect(java.util.stream.Collectors.toMap(User::getEmail, user -> user, (a, b) -> a))
+      .values()
+      .stream()
+      .sorted(Comparator.comparing(User::getEmail, String.CASE_INSENSITIVE_ORDER))
+      .toList();
+  }
+
+  /** Emails de autor + participantes, unicos y ordenados: con esto se arma la lista de @mention. */
+  private static List<String> participantEmails(Plan plan) {
+    return Stream
+      .concat(
+        Stream.ofNullable(plan.getAdministrator()).map(User::getEmail),
+        plan.getParticipants().stream().map(User::getEmail)
+      )
+      .distinct()
+      .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
+      .toList();
   }
 
   @GetMapping("/{id}/public")
@@ -265,7 +270,10 @@ public class PlanController {
   @PostMapping("/{id}/join-requests")
   public ModelAndView requestToJoin(@PathVariable UUID id, Authentication authentication) {
     planService.requestToJoin(id, authentication.getName());
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + PUBLIC_SUFFIX);
+    return confirmed(
+      REDIRECT_PLANS,
+      "Solicitud enviada. Esperá la aprobación para acceder al plan."
+    );
   }
 
   @PostMapping("/{id}/join-requests/{requestId}/respond")
@@ -281,11 +289,11 @@ public class PlanController {
 
   @GetMapping("/{id}/settings")
   public ModelAndView showSettings(@PathVariable UUID id, Authentication authentication) {
-    return new ModelAndView(
-      "pages/plans/settings",
-      ATTR_PLAN,
-      planService.getOwnedPlan(id, authentication.getName())
-    );
+    // La configuracion vive en el detalle. Se conserva la ruta como redireccion para
+    // enlaces viejos, pero sigue pasando por getOwnedPlan: el dueño es el unico que puede
+    // ver y cambiar los selectores de permisos.
+    planService.getOwnedPlan(id, authentication.getName());
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "#config-roles");
   }
 
   @PostMapping("/{id}/settings")
@@ -294,7 +302,8 @@ public class PlanController {
     @RequestParam PlanPermission handleRequests,
     @RequestParam PlanPermission inviteInternal,
     @RequestParam PlanPermission inviteByEmail,
-    Authentication authentication
+    Authentication authentication,
+    org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes
   ) {
     planService.updateSettings(
       id,
@@ -303,7 +312,8 @@ public class PlanController {
       inviteByEmail,
       authentication.getName()
     );
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "/settings?saved=true");
+    redirectAttributes.addFlashAttribute("settingsSaved", "Configuración guardada");
+    return new ModelAndView(REDIRECT_PLAN_DETAIL + id + "#config-roles");
   }
 
   /**
@@ -404,7 +414,7 @@ public class PlanController {
   @RequestMapping(value = "/{id}/delete", method = { RequestMethod.POST, RequestMethod.DELETE })
   public ModelAndView deletePlan(@PathVariable UUID id, Authentication authentication) {
     planService.deleteOwnedPlan(id, authentication.getName());
-    return new ModelAndView(REDIRECT_PLANS);
+    return confirmed(REDIRECT_PLANS, "Plan eliminado.");
   }
 
   @PostMapping("/{id}/participants/role")
@@ -533,7 +543,7 @@ public class PlanController {
   @PostMapping("/{id}/leave")
   public ModelAndView leavePlan(@PathVariable UUID id, Authentication authentication) {
     planService.leavePlan(id, authentication.getName());
-    return new ModelAndView(REDIRECT_PLANS);
+    return confirmed(REDIRECT_PLANS, "Saliste del plan.");
   }
 
   @PostMapping("/{id}/invitations/{invitationId}/respond")
@@ -558,9 +568,10 @@ public class PlanController {
     Plan plan = planService.joinPlan(shortCode, email);
     boolean awaitingApproval =
       !plan.getIsPublic() && !plan.isAdministrator(email) && !plan.isParticipant(email);
-    return new ModelAndView(
-      REDIRECT_PLAN_DETAIL + plan.getId() + (awaitingApproval ? PUBLIC_SUFFIX : "")
-    );
+    if (awaitingApproval) {
+      return confirmed(REDIRECT_PLANS, "Solicitud enviada.");
+    }
+    return confirmed(REDIRECT_PLAN_DETAIL + plan.getId(), "Ya participás del plan.");
   }
 
   /**
@@ -574,8 +585,10 @@ public class PlanController {
    *
    * <p>The form owns these fields and its itinerary rows only: id, shortCode and administrator
    * never come from a post.
+   *
+   * <p>[PABM] Package-private: el admin arma el alta con este mismo camino (lugares y horario).
    */
-  private Plan toPlan(PlanRequest planForm) {
+  static Plan toPlan(PlanRequest planForm) {
     Plan plan = new Plan();
     plan.setName(planForm.getName());
     plan.setDescription(planForm.getDescription());
@@ -600,6 +613,7 @@ public class PlanController {
       entry.setPlace(place);
       entry.setDescription(row.getDescription());
       entry.setTransportModeToNext(row.getTransportModeToNext());
+      entry.setTravelMinutesToNext(row.getTravelMinutesToNext());
       entry.setSortOrder(order);
       order++;
       plan.addPlanPlace(entry);

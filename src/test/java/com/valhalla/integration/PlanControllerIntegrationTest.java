@@ -6,14 +6,17 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
@@ -148,12 +151,18 @@ public class PlanControllerIntegrationTest {
     Plan plan = planRepository.findById(id).orElseThrow();
     assertThat(plan.getSettings().getInviteByEmail().name(), is("EDITORS"));
     assertThat(plan.getSettings().getInviteInternal().name(), is("OWNER"));
+    assertThat(plan.getSettings().getHandleRequests().name(), is("EDITORS"));
     mockMvc
       .perform(get("/plans/" + id + "/settings").with(user(OWNER_EMAIL)))
+      .andExpect(redirectedUrl("/plans/" + id + "#config-roles"));
+    mockMvc
+      .perform(get("/plans/" + id).with(user(OWNER_EMAIL)))
       .andExpect(status().isOk())
-      .andExpect(content().string(containsString("inviteByEmail")))
-      .andExpect(content().string(not(containsString("shareLink"))))
-      .andExpect(content().string(not(containsString("Compartir link"))));
+      .andExpect(content().string(containsString("id=\"configuracion\"")))
+      .andExpect(content().string(containsString("id=\"permission-inviteInternal\"")))
+      .andExpect(content().string(containsString("id=\"permission-inviteByEmail\"")))
+      .andExpect(content().string(containsString("id=\"permission-handleRequests\"")))
+      .andExpect(content().string(not(containsString("name=\"shareLink\""))));
     mockMvc
       .perform(
         post("/plans/" + id + "/settings")
@@ -215,8 +224,14 @@ public class PlanControllerIntegrationTest {
   }
 
   @Test
-  public void PET_ownerUpdatesAllSettingsAndValuesSurviveReload() throws Exception {
+  public void T_PLN_B05_detailSettingsPersistAndAreOwnerOnly() throws Exception {
     UUID id = givenPlanFor(ownerId, PLAN_NAME);
+    Plan plan = planRepository.findById(id).orElseThrow();
+    User editor = userRepository.findById(otherId).orElseThrow();
+    plan.getParticipants().add(editor);
+    plan.getEditors().add(editor);
+    planRepository.save(plan);
+
     mockMvc
       .perform(
         post("/plans/" + id + "/settings")
@@ -226,22 +241,86 @@ public class PlanControllerIntegrationTest {
           .param("inviteInternal", "OWNER")
           .param("inviteByEmail", "EDITORS")
       )
-      .andExpect(redirectedUrl("/plans/" + id + "/settings?saved=true"));
+      .andExpect(redirectedUrl("/plans/" + id + "#config-roles"))
+      .andExpect(flash().attribute("settingsSaved", "Configuración guardada"));
+
     entityManager.flush();
     entityManager.clear();
     Plan saved = planRepository.findById(id).orElseThrow();
     assertThat(saved.getSettings().getHandleRequests().name(), is("EDITORS"));
     assertThat(saved.getSettings().getInviteInternal().name(), is("OWNER"));
     assertThat(saved.getSettings().getInviteByEmail().name(), is("EDITORS"));
-    mockMvc
-      .perform(get("/plans/" + id + "/settings?saved=true").with(user(OWNER_EMAIL)))
-      .andExpect(status().isOk())
-      .andExpect(content().string(containsString("Configuración guardada")));
-    mockMvc
+
+    String ownerHtml = mockMvc
       .perform(get("/plans/" + id).with(user(OWNER_EMAIL)))
       .andExpect(status().isOk())
-      .andExpect(content().string(not(containsString("id=\"plan-share-link\""))))
-      .andExpect(content().string(not(containsString("Compartir link"))));
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
+    assertThat(ownerHtml, containsString("id=\"configuracion\""));
+    assertThat(ownerHtml, containsString("id=\"config-datos\""));
+    assertThat(ownerHtml, containsString("id=\"config-solicitudes\""));
+    assertThat(ownerHtml, containsString("id=\"config-roles\""));
+    assertThat(ownerHtml, not(containsString("id=\"plan-share-link\"")));
+    assertThat(ownerHtml, not(containsString("Compartir link")));
+    assertThat(
+      ownerHtml,
+      not(containsString("Datos, solicitudes, roles y baneos en un solo lugar"))
+    );
+    assertThat(ownerHtml, not(containsString("Secciones de configuración")));
+    assertThat(ownerHtml, not(containsString("href=\"#config-datos\"")));
+    assertThat(ownerHtml, not(containsString("href=\"#config-solicitudes\"")));
+    assertThat(ownerHtml, not(containsString("href=\"#config-roles\"")));
+    assertThat(
+      ownerHtml.indexOf("id=\"plan-summary\""),
+      lessThan(ownerHtml.indexOf("id=\"config-solicitudes\""))
+    );
+    assertThat(
+      ownerHtml.indexOf("id=\"config-solicitudes\""),
+      lessThan(ownerHtml.indexOf("Invitar a alguien"))
+    );
+    assertThat(
+      ownerHtml.indexOf("id=\"config-solicitudes\""),
+      lessThan(ownerHtml.indexOf("id=\"configuracion\""))
+    );
+    assertThat(ownerHtml, containsString("id=\"join-requests-heading\""));
+    assertThat(ownerHtml, containsString("id=\"banned-participants\""));
+    assertThat(ownerHtml, containsString("value=\"EDITORS\" selected=\"selected\""));
+    assertThat(ownerHtml, containsString("value=\"OWNER\" selected=\"selected\""));
+
+    String editorHtml = mockMvc
+      .perform(get("/plans/" + id).with(user(OTHER_EMAIL)))
+      .andExpect(status().isOk())
+      .andReturn()
+      .getResponse()
+      .getContentAsString();
+    assertThat(editorHtml, containsString("id=\"configuracion\""));
+    assertThat(
+      editorHtml,
+      containsString("Solo el dueño del plan puede cambiar estas capacidades.")
+    );
+    assertThat(editorHtml, not(containsString("id=\"permission-handleRequests\"")));
+    assertThat(editorHtml, not(containsString("id=\"permission-inviteInternal\"")));
+    assertThat(editorHtml, not(containsString("id=\"permission-inviteByEmail\"")));
+    assertThat(editorHtml, not(containsString("id=\"plan-share-link\"")));
+
+    mockMvc
+      .perform(
+        post("/plans/" + id + "/settings")
+          .with(user(OTHER_EMAIL))
+          .with(csrf())
+          .param("handleRequests", "OWNER")
+          .param("inviteInternal", "PARTICIPANTS")
+          .param("inviteByEmail", "PARTICIPANTS")
+      )
+      .andExpect(redirectedUrl(NOT_FOUND_REDIRECT));
+
+    entityManager.flush();
+    entityManager.clear();
+    Plan unchanged = planRepository.findById(id).orElseThrow();
+    assertThat(unchanged.getSettings().getHandleRequests().name(), is("EDITORS"));
+    assertThat(unchanged.getSettings().getInviteInternal().name(), is("OWNER"));
+    assertThat(unchanged.getSettings().getInviteByEmail().name(), is("EDITORS"));
   }
 
   @Test
@@ -924,6 +1003,39 @@ public class PlanControllerIntegrationTest {
 
   @Test
   @WithMockUser(username = OWNER_EMAIL)
+  public void T_PLN_089_postPlans_aceptaElTrasladoFijoPorTramo() throws Exception {
+    // given: el form manda minutos fijos en la primera fila y nada en la segunda (input vacio)
+    UUID first = givenMuseum();
+    UUID second = givenMuseum();
+
+    // when
+    MvcResult result =
+      this.mockMvc.perform(
+          post("/plans")
+            .with(csrf())
+            .param("name", PLAN_NAME)
+            .param("eventDate", EVENT_DATE.toString())
+            .param("eventTime", "10:00")
+            .param("transportMode", "WALK")
+            .param("places[0].placeId", first.toString())
+            .param("places[0].travelMinutesToNext", "20")
+            .param("places[1].placeId", second.toString())
+        )
+        .andExpect(status().is3xxRedirection())
+        .andReturn();
+
+    // then: el override persiste y el tramo lo usa tal cual: 10:00 + 90 de visita + 20
+    this.entityManager.flush();
+    this.entityManager.clear();
+    Plan saved =
+      this.planRepository.findById(planIdOf(result.getResponse().getRedirectedUrl())).orElseThrow();
+    assertThat(saved.getPlanPlaces().get(0).getTravelMinutesToNext(), is(20));
+    assertThat(saved.getPlanPlaces().get(1).getTravelMinutesToNext(), is(nullValue()));
+    assertThat(saved.getPlanPlaces().get(1).getVisitTime(), is(equalTo(LocalTime.of(11, 50))));
+  }
+
+  @Test
+  @WithMockUser(username = OWNER_EMAIL)
   public void I02_postPlans_sinFechaNoCreaNadaYVuelveAExplore() throws Exception {
     // when: la fecha es la base del itinerario, asi que el alta sin ella no pasa la validacion
     this.mockMvc.perform(
@@ -1023,7 +1135,7 @@ public class PlanControllerIntegrationTest {
     String html = result.getResponse().getContentAsString();
     String participantsSection = html.substring(
       html.indexOf("participants-heading"),
-      html.indexOf("Editar plan")
+      html.indexOf("id=\"configuracion\"")
     );
     assertThat(participantsSection, containsString("Test User"));
     assertThat(participantsSection, not(containsString(OWNER_EMAIL)));
@@ -1658,9 +1770,9 @@ public class PlanControllerIntegrationTest {
     this.planRepository.save(plan);
 
     this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", " join1234 "))
-      .andExpect(redirectedUrl("/plans/" + planId + "/public"));
+      .andExpect(redirectedUrl("/plans"));
     this.mockMvc.perform(post("/plans/join").with(csrf()).param("shortCode", "JOIN1234"))
-      .andExpect(redirectedUrl("/plans/" + planId + "/public"));
+      .andExpect(redirectedUrl("/plans"));
     assertThat(plan.getJoinRequests(), hasSize(1));
     assertThat(plan.isParticipant(OTHER_EMAIL), is(false));
     this.mockMvc.perform(
@@ -1693,7 +1805,7 @@ public class PlanControllerIntegrationTest {
     assertThat(summary, containsString(">18:30</span>"));
     assertThat(html, containsString("Salir del plan"));
     assertThat(html, not(containsString("Eliminar plan")));
-    assertThat(html, not(containsString("Editar plan")));
+    assertThat(html, not(containsString("Datos básicos")));
     assertThat(html, not(containsString("Agregar lugar al plan")));
     assertThat(html, not(containsString("password123")));
     this.mockMvc.perform(get("/api/plans/" + planId + "/places")).andExpect(status().isOk());
@@ -1919,7 +2031,7 @@ public class PlanControllerIntegrationTest {
     assertThat(html, containsString("Ver mi plan"));
     assertThat(html, not(containsString("Eliminar plan")));
     assertThat(html, not(containsString("Salir del plan")));
-    assertThat(html, not(containsString("Editar plan")));
+    assertThat(html, not(containsString("Datos básicos")));
     assertThat(html, not(containsString("Agregar lugar al plan")));
   }
 
@@ -2197,7 +2309,7 @@ public class PlanControllerIntegrationTest {
     // El email del participante no se muestra como texto: solo nombre, rol y link al perfil.
     assertThat(html, not(containsString(OWNER_EMAIL)));
     assertThat(html, not(containsString("Salir del plan")));
-    assertThat(html, not(containsString("Editar plan")));
+    assertThat(html, not(containsString("Datos básicos")));
     assertThat(html, not(containsString("Eliminar plan")));
     assertThat(html, not(containsString("Guardar rol")));
     this.mockMvc.perform(
@@ -2556,14 +2668,14 @@ public class PlanControllerIntegrationTest {
     return place.getId();
   }
 
-  /** [SCH] Crea un plan por el endpoint con las paradas dadas, en ese orden. */
+  /** [SCH] Crea un plan por el endpoint con las paradas dadas, en ese orden. Sin dayEndTime:
+   *  el form ya no lo manda y el default del servidor (23:00) es el que tiene que quedar. */
   private MvcResult createPlanWith(UUID... placeIds) throws Exception {
     MockHttpServletRequestBuilder request = post("/plans")
       .with(csrf())
       .param("name", PLAN_NAME)
       .param("eventDate", EVENT_DATE.toString())
       .param("eventTime", "10:00")
-      .param("dayEndTime", "23:00")
       .param("transportMode", "WALK");
     for (int index = 0; index < placeIds.length; index++) {
       request.param("places[" + index + "].placeId", placeIds[index].toString());
@@ -2639,7 +2751,10 @@ public class PlanControllerIntegrationTest {
    * que las aserciones de privacidad no pueden mirar el HTML entero.
    */
   private static String participantsSection(String html) {
-    return html.substring(html.indexOf("participants-heading"), html.indexOf("Editar plan"));
+    return html.substring(
+      html.indexOf("participants-heading"),
+      html.indexOf("id=\"configuracion\"")
+    );
   }
 
   private static int occurrences(String haystack, String needle) {
