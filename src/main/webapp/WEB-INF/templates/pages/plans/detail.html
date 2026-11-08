@@ -696,10 +696,10 @@
             </section>
 
             <section id="participants-section" class="card border-0 shadow-sm p-4 mb-4 plan-sheet plan-summary-card" aria-labelledby="participants-heading">
-                <!-- Los avisos de invitación viven en la card resumen: tras el redirect se ven sin
-                     tener que abrir la card centrada. -->
-                <div th:if="${participantSuccess}" class="alert alert-success" role="status" th:text="${participantSuccess}"></div>
-                <div th:if="${invitationSuccess}" class="alert alert-success" role="status" th:text="${invitationSuccess}"></div>
+                <!-- [TOA] Los avisos de éxito son toasts: se ven tras el redirect aunque la card
+                     centrada esté cerrada. -->
+                <span hidden data-toast th:if="${participantSuccess}" th:text="${participantSuccess}"></span>
+                <span hidden data-toast th:if="${invitationSuccess}" th:text="${invitationSuccess}"></span>
                 <div th:if="${invitationError}" class="alert alert-danger" role="alert" th:text="${invitationError}"></div>
                 <div class="d-flex align-items-center justify-content-between gap-3">
                     <h5 id="participants-heading" class="fw-bold m-0">
