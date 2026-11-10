@@ -106,6 +106,17 @@ a plan: removing it changes nothing about the Plan.
 | **Bookmark status** | Computed per viewer on each read: `AVAILABLE` (the live plan is still reachable, with the live data), `PRIVATE` (the plan became private and the viewer is neither owner nor participant) or `DELETED` (the plan no longer exists). Unavailable states keep the card visible with a badge and a tooltip, and can still be cloned. |
 | **Clone from bookmark** | Creates a private plan owned by the bookmark's user. With a live plan it reuses the clone flow; otherwise it rebuilds the plan from the snapshot, skipping places that no longer exist. When the live plan is reachable, its current data wins over the snapshot. |
 
+## Ratings
+
+A **Rating** is a 1–5 star score a logged-in User gives to a public Plan, one per User per Plan and
+updatable. Authorship is stored but never public: visitors only see the plan's average and count,
+while the author sees their own score in the plan's star row and in "Mis calificaciones".
+
+| Term | Definition |
+|------|------------|
+| **My ratings** | The private `#my-ratings` section of the owner's profile: every rating the User gave, most recent first, with the plan name, the own score, the plan's global average and count, and a link to the plan. The link goes to the plan detail when the User is its owner or a participant, and to the public view otherwise. |
+| **Unavailable rated plan** | A rated plan the User can no longer open: it became private to others, it was deactivated, or the User is banned from it. The row keeps the persisted plan name, adds the "No disponible" badge and drops the link. A deleted plan is not a case, because deleting a plan deletes its ratings. |
+
 ## Key Concepts
 
 **User calendar**: Monthly, read-only view at `/plans/calendar` of the User's owned
@@ -128,3 +139,5 @@ rejection leaves participation unchanged. Both responses remove the pending invi
 | **Popularity** | Feed ordering from ratings and participants (Bayesian score, participants/date/name/id as tiebreaks). Computed, never shown; the card still shows only average and count |
 | **Marker** | Visual pin on the map representing a place |
 | **Popup** | Info window that opens when clicking a marker |
+
+**Plan budget**: Optional estimated spending range in ARS per person for the entire itinerary, with an optional note explaining inclusions. Zero means free; absent amounts mean not estimated. Only the owner and Editors can edit it. Visible to anyone authorized to read the plan, including its public view, and copied when cloning a live plan.

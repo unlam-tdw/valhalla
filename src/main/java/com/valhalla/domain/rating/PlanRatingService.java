@@ -1,6 +1,7 @@
 package com.valhalla.domain.rating;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,4 +30,11 @@ public interface PlanRatingService {
    * consulta.
    */
   Map<UUID, RatingSummary> getSummariesByPlanId(Collection<UUID> planIds);
+
+  /**
+   * [MYRAT] Todas las calificaciones del usuario para la seccion "Mis calificaciones" de su perfil,
+   * mas recientes primero. Cada fila trae el plan, el puntaje propio y si el plan sigue accesible
+   * (AC-04). Un email vacio devuelve una lista vacia: el anonimo no tiene calificaciones.
+   */
+  List<RatedPlanView> getRatingsByUser(String email);
 }

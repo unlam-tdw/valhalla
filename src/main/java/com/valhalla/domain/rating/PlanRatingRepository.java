@@ -9,6 +9,9 @@ import java.util.UUID;
 public interface PlanRatingRepository {
   Optional<PlanRating> findByPlanIdAndUserEmail(UUID planId, String email);
 
+  /** [MYRAT] Todas las calificaciones del usuario, mas recientes primero. */
+  List<PlanRating> findByUserEmail(String email);
+
   List<RatingSummary> findSummaries();
 
   /** [PAGE] Agregados solo de los planes de la pagina que se va a pintar. */
