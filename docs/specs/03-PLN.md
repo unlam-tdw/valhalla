@@ -747,3 +747,5 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 `PlanBudgetIntegrationTest`: I-PRE-01 owner y editor guardan rango, persistencia tras flush/clear, detalle y vista publica renderizan, clon conserva importes y aclaracion; I-PRE-02 entradas invalidas no guardan; S-PRE-01 participante no puede escribir y POST sin CSRF se rechaza; I-PRE-03 cero es gratuito, importes vacios quitan estimacion.
 
 `PlanDetailConfigurationE2E`: E-PRE-01 abre Editar desde la ficha, guarda un rango con aclaracion, verifica persistencia al recargar, rechaza un rango invertido conservando datos y reabriendo el dialogo, y permite corregirlo a un monto fijo.
+
+`PlanBudgetTest`: U-PRE-01 a U-PRE-08 cubren ausencia de estimacion, monto fijo sin dependencia de escala decimal, gratuidad, limites inclusivos de importes y notas, importes incompletos o invalidos en ambos extremos, rango invertido, notas demasiado largas y columnas nullable hidratadas parcialmente por JPA. Se ejecutan en el gate completo de backend con los umbrales de cobertura existentes.
