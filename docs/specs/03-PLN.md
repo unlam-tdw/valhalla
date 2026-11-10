@@ -745,3 +745,5 @@ File: `src/main/webapp/WEB-INF/templates/pages/plans/detail.html`
 ### Escenarios de test del presupuesto
 
 `PlanBudgetIntegrationTest`: I-PRE-01 owner y editor guardan rango, persistencia tras flush/clear, detalle y vista publica renderizan, clon conserva importes y aclaracion; I-PRE-02 entradas invalidas no guardan; S-PRE-01 participante no puede escribir y POST sin CSRF se rechaza; I-PRE-03 cero es gratuito, importes vacios quitan estimacion.
+
+`PlanDetailConfigurationE2E`: E-PRE-01 abre Editar desde la ficha, guarda un rango con aclaracion, verifica persistencia al recargar, rechaza un rango invertido conservando datos y reabriendo el dialogo, y permite corregirlo a un monto fijo.
