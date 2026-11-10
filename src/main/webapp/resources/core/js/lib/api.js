@@ -54,6 +54,22 @@ export async function apiFetch(url, { method = 'GET', body, headers = {}, signal
   return response;
 }
 
+/**
+ * GET de un fragmento HTML server-rendered, como el feed paginado de /for-you. No usa `apiFetch`
+ * porque ahi `text/html` es la senal de sesion vencida; en un endpoint parcial el HTML ES la
+ * respuesta valida. Sigue siendo el unico lugar del view layer que llama a `fetch`.
+ */
+export async function fetchFragment(url, { signal } = {}) {
+  const response = await fetch(url, {
+    signal,
+    headers: { Accept: 'text/html' }
+  });
+  if (!response.ok) {
+    throw new ApiError(await messageOf(response), response.status);
+  }
+  return response.text();
+}
+
 // The API answers errors as a JSON body with a `message` on a good day, and as anything
 // else on a bad one. Either way the status is the only part that is always true.
 async function messageOf(response) {
