@@ -199,6 +199,75 @@ public class ProfileControllerIntegrationTest {
     assertThat(html, not(containsString("Plan privado de Ada")));
   }
 
+  // --- [META/SHARE] preview del perfil y boton en sus cards ---
+
+  @Test
+  public void profileWithAvatarPreviewsWithTheAvatarNotTheBrandImage() throws Exception {
+    User owner = userRepository.findById(selfId).orElseThrow();
+    owner.setAvatarUrl("/images/avatars/avatar-1.svg");
+    userRepository.save(owner);
+
+    String html =
+      this.mockMvc.perform(get("/profile/" + selfId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // Con avatar cargado, la tarjeta del perfil usa la foto real del usuario, absoluta igual
+    // que og:image:secure_url (mismo valor, solo cambia el nombre de la propiedad).
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:image\" content=\"http://localhost/images/avatars/avatar-1.svg\""
+      )
+    );
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:image:secure_url\" content=\"http://localhost/images/avatars/avatar-1.svg\""
+      )
+    );
+  }
+
+  @Test
+  public void publicProfileDeclaresItsSharePreviewAndShipsTheShareButton() throws Exception {
+    Plan plan = new Plan();
+    plan.setName("Plan publico de Ada");
+    plan.setIsPublic(true);
+    plan.setAdministrator(userRepository.findById(selfId).orElseThrow());
+    Plan created = planService.createPlan(plan, SELF_EMAIL);
+
+    String html =
+      this.mockMvc.perform(get("/profile/" + selfId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    // El perfil no tiene portada propia: el preview cae en la imagen de marca, siempre absoluta.
+    assertThat(html, containsString("property=\"og:title\" content=\"Ada Lovelace\""));
+    assertThat(
+      html,
+      containsString(
+        "property=\"og:description\" content=\"Perfil de Ada Lovelace en PlanIt. " +
+        "Descubrí sus planes públicos.\""
+      )
+    );
+    assertThat(
+      html,
+      containsString("property=\"og:url\" content=\"http://localhost/profile/" + selfId + "\"")
+    );
+    assertThat(
+      html,
+      containsString("property=\"og:image\" content=\"http://localhost/images/og-image.png\"")
+    );
+    assertThat(html, containsString("name=\"twitter:card\" content=\"summary_large_image\""));
+    // La card del plan publico comparte el link; la tarjeta la arma la plataforma con la OG.
+    assertThat(html, containsString("data-share-url=\"/plans/" + created.getId() + "/public\""));
+    assertThat(html, containsString("/js/share-plan.js"));
+  }
+
   // --- [MARK] toggle de Guardados en las cards del perfil publico ---
 
   @Test
@@ -676,27 +745,36 @@ public class ProfileControllerIntegrationTest {
       .andExpect(content().string(containsString("name=\"theme-preference\" content=\"dark\"")));
   }
 
-  // --- [PROF+THEME] I-19: el modal autenticado rinde la entrada Tema activa ---
+  // --- [PROF+THEME] I-19: la sesion autenticada rinde el toggle del navbar y no el item Tema ---
 
   @Test
   @WithMockUser(username = SELF_EMAIL)
-  public void authenticatedProfileRendersTheThemeEntryInTheMenu() throws Exception {
+  public void authenticatedProfileRendersTheNavbarThemeToggle() throws Exception {
+    User self = userRepository.findById(selfId).orElseThrow();
+    self.setThemePreference("dark");
+    userRepository.save(self);
+
     this.mockMvc.perform(get("/profile/" + selfId))
       .andExpect(status().isOk())
-      .andExpect(content().string(containsString("id=\"menu-theme\"")))
-      .andExpect(content().string(containsString("action=\"/profile/theme\"")))
-      .andExpect(content().string(containsString("theme-label-light")))
-      .andExpect(content().string(not(containsString("type=\"button\" data-theme-toggle"))));
+      .andExpect(content().string(containsString("id=\"navbar-theme-form\"")))
+      .andExpect(content().string(containsString("type=\"submit\" data-theme-toggle")))
+      .andExpect(content().string(not(containsString("id=\"menu-theme\""))))
+      .andExpect(content().string(containsString("name=\"theme-preference\" content=\"dark\"")));
   }
 
-  // --- [PROF+THEME] I-20: el anónimo conserva el toggle standalone y no tiene modal ---
+  // --- [PROF+THEME] I-20: el anonimo no tiene control de tema ni menu autenticado ---
 
   @Test
-  public void anonymousProfileKeepsTheNavbarToggleAndRendersNoMenu() throws Exception {
+  public void anonymousProfileRendersNoNavbarThemeToggleAndNoMenu() throws Exception {
+    // La assertion se ancla al markup del toggle, no al string suelto: el script de
+    // layouts/base menciona "[data-theme-toggle]" como selector en todos los renders,
+    // tambien en el del anonimo.
     this.mockMvc.perform(get("/profile/" + selfId))
       .andExpect(status().isOk())
-      .andExpect(content().string(containsString("type=\"button\" data-theme-toggle")))
+      .andExpect(content().string(not(containsString("id=\"navbar-theme-form\""))))
+      .andExpect(content().string(not(containsString("type=\"submit\" data-theme-toggle"))))
       .andExpect(content().string(not(containsString("id=\"menu-theme\""))))
+      .andExpect(content().string(not(containsString("id=\"btn-logout\""))))
       .andExpect(content().string(not(containsString("name=\"theme-preference\" content="))));
   }
 

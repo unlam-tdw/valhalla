@@ -31,11 +31,13 @@ public class CurrentUserControllerAdviceTest {
 
   private CurrentUserControllerAdvice advice;
   private UserService userService;
+  private com.valhalla.domain.notification.NotificationService notificationService;
 
   @BeforeEach
   public void init() {
     userService = Mockito.mock(UserService.class);
-    advice = new CurrentUserControllerAdvice(userService);
+    notificationService = Mockito.mock(com.valhalla.domain.notification.NotificationService.class);
+    advice = new CurrentUserControllerAdvice(userService, notificationService);
   }
 
   // --- userInitial / userDisplayName ---
@@ -173,6 +175,74 @@ public class CurrentUserControllerAdviceTest {
     assertThat(advice.showAdminNav(null, requestFor("/admin/home")), is(false));
   }
 
+  // --- themeRedirectUrl: el POST del toggle de tema vuelve a la pagina actual ---
+
+  @Test
+  public void shouldReturnTheCurrentPageForTheThemeRedirect() {
+    assertThat(advice.themeRedirectUrl(requestFor("/profile/abc")), is("/profile/abc"));
+  }
+
+  @Test
+  public void shouldKeepTheQueryStringForTheThemeRedirect() {
+    assertThat(
+      advice.themeRedirectUrl(requestFor("/for-you", "q=cafe&category=CAFE")),
+      is("/for-you?q=cafe&category=CAFE")
+    );
+  }
+
+  @Test
+  public void shouldKeepTheAdminAreaForTheThemeRedirect() {
+    assertThat(
+      advice.themeRedirectUrl(requestFor("/admin/places/import")),
+      is("/admin/places/import")
+    );
+    assertThat(
+      advice.themeRedirectUrl(requestFor("/admin/places/import", "page=2")),
+      is("/admin/places/import?page=2")
+    );
+  }
+
+  @Test
+  public void shouldDropTheContextPathAndAnEmptyQueryFromTheThemeRedirect() {
+    MockHttpServletRequest request = requestFor("/valhalla/explore");
+    request.setContextPath("/valhalla");
+    request.setQueryString("   ");
+
+    assertThat(advice.themeRedirectUrl(request), is("/explore"));
+  }
+
+  // --- [NOTIF] unreadNotificationCount: el badge de la campana ---
+
+  @Test
+  public void NOTIF_shouldExposeTheUnreadCountOfTheSignedInUser() {
+    java.util.UUID id = java.util.UUID.randomUUID();
+    User user = Mockito.mock(User.class);
+    when(user.getId()).thenReturn(id);
+    when(userService.getByEmail(EMAIL)).thenReturn(user);
+    when(notificationService.unreadCount(id)).thenReturn(3L);
+
+    assertThat(advice.unreadNotificationCount(appUser("Ana", "Perez")), is(3L));
+  }
+
+  @Test
+  public void NOTIF_shouldBadgeZeroWhenThePrincipalIsSynthetic() {
+    when(userService.getByEmail(EMAIL)).thenThrow(new UserNotFoundException());
+
+    assertThat(advice.unreadNotificationCount(appUser("Ana", "Perez")), is(0L));
+  }
+
+  @Test
+  public void NOTIF_shouldNotConsultNotificationsWithoutASession() {
+    assertThat(advice.unreadNotificationCount(null), is(0L));
+    assertThat(
+      advice.unreadNotificationCount(
+        new AnonymousAuthenticationToken("key", "anonymousUser", roles("ROLE_ANONYMOUS"))
+      ),
+      is(0L)
+    );
+    Mockito.verifyNoInteractions(notificationService);
+  }
+
   // --- helpers ---
 
   /** The shape a real login has: a token whose principal is the {@link AppUserDetails}. */
@@ -200,6 +270,12 @@ public class CurrentUserControllerAdviceTest {
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.setRequestURI(uri);
     request.setContextPath("");
+    return request;
+  }
+
+  private static MockHttpServletRequest requestFor(String uri, String query) {
+    MockHttpServletRequest request = requestFor(uri);
+    request.setQueryString(query);
     return request;
   }
 }
