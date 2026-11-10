@@ -362,12 +362,12 @@ public class ForYouControllerTest {
     ModelAndView view =
       this.controller.forYou(this.authentication, "museo", "BAR", "upcoming", "date", null);
 
-    // then (AC-01, AC-03, AC-04, AC-05): un solo plan y el conteo de participantes solo de los
-    // planes publicos que llegan al descubrimiento
+    // then (AC-01, AC-03, AC-04, AC-05): un solo plan. Para ordenar por fecha los participantes
+    // no hacen falta; los summaries se piden solo para la ventana visible [PAGE-008].
     assertThat(cardsOf(view), hasSize(1));
     assertThat(cardAt(view, 0).get("id"), is(equalTo(MUSEUM_PLAN_ID)));
-    verify(this.planServiceMock, times(1))
-      .getParticipantCounts(List.of(MUSEUM_PLAN_ID, OTHER_PLAN_ID, PLAN_ID));
+    verify(this.planRatingServiceMock, times(1)).getSummariesByPlanId(List.of(MUSEUM_PLAN_ID));
+    verify(this.planServiceMock, never()).getParticipantCounts(any());
   }
 
   @Test
@@ -455,8 +455,8 @@ public class ForYouControllerTest {
     verify(this.planServiceMock, times(1))
       .getPublicPlansByAdministrators(List.of(FOLLOWED_ID_A, FOLLOWED_ID_B));
     verify(this.planServiceMock, never()).getPublicPlans();
-    verify(this.planServiceMock, times(1))
-      .getParticipantCounts(List.of(MUSEUM_PLAN_ID, OTHER_PLAN_ID, PLAN_ID));
+    verify(this.planServiceMock, never()).getParticipantCounts(any());
+    verify(this.planRatingServiceMock, times(1)).getSummariesByPlanId(List.of(MUSEUM_PLAN_ID));
   }
 
   @Test

@@ -2,11 +2,13 @@ package com.valhalla.infrastructure.rating;
 
 import com.valhalla.domain.rating.PlanRating;
 import com.valhalla.domain.rating.RatingSummary;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface JpaPlanRatingRepository extends JpaRepository<PlanRating, UUID> {
   /** Autoria interna: busca la calificacion de un usuario sobre un plan para el upsert. */
@@ -23,6 +25,12 @@ public interface JpaPlanRatingRepository extends JpaRepository<PlanRating, UUID>
     "select new com.valhalla.domain.rating.RatingSummary(rating.plan.id, avg(rating.score), count(rating)) from PlanRating rating group by rating.plan.id"
   )
   List<RatingSummary> findSummaries();
+
+  /** [PAGE] Misma agregacion que {@link #findSummaries()}, acotada a las cards de la pagina. */
+  @Query(
+    "select new com.valhalla.domain.rating.RatingSummary(rating.plan.id, avg(rating.score), count(rating)) from PlanRating rating where rating.plan.id in :planIds group by rating.plan.id"
+  )
+  List<RatingSummary> findSummariesByPlanIds(@Param("planIds") Collection<UUID> planIds);
 
   /** [CAL] Al borrar el plan hay que borrar sus calificaciones primero: FK owner. */
   void deleteAllByPlanId(UUID planId);

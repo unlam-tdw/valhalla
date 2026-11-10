@@ -1,5 +1,6 @@
 package com.valhalla.domain.rating;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,4 +23,10 @@ public interface PlanRatingService {
    * calificaciones no aparecen en el mapa.
    */
   Map<UUID, RatingSummary> getSummariesByPlanId();
+
+  /**
+   * [PAGE] Los mismos agregados, solo para los planes de la pagina que se pinta. Sin ids no hay
+   * consulta.
+   */
+  Map<UUID, RatingSummary> getSummariesByPlanId(Collection<UUID> planIds);
 }

@@ -3,6 +3,7 @@ package com.valhalla.infrastructure.rating;
 import com.valhalla.domain.rating.PlanRating;
 import com.valhalla.domain.rating.PlanRatingRepository;
 import com.valhalla.domain.rating.RatingSummary;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +28,11 @@ public class PlanRatingRepositoryImpl implements PlanRatingRepository {
   @Override
   public List<RatingSummary> findSummaries() {
     return jpaPlanRatingRepository.findSummaries();
+  }
+
+  @Override
+  public List<RatingSummary> findSummariesByPlanIds(Collection<UUID> planIds) {
+    return jpaPlanRatingRepository.findSummariesByPlanIds(planIds);
   }
 
   @Override
