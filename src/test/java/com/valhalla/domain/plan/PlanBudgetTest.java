@@ -82,7 +82,6 @@ public class PlanBudgetTest {
 
   @Test
   void partiallyHydratedNullableColumnsDoNotExposeAnEstimate() throws ReflectiveOperationException {
-
     PlanBudget budget = new PlanBudget();
     Field minimum = PlanBudget.class.getDeclaredField("minimum");
     minimum.setAccessible(true);
