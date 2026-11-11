@@ -351,6 +351,17 @@ html[data-theme="dark"] details > summary:hover {
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* [NGRP] El grupo se abre con <details>: sin JS, accesible por teclado y con el mismo
+ * estado visual de pendiente que una fila suelta. El marcador nativo se oculta; el
+ * chevron sale del ::after global de details y gira solo cuando el grupo esta abierto. */
+.notification-group > summary {
+  list-style: none;
+}
+
+.notification-group > summary::-webkit-details-marker {
+  display: none;
+}
+
 .notification-row--read {
   background-color: #f9fafb;
   border-color: #f3f4f6;

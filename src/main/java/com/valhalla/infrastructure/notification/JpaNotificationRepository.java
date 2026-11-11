@@ -1,6 +1,8 @@
 package com.valhalla.infrastructure.notification;
 
 import com.valhalla.domain.notification.Notification;
+import com.valhalla.domain.notification.NotificationType;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,10 +30,23 @@ public interface JpaNotificationRepository extends JpaRepository<Notification, U
 
   Optional<Notification> findByIdAndRecipientId(UUID id, UUID recipientId);
 
+  /** [NOTIF] Evita duplicados si el mismo actor ya notifico en la ventana. */
+  boolean existsByRecipientIdAndActorIdAndTypeAndCreatedAtAfter(
+    UUID recipientId,
+    UUID actorId,
+    NotificationType type,
+    Instant since
+  );
+
   /** Una sola escritura para "marcar todas como leidas": sin SELECT + N UPDATEs. */
   @Modifying
   @Query(
     "update Notification n set n.read = true where n.recipient.id = :recipientId and n.read = false"
   )
   void markAllRead(@Param("recipientId") UUID recipientId);
+
+  /** Borrado masivo de leidas: no toca las pendientes ni las filas de otros destinatarios. */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("delete from Notification n where n.recipient.id = :recipientId and n.read = true")
+  void deleteRead(@Param("recipientId") UUID recipientId);
 }

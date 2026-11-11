@@ -10,12 +10,14 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import com.valhalla.domain.notification.Notification;
 import com.valhalla.domain.notification.NotificationService;
+import com.valhalla.domain.notification.NotificationType;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.user.User;
@@ -129,6 +131,20 @@ public class NotificationIntegrationTest {
     assertThat(this.notificationService.unreadCount(this.recipientId), is(1L));
   }
 
+  @Test
+  public void I04b_dejarDeSeguirYVolverASeguirEnLaVentanaNoDuplica() throws Exception {
+    followAdaToGrace();
+    this.mockMvc.perform(
+        post("/profile/" + this.recipientId + "/unfollow").with(user(ACTOR_EMAIL)).with(csrf())
+      )
+      .andExpect(status().is3xxRedirection());
+
+    followAdaToGrace();
+
+    assertThat(this.notificationService.count(this.recipientId), is(1L));
+    assertThat(this.notificationService.unreadCount(this.recipientId), is(1L));
+  }
+
   // --- I-05: marcar todas desde la vista ---
 
   @Test
@@ -175,8 +191,11 @@ public class NotificationIntegrationTest {
         .getContentAsString();
 
     assertThat(this.notificationService.count(this.recipientId), is(11L));
-    // pagina 0: 10 filas y link a la siguiente; pagina 1: la fila restante
-    assertThat(countOccurrences(firstPage, "data-testid=\"notification\""), is(10));
+    // [NGRP] La pagina sigue siendo de 10 filas: las 10 primeras se dibujan como miembros del
+    // grupo y la pagina siguiente trae la fila que sobra.
+    assertThat(countOccurrences(firstPage, "data-testid=\"notification-group\""), is(1));
+    assertThat(countOccurrences(firstPage, "data-testid=\"notification-group-member\""), is(10));
+    assertThat(countOccurrences(firstPage, "data-testid=\"notification\""), is(0));
     assertThat(countOccurrences(secondPage, "data-testid=\"notification\""), is(1));
     assertThat(firstPage, containsString("href=\"/notifications?page=1\""));
     assertThat(secondPage, containsString("href=\"/notifications?page=0\""));
@@ -398,11 +417,151 @@ public class NotificationIntegrationTest {
     assertThat(html, containsString("Todavía no tenés notificaciones."));
   }
 
+  // --- [NGRP] agrupacion en lectura ---
+
+  @Test
+  public void I15_tresSeguidoresNuevosSeVenComoUnSoloGrupoYElBadgeCuentaFilas() throws Exception {
+    follow("ngrp.ana@test.com", "Ana", "A");
+    follow("ngrp.luis@test.com", "Luis", "B");
+    follow("ngrp.marta@test.com", "Marta", "C");
+
+    String html =
+      this.mockMvc.perform(get("/notifications").with(user(RECIPIENT_EMAIL)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+
+    assertThat(countOccurrences(html, "data-testid=\"notification-group\""), is(1));
+    assertThat(countOccurrences(html, "data-testid=\"notification\""), is(0));
+    assertThat(html, containsString("Ana y 2 más"));
+    // El grupo es un desplegable con una fila por notificacion y acciones individuales.
+    assertThat(countOccurrences(html, "data-testid=\"notification-group-member\""), is(3));
+    assertThat(countOccurrences(html, "data-testid=\"notification-group-read-form\""), is(1));
+    assertThat(countOccurrences(html, "data-testid=\"notification-group-member-delete\""), is(3));
+    assertThat(countOccurrences(html, "data-testid=\"notification-group-member-read\""), is(0));
+    // [NGRP-004] El badge sigue contando las tres filas, no el grupo.
+    assertThat(html, containsString("data-notifications-count=\"3\""));
+    assertThat(this.notificationService.unreadCount(this.recipientId), is(3L));
+  }
+
+  @Test
+  public void I16_abrirElGrupoMarcaTodasSusFilasComoLeidas() throws Exception {
+    follow("ngrp.read.ana@test.com", "Ana", "A");
+    follow("ngrp.read.luis@test.com", "Luis", "B");
+    follow("ngrp.read.marta@test.com", "Marta", "C");
+
+    List<Notification> rows = this.notificationService.list(this.recipientId, 0, 10);
+    assertThat(rows, hasSize(3));
+    UUID firstId = rows.getFirst().getId();
+
+    this.mockMvc.perform(
+        post("/notifications/group/read")
+          .param("ids", rows.stream().map(row -> row.getId().toString()).toArray(String[]::new))
+          .param("openGroup", firstId.toString())
+          .with(user(RECIPIENT_EMAIL))
+          .with(csrf())
+      )
+      .andExpect(status().is3xxRedirection())
+      .andExpect(redirectedUrl("/notifications?page=0&openGroup=" + firstId));
+
+    assertThat(this.notificationService.unreadCount(this.recipientId), is(0L));
+    assertThat(
+      this.notificationService.list(this.recipientId, 0, 10)
+        .stream()
+        .allMatch(Notification::isRead),
+      is(true)
+    );
+    String html =
+      this.mockMvc.perform(
+          get("/notifications").param("openGroup", firstId.toString()).with(user(RECIPIENT_EMAIL))
+        )
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+    assertThat(countOccurrences(html, "data-testid=\"notification\""), is(0));
+    assertThat(countOccurrences(html, "data-testid=\"notification-group\""), is(1));
+    assertThat(countOccurrences(html, "data-testid=\"notification-group-member\""), is(3));
+    assertThat(countOccurrences(html, "data-testid=\"notification-group-member-read\""), is(0));
+    assertThat(html, containsString("data-notifications-count=\"0\""));
+    assertThat(html, containsString("<details class=\"notification-group\" open=\"open\""));
+    assertThat(html, containsString("data-read=\"true\""));
+  }
+
+  @Test
+  public void I17_borrarLeidasBorraSoloLasLeidasYConservaLasPendientes() throws Exception {
+    follow("ngrp.del.ana@test.com", "Ana", "A");
+    follow("ngrp.del.luis@test.com", "Luis", "B");
+    follow("ngrp.del.marta@test.com", "Marta", "C");
+
+    List<Notification> rows = this.notificationService.list(this.recipientId, 0, 10);
+    assertThat(rows, hasSize(3));
+    this.notificationService.markRead(this.recipientId, rows.get(0).getId());
+    this.notificationService.markRead(this.recipientId, rows.get(1).getId());
+
+    this.mockMvc.perform(
+        post("/notifications/delete-read").with(user(RECIPIENT_EMAIL)).with(csrf())
+      )
+      .andExpect(status().is3xxRedirection());
+
+    assertThat(this.notificationService.count(this.recipientId), is(1L));
+    assertThat(this.notificationService.unreadCount(this.recipientId), is(1L));
+    assertThat(
+      this.notificationService.list(this.recipientId, 0, 10).getFirst().isRead(),
+      is(false)
+    );
+  }
+
+  @Test
+  public void I18_borrarGrupoBorraTodasSusFilasYNoLasAjenasAlGrupo() throws Exception {
+    follow("ngrp.grupo.ana@test.com", "Ana", "A");
+    follow("ngrp.grupo.luis@test.com", "Luis", "B");
+    follow("ngrp.grupo.marta@test.com", "Marta", "C");
+    this.notificationService.notifyInvitation(
+        this.userRepository.findById(this.actorId).orElseThrow(),
+        this.userRepository.findById(this.recipientId).orElseThrow(),
+        UUID.randomUUID(),
+        "Plan fuera del grupo"
+      );
+
+    List<UUID> groupIds =
+      this.notificationService.list(this.recipientId, 0, 10)
+        .stream()
+        .filter(notification -> notification.getType() == NotificationType.NEW_FOLLOWER)
+        .map(Notification::getId)
+        .toList();
+    assertThat(groupIds, hasSize(3));
+
+    this.mockMvc.perform(
+        post("/notifications/group/delete")
+          .param("ids", groupIds.stream().map(UUID::toString).toArray(String[]::new))
+          .with(user(RECIPIENT_EMAIL))
+          .with(csrf())
+      )
+      .andExpect(status().is3xxRedirection());
+
+    assertThat(this.notificationService.count(this.recipientId), is(1L));
+    assertThat(this.notificationService.unreadCount(this.recipientId), is(1L));
+    assertThat(
+      this.notificationService.list(this.recipientId, 0, 10).getFirst().getType(),
+      is(NotificationType.PLAN_INVITATION)
+    );
+  }
+
   // --- helpers ---
 
   private void followAdaToGrace() throws Exception {
     this.mockMvc.perform(
         post("/profile/" + this.recipientId + "/follow").with(user(ACTOR_EMAIL)).with(csrf())
+      )
+      .andExpect(status().is3xxRedirection());
+  }
+
+  private void follow(String email, String firstName, String lastName) throws Exception {
+    givenUser(email, firstName, lastName);
+    this.mockMvc.perform(
+        post("/profile/" + this.recipientId + "/follow").with(user(email)).with(csrf())
       )
       .andExpect(status().is3xxRedirection());
   }
