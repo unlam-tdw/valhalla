@@ -575,6 +575,18 @@ public class PlanPlaceDetailE2E extends E2eBase {
       .height;
     assertEquals(compartirH, eliminarH, 1.0, "las acciones de la cabecera comparten alto");
 
+    // [PRINT] Las tres acciones del dueno van en una sola fila y compactas: con el tamano
+    // anterior, Eliminar plan bajaba a una segunda linea en la columna de 360 px.
+    double compartirY = headerAction("Compartir").boundingBox().y;
+    double imprimirY = headerAction("Imprimir").boundingBox().y;
+    double eliminarY = headerAction("Eliminar plan").boundingBox().y;
+    assertEquals(compartirY, imprimirY, 1.0, "Imprimir comparte la fila de Compartir");
+    assertEquals(compartirY, eliminarY, 1.0, "Eliminar plan comparte la fila de Compartir");
+    assertTrue(
+      compartirH <= 36.0,
+      "las acciones de la cabecera van compactas, no con el alto de 40 px"
+    );
+
     // La ficha queda quieta: scrollear el recorrido no la mueve.
     double fichaY = ficha.boundingBox().y;
     page.locator(".itinerary-panel").evaluate("el => el.scrollTop = el.scrollHeight");
@@ -635,6 +647,14 @@ public class PlanPlaceDetailE2E extends E2eBase {
     page.locator(".stop-details").nth(index).click();
     assertThat(dialog).isVisible();
     return dialog;
+  }
+
+  /** Boton de la cabecera por nombre accesible: Compartir, Imprimir o Eliminar plan. */
+  private Locator headerAction(String name) {
+    return page.getByRole(
+      com.microsoft.playwright.options.AriaRole.BUTTON,
+      new Page.GetByRoleOptions().setName(name)
+    );
   }
 
   private void closeStopDetails() {

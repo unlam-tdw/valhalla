@@ -405,3 +405,63 @@ html[data-theme="dark"] .notification-row:hover {
 .planit-toast button { flex-shrink: 0; cursor: pointer; font-size: 1.5rem; line-height: 1; color: inherit; background: transparent; border: 0; padding: .25rem; }
 .planit-toast button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 html[data-theme="dark"] .planit-toast { background: var(--black); color: var(--white); }
+
+/* --- [PRINT] Hoja imprimible del itinerario ------------------------------
+   El itinerario del detalle lo pinta Vue y la vista publica lo renderiza
+   server-side; imprimir ese DOM dependia de que el modulo montara y de que el
+   navegador no reordenara columnas. La hoja (`components/print-sheet.html`) se
+   arma en Java una sola vez y en pantalla no existe. La impresion reemplaza el
+   chrome (navbar, mapa, toasts, chips, botones) por la hoja, y las reglas se
+   limitan a las paginas que traen la hoja: imprimir /plans o el perfil sigue
+   mostrando esas paginas tal cual. */
+.print-sheet { display: none; }
+
+@media print {
+  @page { margin: 16mm; }
+
+  /* El tema oscuro no manda en papel: fondo blanco y texto negro, incluso si
+     Bootstrap o la marca ya pintaron sus propias variables. */
+  html, body { background: #fff !important; color: #000 !important; }
+
+  body:has(.print-sheet) > :not(main) { display: none !important; }
+  main:has(.print-sheet) { max-width: none !important; padding: 0 !important; }
+  main:has(.print-sheet) > :not(.print-sheet) { display: none !important; }
+  .print-hide { display: none !important; }
+
+  .print-sheet {
+    display: block !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+  .print-sheet * { color: #000 !important; background: transparent !important; }
+
+  .print-sheet-head { margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 2px solid #000; }
+  .print-sheet-kicker { margin: 0; font-size: 9pt; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .print-sheet-title { margin: .15rem 0 .5rem; font-size: 22pt; font-weight: 700; line-height: 1.1; }
+  .print-sheet-meta { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: 0; padding: 0; list-style: none; font-size: 10pt; }
+  .print-meta-label { margin-right: .35rem; font-weight: 700; }
+  .print-sheet-empty { margin: 2rem 0; font-size: 12pt; }
+
+  /* Control de cortes: la parada no se parte, el encabezado de dia no queda
+     huerfano y una jornada que entra en una pagina no se reparte entre dos. */
+  .print-day { break-inside: avoid-page; margin-top: 1.25rem; }
+  .print-day-heading { break-after: avoid; page-break-after: avoid; margin: 0 0 .5rem; padding-bottom: .25rem; border-bottom: 1px solid #000; font-size: 14pt; font-weight: 700; }
+  .print-stops { margin: 0; padding: 0; list-style: none; }
+  .print-stop { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); column-gap: .5rem; padding: .4rem 0; border-top: 1px solid #ddd; break-inside: avoid; page-break-inside: avoid; }
+  .print-stop:first-child { border-top: 0; }
+  .print-stop-number { grid-row: 1 / span 2; display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: 1px solid #000; border-radius: 50%; font-size: 9pt; font-weight: 700; }
+  .print-stop-body { grid-column: 2; }
+  .print-stop-title { margin: 0; font-size: 12pt; }
+  .print-stop-name { font-weight: 700; }
+  .print-stop-category { font-size: 9pt; letter-spacing: .05em; text-transform: uppercase; }
+  .print-stop-category::before { content: " · "; }
+  .print-stop-schedule, .print-stop-address { margin: .1rem 0 0; font-size: 10pt; }
+  .print-stop-leg { grid-column: 2; margin: .15rem 0 0; font-size: 9pt; font-style: italic; }
+
+  .print-sheet-footer { margin-top: 1.5rem; padding-top: .5rem; border-top: 1px solid #000; font-size: 9pt; }
+  .print-sheet-footer p { margin: .1rem 0; }
+  .print-sheet-url { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+}
