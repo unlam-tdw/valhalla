@@ -525,6 +525,14 @@
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>
                 Compartir
             </button>
+            <!-- [PRINT] Exportar el itinerario: abre el dialogo del navegador, que ya ofrece
+                 "Guardar como PDF". La hoja impresa reemplaza al tablero (brand.css), asi que el
+                 boton no se imprime: vive fuera de .print-sheet. -->
+            <button type="button" data-print-plan onclick="window.print()"
+                class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 print-hide">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" /><rect x="6" y="14" width="12" height="8" rx="1" /></svg>
+                Imprimir
+            </button>
             <form th:if="${isPlanAdministrator}" th:action="@{/plans/{id}/delete(id=${plan.id})}" method="POST">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center gap-2"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>Eliminar plan</button>
@@ -1123,6 +1131,10 @@
       };
     </script>
     <script type="module" th:src="@{/js/pages/plans-detail.js}"></script>
+
+    <!-- [PRINT] Hoja imprimible: hermano de #plan-app, no hijo, asi Vue no la toca y en pantalla
+         queda oculta. En impresion brand.css oculta todo lo demas y muestra esta hoja. -->
+    <div th:replace="~{components/print-sheet :: sheet}"></div>
 </main>
 </body>
 </html>
