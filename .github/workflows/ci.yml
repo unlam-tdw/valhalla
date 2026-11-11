@@ -81,11 +81,10 @@ jobs:
           cache: maven
 
       - name: Install Playwright Chromium
-        # Pinned to ${playwright.version} in pom.xml: an unpinned `npx playwright` resolves the
-        # latest npm release, which can demand a different Chromium revision than the Java driver.
-        # --with-deps installs the host libraries Chromium needs (libgtk-4, harfbuzz, GL...);
-        # without it every navigation times out on a bare ubuntu-latest runner.
-        run: npx -y playwright@1.61.0 install --with-deps chromium
+        # Use the Java Playwright CLI resolved from pom.xml so its browser revision stays in sync
+        # with the E2E driver. The GitHub runner already has Chromium's system libraries; avoid
+        # --with-deps because it invokes apt and can fail when Ubuntu mirrors are unreachable.
+        run: mvn -q exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"
 
       - name: Package app (skip tests)
         # The backend job already gated on Prettier/Checkstyle/PMD/CPD, and e2e `needs: backend`.

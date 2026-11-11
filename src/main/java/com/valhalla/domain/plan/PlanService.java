@@ -82,6 +82,8 @@ public interface PlanService {
   Plan clonePlan(UUID id, String clonerEmail);
   /** [TOP] Participantes por plan, para el ranking del feed. Vacio si no hay ids. */
   Map<UUID, Long> getParticipantCounts(Collection<UUID> planIds);
+  /** [PAGE-008] Orden global calculado en persistencia, devuelve solo los IDs rankeados. */
+  List<UUID> orderPublicPlanIdsByPopularity(Collection<UUID> planIds);
 
   // [PABM] Operaciones del ABM de admin (AC-01 a AC-11): sin chequeo de ownership, el admin de
   // la plataforma gestiona cualquier plan, incluidos participantes y settings.

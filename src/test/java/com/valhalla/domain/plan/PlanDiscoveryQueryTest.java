@@ -61,4 +61,46 @@ public class PlanDiscoveryQueryTest {
     assertThat(PlanDiscoveryQuery.parse(null, "BAR", null, null).hasFilters(), is(true));
     assertThat(PlanDiscoveryQuery.parse(null, null, "upcoming", null).hasFilters(), is(true));
   }
+
+  @Test
+  public void T_PAGE_001_pageYSizeInvalidosCaelAlDefault() {
+    PlanDiscoveryQuery empty = PlanDiscoveryQuery.parse(null, null, null, null, null, null);
+    assertThat(empty.page(), is(PlanDiscoveryQuery.DEFAULT_PAGE));
+    assertThat(empty.size(), is(PlanDiscoveryQuery.DEFAULT_SIZE));
+
+    PlanDiscoveryQuery invalid = PlanDiscoveryQuery.parse(null, null, null, null, "0", "-4");
+    assertThat(invalid.page(), is(PlanDiscoveryQuery.DEFAULT_PAGE));
+    assertThat(invalid.size(), is(PlanDiscoveryQuery.DEFAULT_SIZE));
+
+    PlanDiscoveryQuery garbage = PlanDiscoveryQuery.parse(null, null, null, null, "dos", "muchos");
+    assertThat(garbage.page(), is(PlanDiscoveryQuery.DEFAULT_PAGE));
+    assertThat(garbage.size(), is(PlanDiscoveryQuery.DEFAULT_SIZE));
+
+    PlanDiscoveryQuery blank = PlanDiscoveryQuery.parse(null, null, null, null, "   ", "   ");
+    assertThat(blank.page(), is(PlanDiscoveryQuery.DEFAULT_PAGE));
+    assertThat(blank.size(), is(PlanDiscoveryQuery.DEFAULT_SIZE));
+  }
+
+  @Test
+  public void T_PAGE_001_unRecordConstruidoAManoNormalizaLaVentana() {
+    PlanDiscoveryQuery invalid = new PlanDiscoveryQuery(
+      "",
+      null,
+      PlanDiscoveryQuery.When.ALL,
+      PlanDiscoveryQuery.Sort.POPULAR,
+      0,
+      0
+    );
+
+    assertThat(invalid.page(), is(PlanDiscoveryQuery.DEFAULT_PAGE));
+    assertThat(invalid.size(), is(PlanDiscoveryQuery.DEFAULT_SIZE));
+  }
+
+  @Test
+  public void T_PAGE_001_pageYSizeValidosSeConservan() {
+    PlanDiscoveryQuery query = PlanDiscoveryQuery.parse(null, null, null, null, " 3 ", " 5 ");
+
+    assertThat(query.page(), is(3));
+    assertThat(query.size(), is(5));
+  }
 }
