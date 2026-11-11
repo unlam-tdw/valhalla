@@ -68,8 +68,9 @@ imprimir.
   `brand.css`).
 - **Las acciones del dueño van agrupadas y compactas.** Imprimir, Compartir y Eliminar comparten
   fila en la columna de 360 px; con el tamaño de botón anterior, "Eliminar plan" caía a una segunda
-  línea. El grupo `.plan-primary-actions` envuelve entero si aparece una cuarta acción (Clonar) o el
-  ancho no alcanza, sin desbordar.
+  línea. En desktop `.plan-primary-actions` no se parte (si la tipografía del sistema es más ancha,
+  como en CI Linux, se corre unos píxeles sobre el gap de 16 px); en mobile envuelve entero si el
+  ancho no alcanza.
 
 ## Escenarios de Test
 

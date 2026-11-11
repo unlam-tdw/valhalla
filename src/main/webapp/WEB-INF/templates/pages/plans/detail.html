@@ -327,17 +327,18 @@
         .plan-primary-actions {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            /* Si el plan suma una cuarta accion (Clonar, en participantes), el grupo envuelve
-               en vez de desbordar la columna de 360 px. Con las tres del dueno entra justo. */
-            flex-wrap: wrap;
+            gap: 4px;
+            /* [PRINT] En desktop el grupo no se parte: si la tipografia del sistema es mas
+               ancha (CI Linux), se corre unos px sobre el gap de 16 px en vez de bajar el
+               boton destructivo a una segunda fila. En mobile vuelve a envolver. */
+            flex-wrap: nowrap;
             justify-content: flex-end;
         }
         .plan-toolbar-actions .plan-primary-actions .btn {
             min-height: 34px;
-            padding: 0.2rem 0.5rem;
+            padding: 0.2rem 0.45rem;
             font-size: 0.8rem;
-            gap: 0.3rem;
+            gap: 0.25rem;
             white-space: nowrap;
         }
         /* 14 px en vez de los 16 de .h-4/.w-4: con la tipografia de Linux, que es mas ancha,
