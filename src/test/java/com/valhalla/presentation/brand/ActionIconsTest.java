@@ -25,6 +25,7 @@ public class ActionIconsTest {
   private static final Path TEMPLATES = Paths.get("src", "main", "webapp", "WEB-INF", "templates");
 
   private static final Path FEED = TEMPLATES.resolve("pages/plans/public-list.html");
+  private static final Path FEED_CARDS = TEMPLATES.resolve("components/feed-cards.html");
   private static final Path PUBLIC_PLAN = TEMPLATES.resolve("pages/plans/public.html");
   private static final Path DETAIL = TEMPLATES.resolve("pages/plans/detail.html");
   private static final Path MY_PLANS = TEMPLATES.resolve("pages/plans/list.html");
@@ -54,7 +55,9 @@ public class ActionIconsTest {
   /** Cada vista del inventario declara su cantidad mínima de iconos del set (U-01/U-02). */
   private static final Map<Path, Integer> SET_ICONS_BY_VIEW = Map.of(
     FEED,
-    5, // Crear plan, Buscar, Clonar (form + link), Ver todos los planes
+    3, // Crear plan, Buscar, Ver todos los planes
+    FEED_CARDS,
+    2, // Clonar (form + link); el share usa el tamano propio de icono suelto
     PUBLIC_PLAN,
     5, // Unirme (form + link), Clonar (form + link), Ver mi plan
     DETAIL,
@@ -78,7 +81,7 @@ public class ActionIconsTest {
   void everyActionCarriesItsIconFromTheSameSet() {
     assertThat(read(FEED), containsString(PLUS));
     assertThat(read(FEED), containsString(SEARCH));
-    assertThat(read(FEED), containsString(COPY));
+    assertThat(read(FEED_CARDS), containsString(COPY));
     assertThat(read(FEED), containsString(EYE));
 
     assertThat(read(PUBLIC_PLAN), containsString(USER_PLUS));
@@ -148,7 +151,7 @@ public class ActionIconsTest {
   /** U-04 (AC-04): "Por {autor}" en una sola línea, con elipsis visual y nombre completo en title. */
   @Test
   void theFeedAuthorLineStaysOnOneLineWithAccessibleTruncation() {
-    String feed = read(FEED);
+    String feed = read(FEED_CARDS);
     assertThat(feed, containsString("data-testid=\"plan-card-author\""));
     assertThat(feed, containsString("class=\"flex min-w-0 items-baseline gap-1\""));
     assertThat(

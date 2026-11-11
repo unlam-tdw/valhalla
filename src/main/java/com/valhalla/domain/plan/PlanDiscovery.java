@@ -103,12 +103,19 @@ public final class PlanDiscovery {
     PlanDiscoveryQuery query,
     LocalDate today
   ) {
+    return filter(plans, query, today)
+      .stream()
+      .sorted(orderFor(query.sort(), summaries, participantCounts))
+      .toList();
+  }
+
+  /** Filtra sin ordenar, para delegar el ranking popular a persistencia antes de paginar. */
+  public static List<Plan> filter(List<Plan> plans, PlanDiscoveryQuery query, LocalDate today) {
     return plans
       .stream()
       .filter(plan -> matchesText(plan, query.text()))
       .filter(plan -> matchesCategory(plan, query.category()))
       .filter(plan -> matchesWhen(plan, query.when(), today))
-      .sorted(orderFor(query.sort(), summaries, participantCounts))
       .toList();
   }
 

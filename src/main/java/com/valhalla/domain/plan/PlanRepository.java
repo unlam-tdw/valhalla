@@ -26,4 +26,6 @@ public interface PlanRepository {
   Plan save(Plan plan);
   void deleteById(UUID id);
   List<PlanParticipantCount> countParticipantsByPlanIds(Collection<UUID> planIds);
+  /** IDs ordenados por popularidad en la base, sin materializar agregados en la aplicacion. */
+  List<UUID> findIdsByPopularity(Collection<UUID> planIds);
 }

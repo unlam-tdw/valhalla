@@ -89,4 +89,11 @@ public class PlanRepositoryImpl implements PlanRepository {
   public List<PlanParticipantCount> countParticipantsByPlanIds(Collection<UUID> planIds) {
     return jpaPlanRepository.countParticipantsByPlanIds(planIds);
   }
+
+  @Override
+  public List<UUID> findIdsByPopularity(Collection<UUID> planIds) {
+    return planIds == null || planIds.isEmpty()
+      ? List.of()
+      : jpaPlanRepository.findIdsByPopularity(planIds);
+  }
 }

@@ -10,6 +10,7 @@ import com.valhalla.domain.rating.RatedPlanView;
 import com.valhalla.domain.rating.RatingSummary;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -93,6 +94,19 @@ public class PlanRatingServiceImpl implements PlanRatingService {
   public Map<UUID, RatingSummary> getSummariesByPlanId() {
     return planRatingRepository
       .findSummaries()
+      .stream()
+      .collect(Collectors.toMap(RatingSummary::planId, Function.identity()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, RatingSummary> getSummariesByPlanId(Collection<UUID> planIds) {
+    // `in :planIds` con una coleccion vacia no es JPQL valido: el early return es correctitud.
+    if (planIds == null || planIds.isEmpty()) {
+      return Map.of();
+    }
+    return planRatingRepository
+      .findSummariesByPlanIds(planIds)
       .stream()
       .collect(Collectors.toMap(RatingSummary::planId, Function.identity()));
   }
