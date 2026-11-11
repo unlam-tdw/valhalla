@@ -87,6 +87,7 @@ public class ForYouControllerTest {
       );
     this.authentication = new UsernamePasswordAuthenticationToken(OWNER_EMAIL, null);
     when(this.planRatingServiceMock.getSummariesByPlanId()).thenReturn(java.util.Map.of());
+    when(this.planRatingServiceMock.getSummariesByPlanId(any())).thenReturn(java.util.Map.of());
   }
 
   // --- GET /for-you ---
@@ -148,7 +149,7 @@ public class ForYouControllerTest {
     // given: dos calificaciones, promedio 4.25 → la tarjeta muestra 4.3 (un decimal)
     Plan plan = plan(PLAN_ID, "Plan calificado");
     when(this.planServiceMock.getPublicPlans()).thenReturn(List.of(plan));
-    when(this.planRatingServiceMock.getSummariesByPlanId())
+    when(this.planRatingServiceMock.getSummariesByPlanId(List.of(PLAN_ID)))
       .thenReturn(Map.of(PLAN_ID, new RatingSummary(PLAN_ID, 4.25, 12L)));
 
     // when

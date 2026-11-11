@@ -74,4 +74,18 @@ public interface JpaPlanRepository extends JpaRepository<Plan, UUID> {
     "where plan.id in :planIds group by plan.id"
   )
   List<PlanParticipantCount> countParticipantsByPlanIds(@Param("planIds") Collection<UUID> planIds);
+
+  /** [PAGE-008] El ranking se calcula en SQL y devuelve solo IDs; las cards consultan agregados
+   * unicamente para la pagina visible. Las subconsultas replican el score bayesiano de
+   * {@code PlanDiscovery.popularityOrder}. */
+  @Query(
+    "select plan.id from Plan plan where plan.id in :planIds " +
+    "order by case when lower(plan.administrator.email) = 'app@planit.com' then 0 else 1 end, " +
+    "case when (select count(rating) from PlanRating rating where rating.plan = plan) > 0 then 0 else 1 end, " +
+    "((18.5 + coalesce((select sum(rating.score) from PlanRating rating where rating.plan = plan), 0)) / " +
+    "(5.0 + (select count(rating) from PlanRating rating where rating.plan = plan))) desc, " +
+    "(select count(participant) from Plan candidate left join candidate.planManager.participants participant " +
+    "where candidate = plan) desc, plan.schedule.date asc nulls last, lower(plan.name), plan.id"
+  )
+  List<UUID> findIdsByPopularity(@Param("planIds") Collection<UUID> planIds);
 }

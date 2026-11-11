@@ -195,21 +195,11 @@ public class ForYouController {
       : planService.getPublicPlans();
     List<Plan> candidates = source.stream().filter(plan -> !ownedBy(plan, currentEmail)).toList();
 
-    // [TOP] El orden popular necesita los agregados de TODOS los candidatos: recortar antes de
-    // ordenar elegiria la pagina por otro criterio. Para fecha/nombre no hacen falta y las cards
-    // piden solo los de su ventana [PAGE-008].
-    RankingStats ranking = rankingStats(query, candidates);
-    List<Plan> discovered = PlanDiscovery
-      .discover(
-        candidates,
-        ranking.summaries(),
-        ranking.participantCounts(),
-        query,
-        LocalDate.now()
-      )
-      .stream()
-      .filter(plan -> !plan.isBanned(currentEmail))
-      .toList();
+    List<Plan> filtered = PlanDiscovery.filter(candidates, query, LocalDate.now());
+    List<Plan> ranked = query.sort() == PlanDiscoveryQuery.Sort.POPULAR
+      ? rankPopularIds(filtered)
+      : PlanDiscovery.discover(filtered, Map.of(), Map.of(), query, LocalDate.now());
+    List<Plan> discovered = ranked.stream().filter(plan -> !plan.isBanned(currentEmail)).toList();
 
     // [PAGE] Se recorta DESPUES del ranking y de excluir baneados: total/hasMore describen el
     // feed visible, no la lista intermedia. Una pagina fuera de rango cae en la ultima, para que
@@ -220,10 +210,11 @@ public class ForYouController {
     List<Plan> pagePlans = pageOf(discovered, currentPage, query.size());
     List<UUID> pagePlanIds = planIds(pagePlans);
 
-    // [CAL] Summaries de la pagina que se pinta. En popular ya se pidieron para rankear y se
-    // reutilizan; en fecha/nombre se piden recien para las cards de esta ventana.
-    Map<UUID, RatingSummary> summaries = cardSummaries(query, ranking.summaries(), pagePlanIds);
-
+    // [PAGE-008] Todos los agregados presentados se limitan a la ventana visible. El ranking
+    // popular se resuelve en persistencia y solo devuelve IDs, sin cargar agregados globales.
+    Map<UUID, RatingSummary> summaries = pagePlanIds.isEmpty()
+      ? Map.of()
+      : this.planRatingService.getSummariesByPlanId(pagePlanIds);
     // [MARK] Un solo lookup alimenta el icono de todas las cards. Sin sesion no hay nada que
     // preguntar y el toggle no se renderiza (AC-05): no es un soft gate, es ausencia de control.
     boolean signedIn = signedIn(authentication);
@@ -264,27 +255,21 @@ public class ForYouController {
       .toList();
   }
 
-  /** Agregados que necesita el ranking: solo popular los usa; fecha/nombre ordenan sin ellos. */
-  private RankingStats rankingStats(PlanDiscoveryQuery query, List<Plan> candidates) {
-    if (query.sort() != PlanDiscoveryQuery.Sort.POPULAR) {
-      return new RankingStats(Map.of(), Map.of());
+  /** Ordena todos los candidatos en persistencia, pero materializa solo la lista de IDs. */
+  private List<Plan> rankPopularIds(List<Plan> candidates) {
+    List<UUID> ids = planService.orderPublicPlanIdsByPopularity(planIds(candidates));
+    Map<UUID, Integer> position = new java.util.HashMap<>();
+    for (int index = 0; index < ids.size(); index++) {
+      position.put(ids.get(index), index);
     }
-    return new RankingStats(
-      this.planRatingService.getSummariesByPlanId(),
-      this.planService.getParticipantCounts(planIds(candidates))
-    );
-  }
-
-  /** [PAGE-008] En popular se reutiliza el mapa del ranking; en el resto, solo la ventana. */
-  private Map<UUID, RatingSummary> cardSummaries(
-    PlanDiscoveryQuery query,
-    Map<UUID, RatingSummary> rankingSummaries,
-    List<UUID> pagePlanIds
-  ) {
-    if (query.sort() == PlanDiscoveryQuery.Sort.POPULAR) {
-      return rankingSummaries;
-    }
-    return this.planRatingService.getSummariesByPlanId(pagePlanIds);
+    return candidates
+      .stream()
+      .sorted(
+        java.util.Comparator.comparingInt(plan ->
+          position.getOrDefault(plan.getId(), Integer.MAX_VALUE)
+        )
+      )
+      .toList();
   }
 
   private static String currentEmail(Authentication authentication) {
@@ -376,10 +361,4 @@ public class ForYouController {
       ? this.planBookmarkService.getBookmarkedPlanIds(authentication.getName())
       : Set.of();
   }
-
-  /** Los dos agregados que alimentan el ranking popular. */
-  private record RankingStats(
-    Map<UUID, RatingSummary> summaries,
-    Map<UUID, Long> participantCounts
-  ) {}
 }

@@ -857,6 +857,12 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
       .collect(Collectors.toMap(PlanParticipantCount::planId, PlanParticipantCount::count));
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public List<UUID> orderPublicPlanIdsByPopularity(Collection<UUID> planIds) {
+    return planRepository.findIdsByPopularity(planIds);
+  }
+
   /** [PABM] Listado completo del ABM: todos los planes, sin filtros de acceso (AC-01). */
   @Override
   @Transactional(readOnly = true)
