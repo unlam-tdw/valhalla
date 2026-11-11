@@ -127,6 +127,14 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    // [PRINT] La hoja impresa se arma en Java y sirve a las dos vistas: el detalle la imprime sin
+    // depender de que Vue haya montado, y la vista publica reusa el mismo fragmento.
+    model.put("printDays", PrintSheet.of(plan).days());
+    // [PRINT] La cabecera impresa firma el plan como la publica: autor y codigo corto, que el
+    // detalle no necesitaba hasta ahora. El codigo va en una clave propia: la vista publica
+    // tiene su `shortCode` en el modelo pero no puede renderizarlo (PVP AC-04).
+    model.put("administratorName", displayName(plan.getAdministrator()));
+    model.put("printShortCode", plan.getShortCode());
     // [SCH] El JS compara la fecha de cada parada contra esta para no repetir el Día 1 en cada
     // una: sin la fecha del plan, la lista no puede saber cuál es la jornada de referencia.
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
@@ -202,6 +210,9 @@ public class PlanController {
       "itineraryPlaces",
       plan.getPlanPlaces().stream().map(PlanController::placeView).toList()
     );
+    // [PRINT] Misma hoja que el detalle: la vista publica imprime el recorrido agrupado por dia
+    // sin agregar JS ni duplicar el modelo.
+    model.put("printDays", PrintSheet.of(plan).days());
     // [SCH] El template compara la fecha de cada parada contra esta para mostrarla solo cuando
     // difiere de la del plan; sin ella la vista publica no sabria cuál es la jornada de
     // referencia (mismo motivo que el planDateIso de showPlan).

@@ -131,7 +131,7 @@ public final class PlanScheduleCalculator {
       LocalDateTime finish = start.plusMinutes(duration);
       slots.add(new Slot(start.toLocalDate(), start.toLocalTime(), finish.toLocalTime()));
       boolean hasNext = index + 1 < stops.size();
-      cursor = finish.plusMinutes(hasNext ? gap(stop, stops.get(index + 1), mode) : 0);
+      cursor = finish.plusMinutes(hasNext ? travelMinutes(stop, stops.get(index + 1), mode) : 0);
     }
     return slots;
   }
@@ -198,13 +198,21 @@ public final class PlanScheduleCalculator {
   }
 
   /**
-   * Traslado hacia la parada siguiente. Con minutos fijados a mano manda el override (piso 1, sin
-   * techo: el usuario conocio el trayecto). Sin override se estima por modo del tramo (o el del
-   * plan), distancia con rodeo y redondeo a cinco minutos; sin coordenadas cae al valor por
-   * defecto, y el resultado calculado queda entre {@link #MIN_GAP_MINUTES} y
+   * Minutos de traslado entre dos paradas consecutivas. Con minutos fijados a mano manda el
+   * override (piso 1, sin techo: el usuario conocio el trayecto). Sin override se estima por modo
+   * del tramo (o el del plan), distancia con rodeo y redondeo a cinco minutos; sin coordenadas cae
+   * al valor por defecto, y el resultado calculado queda entre {@link #MIN_GAP_MINUTES} y
    * {@link #MAX_GAP_MINUTES}.
+   *
+   * <p>Es publica porque la hoja impresa ([PRINT]) dibuja el mismo tramo que el horario derivado:
+   * recalcularlo con otra cuenta mostraria un viaje distinto al que el plan ya asumio.
+   *
+   * @param from parada de origen; su modo y sus minutos fijados mandan sobre el modo por defecto
+   * @param to parada de destino, de donde salen las coordenadas de llegada
+   * @param defaultMode modo del plan; {@code null} usa caminar
+   * @return minutos del tramo, siempre al menos 1
    */
-  private static int gap(Stop from, Stop to, TransportMode defaultMode) {
+  public static int travelMinutes(Stop from, Stop to, TransportMode defaultMode) {
     if (from.travelMinutesToNext() != null) {
       return Math.max(1, from.travelMinutesToNext());
     }

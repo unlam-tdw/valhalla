@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+  <!-- [PRINT] Hoja imprimible del itinerario, compartida por el detalle del dueño y la vista
+       pública. En pantalla no existe (`.print-sheet { display: none }` en brand.css); en
+       `@media print` reemplaza al tablero. Los datos salen de `printDays` (PrintSheet), así que
+       el orden, los días y los tramos son los mismos en las dos vistas y no dependen de Vue. -->
+  <div th:fragment="sheet" class="print-sheet" data-print-sheet>
+    <header class="print-sheet-head">
+      <p class="print-sheet-kicker">Itinerario</p>
+      <p class="print-sheet-title" th:text="${plan.name}">Plan</p>
+      <ul class="print-sheet-meta">
+        <li th:if="${plan.eventDate != null}">
+          <span class="print-meta-label">Fecha</span>
+          <span class="print-meta-value" th:text="${#temporals.format(plan.eventDate, 'dd/MM/yyyy')}">12/11/2026</span>
+        </li>
+        <li th:if="${plan.eventTime != null}">
+          <span class="print-meta-label">Hora de inicio</span>
+          <span class="print-meta-value" th:text="${#temporals.format(plan.eventTime, 'HH:mm')}">09:00</span>
+        </li>
+        <li>
+          <span class="print-meta-label">Visibilidad</span>
+          <span class="print-meta-value" th:text="${plan.isPublic} ? 'Público' : 'Privado'">Privado</span>
+        </li>
+        <li th:if="${!#strings.isEmpty(administratorName)}">
+          <span class="print-meta-label">Creado por</span>
+          <span class="print-meta-value" th:text="${administratorName}">Grace Hopper</span>
+        </li>
+        <li th:if="${!#strings.isEmpty(printShortCode)}">
+          <span class="print-meta-label">Código</span>
+          <span class="print-meta-value" th:text="${printShortCode}">PRNT1234</span>
+        </li>
+      </ul>
+    </header>
+
+    <p class="print-sheet-empty" th:if="${#lists.isEmpty(printDays)}">
+      Este plan todavía no tiene lugares.
+    </p>
+
+    <section class="print-day" th:each="day : ${printDays}">
+      <p class="print-day-heading" th:text="${day.label}">Día 1 · 12/11</p>
+      <ol class="print-stops">
+        <li class="print-stop" th:each="stop : ${day.stops}">
+          <span class="print-stop-number" th:text="${stop.number}">1</span>
+          <div class="print-stop-body">
+            <p class="print-stop-title">
+              <span class="print-stop-name" th:text="${stop.name}">Lugar</span>
+              <span class="print-stop-category" th:if="${!#strings.isEmpty(stop.category)}"
+                th:text="${stop.category}">Bar</span>
+            </p>
+            <p class="print-stop-schedule">
+              <span th:text="${stop.schedule}">09:00 – 10:30</span>
+              <span th:if="${!#strings.isEmpty(stop.duration)}" th:text="${' · ' + stop.duration}"> · 1h 30m</span>
+            </p>
+            <p class="print-stop-address" th:if="${!#strings.isEmpty(stop.address)}"
+              th:text="${stop.address}">Av. Siempre Viva 742</p>
+          </div>
+          <p class="print-stop-leg" th:if="${!#strings.isEmpty(stop.leg)}"
+            th:text="${'→ ' + stop.leg}">→ 15 min a pie</p>
+        </li>
+      </ol>
+    </section>
+
+    <footer class="print-sheet-footer">
+      <p class="print-sheet-url"
+        th:text="${@siteOrigin.absolute('/plans/' + plan.id + '/public')}">https://planit.local/plans/id/public</p>
+      <p class="print-sheet-code" th:if="${!#strings.isEmpty(printShortCode)}"
+        th:text="${'Código ' + printShortCode}">Código PRNT1234</p>
+    </footer>
+  </div>
+</body>
+</html>
