@@ -66,6 +66,10 @@ imprimir.
 - **El tema oscuro no se "resetea" en el documento.** La hoja fija sus colores con `!important` en
   `@media print` para no depender del orden de carga de Bootstrap (que en el detalle va antes que
   `brand.css`).
+- **Las acciones del dueño van agrupadas y compactas.** Imprimir, Compartir y Eliminar comparten
+  fila en la columna de 360 px; con el tamaño de botón anterior, "Eliminar plan" caía a una segunda
+  línea. El grupo `.plan-primary-actions` envuelve entero si aparece una cuarta acción (Clonar) o el
+  ancho no alcanza, sin desbordar.
 
 ## Escenarios de Test
 
