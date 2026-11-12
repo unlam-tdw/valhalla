@@ -961,20 +961,27 @@
                 </form>
             </article>
 
-            <article id="config-presupuesto" class="border rounded p-3" aria-labelledby="config-presupuesto-heading">
-                <h6 id="config-presupuesto-heading" class="fw-bold mb-3">Presupuesto estimado</h6>
-                <form th:action="@{/plans/{id}/budget(id=${plan.id})}" method="post" th:object="${budgetForm}" class="mt-2">
+            <article id="config-presupuesto" class="plan-budget-editor border rounded p-3" aria-labelledby="config-presupuesto-heading">
+                <h6 id="config-presupuesto-heading" class="fw-bold mb-1">Presupuesto estimado</h6>
+                <p class="small text-muted mb-2">ARS por persona, para todo el recorrido.</p>
+                <form th:action="@{/plans/{id}/budget(id=${plan.id})}" method="post" th:object="${budgetForm}">
                     <div th:if="${#fields.hasAnyErrors()}" role="alert" class="alert alert-danger small">
                         Revis&aacute; los importes: complet&aacute; ambos o dej&aacute; ambos vac&iacute;os, con hasta dos decimales. El m&aacute;ximo debe ser mayor o igual al m&iacute;nimo. La aclaraci&oacute;n admite hasta 500 caracteres.
                     </div>
-                    <label for="budget-min" class="form-label small">Desde (ARS por persona)</label>
-                    <input id="budget-min" type="number" th:field="*{minimum}" min="0" max="9999999999.99" step="0.01" class="form-control mb-2">
-                    <label for="budget-max" class="form-label small">Hasta (ARS por persona)</label>
-                    <input id="budget-max" type="number" th:field="*{maximum}" min="0" max="9999999999.99" step="0.01" class="form-control mb-2">
-                    <label for="budget-notes" class="form-label small">Qu&eacute; incluye (opcional)</label>
-                    <textarea id="budget-notes" th:field="*{notes}" maxlength="500" rows="2" placeholder="Comida, entradas y transporte. Bebidas aparte." class="form-control mb-2"></textarea>
-                    <p class="small text-muted">Para un monto fijo, us&aacute; el mismo valor en ambos campos. Para quitar la estimaci&oacute;n, vaci&aacute; ambos importes.</p>
-                    <button class="btn btn-outline-secondary btn-sm" type="submit">Guardar presupuesto</button>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label for="budget-min" class="form-label small mb-1">Desde</label>
+                            <input id="budget-min" type="number" th:field="*{minimum}" min="0" max="9999999999.99" step="0.01" class="form-control form-control-sm" aria-describedby="budget-help">
+                        </div>
+                        <div class="col-6">
+                            <label for="budget-max" class="form-label small mb-1">Hasta</label>
+                            <input id="budget-max" type="number" th:field="*{maximum}" min="0" max="9999999999.99" step="0.01" class="form-control form-control-sm" aria-describedby="budget-help">
+                        </div>
+                    </div>
+                    <label for="budget-notes" class="form-label small mb-1">Qu&eacute; incluye (opcional)</label>
+                    <textarea id="budget-notes" th:field="*{notes}" maxlength="500" rows="1" placeholder="Comida, entradas, transporte..." class="form-control form-control-sm mb-2"></textarea>
+                    <p id="budget-help" class="small text-muted mb-2">Monto fijo: repet&iacute; el valor. Sin estimar: vaci&aacute; ambos.</p>
+                    <button class="btn btn-primary btn-sm" type="submit">Guardar presupuesto</button>
                 </form>
             </article>
 
