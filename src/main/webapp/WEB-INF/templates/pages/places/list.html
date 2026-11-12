@@ -116,7 +116,7 @@
             <div class="flex items-stretch">
               <div class="flex min-w-0 flex-1 flex-col gap-1 p-4">
                 <h2 class="text-base font-medium text-gray-900">{{ place.name }}</h2>
-                <span class="text-xs font-semibold" :style="{ color: categoryColor(place.category) }">{{ place.category
+                <span class="place-category-label text-xs font-semibold" :style="{ '--category-color': categoryColor(place.category) }">{{ place.category
                   }}</span>
                 <p class="text-sm text-gray-600 line-clamp-2">{{ place.address }}</p>
                 <span class="mt-1 self-start text-sm font-medium text-gray-500">View details &rarr;</span>
@@ -161,8 +161,8 @@
           <div class="flex flex-1 flex-col gap-4 p-5">
             <div class="flex flex-col gap-2">
               <h2 class="text-xl font-semibold text-gray-900">{{ selectedPlace.name }}</h2>
-              <div class="flex items-center gap-2 text-sm font-medium"
-                :style="{ color: categoryColor(selectedPlace.category) }">
+              <div class="place-category-label flex items-center gap-2 text-sm font-medium"
+                :style="{ '--category-color': categoryColor(selectedPlace.category) }">
                 <span class="flex h-5 w-5 items-center justify-center"
                   v-html="categoryIcon(selectedPlace.category)"></span>
                 <span>{{ capitalize(selectedPlace.category) }}</span>
