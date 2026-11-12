@@ -28,7 +28,7 @@
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>
               </button>
               <div th:if="${canBookmark}">
-                <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${plan.bookmarked}, ${feedCurrentUrl})}"></div>
+                <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${plan.bookmarked}, ${feedCurrentUrl}, ${plan.bookmarkCount})}"></div>
               </div>
             </div>
             <!-- [DIS] 23-DIS: el link de la card es un overlay. HTML no admite <a> dentro de <a>
@@ -77,6 +77,16 @@
                        la vista del plan. Sin calificaciones el fragment no renderiza nada. -->
                   <p th:if="${plan.ratingAverage != null}" class="rating-line flex items-center gap-1.5">
                     <th:block th:replace="~{components/rating :: indicator(${plan.ratingAverage}, ${plan.ratingCount}, 'text-base', 'text-xs', true)}"></th:block>
+                  </p>
+                  <!-- [SAVES] Sin sesion no hay toggle, pero la cifra es publica: se muestra como
+                       dato de la card, junto a un icono de Guardados no interactivo. -->
+                  <p th:if="${!canBookmark and plan.bookmarkCount > 0}" data-bookmark-count="true"
+                    class="flex items-center gap-1.5">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
+                    </svg>
+                    <span th:text="${plan.bookmarkCount}">1</span>
+                    <span class="sr-only">personas guardaron este plan</span>
                   </p>
                 </div>
               </div>

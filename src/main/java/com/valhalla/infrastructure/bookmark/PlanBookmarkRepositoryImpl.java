@@ -2,7 +2,10 @@ package com.valhalla.infrastructure.bookmark;
 
 import com.valhalla.domain.bookmark.PlanBookmark;
 import com.valhalla.domain.bookmark.PlanBookmarkRepository;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -27,6 +30,20 @@ public class PlanBookmarkRepositoryImpl implements PlanBookmarkRepository {
   @Override
   public List<PlanBookmark> findByUserId(UUID userId) {
     return jpaPlanBookmarkRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId);
+  }
+
+  @Override
+  public Map<UUID, Long> countByPlanIds(Collection<UUID> planIds) {
+    if (planIds == null || planIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<UUID, Long> counts = new LinkedHashMap<>();
+    for (JpaPlanBookmarkRepository.PlanBookmarkCount row : jpaPlanBookmarkRepository.countByPlanIds(
+      planIds
+    )) {
+      counts.put(row.getPlanId(), row.getTotal());
+    }
+    return counts;
   }
 
   @Override

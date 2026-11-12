@@ -15,7 +15,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.valhalla.domain.bookmark.PlanBookmarkService;
@@ -263,7 +262,8 @@ public class ForYouControllerTest {
             "cover",
             "ratingAverage",
             "ratingCount",
-            "bookmarked"
+            "bookmarked",
+            "bookmarkCount"
           )
         )
       )
@@ -327,10 +327,12 @@ public class ForYouControllerTest {
     // when
     ModelAndView view = this.controller.forYou(anonymous, null, null, null, null, null);
 
-    // then (AC-05): sin sesion no hay control, no un control que rebote al login
+    // then (AC-05): sin sesion no hay control, no un control que rebote al login. La cifra si es
+    // publica: se consulta el agregado, nunca el estado personal de Guardados.
     assertThat(view.getModel().get("canBookmark"), is(false));
     assertThat(cardAt(view, 0).get("bookmarked"), is(false));
-    verifyNoInteractions(this.planBookmarkServiceMock);
+    verify(this.planBookmarkServiceMock).getBookmarkCounts(List.of(PLAN_ID));
+    verify(this.planBookmarkServiceMock, never()).getBookmarkedPlanIds(any());
   }
 
   private static Authentication signedInAuthentication() {

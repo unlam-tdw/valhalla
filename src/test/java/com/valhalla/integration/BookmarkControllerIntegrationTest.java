@@ -381,7 +381,90 @@ public class BookmarkControllerIntegrationTest {
     assertThat(saved, containsString("data-bookmark-remove=\"true\""));
   }
 
+  // --- [SAVES] contador global de guardados en las cards ---
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void I15_theFeedShowsTheCountWhenAnotherUserSavedThePlan() throws Exception {
+    UUID planId = givenPublicPlan(PLAN_NAME, 1);
+    givenAnotherUserSaves(planId);
+
+    String feed = html("/for-you", "pages/plans/public-list");
+
+    assertThat(feed, containsString("data-plan-id=\"" + planId + "\""));
+    assertThat(countOf(feed, "data-bookmark-count"), is(1));
+    assertThat(feed, containsString(">1</span>"));
+  }
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void I16_theFeedOmitsTheCountWhenNobodySavedThePlan() throws Exception {
+    givenPublicPlan(PLAN_NAME, 1);
+
+    String feed = html("/for-you", "pages/plans/public-list");
+
+    assertThat(feed, not(containsString("data-bookmark-count")));
+  }
+
+  @Test
+  @WithMockUser(username = SELF_EMAIL)
+  public void I17_thePublicProfileShowsTheCountOfItsPublicPlans() throws Exception {
+    UUID planId = givenPublicPlan(PLAN_NAME, 1);
+    givenAnotherUserSaves(planId);
+
+    this.mockMvc.perform(get("/profile/" + this.otherId))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/profile/view"))
+      .andExpect(content().string(containsString("data-bookmark-count")))
+      .andExpect(content().string(containsString(">1</span>")));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_EMAIL)
+  public void I18_theDetailAndThePublicViewDoNotRenderTheCount() throws Exception {
+    UUID planId = givenPublicPlan(PLAN_NAME, 1);
+    givenAnotherUserSaves(planId);
+
+    this.mockMvc.perform(get("/plans/" + planId + "/public"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(not(containsString("data-bookmark-count"))));
+    this.mockMvc.perform(get("/plans/" + planId))
+      .andExpect(status().isOk())
+      .andExpect(content().string(not(containsString("data-bookmark-count"))));
+  }
+
+  @Test
+  public void I19_theFeedShowsThePublicCountToAnonymousVisitorsWithoutTheToggle() throws Exception {
+    UUID planId = givenPublicPlan(PLAN_NAME, 1);
+    givenAnotherUserSaves(planId);
+
+    String feed = html("/for-you", "pages/plans/public-list");
+
+    assertThat(feed, containsString("data-bookmark-count"));
+    assertThat(feed, containsString(">1</span>"));
+    assertThat(feed, not(containsString("data-bookmark-toggle")));
+  }
+
+  @Test
+  public void I20_thePublicProfileShowsThePublicCountToAnonymousVisitors() throws Exception {
+    UUID planId = givenPublicPlan(PLAN_NAME, 1);
+    givenAnotherUserSaves(planId);
+
+    this.mockMvc.perform(get("/profile/" + this.otherId))
+      .andExpect(status().isOk())
+      .andExpect(view().name("pages/profile/view"))
+      .andExpect(content().string(containsString("data-bookmark-count")))
+      .andExpect(content().string(not(containsString("data-bookmark-toggle"))));
+  }
+
   // --- helpers ---
+
+  /** Un tercer usuario guarda el plan: el dueno del perfil no es el visitante ni el autor. */
+  private void givenAnotherUserSaves(UUID planId) {
+    User saver = user("Saver", "One", "mark.saver@test.com");
+    this.userRepository.save(saver);
+    this.planBookmarkService.save(planId, saver.getEmail());
+  }
 
   private User user(String firstName, String lastName, String email) {
     User user = new User();
