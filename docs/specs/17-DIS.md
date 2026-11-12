@@ -61,6 +61,7 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 | AC-16 | El modal "Ver más" del detalle del plan es una ficha con jerarquía: título + chip de categoría arriba, y un bloque por dato (dirección, cómo llegar, descripción del lugar, descripción de la visita, fecha/hora y posición) con icono en el `dt` y su valor en el `dd` |
 | AC-17 | El editor de fecha/hora del modal se muestra a quien puede editar el plan (administrador o editor) y no aparece para el resto |
 | AC-18 | El diálogo del detalle declara `aria-labelledby` apuntando a su título, recibe el foco al abrirse y se cierra con Escape |
+| AC-19 | En modo oscuro los textos que se pintan con color propio conservan contraste AA (≥ 4.5:1): el popup nativo de los `<select>` no sale blanco con texto claro y las etiquetas de categoría de `/explore` se aclaran lo justo para leerse sin perder la identidad de la categoría. *Agregado 2026-11-11 desde un bug reportado en la revisión visual* |
 
 > **Actualización 2026-10-28 — 25-STD:** AC-09 y V-09 quedan **supersedidos**, y con ellos la
 > decisión de "Notas / decisiones de diseño" que decía *"Los tiles del resumen no se tocan
@@ -74,9 +75,11 @@ y esta spec se amplía con un AC nuevo por item, sin renumerar los existentes.
 Es una spec de diseño: no hay lógica nueva, así que no hay clases de test U/I/S nuevas. La
 verificación es por inspección visual más la puerta completa (excepción: el AC-13 introduce una
 condición de template — quién ve "Clonar plan" — verificada por inspección con los tres estados
-de sesión; y los AC-15..AC-18 suman dos métodos en la clase E2E existente `PlanPlaceDetailE2E`,
-los items [T-DIS-B01] y [T-DIS-B02] de la card, listados más abajo). Ni backend ni clases de
-test nuevas: esos dos tests son la verificación automatizada de AC-15..AC-18.
+de sesión; los AC-15..AC-18 suman dos métodos en la clase E2E existente `PlanPlaceDetailE2E`,
+los items [T-DIS-B01] y [T-DIS-B02] de la card, listados más abajo; y el AC-19 suma una clase
+E2E propia para el contraste en oscuro, porque el color efectivo de un texto no se puede
+verificar por inspección del CSS). Ni backend ni clases de test nuevas: esos tests son la
+verificación automatizada de AC-15..AC-19.
 
 ### Checks visuales (V-XX, manuales o asistidos por los E2E existentes)
 
@@ -100,6 +103,7 @@ test nuevas: esos dos tests son la verificación automatizada de AC-15..AC-18.
 | V-16 | Modal "Ver más": título + chip `cat-*`, 6 bloques con ícono (dirección, cómo llegar, descripciones, fecha/hora y posición), "Sin fecha"/"Sin hora" cuando no hay datos y la posición al final del `dl` | AC-16 |
 | V-17 | Como administrador (o editor) el modal muestra los inputs de fecha y hora; como participante sin permiso no aparecen | AC-17 |
 | V-18 | El diálogo abierto tiene `aria-labelledby="place-detail-title"`, `document.activeElement` queda dentro del diálogo y Escape lo cierra | AC-18 |
+| V-19 | `/explore` en oscuro: abrir los `<select>` de "Cómo se trasladan" y de permisos y ver las opciones legibles; las etiquetas RESTAURANT/CULTURE/… se leen sobre la card | AC-19 |
 
 Los tres estados de sesión (anónimo, USER, ADMIN) en dos anchos (375px y 1280px).
 
@@ -118,6 +122,22 @@ La suite E2E existente (`e2e/`), en particular la del landing (`LandingPage`), d
 verde sin cambios: los templates que los page objects ya tocan no cambian selects ni textos de los
 helpers. Si un selector de test se rompe por el markup nuevo, se actualiza el page object, no el
 test.
+
+### E2E de contraste en oscuro (AC-19)
+
+`e2e/ExploreDarkContrastE2E` tiene un test, `keepsCategoryLabelsAndPermissionOptionsReadableInDarkMode`:
+entra a `/explore` con la sesión del seed, enciende el tema oscuro con el toggle del navbar
+(espera el reload), abre el panel de "Crear plan" y, desde el navegador, calcula el contraste
+real con un canvas de 1×1 (normaliza `oklch`, `color(srgb)`, `rgba`, etc. a píxeles sRGB):
+
+- exige `color-scheme: dark` calculado en `<html>`, que es lo que hace que el popup nativo del
+  select se pinte oscuro;
+- exige ≥ 4.5:1 para cada `.place-category-label` sobre el fondo opaco de su card;
+- exige ≥ 4.5:1 para cada `<option>` de la página contra su propio fondo, y que ese fondo sea
+  opaco (antes era `transparent` y el navegador lo pintaba blanco).
+
+Se corre con `pwsh -File scripts/gate.ps1 e2e=ExploreDarkContrastE2E`; en la puerta completa
+entra con el resto de `e2e/`.
 
 > Los selectores de los dos tests nuevos se anclan por `aria-labelledby=place-detail-title`, no
 > por `document.querySelector('dialog')`: desde el merge de `main` hay otro `<dialog>`
@@ -409,20 +429,37 @@ Correcciones y decisiones tomadas al implementar, que ajustan o precisan lo anot
   **antes** en el DOM: cualquier test que diga `document.querySelector('dialog')` sobre esa
   página agarra el de baneados. Los dos tests nuevos se anclan por
   `aria-labelledby=place-detail-title`, que solo el diálogo del detalle declara.
+- **AC-19: `color-scheme: dark` es el fix de fondo del popup de los selects.** `/explore` no
+  cargaba Bootstrap (el único CSS que ya declaraba `color-scheme: dark`), así que el navegador
+  pintaba el popup nativo con el esquema claro (blanco) mientras el control heredaba el texto
+  claro del tema: las opciones quedaban blancas sobre blanco. Se declara `color-scheme: dark`
+  en el bloque `html[data-theme="dark"]` de `brand.css` —arregla también el calendario del
+  `<input type=date>`, los spinners y las scrollbars— y, además, se fija
+  `select option { background: var(--dark-card); color: var(--dark-text) }` para que la lista
+  use la misma superficie que las cards.
+- **AC-19: las etiquetas de categoría usan `--category-color`, no `color` inline.** Los
+  colores de categoría (`--category-*`) están pensados para pines y bordes sobre fondos claros:
+  como texto sobre `--dark-card`, CULTURE quedaba en 1.58:1 y BAR en 3.14:1. El template pasa
+  el token por una custom property y `brand.css` decide el color según el tema: en claro,
+  `var(--category-color)` sin cambios; en oscuro,
+  `color-mix(in srgb, var(--category-color) 45%, var(--dark-text))`, que conserva el tinte y
+  deja todas las categorías ≥ 4.5:1. No se toca la paleta de los pines ni el borde de la card.
 
 ## Archivos a crear/modificar
 
 | Archivo | Accion |
 |---------|--------|
 | `templates/components/place-card.html` | Crear (fragmento de card de lugar compartido) |
-| `resources/css/brand.css` | Actualizar (`.place-card`, `.btn-cta`, indicador del FAQ, estilos del switch de visibilidad y del banner del plan para AC-08..AC-14) |
+| `resources/css/brand.css` | Actualizar (`.place-card`, `.btn-cta`, indicador del FAQ, estilos del switch de visibilidad y del banner del plan para AC-08..AC-14; AC-19: `color-scheme: dark`, `select option` y `.place-category-label`) |
 | `templates/pages/landing.html` | Actualizar (hero usa el fragmento, CTAs con `.btn-cta`, FAQ con indicador CSS, sin `<style>` de card propio en el hero) |
+| `templates/pages/places/list.html` | Actualizar (AC-19: las etiquetas de categoría pasan el token por `--category-color`) |
 | `templates/pages/plans/detail.html` | Actualizar (AC-01: `.itinerary-stop` pasa a consumir `.place-card`; AC-08: header título+botones en una fila con `gap`; AC-09: gutter del summary; AC-10: switch de visibilidad; AC-11: padding inferior; AC-12: handle de drag en cada card; AC-13: condición de "Clonar plan"; AC-14: banda sólida con imagen decorativa fuera; AC-15: pines de utilidad del navbar; AC-16: ficha del modal; AC-17: editor con `canEditPlan`; AC-18: `aria-labelledby` + `tabindex`) |
 | `templates/components/navbar.html` | Actualizar (sticky; botones con `.btn-cta`) |
 | `resources/core/js/lucide.min.js` | Actualizar (regenerar con los iconos faltantes, si se elige el camino (a)) |
 | `resources/images/logo.svg` | Actualizar (P re-traceada) |
 | `resources/core/js/pages/plans-detail.js` | Actualizar (AC-18: `await nextTick()` antes de `showModal`) |
 | `test/java/com/valhalla/e2e/PlanPlaceDetailE2E.java` | Actualizar (2 tests E2E: AC-15 por uno, AC-16/17/18 por el otro) |
+| `test/java/com/valhalla/e2e/ExploreDarkContrastE2E.java` | Crear (AC-19: contraste de etiquetas y opciones en oscuro + `color-scheme`) |
 
 No se tocan: controladores, servicios, repos, SecurityConfig, datos de semilla, ni ningún test
 de unitario, de integración o de seguridad. La única expresión no-puramente-visual de la ronda

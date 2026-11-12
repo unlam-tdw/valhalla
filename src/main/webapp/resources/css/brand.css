@@ -79,6 +79,11 @@ body {
  * pintan hex a mano (landing.html, detail.html) llevan su propio override al
  * lado de la regla original. */
 html[data-theme="dark"] {
+  /* Los controles nativos (popup de los <select>, calendario del date, scrollbars) se
+     pintan con el esquema del navegador. Sin esto el popup salia blanco con el texto
+     claro que hereda la pagina: las opciones quedaban invisibles. */
+  color-scheme: dark;
+
   /* Superficies: página y secciones, tarjetas, controles, bordes */
   --dark-page: #030712;
   --dark-surface: #111827;
@@ -146,6 +151,14 @@ html[data-theme="dark"] .hover\:text-red-600:hover { color: var(--dark-danger); 
    con !important dentro de nav. */
 html[data-theme="dark"] main .text-black { color: var(--dark-text); }
 
+/* La lista desplegable de un <select> no hereda el fondo del control: el navegador la
+   pinta con el fondo por defecto. Con color-scheme dark ya sale oscura; esto la deja
+   sobre la misma superficie de tarjeta que el resto del tema y fija el texto. */
+html[data-theme="dark"] select option {
+  background-color: var(--dark-card);
+  color: var(--dark-text);
+}
+
 /* --- Bordes y divisores --- */
 html[data-theme="dark"] .border-gray-100 { border-color: var(--dark-border-soft); }
 html[data-theme="dark"] .border-gray-200 { border-color: var(--dark-border); }
@@ -192,6 +205,18 @@ html[data-theme="dark"] .theme-icon-sun { display: block; }
 html[data-theme="dark"] .place-card {
   background: var(--dark-card);
   border-color: var(--dark-border);
+}
+
+/* --- Etiqueta de categoria: el template pasa el token de la categoria por
+ * --category-color. En claro se usa tal cual; en oscuro se mezcla con el texto principal
+ * porque los colores de categoria (pensados para fondo claro) no llegan a AA sobre la
+ * tarjeta oscura (CULTURE quedaba en 1.58:1). --- */
+.place-category-label {
+  color: var(--category-color);
+}
+
+html[data-theme="dark"] .place-category-label {
+  color: color-mix(in srgb, var(--category-color) 45%, var(--dark-text));
 }
 
 /* [DIS] El mapa Leaflet no debe pintar por encima del nav sticky (z-50). Sus traen z-index
