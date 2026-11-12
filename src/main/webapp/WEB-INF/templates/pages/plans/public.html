@@ -54,7 +54,7 @@
           Imprimir
         </button>
         <div th:if="${canBookmark}">
-          <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
+          <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath}, 0)}"></div>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ package com.valhalla.domain.bookmark;
 
 import com.valhalla.domain.plan.Plan;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,6 +18,12 @@ public interface PlanBookmarkService {
 
   /** Ids guardados por el usuario, para pintar el icono de cada card en una sola pasada. */
   Set<UUID> getBookmarkedPlanIds(String userEmail);
+
+  /**
+   * [SAVES] Cantidad global de guardados por plan, en una sola consulta agrupada. Los planes sin
+   * guardados no aparecen en el mapa. Una lista nula o vacia devuelve un mapa vacio.
+   */
+  Map<UUID, Long> getBookmarkCounts(List<UUID> planIds);
 
   /** Guardados del usuario, mas recientes primero, con el estado calculado por request. */
   List<BookmarkEntry> getBookmarks(String userEmail);

@@ -18,6 +18,8 @@ import com.valhalla.domain.planplace.PlanPlace;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -96,6 +98,16 @@ public class PlanBookmarkServiceImpl implements PlanBookmarkService {
       .findByEmail(userEmail)
       .map(user -> planBookmarkRepository.findPlanIdsByUserId(user.getId()))
       .orElse(Set.of());
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, Long> getBookmarkCounts(List<UUID> planIds) {
+    if (planIds == null || planIds.isEmpty()) {
+      return Map.of();
+    }
+    List<UUID> ids = planIds.stream().filter(Objects::nonNull).toList();
+    return ids.isEmpty() ? Map.of() : planBookmarkRepository.countByPlanIds(ids);
   }
 
   @Override

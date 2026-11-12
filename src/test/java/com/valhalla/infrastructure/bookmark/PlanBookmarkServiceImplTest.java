@@ -32,6 +32,7 @@ import com.valhalla.domain.user.UserRepository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -432,6 +433,29 @@ public class PlanBookmarkServiceImplTest {
 
     assertThat(entry.administratorId(), is(nullValue()));
     assertThat(entry.administratorName(), is(nullValue()));
+  }
+
+  // --- [SAVES] contador global de guardados por plan ---
+
+  @Test
+  public void T_SAVES_001_getBookmarkCounts_agrupaPorPlanYOmiteLosQueNoTienenGuardados() {
+    UUID planWithoutBookmarks = UUID.fromString("0192f0a1-0000-7000-8000-00000000000c");
+    Map<UUID, Long> counts = Map.of(PLAN_ID, 3L, OTHER_PLAN_ID, 1L);
+    List<UUID> requested = List.of(PLAN_ID, OTHER_PLAN_ID, planWithoutBookmarks);
+    when(this.planBookmarkRepositoryMock.countByPlanIds(requested)).thenReturn(counts);
+
+    Map<UUID, Long> result = this.bookmarkService.getBookmarkCounts(requested);
+
+    assertThat(result, is(counts));
+    assertThat(result.containsKey(planWithoutBookmarks), is(false));
+    verify(this.planBookmarkRepositoryMock).countByPlanIds(requested);
+  }
+
+  @Test
+  public void T_SAVES_002_getBookmarkCounts_sinPlanesNoConsultaLaBase() {
+    assertThat(this.bookmarkService.getBookmarkCounts(null), is(Map.of()));
+    assertThat(this.bookmarkService.getBookmarkCounts(List.of()), is(Map.of()));
+    verify(this.planBookmarkRepositoryMock, never()).countByPlanIds(any());
   }
 
   private void givenBookmark(PlanBookmark bookmark, Optional<Plan> live) {

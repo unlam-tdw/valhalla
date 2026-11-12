@@ -2,16 +2,17 @@
      El estado lo resuelve el controller por request (bookmarked), no JavaScript: sin JS el form
      POST sigue funcionando. El icono cambia de contorno a relleno y el aria-pressed lo anuncia.
 
-     Parametros: toggle(planId, bookmarked, returnTo)
+     Parametros: toggle(planId, bookmarked, returnTo, bookmarkCount)
        - planId:    UUID del plan.
        - bookmarked: boolean, estado para el usuario de la sesion.
+       - bookmarkCount: [SAVES] cantidad global de guardados; cero no pinta la cifra.
        - returnTo:  ruta interna a la que volver despues del POST. El controller la valida y, si no
                     es segura, cae a la vista publica del plan.
 
      Sin sesion este fragmento no se monta en ninguna vista (AC-05): no hay soft gate ni boton que
      rebote al login. -->
-<div th:fragment="toggle(planId, bookmarked, returnTo)" xmlns:th="http://www.thymeleaf.org"
-  class="inline-flex">
+<div th:fragment="toggle(planId, bookmarked, returnTo, bookmarkCount)"
+  xmlns:th="http://www.thymeleaf.org" class="inline-flex">
   <form method="post"
     th:action="${bookmarked} ? @{'/bookmarks/{id}/remove'(id=${planId})} : @{'/bookmarks/{id}'(id=${planId})}"
     th:attr="data-bookmark-remove=${bookmarked} ? 'true' : null" class="inline-flex">
@@ -21,7 +22,7 @@
     <button type="submit" data-bookmark-toggle="true"
       th:attr="data-plan-id=${planId}, data-bookmarked=${bookmarked}, aria-pressed=${bookmarked}, aria-label=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}, title=${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}"
       th:classappend="${bookmarked} ? 'text-primary' : 'text-gray-600 hover:text-primary'"
-      class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary disabled:cursor-not-allowed disabled:opacity-50">
+      class="inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-full bg-white/90 px-2 shadow ring-1 ring-black/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary disabled:cursor-not-allowed disabled:opacity-50">
       <!-- Relleno: ya esta guardado. Los dos iconos viajan siempre para que el JS pueda
            intercambiarlos sin reconstruir el boton. -->
       <svg data-bookmark-icon="filled" class="h-5 w-5"
@@ -35,6 +36,9 @@
         stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
         <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
       </svg>
+      <!-- [SAVES] Cifra global junto al icono. Con cero guardados no hay span: solo el icono. -->
+      <span th:if="${bookmarkCount != null and bookmarkCount > 0}" data-bookmark-count="true"
+        class="text-xs font-semibold tabular-nums" th:text="${bookmarkCount}">0</span>
       <span class="sr-only"
         th:text="${bookmarked ? 'Quitar de Guardados' : 'Guardar en Guardados'}">Guardar en Guardados</span>
     </button>

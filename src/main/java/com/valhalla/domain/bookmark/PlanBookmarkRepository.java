@@ -1,6 +1,8 @@
 package com.valhalla.domain.bookmark;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -13,6 +15,12 @@ public interface PlanBookmarkRepository {
   List<PlanBookmark> findByUserId(UUID userId);
 
   Set<UUID> findPlanIdsByUserId(UUID userId);
+
+  /**
+   * [SAVES] Cantidad total de guardados por plan, en una sola consulta agrupada. Los planes sin
+   * guardados no aparecen en el mapa; una coleccion vacia devuelve un mapa vacio.
+   */
+  Map<UUID, Long> countByPlanIds(Collection<UUID> planIds);
 
   PlanBookmark save(PlanBookmark bookmark);
 

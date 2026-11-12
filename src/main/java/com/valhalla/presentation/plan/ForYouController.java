@@ -218,9 +218,15 @@ public class ForYouController {
     // [MARK] Un solo lookup alimenta el icono de todas las cards. Sin sesion no hay nada que
     // preguntar y el toggle no se renderiza (AC-05): no es un soft gate, es ausencia de control.
     boolean signedIn = signedIn(authentication);
+    // [SAVES] Un solo agregado global para toda la pagina: mismo criterio que los summaries, sin
+    // N+1 por card. La cifra es publica y se consulta tambien sin sesion.
+    Map<UUID, Long> bookmarkCounts = bookmarkCounts(pagePlanIds);
     Set<UUID> bookmarkedPlanIds = bookmarkedPlanIds(authentication);
     Map<String, Object> model = new ModelMap();
-    model.put(ATTR_PUBLIC_PLANS, feedCards(pagePlans, summaries, bookmarkedPlanIds));
+    model.put(
+      ATTR_PUBLIC_PLANS,
+      feedCards(pagePlans, summaries, bookmarkedPlanIds, bookmarkCounts)
+    );
     model.put("canBookmark", signedIn);
     model.put("q", query.text());
     model.put("selectedCategory", selectedCategory(query));
@@ -242,15 +248,30 @@ public class ForYouController {
     return new ModelAndView(viewName, model);
   }
 
-  /** Tarjetas de la pagina: flag de guardado por card, sin volver a consultar agregados. */
+  /** [SAVES] Conteos de la ventana visible, en una sola consulta; vacia no toca la base. */
+  private Map<UUID, Long> bookmarkCounts(List<UUID> pagePlanIds) {
+    if (pagePlanIds.isEmpty()) {
+      return Map.of();
+    }
+    return this.planBookmarkService.getBookmarkCounts(pagePlanIds);
+  }
+
+  /** Tarjetas de la pagina: flag de guardado y contador global por card, ya resueltos. */
   private static List<Map<String, Object>> feedCards(
     List<Plan> plans,
     Map<UUID, RatingSummary> summaries,
-    Set<UUID> bookmarkedPlanIds
+    Set<UUID> bookmarkedPlanIds,
+    Map<UUID, Long> bookmarkCounts
   ) {
     return plans
       .stream()
-      .map(plan -> PlanFeedCards.planCard(plan, summaries, bookmarkedPlanIds.contains(plan.getId()))
+      .map(plan ->
+        PlanFeedCards.planCard(
+          plan,
+          summaries,
+          bookmarkedPlanIds.contains(plan.getId()),
+          bookmarkCounts.getOrDefault(plan.getId(), 0L)
+        )
       )
       .toList();
   }
