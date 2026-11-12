@@ -7,6 +7,7 @@
  * object graphs that a data-* attribute cannot carry without a serializer.
  */
 import { apiFetch } from '../lib/api.js';
+import { initBudgetDescription } from '../lib/plan-budget.js';
 import { el } from '../lib/dom.js';
 import { formatClock, formatDate, formatDuration } from '../lib/plan-schedule.js';
 import {
@@ -481,3 +482,4 @@ createApp({
         };
     }
 }).mount('#plan-app');
+initBudgetDescription();

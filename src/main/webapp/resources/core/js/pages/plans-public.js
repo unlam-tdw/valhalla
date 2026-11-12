@@ -7,6 +7,7 @@
  */
 
 import { el } from '../lib/dom.js';
+import { initBudgetDescription } from '../lib/plan-budget.js';
 import { buildMarker, directionsLink } from '../lib/places-map.js';
 
 const stops = (window.PUBLIC_PLAN_SEED || {}).stops || [];
@@ -77,4 +78,5 @@ function renderMap() {
   }
 }
 
+initBudgetDescription();
 renderMap();
