@@ -78,22 +78,28 @@ public final class PlanFeedCards {
    * Misma tarjeta como mapa, con las claves en orden, para el modelo Thymeleaf de {@code /for-you}
    * (la vista y sus tests leen claves, no componentes de record). Los summaries de calificaciones
    * arrive solo via ports/mocks: ver 16-CAL.md.
+   *
+   * <p>[SAVES] {@code bookmarkCount} es la cantidad global de usuarios que guardaron el plan, no el
+   * estado del visitante. Cero significa que nadie lo guardo y la vista no pinta la cifra.
    */
   public static Map<String, Object> planCard(
     Plan plan,
     Map<UUID, RatingSummary> summaries,
-    boolean bookmarked
+    boolean bookmarked,
+    long bookmarkCount
   ) {
     RatingSummary summary = summaries.getOrDefault(
       plan.getId(),
       new RatingSummary(plan.getId(), null, 0L)
     );
-    return modelOf(card(plan, summary, bookmarked));
+    Map<String, Object> model = modelOf(card(plan, summary, bookmarked));
+    model.put("bookmarkCount", bookmarkCount);
+    return model;
   }
 
   /**
-   * Modelo Thymeleaf plano de una Card ya armada: la unica fuente de claves del feed. Los tests de
-   * [PPV] fijan la lista exacta, agregar una clave aca es un cambio de contrato.
+   * Modelo Thymeleaf plano de una Card ya armada: las claves base del feed. Los tests de [PPV]
+   * fijan la lista exacta; {@link #planCard} agrega {@code bookmarkCount} como clave de [SAVES].
    */
   static Map<String, Object> modelOf(Card card) {
     Map<String, Object> model = new LinkedHashMap<>();

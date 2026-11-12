@@ -548,7 +548,7 @@
                     data-dialog="join-requests-dialog" @click="openRequests">Solicitudes <span th:text="${#lists.size(joinRequests)}">1</span></button>
             <!-- [MARK] Guardar para clonar despues: solo planes publicos y con sesion. -->
             <div th:if="${canBookmark}" class="flex-shrink-0">
-                <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath})}"></div>
+                <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${isBookmarked}, ${currentPath}, 0)}"></div>
             </div>
             <!-- [PRINT] Las acciones de la derecha van agrupadas para que Imprimir, Compartir y
                  Eliminar queden siempre en la misma fila (el grupo envuelve entero en mobile). -->

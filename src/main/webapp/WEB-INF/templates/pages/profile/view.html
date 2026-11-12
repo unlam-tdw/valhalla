@@ -62,7 +62,7 @@
                  HTML invalido); sin sesion el fragmento no se monta (AC-05). -->
             <div class="absolute right-3 top-3 z-10 flex items-center gap-2">
               <div th:if="${canBookmark}">
-                <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${plan.bookmarked}, ${currentUrl})}"></div>
+                <div th:replace="~{components/bookmark-button :: toggle(${plan.id}, ${plan.bookmarked}, ${currentUrl}, ${plan.bookmarkCount})}"></div>
               </div>
               <button type="button" data-share-plan
                 th:attr="data-share-url=@{/plans/{id}/public(id=${plan.id})}, aria-label='Compartir plan', title='Compartir plan'"
@@ -88,6 +88,15 @@
                   </p>
                   <p th:if="${plan.ratingAverage != null}" class="rating-line flex items-center gap-1.5">
                     <th:block th:replace="~{components/rating :: indicator(${plan.ratingAverage}, ${plan.ratingCount}, 'text-base', 'text-xs', true)}"></th:block>
+                  </p>
+                  <!-- [SAVES] Sin sesion no hay toggle, pero la cifra es publica: dato de la card. -->
+                  <p th:if="${!canBookmark and plan.bookmarkCount > 0}" data-bookmark-count="true"
+                    class="flex items-center gap-1.5">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-3.8L5.5 20.5v-16a1 1 0 0 1 1-1z"></path>
+                    </svg>
+                    <span th:text="${plan.bookmarkCount}">1</span>
+                    <span class="sr-only">personas guardaron este plan</span>
                   </p>
                 </div>
               </div>

@@ -323,15 +323,7 @@ public class ProfileController {
       "isFollowing",
       viewerId != null && followService.isFollowing(viewerId, owner.getId())
     );
-    model.put(
-      "profilePlans",
-      publicPlansOf(owner)
-        .stream()
-        .map(plan ->
-          PlanFeedCards.planCard(plan, Map.of(), bookmarkedPlanIds.contains(plan.getId()))
-        )
-        .toList()
-    );
+    model.put("profilePlans", publicPlanCards(publicPlansOf(owner), bookmarkedPlanIds));
     String profileName = displayName(owner);
     String description = "Perfil de " + profileName + " en PlanIt. Descubrí sus planes públicos.";
     model.put("pageTitle", profileName);
@@ -346,6 +338,27 @@ public class ProfileController {
       model.put("ogImage", "/images/og-image.png");
     }
     return model;
+  }
+
+  /**
+   * [SAVES] Cards del perfil publico con el contador global: un solo agregado para toda la pagina,
+   * igual que el feed. El detalle del plan no pasa por aca y conserva el fragmento sin cifra.
+   */
+  private List<Map<String, Object>> publicPlanCards(List<Plan> plans, Set<UUID> bookmarkedPlanIds) {
+    Map<UUID, Long> bookmarkCounts = plans.isEmpty()
+      ? Map.of()
+      : this.planBookmarkService.getBookmarkCounts(plans.stream().map(Plan::getId).toList());
+    return plans
+      .stream()
+      .map(plan ->
+        PlanFeedCards.planCard(
+          plan,
+          Map.of(),
+          bookmarkedPlanIds.contains(plan.getId()),
+          bookmarkCounts.getOrDefault(plan.getId(), 0L)
+        )
+      )
+      .toList();
   }
 
   /**

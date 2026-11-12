@@ -230,6 +230,33 @@ public class BookmarkE2E extends E2eBase {
   }
 
   /**
+   * [SAVES] La cifra global aparece en la card despues de guardar y desaparece al quitar. El
+   * toggle es optimista y no recarga: el contador se lee del servidor al recargar la pagina.
+   */
+  @Test
+  void E05_savingShowsTheCounterOnTheCardAfterReloading() {
+    givenAnAdminOwnsAPublicPlan();
+    signUpANormalUser();
+
+    PlansPage plans = new PlansPage(page);
+    page.navigate(plans.baseUrl() + "/for-you");
+    Locator card = feedCard();
+    assertThat(card.locator("[data-bookmark-count]")).hasCount(0);
+
+    clickAndAwaitBookmark(card.locator("[data-bookmark-toggle]"));
+    page.reload();
+
+    card = feedCard();
+    assertThat(card.locator("[data-bookmark-count]")).hasText("1");
+
+    page.onDialog(dialog -> dialog.accept());
+    clickAndAwaitBookmark(card.locator("[data-bookmark-toggle]"));
+    page.reload();
+
+    assertThat(feedCard().locator("[data-bookmark-count]")).hasCount(0);
+  }
+
+  /**
    * Dispara el click y espera la respuesta de la API. Sin esta espera, el estado optimista deja
    * pasar la asercion y una recarga o navegacion inmediata aborta el request en vuelo.
    */
