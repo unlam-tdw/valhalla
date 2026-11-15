@@ -81,6 +81,15 @@ public class PlanItinerarySummaryIntegrationTest {
   }
 
   @Test
+  public void thePublicViewShowsTheSameSummaryChip() throws Exception {
+    UUID planId = givenPlanWithTwoStops(true);
+
+    String html = html("/plans/" + planId + "/public");
+
+    assertThat(html, containsString("2 paradas · 3 h 10 min · 2,9 km"));
+  }
+
+  @Test
   public void aPlanWithoutStopsHidesTheSummaryChip() throws Exception {
     UUID planId = givenPlanWithTwoStops(false);
     Plan plan = this.planRepository.findById(planId).orElseThrow();

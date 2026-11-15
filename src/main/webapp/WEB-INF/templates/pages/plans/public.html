@@ -95,6 +95,19 @@
         th:text="${#temporals.format(plan.eventTime, 'HH:mm')}"></span>
     </p>
 
+    <!-- [SCH] Mismo resumen del itinerario que el detalle (mismo modelo, itinerarySummary):
+         la vista publica tambien responde "cuanto toma este plan" de un vistazo. Sin paradas
+         todavia, el chip no se dibuja. -->
+    <div class="mt-2" th:if="${itinerarySummary.stopCount > 0}">
+      <span
+        class="inline-flex flex-col items-start gap-0.5 rounded-[10px] bg-gray-100 px-3 py-1.5 leading-tight"
+      >
+        <small class="text-xs font-bold uppercase tracking-wide text-gray-500">Itinerario</small>
+        <span class="text-sm font-semibold text-gray-900"
+          th:text="${itinerarySummary.headline()}">5 paradas · 6 h 20 min · 12,4 km</span>
+      </span>
+    </div>
+
     <!-- CTAs arriba, bajo el titulo. Mismo par de acciones en todos los estados: con sesion
          son forms que ejecutan join/clone; sin sesion son links al login con la vuelta a
          esta misma vista (?redirect=, el mismo mecanismo que el navbar). El anonimo ve los
