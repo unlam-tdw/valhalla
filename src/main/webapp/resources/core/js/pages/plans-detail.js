@@ -575,7 +575,12 @@ createApp({
             draggingIndex.value = index;
             hoverSlot.value = index;
             const handle = event.currentTarget;
-            handle.setPointerCapture(event.pointerId);
+            /* [REO] La captura es lo que mantiene vivo el drag cuando el puntero sale de la
+               card. Con un puntero real siempre está activa al momento del down; con el
+               PointerEvent sintético del E2E no lo está y setPointerCapture rechaza, lo que
+               mataría el pointerdown entero. Sin captura el drag igual funciona acá: los
+               listeners viven en la manija y el dispatch va sobre ella. */
+            try { handle.setPointerCapture(event.pointerId); } catch (error) { /* sin captura */ }
             const onMove = (moveEvent) => { hoverSlot.value = slotFromPointer(moveEvent.clientY); };
             const detach = () => {
                 handle.removeEventListener('pointermove', onMove);
