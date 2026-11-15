@@ -9,7 +9,14 @@
 import { apiFetch } from '../lib/api.js';
 import { initBudgetDescription } from '../lib/plan-budget.js';
 import { el } from '../lib/dom.js';
-import { formatClock, formatDate, formatDuration } from '../lib/plan-schedule.js';
+import {
+    effectiveMinutes,
+    formatClock,
+    formatDate,
+    formatDuration,
+    haversineKm,
+    scheduleStops
+} from '../lib/plan-schedule.js';
 import {
     buildMarker,
     categoryIconHtml,
@@ -22,6 +29,13 @@ const { createApp, ref, computed, onMounted, nextTick } = Vue;
 const seed = window.PLAN_DETAIL_SEED || {};
 const itineraryUrl = seed.itineraryUrl || '';
 const catalogUrl = seed.catalogUrl || '';
+// [REO] Los cuatro valores del planificador (29-REO D-3): el preview del horario durante el
+// drag los usa en el espejo `scheduleStops`. Sin hora de inicio no hay cadena que derivar,
+// y `autoSchedule` apagado manda el mismo mensaje que en el servidor: no se recalcula nada.
+const eventTime = seed.eventTime || '';
+const dayEndTime = seed.dayEndTime || '';
+const transportMode = seed.transportMode || '';
+const autoScheduleOn = seed.autoSchedule !== false;
 
 /** An itinerary entry and a catalogue place arrive in different shapes; both end here. */
 const parsePlace = (p) => {
@@ -87,7 +101,18 @@ createApp({
         let map = null;
         let markers = [];
         let routeLine = null;
-        let draggedIndex = null;
+
+        // [REO] Estado del reorden por manija (29-REO D-1): refs porque la plantilla marca la
+        // fila levantada y la ranura de destino mientras el drag vive. Los dos índices son
+        // planos (posiciones de planPlaces); los grupos de día son presentación.
+        const draggingIndex = ref(null);
+        const hoverSlot = ref(null);
+        const itineraryList = ref(null);
+        // [REO] D-12: el texto que la plantilla lee en el aria-live off-screen; vacío no anuncia.
+        const dragAnnouncement = ref('');
+        // [REO] D-7: un drag por teclado necesita devolver el foco a la manija al soltar, porque
+        // Vue pudo remontar la fila si cambió de grupo de día (D-11).
+        let keyboardDrag = false;
 
         const availablePlaces = computed(() => {
             const addedIds = planPlaces.value.map(p => p.id);
@@ -160,13 +185,78 @@ createApp({
             };
         };
 
-        /* Las paradas agrupadas por la fecha que les tocó, en el orden del itinerario. La
-           numeración de cada parada es global (la misma que los marcadores del mapa), por eso el
-           índice viaja desde el array completo y no desde el grupo. */
+        /* [REO] La parada con la forma que el espejo del planificador espera (29-REO D-3): las
+           coordenadas y la categoría anidadas en `place`, la duración y el traslado propio
+           arriba y el pin del horario tal como viaja en el seed. */
+        const scheduleStopOf = (item) => ({
+            place: { latitude: item.latitude, longitude: item.longitude, category: item.category },
+            durationMinutes: item.durationMinutes,
+            transportModeToNext: item.transportModeToNext,
+            travelMinutesToNext: item.travelMinutesToNext,
+            timePinned: item.timePinned,
+            visitTime: item.visitTime,
+            visitDate: item.visitDate
+        });
+
+        /* [REO] D-2: el orden visible es el de planPlaces con la parada levantada ya insertada
+           en la ranura bajo el puntero. Devuelve pares (item, índice plano) porque la
+           numeración visible es la posición del reacomodo, mientras que eliminar sigue
+           necesitando el índice del array. */
+        const displayPlaces = computed(() => {
+            const pairs = planPlaces.value.map((item, index) => ({ item, index }));
+            if (draggingIndex.value === null || hoverSlot.value === null) return pairs;
+            const next = pairs.slice();
+            const [moved] = next.splice(draggingIndex.value, 1);
+            next.splice(hoverSlot.value, 0, moved);
+            return next;
+        });
+
+        /* [REO] D-3/D-5: el preview del horario vive solo durante el arrastre y solo cuando
+           autoSchedule está activo (con él apagado el servidor tampoco recalcula: las filas se
+           reacomodan y las horas quedan como están). Es computed sobre displayPlaces y nunca
+           muta planPlaces; con el espejo divergente gana el servidor al refrescar (D-4). */
+        const previewSchedule = computed(() => {
+            const previewing = draggingIndex.value !== null && hoverSlot.value !== null;
+            if (!previewing || !autoScheduleOn || !eventTime || !planDate.value) return null;
+            return scheduleStops({
+                planDate: planDate.value,
+                startTime: eventTime,
+                dayEnd: dayEndTime,
+                mode: transportMode,
+                stops: displayPlaces.value.map((pair) => scheduleStopOf(pair.item))
+            });
+        });
+
+        /* [REO] Las paradas del reacomodo: el item del preview cuando lo hay (horas derivadas
+           del espejo), si no el item real del servidor. Cada una lleva su índice plano (para
+           eliminar), su posición visible (numeración) y las marcas del drag. */
+        const displayStops = computed(() => {
+            const schedule = previewSchedule.value;
+            return displayPlaces.value.map((pair, position) => {
+                const slot = schedule ? schedule[position] : null;
+                const item = slot
+                    ? { ...pair.item, visitDate: slot.date, visitTime: formatClock(slot.startMinutes) }
+                    : pair.item;
+                const isDragged = draggingIndex.value !== null && pair.index === draggingIndex.value;
+                return {
+                    item,
+                    planIndex: pair.index,
+                    position,
+                    isDragged,
+                    dimmed: draggingIndex.value !== null && !isDragged,
+                    ...describeStop(item)
+                };
+            });
+        });
+
+        /* Las paradas agrupadas por la fecha que les tocó, en el orden del itinerario. [REO]
+           Deriva del reacomodo: durante el drag el agrupado por día sale del preview (D-11 y
+           AC-12), así que mover una parada a otra jornada la re-agrupa en vivo. La numeración
+           es global (la misma que los marcadores del mapa) y viaja como posición visible. */
         const dayGroups = computed(() => {
             const groups = [];
-            planPlaces.value.forEach((item, index) => {
-                const date = item.visitDate || null;
+            displayStops.value.forEach((stop) => {
+                const date = stop.item.visitDate || null;
                 let group = groups[groups.length - 1];
                 if (!group || group.date !== date) {
                     group = {
@@ -179,12 +269,48 @@ createApp({
                     };
                     groups.push(group);
                 }
-                group.stops.push({ index, item, ...describeStop(item) });
+                group.stops.push(stop);
             });
             return groups;
         });
 
         const dayCount = computed(() => dayGroups.value.length);
+
+        /* [REO] D-9: resumen del recorrido en vivo mientras se arrastra, con la misma cuenta
+           del itinerario: paradas, minutos totales (duraciones + tramos) y km de ruta con coma
+           decimal. Es efímero: al soltar gana lo que el servidor recalcula y refresca. */
+        const dragSummary = computed(() => {
+            if (draggingIndex.value === null || hoverSlot.value === null) return null;
+            const stops = displayPlaces.value.map((pair) => scheduleStopOf(pair.item));
+            const schedule = scheduleStops({
+                planDate: planDate.value,
+                startTime: eventTime,
+                dayEnd: dayEndTime,
+                mode: transportMode,
+                stops
+            });
+            let totalMinutes = 0;
+            schedule.forEach((slot) => { totalMinutes += slot.minutes + slot.legMinutes; });
+            if (!schedule.length) {
+                // Sin seed del planificador (plan viejo sin hora de inicio) solo quedan las
+                // duraciones: el resumen no miente con un total que no puede derivar.
+                stops.forEach((stop) => { totalMinutes += effectiveMinutes(stop); });
+            }
+            let totalKm = 0;
+            for (let i = 0; i < stops.length - 1; i++) {
+                const from = stops[i];
+                const to = stops[i + 1];
+                if (from.place.latitude != null && from.place.longitude != null
+                    && to.place.latitude != null && to.place.longitude != null) {
+                    totalKm += haversineKm(from, to);
+                }
+            }
+            return {
+                count: stops.length,
+                timeLabel: formatDuration(totalMinutes),
+                kmLabel: totalKm.toFixed(1).replace('.', ',') + ' km'
+            };
+        });
 
         const getCategoryLabel = (category) => {
             const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
@@ -424,32 +550,193 @@ createApp({
             finally { saving.value = false; }
         };
 
-        const onDragStart = (index) => {
-            draggedIndex = index;
+        /* [REO] Ranura de inserción bajo el puntero (29-REO, variante B): la primera fila cuyo
+           punto medio queda debajo del puntero, o la última si el puntero pasa el final. Las
+           filas de todos los grupos de día en orden del DOM son el orden del itinerario, y su
+           data-stop-row (entryId) es solo la clave de la fila, no un índice. */
+        const slotFromPointer = (clientY) => {
+            const panel = itineraryList.value;
+            const rows = panel ? panel.querySelectorAll('[data-stop-row]') : [];
+            for (let i = 0; i < rows.length; i++) {
+                const rect = rows[i].getBoundingClientRect();
+                if (clientY < rect.top + rect.height / 2) return i;
+            }
+            return Math.max(0, rows.length - 1);
         };
 
-        const onDrop = async (dropIndex) => {
+        /* [REO] D-1: la manija es el único origen del arrastre. pointerdown sobre el botón más
+           setPointerCapture encamina los movimientos a la manija aunque el puntero salga de la
+           card, y es la base del táctil (D-8: touch-action none solo acá). saving vuelve la
+           manija inerte: sin drag mientras hay un guardado en curso. pointercancel restaura
+           como un drop cancelado. */
+        const onHandleDown = (event, index) => {
+            if (saving.value || event.button > 0) return;
+            event.preventDefault();
+            draggingIndex.value = index;
+            hoverSlot.value = index;
+            const handle = event.currentTarget;
+            /* [REO] La captura es lo que mantiene vivo el drag cuando el puntero sale de la
+               card. Con un puntero real siempre está activa al momento del down; con el
+               PointerEvent sintético del E2E no lo está y setPointerCapture rechaza, lo que
+               mataría el pointerdown entero. Sin captura el drag igual funciona acá: los
+               listeners viven en la manija y el dispatch va sobre ella. */
+            try { handle.setPointerCapture(event.pointerId); } catch (error) { /* sin captura */ }
+            const onMove = (moveEvent) => { hoverSlot.value = slotFromPointer(moveEvent.clientY); };
+            const detach = () => {
+                handle.removeEventListener('pointermove', onMove);
+                handle.removeEventListener('pointerup', onUp);
+                handle.removeEventListener('pointercancel', onCancel);
+            };
+            const onUp = () => { detach(); finishDrag(); };
+            const onCancel = () => {
+                detach();
+                draggingIndex.value = null;
+                hoverSlot.value = null;
+            };
+            handle.addEventListener('pointermove', onMove);
+            handle.addEventListener('pointerup', onUp);
+            handle.addEventListener('pointercancel', onCancel);
+        };
+
+        /* [REO] D-12: texto del aria-live mientras se arrastra: nombre de la parada (el lector
+             lo nombra, la posición sola no dice qué se movió), ranura destino y total. El hint
+             extra solo lo suma el teclado (instrucciones al levantar). */
+        const announcePosition = (hint = '') => {
+            const from = draggingIndex.value;
+            if (from === null) return;
+            const item = planPlaces.value[from];
+            dragAnnouncement.value = 'Parada ' + (item ? item.name : '')
+                + ', posición ' + (hoverSlot.value + 1) + ' de ' + planPlaces.value.length + '.' + hint;
+        };
+
+        /* [REO] D-7: al soltar por teclado el foco vuelve a la manija de la fila movida: sin
+             esto queda en el body y el siguiente Enter no sabe de qué parada habla. Vue pudo
+             remontar la fila (cambió de grupo de día, D-11), así que se busca por data-stop-row
+             después del commit y del re-render. */
+        const refocusHandle = async (entryId) => {
+            if (!entryId) return;
+            await nextTick();
+            const panel = itineraryList.value;
+            const handle = panel
+                && panel.querySelector('[data-stop-row="' + entryId + '"] .drag-handle');
+            if (handle) handle.focus();
+        };
+
+        /* [REO] D-2/D-7: el drop es el mismo commit para puntero y teclado; solo cambia el
+             anuncio ("soltada en la posición N") y que el teclado devuelve el foco a la manija
+             movida, también cuando no hubo movimiento (from === to). */
+        const finishDrag = async () => {
+            const from = draggingIndex.value;
+            const to = hoverSlot.value;
+            const movedEntryId = from !== null && planPlaces.value[from]
+                ? planPlaces.value[from].entryId : null;
+            const wasKeyboard = keyboardDrag;
+            keyboardDrag = false;
+            draggingIndex.value = null;
+            hoverSlot.value = null;
+            if (from === null || to === null || from === to) {
+                if (wasKeyboard) await refocusHandle(movedEntryId);
+                return;
+            }
+            dragAnnouncement.value = 'Parada soltada en la posición ' + (to + 1) + '.';
+            if (wasKeyboard) {
+                await commitReorder(from, to);
+                await refocusHandle(movedEntryId);
+                return;
+            }
+            commitReorder(from, to);
+        };
+
+        /* [REO] D-7: la manija es un botón real, así que el teclado vive en su keydown: Enter
+             o Espacio levanta y suelta, flechas mueven la ranura (limitada al total de
+             paradas) y Escape cancela. Sin drag en curso las flechas y Escape no hacen nada
+             (la manija sigue siendo un botón normal), y saving ignora todo porque la manija
+             ya está deshabilitada. */
+        const onHandleKeydown = (event, index) => {
             if (saving.value) return;
-            if (draggedIndex !== null && draggedIndex !== dropIndex) {
-                saving.value = true;
-                requestError.value = '';
-                const previous = [...planPlaces.value];
-                const movedItem = planPlaces.value.splice(draggedIndex, 1)[0];
-                planPlaces.value.splice(dropIndex, 0, movedItem);
-                draggedIndex = null;
-                renderMarkers();
-                let reordered = false;
-                try {
-                    await itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(planPlaces.value.map(item => item.entryId)) });
-                    reordered = true;
-                } catch (error) { planPlaces.value = previous; renderMarkers(); requestError.value = error.message; }
-                finally { saving.value = false; }
-                // [SCH] Reordenar vuelve a derivar el horario: el refresco trae las horas nuevas y
-                // deja intacto el orden optimista que ya está pintado. Va fuera del try del
-                // reorder para que un fallo acá no revierta un orden que el servidor sí guardó.
-                if (reordered) {
-                    try { await refreshSchedule(); } catch (error) { requestError.value = error.message; }
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                if (draggingIndex.value === null) {
+                    keyboardDrag = true;
+                    draggingIndex.value = index;
+                    hoverSlot.value = index;
+                    announcePosition(' Usá las flechas para moverla y Enter para soltar.');
+                } else {
+                    finishDrag();
                 }
+                return;
+            }
+            if (draggingIndex.value === null) return;
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                const next = Math.min(Math.max(hoverSlot.value + (event.key === 'ArrowUp' ? -1 : 1), 0), planPlaces.value.length - 1);
+                if (next !== hoverSlot.value) {
+                    hoverSlot.value = next;
+                    announcePosition();
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                keyboardDrag = false;
+                draggingIndex.value = null;
+                hoverSlot.value = null;
+                dragAnnouncement.value = 'Reorden cancelado.';
+            }
+        };
+
+        /* [REO] D-2/D-11: FLIP barato para el commit del drop: mide los tops de las filas que
+           persisten, muta el orden y anima el delta al volver. Una fila que cambia de grupo de
+           día se remonta (clave nueva en otro <ol>) y no anima, aceptado por la spec.
+           prefers-reduced-motion la apaga (D-12). */
+        const flipReorder = async (mutate) => {
+            const panel = itineraryList.value;
+            const reduceMotion = window.matchMedia
+                && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (!panel || reduceMotion) { mutate(); return; }
+            const before = new Map();
+            panel.querySelectorAll('[data-stop-row]').forEach((row) => {
+                before.set(row.dataset.stopRow, row.getBoundingClientRect().top);
+            });
+            mutate();
+            await nextTick();
+            panel.querySelectorAll('[data-stop-row]').forEach((row) => {
+                const previousTop = before.get(row.dataset.stopRow);
+                if (previousTop === null || previousTop === undefined) return;
+                const delta = previousTop - row.getBoundingClientRect().top;
+                if (!delta) return;
+                row.style.transition = 'none';
+                row.style.transform = 'translateY(' + delta + 'px)';
+                requestAnimationFrame(() => {
+                    row.style.transition = 'transform 180ms ease';
+                    row.style.transform = '';
+                });
+            });
+        };
+
+        /* [REO] D-4: la persistencia es la de siempre: splice optimista (con FLIP, D-2), POST
+           /reorder con los entryId en el orden nuevo y rollback si el servidor falla; el mapa
+           se redibuja al soltar (D-10) y refreshSchedule trae después las horas derivadas. */
+        const commitReorder = async (from, to) => {
+            if (saving.value) return;
+            saving.value = true;
+            requestError.value = '';
+            const previous = [...planPlaces.value];
+            await flipReorder(() => {
+                const movedItem = planPlaces.value.splice(from, 1)[0];
+                planPlaces.value.splice(to, 0, movedItem);
+            });
+            renderMarkers();
+            let reordered = false;
+            try {
+                await itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(planPlaces.value.map(item => item.entryId)) });
+                reordered = true;
+            } catch (error) { planPlaces.value = previous; renderMarkers(); requestError.value = error.message; }
+            finally { saving.value = false; }
+            // [SCH] Reordenar vuelve a derivar el horario: el refresco trae las horas nuevas y
+            // deja intacto el orden optimista que ya está pintado. Va fuera del try del
+            // reorder para que un fallo acá no revierta un orden que el servidor sí guardó.
+            if (reordered) {
+                try { await refreshSchedule(); } catch (error) { requestError.value = error.message; }
             }
         };
 
@@ -476,9 +763,11 @@ createApp({
             inviteOpen, addPlaceOpen,
             configDialog, openConfig, bannedDialog, bannedTrigger, openBanned,
             participantsDialog, openParticipants, requestsDialog, openRequests,
-            placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
+            placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl, itineraryList,
+            dragSummary,
+            dragAnnouncement,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
-            removePlace, onDragStart, onDrop
+            removePlace, onHandleDown, onHandleKeydown
         };
     }
 }).mount('#plan-app');

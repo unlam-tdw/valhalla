@@ -67,8 +67,9 @@ export function effectiveMinutes(stop) {
 const hasCoordinates = (stop) =>
   stop?.place?.latitude != null && stop?.place?.longitude != null;
 
-/** Distancia en línea recta entre dos paradas, en kilómetros. */
-const haversineKm = (from, to) => {
+/** Distancia en línea recta entre dos paradas, en kilómetros. [REO] Exportada para el resumen
+ *  en vivo del reorden (29-REO D-9): los km del preview usan la misma cuenta que el traslado. */
+export function haversineKm(from, to) {
   const fromLatitude = (from.place.latitude * Math.PI) / 180;
   const toLatitude = (to.place.latitude * Math.PI) / 180;
   const deltaLatitude = toLatitude - fromLatitude;
@@ -79,7 +80,7 @@ const haversineKm = (from, to) => {
     sinLatitude * sinLatitude +
     Math.cos(fromLatitude) * Math.cos(toLatitude) * sinLongitude * sinLongitude;
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(haversine));
-};
+}
 
 /**
  * Traslado hacia la parada siguiente. Con minutos fijados a mano en la parada de origen manda el
@@ -105,8 +106,21 @@ const dateOf = (planDate, dayIndex) => {
   return moment.toISOString().slice(0, 10);
 };
 
+/** [REO] Jornada relativa de `isoDate` respecto de `planDate` (negativa si cae antes). */
+const dayIndexOf = (planDate, isoDate) => {
+  const [baseYear, baseMonth, baseDay] = planDate.split('-').map(Number);
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const difference =
+    Date.UTC(year, month - 1, day) - Date.UTC(baseYear, baseMonth - 1, baseDay);
+  return Math.round(difference / (MINUTES_PER_DAY * MINUTES_PER_HOUR));
+};
+
 /**
  * Reparte las paradas en jornadas desde `startTime`, igual que el servidor.
+ *
+ * [REO] Una parada con `timePinned` y hora fijada ancla su inicio en esa hora (24-SCH D-6):
+ * si trae `visitDate`, su jornada sale de la diferencia contra `planDate` (puede ser una que
+ * la cadena ya pasó); las siguientes reencadenan desde el pin.
  *
  * @param {object} plan `{ planDate, startTime, dayEnd, mode, stops }`
  * @returns {Array<{date: string, dayIndex: number, startMinutes: number, endMinutes: number,
@@ -124,11 +138,22 @@ export function scheduleStops({ planDate, startTime, dayEnd, mode, stops } = {})
 
   stops.forEach((stop, index) => {
     const minutes = effectiveMinutes(stop);
-    // Una parada que no entra en la ventana rueda una sola vez; si su duración sola ya
-    // excede la ventana, desborda en vez de iterar.
-    if (cursor + minutes > windowEnd) {
-      dayIndex += 1;
-      cursor = dayStart;
+    // [REO] El pin manda sobre la cadena (espejo de resolveStart de la calculadora): muestra
+    // su hora fijada y su día, y las paradas siguientes salen de ahí. Sin pin, la parada rueda
+    // una sola jornada cuando no entra en la ventana.
+    const pinnedStart = stop.timePinned ? minuteOfDay(stop.visitTime) : null;
+    let startMinutes;
+    if (pinnedStart !== null) {
+      if (stop.visitDate) dayIndex = dayIndexOf(planDate, stop.visitDate);
+      startMinutes = pinnedStart;
+    } else {
+      // Una parada que no entra en la ventana rueda una sola vez; si su duración sola ya
+      // excede la ventana, desborda en vez de iterar.
+      if (cursor + minutes > windowEnd) {
+        dayIndex += 1;
+        cursor = dayStart;
+      }
+      startMinutes = cursor;
     }
     const hasNext = index + 1 < stops.length;
     const legMinutes = hasNext
@@ -137,12 +162,12 @@ export function scheduleStops({ planDate, startTime, dayEnd, mode, stops } = {})
     schedule.push({
       date: dateOf(planDate, dayIndex),
       dayIndex,
-      startMinutes: cursor,
-      endMinutes: cursor + minutes,
+      startMinutes,
+      endMinutes: startMinutes + minutes,
       minutes,
       legMinutes
     });
-    cursor += minutes + legMinutes;
+    cursor = startMinutes + minutes + legMinutes;
   });
 
   return schedule;

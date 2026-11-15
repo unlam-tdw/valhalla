@@ -52,11 +52,12 @@
         .itinerary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .itinerary-heading { color: var(--bs-body-color); letter-spacing: -0.03em; }
         .itinerary-count { background: var(--bs-secondary-bg); color: var(--bs-body-color); border-radius: 20px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
+        /* [REO] D-9: chip del resumen en vivo durante el arrastre, bajo la cabecera del panel. */
+        .drag-summary { display: flex; align-items: center; margin: 8px 0 0; color: var(--bs-secondary-color); font-size: .78rem; font-weight: 600; }
+        .drag-summary > span { display: inline-flex; align-items: center; }
         .itinerary-list { list-style: none; padding: 0; margin: 12px 0 0; }
         .place-item { position: relative; display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
         .place-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 50%; bottom: -50%; border-left: 2px dashed var(--bs-border-color); }
-        .place-item[draggable="true"] { cursor: grab; }
-        .place-item[draggable="true"]:active { cursor: grabbing; }
         .itinerary-step { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-secondary-bg); color: var(--bs-body-color); font-weight: 700; z-index: 1; }
         /* [DIS] AC-01: la cara visual (borde, radius, padding, superficie, hover, transicion)
              vive en .place-card de brand.css y la card la comparte con el landing; aca queda
@@ -64,9 +65,27 @@
              fondo que re-colorea Bootstrap, mobile y reduced-motion van en el bloque de
              style de abajo, despues del link de brand.css. */
         .itinerary-stop { flex: 1; }
-        /* [DIS] AC-12: handle de arrastre decorativo en el borde izquierdo de la card; el
-             drag real lo manda el <li> draggable (place-item y sus selectores no cambian). */
-        .drag-handle { flex: 0 0 auto; display: inline-flex; align-self: center; color: var(--gray); opacity: 0.8; }
+        /* [REO] D-1/D-7/D-8: la manija es un botón real (enfocable, con teclado en el slice 4)
+             y el único origen del arrastre. Conserva la cara visual del handle decorativo y
+             suma cursor grab / grabbing, touch-action none (el drag funciona en táctil sin
+             romper el scroll de la página) y foco visible para el manejo por teclado. */
+        .drag-handle {
+            flex: 0 0 auto; display: inline-flex; align-self: center; padding: 2px; margin: 0;
+            border: 0; background: none; color: var(--gray); opacity: 0.8;
+            cursor: grab; touch-action: none;
+        }
+        .drag-handle:active { cursor: grabbing; opacity: 1; }
+        .drag-handle:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+        /* [REO] D-2: estados del reacomodo en vivo. La fila levantada destaca con anillo y
+           sombra (igual que la variante B del prototipo) y las demás bajan la opacidad; las
+           transiciones suaves hacen legible el salto entre ranuras. */
+        .place-item.is-drag-source { opacity: 0.55; transition: opacity 120ms ease; }
+        .place-item.is-dragged { opacity: 1; }
+        .place-item.is-dragged .itinerary-stop {
+            outline: 2px solid var(--bs-primary);
+            outline-offset: -1px;
+            box-shadow: 0 14px 30px rgb(0 0 0 / 0.18);
+        }
         .stop-content { flex: 1; min-width: 0; }
         .stop-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
         .place-item:last-child { padding-bottom: 0; }
@@ -281,6 +300,9 @@
         @media (prefers-reduced-motion: reduce) {
             .itinerary-stop { transition: none; }
             .itinerary-stop:hover { transform: none; }
+            /* [REO] D-12: el FLIP del reorden también se apaga (el JS ya no lo anima; esta
+               regla es el cinturón: ningún translateY queda aplicado a las filas). */
+            .place-item { transform: none !important; transition: none; }
         }
 
         /* [DIS] AC-14 (decisión final de revisión, 2026-10-25): banda de color SOLIDO de
@@ -633,11 +655,20 @@
 
         <div id="map"></div>
 
-        <section id="itinerary-panel" class="itinerary-panel plan-sheet" aria-labelledby="itinerary-heading">
+        <section id="itinerary-panel" ref="itineraryList" class="itinerary-panel plan-sheet" aria-labelledby="itinerary-heading">
             <div class="itinerary-head">
                 <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
                 <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
             </div>
+            <!-- [REO] D-9: resumen del recorrido en vivo, solo mientras la manija está agarrada:
+                 misma cuenta que el itinerario (paradas, minutos totales con tramos, km con coma
+                 decimal). Es efímero y va oculto al lector de pantalla: el canal de anuncios del
+                 drag es el aria-live, y al soltar confirma el resumen que recalcula el servidor. -->
+            <p v-if="dragSummary" class="drag-summary" aria-hidden="true">
+                <span class="me-1" v-html="iconHtml('route', 14)"></span>
+                {{ dragSummary.count }} {{ dragSummary.count === 1 ? 'parada' : 'paradas' }} &middot;
+                {{ dragSummary.timeLabel }} &middot; {{ dragSummary.kmLabel }}
+            </p>
             <!-- [STD] AC-05: agregar lugar es una accion del recorrido, no una card propia: el
              boton vive en la cabecera del panel y el picker se despliega colapsado debajo,
              sin consumir layout hasta que se pide. [STD-011/AC-11] A todo el ancho: la
@@ -658,7 +689,7 @@
                     </button>
                 </div>
             </div>
-            <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
+            <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; la parada desde la manija para organizar tu recorrido.</p>
             <div v-if="planPlaces.length === 0" class="itinerary-empty">
                 <span class="mb-3 d-inline-block" v-html="iconHtml('map-pinned', 28)"></span>
                 <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
@@ -668,17 +699,20 @@
                 <h6 v-if="dayCount > 1" class="itinerary-day-heading">{{ group.label }}</h6>
                 <ol class="itinerary-list">
                     <li v-for="stop in group.stops"
-                        :key="stop.item.entryId || stop.index"
+                        :key="stop.item.entryId || stop.planIndex"
                         class="place-item"
-                        th:attr="draggable=${canEditPlan}"
-                        @dragstart="onDragStart(stop.index)"
-                        @dragover.prevent
-                        @drop="onDrop(stop.index)">
-                        <!-- [DIS] AC-12: handle decorativo en el borde izquierdo de la card,
-                             solo con permiso de edicion. El arrastre real sigue mandado en el
-                             <li> draggable: place-item y sus selectores no cambian. -->
-                        <span th:if="${canEditPlan}" class="drag-handle" aria-hidden="true">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        :data-stop-row="stop.item.entryId || String(stop.planIndex)"
+                        :class="{ 'is-dragged': stop.isDragged, 'is-drag-source': stop.dimmed }">
+                        <!-- [REO] D-1/D-7/D-8: la manija es un botón real y el único origen del
+                             arrastre: pointerdown + setPointerCapture acá, y el <li> deja de ser
+                             draggable (fin de los drags accidentales). El SVG de 6 puntos se
+                             conserva; el botón lleva cursor grab y touch-action none solo acá,
+                             para que el drag táctil no scrollee la página. -->
+                        <button th:if="${canEditPlan}" type="button" class="drag-handle"
+                            :disabled="saving" aria-label="Arrastrar para reordenar la parada"
+                            @pointerdown="onHandleDown($event, stop.planIndex)"
+                            @keydown="onHandleKeydown($event, stop.planIndex)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="9" cy="12" r="1" />
                                 <circle cx="9" cy="5" r="1" />
                                 <circle cx="9" cy="19" r="1" />
@@ -686,10 +720,11 @@
                                 <circle cx="15" cy="5" r="1" />
                                 <circle cx="15" cy="19" r="1" />
                             </svg>
-                        </span>
+                        </button>
                         <!-- La numeración es global (no por día): es la misma que usan los
-                             marcadores del mapa. -->
-                        <span class="itinerary-step">{{ stop.index + 1 }}</span>
+                             marcadores del mapa. [REO] Durante el drag es la posición visible
+                             del reacomodo, no la del array guardado. -->
+                        <span class="itinerary-step">{{ stop.position + 1 }}</span>
                         <!-- [DIS] AC-01: clase doble — .place-card aporta el chrome compartido
                              con el landing; .itinerary-stop conserva las reglas propias del
                              detalle (fondo --bs-body-bg, ajuste mobile, reduced-motion). -->
@@ -720,7 +755,7 @@
                             </div>
                             <div class="stop-actions">
                                 <button type="button" class="stop-details" @click="showPlace(stop.item)">Ver m&aacute;s</button>
-                                <button th:if="${canEditPlan}" @click="removePlace(stop.index)" type="button" class="stop-remove" :disabled="saving">
+                                <button th:if="${canEditPlan}" @click="removePlace(stop.planIndex)" type="button" class="stop-remove" :disabled="saving">
                                     <span class="me-1" v-html="iconHtml('trash-2', 14)"></span>Eliminar
                                 </button>
                             </div>
@@ -728,6 +763,10 @@
                     </li>
                 </ol>
             </div>
+            <!-- [REO] D-12: canal de anuncios del drag (teclado y táctil): la región vive
+                 off-screen y solo habla cuando dragAnnouncement cambia. La posición visible y
+                 el nombre de la parada se componen en el JS; vacío no anuncia nada. -->
+            <p id="reorder-live" class="visually-hidden" aria-live="polite">{{ dragAnnouncement }}</p>
         </section>
 
         <aside class="plan-side">
@@ -1167,7 +1206,7 @@
       });
     </script>
 
-    <!-- The module cannot read Thymeleaf, so the page hands it exactly these five values.
+    <!-- The module cannot read Thymeleaf, so the page hands it exactly these nine values.
          `th:inline` is the accepted literal form (docs/guide-js.md R3): the two lists are
          object graphs, not strings a data-* attribute could carry. -->
     <script th:inline="javascript">
@@ -1176,7 +1215,14 @@
         catalogUrl: /*[[@{/api/places}]]*/ '',
         allPlaces: /*[[${allPlaces}]]*/ [],
         itineraryPlaces: /*[[${itineraryPlaces}]]*/ [],
-        planDate: /*[[${planDateIso}]]*/ ''
+        planDate: /*[[${planDateIso}]]*/ '',
+        // [REO] Los cuatro valores que el espejo del planificador necesita para previsualizar
+        // el horario mientras se arrastra la manija (29-REO D-3/D-5/D-6): ventana del día,
+        // modo de traslado y flag de derivación automática del plan.
+        eventTime: /*[[${planEventTime}]]*/ '',
+        dayEndTime: /*[[${planDayEndTime}]]*/ '',
+        transportMode: /*[[${planTransportMode}]]*/ '',
+        autoSchedule: /*[[${planAutoSchedule}]]*/ true
       };
     </script>
     <script type="module" th:src="@{/js/pages/plans-detail.js}"></script>
