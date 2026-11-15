@@ -108,6 +108,11 @@ createApp({
         const draggingIndex = ref(null);
         const hoverSlot = ref(null);
         const itineraryList = ref(null);
+        // [REO] D-12: el texto que la plantilla lee en el aria-live off-screen; vacío no anuncia.
+        const dragAnnouncement = ref('');
+        // [REO] D-7: un drag por teclado necesita devolver el foco a la manija al soltar, porque
+        // Vue pudo remontar la fila si cambió de grupo de día (D-11).
+        let keyboardDrag = false;
 
         const availablePlaces = computed(() => {
             const addedIds = planPlaces.value.map(p => p.id);
@@ -588,13 +593,90 @@ createApp({
             handle.addEventListener('pointercancel', onCancel);
         };
 
-        const finishDrag = () => {
+        /* [REO] D-12: texto del aria-live mientras se arrastra: nombre de la parada (el lector
+             lo nombra, la posición sola no dice qué se movió), ranura destino y total. El hint
+             extra solo lo suma el teclado (instrucciones al levantar). */
+        const announcePosition = (hint = '') => {
+            const from = draggingIndex.value;
+            if (from === null) return;
+            const item = planPlaces.value[from];
+            dragAnnouncement.value = 'Parada ' + (item ? item.name : '')
+                + ', posición ' + (hoverSlot.value + 1) + ' de ' + planPlaces.value.length + '.' + hint;
+        };
+
+        /* [REO] D-7: al soltar por teclado el foco vuelve a la manija de la fila movida: sin
+             esto queda en el body y el siguiente Enter no sabe de qué parada habla. Vue pudo
+             remontar la fila (cambió de grupo de día, D-11), así que se busca por data-stop-row
+             después del commit y del re-render. */
+        const refocusHandle = async (entryId) => {
+            if (!entryId) return;
+            await nextTick();
+            const panel = itineraryList.value;
+            const handle = panel
+                && panel.querySelector('[data-stop-row="' + entryId + '"] .drag-handle');
+            if (handle) handle.focus();
+        };
+
+        /* [REO] D-2/D-7: el drop es el mismo commit para puntero y teclado; solo cambia el
+             anuncio ("soltada en la posición N") y que el teclado devuelve el foco a la manija
+             movida, también cuando no hubo movimiento (from === to). */
+        const finishDrag = async () => {
             const from = draggingIndex.value;
             const to = hoverSlot.value;
+            const movedEntryId = from !== null && planPlaces.value[from]
+                ? planPlaces.value[from].entryId : null;
+            const wasKeyboard = keyboardDrag;
+            keyboardDrag = false;
             draggingIndex.value = null;
             hoverSlot.value = null;
-            if (from === null || to === null || from === to) return;
+            if (from === null || to === null || from === to) {
+                if (wasKeyboard) await refocusHandle(movedEntryId);
+                return;
+            }
+            dragAnnouncement.value = 'Parada soltada en la posición ' + (to + 1) + '.';
+            if (wasKeyboard) {
+                await commitReorder(from, to);
+                await refocusHandle(movedEntryId);
+                return;
+            }
             commitReorder(from, to);
+        };
+
+        /* [REO] D-7: la manija es un botón real, así que el teclado vive en su keydown: Enter
+             o Espacio levanta y suelta, flechas mueven la ranura (limitada al total de
+             paradas) y Escape cancela. Sin drag en curso las flechas y Escape no hacen nada
+             (la manija sigue siendo un botón normal), y saving ignora todo porque la manija
+             ya está deshabilitada. */
+        const onHandleKeydown = (event, index) => {
+            if (saving.value) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                if (draggingIndex.value === null) {
+                    keyboardDrag = true;
+                    draggingIndex.value = index;
+                    hoverSlot.value = index;
+                    announcePosition(' Usá las flechas para moverla y Enter para soltar.');
+                } else {
+                    finishDrag();
+                }
+                return;
+            }
+            if (draggingIndex.value === null) return;
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                const next = Math.min(Math.max(hoverSlot.value + (event.key === 'ArrowUp' ? -1 : 1), 0), planPlaces.value.length - 1);
+                if (next !== hoverSlot.value) {
+                    hoverSlot.value = next;
+                    announcePosition();
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                keyboardDrag = false;
+                draggingIndex.value = null;
+                hoverSlot.value = null;
+                dragAnnouncement.value = 'Reorden cancelado.';
+            }
         };
 
         /* [REO] D-2/D-11: FLIP barato para el commit del drop: mide los tops de las filas que
@@ -678,8 +760,9 @@ createApp({
             participantsDialog, openParticipants, requestsDialog, openRequests,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl, itineraryList,
             dragSummary,
+            dragAnnouncement,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
-            removePlace, onHandleDown
+            removePlace, onHandleDown, onHandleKeydown
         };
     }
 }).mount('#plan-app');

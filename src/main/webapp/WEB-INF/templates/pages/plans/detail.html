@@ -682,7 +682,7 @@
                     </button>
                 </div>
             </div>
-            <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; las tarjetas para organizar tu recorrido.</p>
+            <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; la parada desde la manija para organizar tu recorrido.</p>
             <div v-if="planPlaces.length === 0" class="itinerary-empty">
                 <span class="mb-3 d-inline-block" v-html="iconHtml('map-pinned', 28)"></span>
                 <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
@@ -703,7 +703,8 @@
                              para que el drag táctil no scrollee la página. -->
                         <button th:if="${canEditPlan}" type="button" class="drag-handle"
                             :disabled="saving" aria-label="Arrastrar para reordenar la parada"
-                            @pointerdown="onHandleDown($event, stop.planIndex)">
+                            @pointerdown="onHandleDown($event, stop.planIndex)"
+                            @keydown="onHandleKeydown($event, stop.planIndex)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="9" cy="12" r="1" />
                                 <circle cx="9" cy="5" r="1" />
@@ -755,6 +756,10 @@
                     </li>
                 </ol>
             </div>
+            <!-- [REO] D-12: canal de anuncios del drag (teclado y táctil): la región vive
+                 off-screen y solo habla cuando dragAnnouncement cambia. La posición visible y
+                 el nombre de la parada se componen en el JS; vacío no anuncia nada. -->
+            <p id="reorder-live" class="visually-hidden" aria-live="polite">{{ dragAnnouncement }}</p>
         </section>
 
         <aside class="plan-side">
