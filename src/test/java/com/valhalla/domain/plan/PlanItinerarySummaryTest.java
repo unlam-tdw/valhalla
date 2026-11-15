@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.nullValue;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
 import com.valhalla.domain.planplace.PlanPlace;
+import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import org.junit.jupiter.api.Test;
@@ -139,6 +140,59 @@ public class PlanItinerarySummaryTest {
     assertThat(new PlanItinerarySummary(2, 61, null).durationLabel(), is(equalTo("1 h 1 min")));
     assertThat(new PlanItinerarySummary(2, 0, 12.36).distanceLabel(), is(equalTo("12,4 km")));
     assertThat(new PlanItinerarySummary(2, 0, null).distanceLabel(), is(equalTo("")));
+  }
+
+  @Test
+  public void unaListaDeParadasNulaTambienQuedaVacia() throws Exception {
+    // given: el guard defensivo de of() por si la relacion llega sin inicializar
+    Plan plan = plan(TransportMode.WALK);
+    Field places = Plan.class.getDeclaredField("planPlaces");
+    places.setAccessible(true);
+    places.set(plan, null);
+
+    // when
+    PlanItinerarySummary summary = PlanItinerarySummary.of(plan);
+
+    // then
+    assertThat(summary.stopCount(), is(equalTo(0)));
+    assertThat(summary.totalMinutes(), is(equalTo(0)));
+    assertThat(summary.distanceKm(), is(nullValue()));
+  }
+
+  @Test
+  public void paradasSinLugarUsanElDefaultGenericoYElFallbackDeTraslado() {
+    // given: dos paradas sin lugar: 60 de default generico cada una y el gap de 15 al no haber
+    // coordenadas para estimar el tramo
+    Plan plan = plan(TransportMode.WALK);
+    stop(plan, null, null, null);
+    stop(plan, null, null, null);
+
+    // when
+    PlanItinerarySummary summary = PlanItinerarySummary.of(plan);
+
+    // then
+    assertThat(summary.stopCount(), is(equalTo(2)));
+    assertThat(summary.totalMinutes(), is(equalTo(135)));
+    assertThat(summary.distanceKm(), is(nullValue()));
+    assertThat(summary.headline(), is(equalTo("2 paradas · 2 h 15 min")));
+  }
+
+  @Test
+  public void unaCoordenadaIncompletaNoSumaKilometros() {
+    // given: el origen tiene latitud pero le falta longitud: sin geometria completa no hay km
+    Plan plan = plan(TransportMode.WALK);
+    Place origin = place(PlaceCategory.MUSEUM, 60);
+    origin.setLongitude(null);
+    stop(plan, origin, null, null);
+    stop(plan, place(PlaceCategory.CAFE, null), null, null);
+
+    // when
+    PlanItinerarySummary summary = PlanItinerarySummary.of(plan);
+
+    // then: 60 + 45 (default de CAFE) + 15 de fallback, y el chip sin kilometros
+    assertThat(summary.totalMinutes(), is(equalTo(120)));
+    assertThat(summary.distanceKm(), is(nullValue()));
+    assertThat(summary.headline(), is(equalTo("2 paradas · 2 h")));
   }
 
   private static Plan plan(TransportMode mode) {
