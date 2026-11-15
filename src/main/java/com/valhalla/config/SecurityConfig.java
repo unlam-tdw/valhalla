@@ -215,7 +215,9 @@ public class SecurityConfig {
         "/plans/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}"
       )
       .permitAll()
-      .requestMatchers("/", "/share/**", "/reload/**")
+      // [PROTOTYPE] /prototype/** es la ruta tiradera del prototipo de UI (veredicto -> se
+      // borra); publica para poder evaluarla sin login. Nunca debe llegar a main.
+      .requestMatchers("/", "/share/**", "/reload/**", "/prototype/**")
       .permitAll()
       .requestMatchers("/css/**", "/js/**", "/images/**", "/manifest.json")
       .permitAll()

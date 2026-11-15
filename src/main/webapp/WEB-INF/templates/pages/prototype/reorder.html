@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+
+<!-- [PROTOTYPE] Descartable — responde: ¿cómo se siente reordenar el itinerario con drag & drop?
+     Tres variantes de interacción conviven acá, elegibles por ?variant=a|b|c o la barra flotante.
+     Datos mock en memoria (nada persiste), lugares reales de Buenos Aires. Con veredicto, el
+     ganador se reimplementa en el detalle real del plan y este template, su controlador
+     (presentation/prototype/), su módulo JS y el permitAll de /prototype/** se borran. -->
+<head>
+  <th:block th:replace="~{layouts/base :: headContent('Prototype · Reordenar el itinerario')}"></th:block>
+</head>
+<body th:replace="~{layouts/base :: layout(~{::main})}">
+<main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+  <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+    <strong>Prototype descartable.</strong>
+    Responde: ¿cómo se siente reordenar el itinerario? Tres variantes de interacción, elegibles
+    con la barra flotante de abajo (o <code>?variant=a|b|c</code> en la URL, compartible).
+    Todo es mock en memoria; nada persiste.
+  </div>
+
+  <div id="prototype-reorder-root" v-cloak class="mt-6"></div>
+
+  <script type="module" th:src="@{/js/pages/prototype-reorder.js}"></script>
+</main>
+</body>
+</html>
