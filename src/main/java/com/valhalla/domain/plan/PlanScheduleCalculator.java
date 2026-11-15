@@ -229,6 +229,24 @@ public final class PlanScheduleCalculator {
     return (int) Math.max(MIN_GAP_MINUTES, Math.min(MAX_GAP_MINUTES, minutes));
   }
 
+  /**
+   * [SCH] Distancia estimada del tramo entre dos paradas, en kilometros: la misma cuenta con rodeo
+   * que usa el estimador de minutos, para que el resumen del itinerario y el horario no discrepen.
+   * Es publica por el mismo motivo que {@link #travelMinutes}: quien dibuja el recorrido lee de
+   * aca en vez de volver a medir con otra formula.
+   *
+   * @param from parada de origen
+   * @param to parada de destino
+   * @return kilometros del tramo con el rodeo urbano, o {@code null} si a alguna de las dos le
+   *     falta coordenada: sin geometria no hay kilometros que inventar
+   */
+  public static Double roadDistanceKm(Stop from, Stop to) {
+    if (!hasCoordinates(from) || !hasCoordinates(to)) {
+      return null;
+    }
+    return haversineKm(from, to) * ROAD_FACTOR;
+  }
+
   private static boolean hasCoordinates(Stop stop) {
     return stop.latitude() != null && stop.longitude() != null;
   }

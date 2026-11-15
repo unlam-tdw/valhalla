@@ -6,6 +6,7 @@ import com.valhalla.domain.bookmark.PlanBookmarkService;
 import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.plan.Plan;
+import com.valhalla.domain.plan.PlanItinerarySummary;
 import com.valhalla.domain.plan.PlanPermission;
 import com.valhalla.domain.plan.PlanService;
 import com.valhalla.domain.plan.TransportMode;
@@ -138,6 +139,9 @@ public class PlanController {
     // [SCH] El JS compara la fecha de cada parada contra esta para no repetir el Día 1 en cada
     // una: sin la fecha del plan, la lista no puede saber cuál es la jornada de referencia.
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
+    // [SCH] Resumen del itinerario (paradas · tiempo · km) para el chip de la ficha; sale de la
+    // misma calculadora que deriva el horario.
+    model.put("itinerarySummary", PlanItinerarySummary.of(plan));
     addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }
@@ -217,6 +221,8 @@ public class PlanController {
     // difiere de la del plan; sin ella la vista publica no sabria cuál es la jornada de
     // referencia (mismo motivo que el planDateIso de showPlan).
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
+    // [SCH] Mismo resumen que el detalle: el plan se lee con sus numeros en las dos vistas.
+    model.put("itinerarySummary", PlanItinerarySummary.of(plan));
     // AC-03: "Creado por" en la vista pública; sin nombre de visualización se usa el email.
     model.put("administratorName", displayName(plan.getAdministrator()));
     // [PROF] AC-22: el autor linkea a su perfil público; el id viaja al link del template.
