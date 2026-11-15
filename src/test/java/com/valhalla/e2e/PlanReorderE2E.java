@@ -130,13 +130,21 @@ public class PlanReorderE2E extends E2eBase {
    */
   @Test
   void E03_dragTactilReordenaSinScrollearLaPagina() {
+    // La creación del plan pasa en el contexto desktop: en el layout móvil de /explore el
+    // wizard de creación y el catálogo de lugares viven en tabs de radio mutuamente
+    // excluyentes, y el objetivo de E-03 es el drag táctil sobre el detalle, no el flujo de
+    // creación a 390px (eso es territorio de MobileLayoutE2E).
+    createPlanWithThreeStops();
+    String detailUrl = page.url();
+
     // El drag táctil necesita un contexto móvil (isMobile + hasTouch): se reemplaza el
     // contexto default por uno de teléfono y se entra de nuevo, porque la sesión no cruza
-    // contextos.
+    // contextos. El plan persistió en la base, así que alcanza con volver a entrar y
+    // navegar a su URL.
     openTouchContext();
     signInAsAdmin();
-    this.plans = new PlansPage(page);
-    createPlanWithThreeStops();
+    page.navigate(detailUrl);
+    page.waitForSelector(".stop-title");
     Locator titles = page.locator(".stop-title");
     String thirdTitle = titles.nth(2).innerText();
 
