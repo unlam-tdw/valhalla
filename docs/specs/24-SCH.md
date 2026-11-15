@@ -134,6 +134,32 @@ calculados.
 En la UI se rotula siempre como **"traslado estimado"**. No es ruteo real y no debe
 presentarse como tal.
 
+## Resumen del itinerario
+
+Sobre la misma derivación, el plan expone un resumen de lectura rápida junto a los
+chips de fecha/hora del header, en el detalle y en la vista pública:
+
+```
+5 paradas · 6 h 20 min · 12,4 km
+```
+
+| Componente | Definición |
+|------------|------------|
+| Paradas | Cantidad de paradas del itinerario ("1 parada" en singular) |
+| Tiempo total | Suma de duraciones efectivas + minutos de traslado de cada tramo (la última parada no suma traslado). Formato "6 h 20 min"; "45 min" bajo la hora; "2 h" exacto |
+| Distancia | Suma de distancia de calle por tramo (haversine × 1.3), formato "12,4 km" con coma decimal |
+
+Reglas:
+
+- Se computa en el dominio sobre la misma cascada y los mismos tramos que la derivación
+  (no es una segunda fuente de verdad); vive en `PlanItinerarySummary` y llega al modelo
+  como `itinerarySummary`.
+- Es **server-rendered**: los chips del header no se actualizan del lado del cliente, así
+  que el resumen usa el mismo patrón que sus vecinos.
+- Un plan sin paradas no muestra el chip.
+- Si algún tramo no tiene coordenadas en ambos extremos, se omite la distancia sin ocultar
+  el chip (no se inventa geodesia).
+
 ## UX por pantalla
 
 ### Creación (`/explore`, panel de 3 pasos)
@@ -206,6 +232,9 @@ Día 2 · dom 25/10
 | AC-18 | La vista pública muestra el rango horario y el día de cada parada |
 | AC-19 | Los formatos de fecha y el copy están en español y son consistentes entre creación, detalle y vista pública |
 | AC-20 | Un plan existente que se edita conserva sus paradas, descripciones y orden |
+| AC-21 | El header del detalle muestra el chip de resumen: cantidad de paradas, tiempo total (duraciones + traslados) y distancia de calle |
+| AC-22 | La vista pública muestra el mismo chip de resumen |
+| AC-23 | Un plan sin paradas no muestra el chip; un tramo sin coordenadas en algún extremo omite la distancia sin ocultar el chip |
 
 ## Escenarios de Test
 
@@ -226,6 +255,12 @@ Día 2 · dom 25/10
 | U-11 | Un plan de un solo día no genera separador de día | AC-09 |
 | U-23 | El traslado fijo gana sobre la distancia y no se conea en 90 | AC-11 |
 | U-24 | El traslado fijo tiene piso de 1 minuto y no necesita coordenadas | AC-11 |
+| U-25 | El resumen suma duraciones efectivas y traslados de los tramos; la última parada no suma traslado | AC-21 |
+| U-26 | El resumen replica la cascada de duración de la derivación | AC-21 |
+| U-27 | Un tramo con traslado fijo y sin coordenadas omite la distancia | AC-23 |
+| U-28 | La distancia usa el mismo factor de calle que el estimador de traslado | AC-21 |
+| U-29 | Una sola parada y un itinerario vacío no producen errores | AC-23 |
+| U-30 | El formateo del resumen es español: "6 h 20 min", "45 min", "12,4 km", "1 parada" | AC-21, AC-19 |
 
 ### Tests de Integracion (`integration/PlanControllerIntegrationTest.java`)
 
@@ -241,6 +276,9 @@ Día 2 · dom 25/10
 | I-08 | Un editor puede editar el horario de una parada | AC-15 |
 | I-09 | El resumen del plan muestra la hora de inicio persistida | AC-14 |
 | I-13 | `POST /plans` acepta `travelMinutesToNext` por tramo y lo persiste | AC-11 |
+| I-14 | El header del detalle renderiza el chip de resumen con los totales | AC-21 |
+| I-15 | La vista pública renderiza el mismo chip de resumen | AC-22 |
+| I-16 | Un plan sin paradas no muestra el chip de resumen | AC-23 |
 
 ### Tests de Integracion (`infrastructure/plan/PlanScheduleBackfillTest.java`)
 
@@ -291,6 +329,7 @@ planes de prueba. Si más adelante hubiera datos reales, este es el punto a camb
 |---------|--------|
 | `domain/plan/TransportMode.java` | Crear |
 | `domain/plan/PlanScheduleCalculator.java` | Crear |
+| `domain/plan/PlanItinerarySummary.java` | Crear (resumen: paradas, tiempo total, distancia) |
 | `domain/plan/PlanSchedule.java` | Actualizar (hora de inicio, fin de día, modo) |
 | `domain/plan/PlanSettings.java` | Actualizar (`autoSchedule`) |
 | `domain/planplace/PlanPlace.java` | Actualizar (duración, modo y minutos del tramo) |

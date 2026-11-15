@@ -1,6 +1,7 @@
 package com.valhalla.domain.plan;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.valhalla.domain.place.PlaceCategory;
 import java.time.LocalDate;
@@ -474,6 +475,23 @@ public class PlanScheduleCalculatorTest {
       )
     );
     assertEquals(LocalTime.of(10, 20), withoutCoordinates.get(1).start());
+  }
+
+  @Test
+  public void U31_laDistanciaDeCallePideCoordenadasEnLosDosExtremos() {
+    // given: el origen tiene geometria completa y al destino le falta la longitud
+    PlanScheduleCalculator.Stop from = stop(
+      60,
+      null,
+      PlaceCategory.OTHER,
+      LATITUDE,
+      LONGITUDE,
+      null
+    );
+    PlanScheduleCalculator.Stop to = stop(60, null, PlaceCategory.OTHER, LATITUDE, null, null);
+
+    // then: sin las dos coordenadas en los dos extremos el tramo no inventa kilometros
+    assertNull(PlanScheduleCalculator.roadDistanceKm(from, to));
   }
 
   private static PlanScheduleCalculator.Stop stop(

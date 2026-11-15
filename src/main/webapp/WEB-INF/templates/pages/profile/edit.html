@@ -110,8 +110,10 @@
               <p class="mt-1 text-sm text-gray-600" th:text="${bookmark.description}"></p>
 
               <div class="mt-auto space-y-1 pt-3 text-xs text-gray-500">
+                <!-- [DIS] El snapshot del bookmark guarda la fecha como string ISO: se parsea
+                     aca para mostrarla dd/MM/yyyy, igual que en las cards del feed. -->
                 <p th:if="${bookmark.eventDate != null}">
-                  Fecha: <span th:text="${bookmark.eventDate}"></span>
+                  Fecha: <span th:text="${#temporals.format(T(java.time.LocalDate).parse(bookmark.eventDate), 'dd/MM/yyyy')}">15/11/2026</span>
                 </p>
                 <p><span th:text="${bookmark.placeCount}"></span> lugares en el itinerario</p>
                 <!-- [DIS] AC-04 (23-DIS): mismo fix del feed: "Por {autor}" en una sola linea,

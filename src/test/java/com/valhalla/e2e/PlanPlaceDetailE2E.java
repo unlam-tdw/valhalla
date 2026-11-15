@@ -396,14 +396,16 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertFalse(visibleValues.contains(eventDate), "la fecha solo en la ficha: " + visibleValues);
     assertFalse(visibleValues.contains(START_TIME), "la hora solo en la ficha: " + visibleValues);
 
-    // AC-01: la ficha es la fuente de lectura — 4 chips (fecha, hora, visibilidad, código) y una
-    // descripción con clamp de 3 líneas; el tile ADMINISTRADOR ya no existe.
+    // AC-01: la ficha es la fuente de lectura — 5 chips (fecha, hora, visibilidad, código y el
+    // resumen del itinerario de 24-SCH) y una descripción con clamp de 3 líneas; el tile
+    // ADMINISTRADOR ya no existe.
     Locator summary = page.locator("#plan-summary");
-    assertThat(summary.locator(".plan-chip")).hasCount(4);
+    assertThat(summary.locator(".plan-chip")).hasCount(5);
     assertThat(summary).containsText(dateLabel(eventDate));
     assertThat(summary).containsText(START_TIME);
     assertThat(summary).containsText("Privado");
     assertThat(summary).containsText("CÓDIGO");
+    assertThat(summary).containsText("parada");
     String lineClamp = (String) page.evaluate(
       "() => getComputedStyle(document.querySelector('#plan-description')).webkitLineClamp"
     );

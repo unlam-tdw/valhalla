@@ -632,6 +632,13 @@
                     <small class="plan-chip__label">CÓDIGO</small>
                     <span class="plan-chip__value" th:text="${plan.shortCode}">BD0F615A</span>
                 </span>
+                <!-- [SCH] Resumen del itinerario derivado, con la misma calculadora del horario.
+                     Server-rendered como sus vecinos: los chips de la ficha no se actualizan por
+                     Vue y el resumen no es la excepcion. -->
+                <span class="plan-chip" th:if="${itinerarySummary.stopCount > 0}">
+                    <small class="plan-chip__label">ITINERARIO</small>
+                    <span class="plan-chip__value" th:text="${itinerarySummary.headline()}">5 paradas · 6 h 20 min · 12,4 km</span>
+                </span>
             </div>
             <p id="plan-description" class="mb-0 text-break plan-description-clamp"
                th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
