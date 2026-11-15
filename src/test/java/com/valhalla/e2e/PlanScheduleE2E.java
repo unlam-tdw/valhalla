@@ -71,12 +71,13 @@ public class PlanScheduleE2E extends E2eBase {
     assertThat(page.locator("input[name='dayEndTime']")).hasCount(0);
     assertThat(page.locator("select[name='transportMode']")).hasValue(TRANSPORT_MODE);
 
-    // Reordenar: la primera parada pasa a la segunda, con el mismo drag & drop sintético que usa
-    // PlanPlaceDetailE2E. [STD-011] En la variante C el recorrido vive en una columna con scroll
-    // propio, así que un arrastre por coordenadas puede quedarse a mitad de camino; los
-    // DragEvent sobre los <li> ejercitan los mismos handlers (@dragstart/@drop) sin depender del
-    // viewport. Se lee antes el texto de esa parada (título y rango) para comparar después el
-    // mismo caso, no la posición.
+    // Reordenar: la primera parada pasa a la segunda, con la misma secuencia sintética de
+    // PointerEvent sobre la manija que usa PlanPlaceDetailE2E. [STD-011] En la variante C el
+    // recorrido vive en una columna con scroll propio, así que un arrastre por coordenadas
+    // puede quedarse a mitad de camino; los PointerEvent sobre el botón de la manija ejercitan
+    // los mismos handlers (pointerdown/pointermove/pointerup) sin depender del viewport.
+    // Se lee antes el texto de esa parada (título y rango) para comparar después el mismo
+    // caso, no la posición.
     Locator titles = page.locator(".stop-title");
     Locator schedules = page.locator("li.place-item .stop-schedule");
     String movedTitle = titles.nth(0).innerText();
@@ -89,17 +90,23 @@ public class PlanScheduleE2E extends E2eBase {
         page.evaluate(
           """
           () => {
-            const items = document.querySelectorAll('.place-item');
-            const dataTransfer = new DataTransfer();
-            const event = (type) => new DragEvent(type, {
+            const handle = document.querySelectorAll('.drag-handle')[0];
+            const rows = document.querySelectorAll('.place-item');
+            const from = handle.getBoundingClientRect();
+            const to = rows[1].getBoundingClientRect();
+            const fire = (type, y) => handle.dispatchEvent(new PointerEvent(type, {
               bubbles: true,
               cancelable: true,
-              dataTransfer
-            });
-            items[0].dispatchEvent(event('dragstart'));
-            items[1].dispatchEvent(event('dragover'));
-            items[1].dispatchEvent(event('drop'));
-            items[0].dispatchEvent(event('dragend'));
+              pointerId: 1,
+              pointerType: 'mouse',
+              button: 0,
+              buttons: type === 'pointerup' ? 0 : 1,
+              clientX: from.left,
+              clientY: y
+            }));
+            fire('pointerdown', from.top + from.height / 2);
+            fire('pointermove', to.top + to.height / 2 - to.height / 4);
+            fire('pointerup', to.top + to.height / 2 - to.height / 4);
           }
           """
         )

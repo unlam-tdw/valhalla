@@ -21,6 +21,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,6 +139,20 @@ public class PlanController {
     // [SCH] El JS compara la fecha de cada parada contra esta para no repetir el Día 1 en cada
     // una: sin la fecha del plan, la lista no puede saber cuál es la jornada de referencia.
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
+    // [REO] El preview del itinerario mientras se arrastra lo calcula el espejo JS del
+    // planificador (29-REO D-3), así que el seed del detalle viaja con la ventana del día, el
+    // modo de traslado y el flag de derivación automática, al lado del planDateIso que ya iba.
+    // Las horas salen formateadas HH:mm como strings, igual que planDateIso viaja ISO. La hora
+    // de inicio es la única que puede faltar (un plan viejo sin ventana) y viaja null; el
+    // Optional deja la rama fuera del cómputo de complejidad de la clase, que ya estaba al
+    // límite del gate de PMD.
+    model.put(
+      "planEventTime",
+      Optional.ofNullable(plan.getEventTime()).map(CLOCK_FORMATTER::format).orElse(null)
+    );
+    model.put("planDayEndTime", CLOCK_FORMATTER.format(plan.getDayEndTime()));
+    model.put("planTransportMode", plan.getTransportMode().name());
+    model.put("planAutoSchedule", plan.getSettings().getAutoSchedule());
     addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }

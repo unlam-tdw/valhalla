@@ -87,7 +87,13 @@ createApp({
         let map = null;
         let markers = [];
         let routeLine = null;
-        let draggedIndex = null;
+
+        // [REO] Estado del reorden por manija (29-REO D-1): refs porque la plantilla marca la
+        // fila levantada y la ranura de destino mientras el drag vive. Los dos índices son
+        // planos (posiciones de planPlaces); los grupos de día son presentación.
+        const draggingIndex = ref(null);
+        const hoverSlot = ref(null);
+        const itineraryList = ref(null);
 
         const availablePlaces = computed(() => {
             const addedIds = planPlaces.value.map(p => p.id);
@@ -424,32 +430,80 @@ createApp({
             finally { saving.value = false; }
         };
 
-        const onDragStart = (index) => {
-            draggedIndex = index;
+        /* [REO] Ranura de inserción bajo el puntero (29-REO, variante B): la primera fila cuyo
+           punto medio queda debajo del puntero, o la última si el puntero pasa el final. Las
+           filas de todos los grupos de día en orden del DOM son el orden del itinerario, y su
+           data-stop-row (entryId) es solo la clave de la fila, no un índice. */
+        const slotFromPointer = (clientY) => {
+            const panel = itineraryList.value;
+            const rows = panel ? panel.querySelectorAll('[data-stop-row]') : [];
+            for (let i = 0; i < rows.length; i++) {
+                const rect = rows[i].getBoundingClientRect();
+                if (clientY < rect.top + rect.height / 2) return i;
+            }
+            return Math.max(0, rows.length - 1);
         };
 
-        const onDrop = async (dropIndex) => {
+        /* [REO] D-1: la manija es el único origen del arrastre. pointerdown sobre el botón más
+           setPointerCapture encamina los movimientos a la manija aunque el puntero salga de la
+           card, y es la base del táctil (D-8: touch-action none solo acá). saving vuelve la
+           manija inerte: sin drag mientras hay un guardado en curso. pointercancel restaura
+           como un drop cancelado. */
+        const onHandleDown = (event, index) => {
+            if (saving.value || event.button > 0) return;
+            event.preventDefault();
+            draggingIndex.value = index;
+            hoverSlot.value = index;
+            const handle = event.currentTarget;
+            handle.setPointerCapture(event.pointerId);
+            const onMove = (moveEvent) => { hoverSlot.value = slotFromPointer(moveEvent.clientY); };
+            const detach = () => {
+                handle.removeEventListener('pointermove', onMove);
+                handle.removeEventListener('pointerup', onUp);
+                handle.removeEventListener('pointercancel', onCancel);
+            };
+            const onUp = () => { detach(); finishDrag(); };
+            const onCancel = () => {
+                detach();
+                draggingIndex.value = null;
+                hoverSlot.value = null;
+            };
+            handle.addEventListener('pointermove', onMove);
+            handle.addEventListener('pointerup', onUp);
+            handle.addEventListener('pointercancel', onCancel);
+        };
+
+        const finishDrag = () => {
+            const from = draggingIndex.value;
+            const to = hoverSlot.value;
+            draggingIndex.value = null;
+            hoverSlot.value = null;
+            if (from === null || to === null || from === to) return;
+            commitReorder(from, to);
+        };
+
+        /* [REO] D-4: la persistencia es la de siempre: splice optimista, POST /reorder con los
+           entryId en el orden nuevo y rollback si el servidor falla; el mapa se redibuja al
+           soltar (D-10) y refreshSchedule trae después las horas derivadas. */
+        const commitReorder = async (from, to) => {
             if (saving.value) return;
-            if (draggedIndex !== null && draggedIndex !== dropIndex) {
-                saving.value = true;
-                requestError.value = '';
-                const previous = [...planPlaces.value];
-                const movedItem = planPlaces.value.splice(draggedIndex, 1)[0];
-                planPlaces.value.splice(dropIndex, 0, movedItem);
-                draggedIndex = null;
-                renderMarkers();
-                let reordered = false;
-                try {
-                    await itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(planPlaces.value.map(item => item.entryId)) });
-                    reordered = true;
-                } catch (error) { planPlaces.value = previous; renderMarkers(); requestError.value = error.message; }
-                finally { saving.value = false; }
-                // [SCH] Reordenar vuelve a derivar el horario: el refresco trae las horas nuevas y
-                // deja intacto el orden optimista que ya está pintado. Va fuera del try del
-                // reorder para que un fallo acá no revierta un orden que el servidor sí guardó.
-                if (reordered) {
-                    try { await refreshSchedule(); } catch (error) { requestError.value = error.message; }
-                }
+            saving.value = true;
+            requestError.value = '';
+            const previous = [...planPlaces.value];
+            const movedItem = planPlaces.value.splice(from, 1)[0];
+            planPlaces.value.splice(to, 0, movedItem);
+            renderMarkers();
+            let reordered = false;
+            try {
+                await itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(planPlaces.value.map(item => item.entryId)) });
+                reordered = true;
+            } catch (error) { planPlaces.value = previous; renderMarkers(); requestError.value = error.message; }
+            finally { saving.value = false; }
+            // [SCH] Reordenar vuelve a derivar el horario: el refresco trae las horas nuevas y
+            // deja intacto el orden optimista que ya está pintado. Va fuera del try del
+            // reorder para que un fallo acá no revierta un orden que el servidor sí guardó.
+            if (reordered) {
+                try { await refreshSchedule(); } catch (error) { requestError.value = error.message; }
             }
         };
 
@@ -476,9 +530,9 @@ createApp({
             inviteOpen, addPlaceOpen,
             configDialog, openConfig, bannedDialog, bannedTrigger, openBanned,
             participantsDialog, openParticipants, requestsDialog, openRequests,
-            placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl,
+            placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl, itineraryList,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
-            removePlace, onDragStart, onDrop
+            removePlace, onHandleDown
         };
     }
 }).mount('#plan-app');
