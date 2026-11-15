@@ -80,8 +80,10 @@
                   Descripcion
                 </p>
                 <div class="mt-auto space-y-1 pt-3 text-xs text-gray-500">
+                  <!-- [DIS] La card sale del mismo payload del feed (fecha como string ISO):
+                       se parsea aca para mostrarla dd/MM/yyyy, igual que el resto de la app. -->
                   <p th:if="${plan.eventDate != null}">
-                    Fecha: <span th:text="${plan.eventDate}">0000-00-00</span>
+                    Fecha: <span th:text="${#temporals.format(T(java.time.LocalDate).parse(plan.eventDate), 'dd/MM/yyyy')}">15/11/2026</span>
                   </p>
                   <p>
                     <span th:text="${plan.placeCount}">0</span> lugar(es) en el itinerario

@@ -52,8 +52,11 @@
                   Descripción
                 </p>
                 <div class="mt-auto space-y-1 pt-3 text-xs text-gray-500">
+                  <!-- [DIS] El payload de la card viaja con la fecha como string ISO (comparte el
+                       record con la API de /explore): se parsea aca para mostrarla dd/MM/yyyy,
+                       igual que en la vista publica y el detalle del plan. -->
                   <p th:if="${plan.eventDate != null}">
-                    Fecha: <span th:text="${plan.eventDate}">0000-00-00</span>
+                    Fecha: <span th:text="${#temporals.format(T(java.time.LocalDate).parse(plan.eventDate), 'dd/MM/yyyy')}">15/11/2026</span>
                   </p>
                   <p>
                     <span th:text="${plan.placeCount}">0</span>
