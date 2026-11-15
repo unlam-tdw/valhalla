@@ -9,7 +9,7 @@
 import { apiFetch } from '../lib/api.js';
 import { initBudgetDescription } from '../lib/plan-budget.js';
 import { el } from '../lib/dom.js';
-import { formatClock, formatDate, formatDuration } from '../lib/plan-schedule.js';
+import { formatClock, formatDate, formatDuration, scheduleStops } from '../lib/plan-schedule.js';
 import {
     buildMarker,
     categoryIconHtml,
@@ -22,6 +22,13 @@ const { createApp, ref, computed, onMounted, nextTick } = Vue;
 const seed = window.PLAN_DETAIL_SEED || {};
 const itineraryUrl = seed.itineraryUrl || '';
 const catalogUrl = seed.catalogUrl || '';
+// [REO] Los cuatro valores del planificador (29-REO D-3): el preview del horario durante el
+// drag los usa en el espejo `scheduleStops`. Sin hora de inicio no hay cadena que derivar,
+// y `autoSchedule` apagado manda el mismo mensaje que en el servidor: no se recalcula nada.
+const eventTime = seed.eventTime || '';
+const dayEndTime = seed.dayEndTime || '';
+const transportMode = seed.transportMode || '';
+const autoScheduleOn = seed.autoSchedule !== false;
 
 /** An itinerary entry and a catalogue place arrive in different shapes; both end here. */
 const parsePlace = (p) => {
@@ -166,13 +173,78 @@ createApp({
             };
         };
 
-        /* Las paradas agrupadas por la fecha que les tocó, en el orden del itinerario. La
-           numeración de cada parada es global (la misma que los marcadores del mapa), por eso el
-           índice viaja desde el array completo y no desde el grupo. */
+        /* [REO] La parada con la forma que el espejo del planificador espera (29-REO D-3): las
+           coordenadas y la categoría anidadas en `place`, la duración y el traslado propio
+           arriba y el pin del horario tal como viaja en el seed. */
+        const scheduleStopOf = (item) => ({
+            place: { latitude: item.latitude, longitude: item.longitude, category: item.category },
+            durationMinutes: item.durationMinutes,
+            transportModeToNext: item.transportModeToNext,
+            travelMinutesToNext: item.travelMinutesToNext,
+            timePinned: item.timePinned,
+            visitTime: item.visitTime,
+            visitDate: item.visitDate
+        });
+
+        /* [REO] D-2: el orden visible es el de planPlaces con la parada levantada ya insertada
+           en la ranura bajo el puntero. Devuelve pares (item, índice plano) porque la
+           numeración visible es la posición del reacomodo, mientras que eliminar sigue
+           necesitando el índice del array. */
+        const displayPlaces = computed(() => {
+            const pairs = planPlaces.value.map((item, index) => ({ item, index }));
+            if (draggingIndex.value === null || hoverSlot.value === null) return pairs;
+            const next = pairs.slice();
+            const [moved] = next.splice(draggingIndex.value, 1);
+            next.splice(hoverSlot.value, 0, moved);
+            return next;
+        });
+
+        /* [REO] D-3/D-5: el preview del horario vive solo durante el arrastre y solo cuando
+           autoSchedule está activo (con él apagado el servidor tampoco recalcula: las filas se
+           reacomodan y las horas quedan como están). Es computed sobre displayPlaces y nunca
+           muta planPlaces; con el espejo divergente gana el servidor al refrescar (D-4). */
+        const previewSchedule = computed(() => {
+            const previewing = draggingIndex.value !== null && hoverSlot.value !== null;
+            if (!previewing || !autoScheduleOn || !eventTime || !planDate.value) return null;
+            return scheduleStops({
+                planDate: planDate.value,
+                startTime: eventTime,
+                dayEnd: dayEndTime,
+                mode: transportMode,
+                stops: displayPlaces.value.map((pair) => scheduleStopOf(pair.item))
+            });
+        });
+
+        /* [REO] Las paradas del reacomodo: el item del preview cuando lo hay (horas derivadas
+           del espejo), si no el item real del servidor. Cada una lleva su índice plano (para
+           eliminar), su posición visible (numeración) y las marcas del drag. */
+        const displayStops = computed(() => {
+            const schedule = previewSchedule.value;
+            return displayPlaces.value.map((pair, position) => {
+                const slot = schedule ? schedule[position] : null;
+                const item = slot
+                    ? { ...pair.item, visitDate: slot.date, visitTime: formatClock(slot.startMinutes) }
+                    : pair.item;
+                const isDragged = draggingIndex.value !== null && pair.index === draggingIndex.value;
+                return {
+                    item,
+                    planIndex: pair.index,
+                    position,
+                    isDragged,
+                    dimmed: draggingIndex.value !== null && !isDragged,
+                    ...describeStop(item)
+                };
+            });
+        });
+
+        /* Las paradas agrupadas por la fecha que les tocó, en el orden del itinerario. [REO]
+           Deriva del reacomodo: durante el drag el agrupado por día sale del preview (D-11 y
+           AC-12), así que mover una parada a otra jornada la re-agrupa en vivo. La numeración
+           es global (la misma que los marcadores del mapa) y viaja como posición visible. */
         const dayGroups = computed(() => {
             const groups = [];
-            planPlaces.value.forEach((item, index) => {
-                const date = item.visitDate || null;
+            displayStops.value.forEach((stop) => {
+                const date = stop.item.visitDate || null;
                 let group = groups[groups.length - 1];
                 if (!group || group.date !== date) {
                     group = {
@@ -185,7 +257,7 @@ createApp({
                     };
                     groups.push(group);
                 }
-                group.stops.push({ index, item, ...describeStop(item) });
+                group.stops.push(stop);
             });
             return groups;
         });
@@ -482,16 +554,47 @@ createApp({
             commitReorder(from, to);
         };
 
-        /* [REO] D-4: la persistencia es la de siempre: splice optimista, POST /reorder con los
-           entryId en el orden nuevo y rollback si el servidor falla; el mapa se redibuja al
-           soltar (D-10) y refreshSchedule trae después las horas derivadas. */
+        /* [REO] D-2/D-11: FLIP barato para el commit del drop: mide los tops de las filas que
+           persisten, muta el orden y anima el delta al volver. Una fila que cambia de grupo de
+           día se remonta (clave nueva en otro <ol>) y no anima, aceptado por la spec.
+           prefers-reduced-motion la apaga (D-12). */
+        const flipReorder = async (mutate) => {
+            const panel = itineraryList.value;
+            const reduceMotion = window.matchMedia
+                && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (!panel || reduceMotion) { mutate(); return; }
+            const before = new Map();
+            panel.querySelectorAll('[data-stop-row]').forEach((row) => {
+                before.set(row.dataset.stopRow, row.getBoundingClientRect().top);
+            });
+            mutate();
+            await nextTick();
+            panel.querySelectorAll('[data-stop-row]').forEach((row) => {
+                const previousTop = before.get(row.dataset.stopRow);
+                if (previousTop === null || previousTop === undefined) return;
+                const delta = previousTop - row.getBoundingClientRect().top;
+                if (!delta) return;
+                row.style.transition = 'none';
+                row.style.transform = 'translateY(' + delta + 'px)';
+                requestAnimationFrame(() => {
+                    row.style.transition = 'transform 180ms ease';
+                    row.style.transform = '';
+                });
+            });
+        };
+
+        /* [REO] D-4: la persistencia es la de siempre: splice optimista (con FLIP, D-2), POST
+           /reorder con los entryId en el orden nuevo y rollback si el servidor falla; el mapa
+           se redibuja al soltar (D-10) y refreshSchedule trae después las horas derivadas. */
         const commitReorder = async (from, to) => {
             if (saving.value) return;
             saving.value = true;
             requestError.value = '';
             const previous = [...planPlaces.value];
-            const movedItem = planPlaces.value.splice(from, 1)[0];
-            planPlaces.value.splice(to, 0, movedItem);
+            await flipReorder(() => {
+                const movedItem = planPlaces.value.splice(from, 1)[0];
+                planPlaces.value.splice(to, 0, movedItem);
+            });
             renderMarkers();
             let reordered = false;
             try {
