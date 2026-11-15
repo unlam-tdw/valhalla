@@ -9,7 +9,14 @@
 import { apiFetch } from '../lib/api.js';
 import { initBudgetDescription } from '../lib/plan-budget.js';
 import { el } from '../lib/dom.js';
-import { formatClock, formatDate, formatDuration, scheduleStops } from '../lib/plan-schedule.js';
+import {
+    effectiveMinutes,
+    formatClock,
+    formatDate,
+    formatDuration,
+    haversineKm,
+    scheduleStops
+} from '../lib/plan-schedule.js';
 import {
     buildMarker,
     categoryIconHtml,
@@ -263,6 +270,42 @@ createApp({
         });
 
         const dayCount = computed(() => dayGroups.value.length);
+
+        /* [REO] D-9: resumen del recorrido en vivo mientras se arrastra, con la misma cuenta
+           del itinerario: paradas, minutos totales (duraciones + tramos) y km de ruta con coma
+           decimal. Es efímero: al soltar gana lo que el servidor recalcula y refresca. */
+        const dragSummary = computed(() => {
+            if (draggingIndex.value === null || hoverSlot.value === null) return null;
+            const stops = displayPlaces.value.map((pair) => scheduleStopOf(pair.item));
+            const schedule = scheduleStops({
+                planDate: planDate.value,
+                startTime: eventTime,
+                dayEnd: dayEndTime,
+                mode: transportMode,
+                stops
+            });
+            let totalMinutes = 0;
+            schedule.forEach((slot) => { totalMinutes += slot.minutes + slot.legMinutes; });
+            if (!schedule.length) {
+                // Sin seed del planificador (plan viejo sin hora de inicio) solo quedan las
+                // duraciones: el resumen no miente con un total que no puede derivar.
+                stops.forEach((stop) => { totalMinutes += effectiveMinutes(stop); });
+            }
+            let totalKm = 0;
+            for (let i = 0; i < stops.length - 1; i++) {
+                const from = stops[i];
+                const to = stops[i + 1];
+                if (from.place.latitude != null && from.place.longitude != null
+                    && to.place.latitude != null && to.place.longitude != null) {
+                    totalKm += haversineKm(from, to);
+                }
+            }
+            return {
+                count: stops.length,
+                timeLabel: formatDuration(totalMinutes),
+                kmLabel: totalKm.toFixed(1).replace('.', ',') + ' km'
+            };
+        });
 
         const getCategoryLabel = (category) => {
             const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
@@ -634,6 +677,7 @@ createApp({
             configDialog, openConfig, bannedDialog, bannedTrigger, openBanned,
             participantsDialog, openParticipants, requestsDialog, openRequests,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl, itineraryList,
+            dragSummary,
             getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
             removePlace, onHandleDown
         };

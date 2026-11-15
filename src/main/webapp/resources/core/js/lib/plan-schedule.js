@@ -67,8 +67,9 @@ export function effectiveMinutes(stop) {
 const hasCoordinates = (stop) =>
   stop?.place?.latitude != null && stop?.place?.longitude != null;
 
-/** Distancia en línea recta entre dos paradas, en kilómetros. */
-const haversineKm = (from, to) => {
+/** Distancia en línea recta entre dos paradas, en kilómetros. [REO] Exportada para el resumen
+ *  en vivo del reorden (29-REO D-9): los km del preview usan la misma cuenta que el traslado. */
+export function haversineKm(from, to) {
   const fromLatitude = (from.place.latitude * Math.PI) / 180;
   const toLatitude = (to.place.latitude * Math.PI) / 180;
   const deltaLatitude = toLatitude - fromLatitude;
@@ -79,7 +80,7 @@ const haversineKm = (from, to) => {
     sinLatitude * sinLatitude +
     Math.cos(fromLatitude) * Math.cos(toLatitude) * sinLongitude * sinLongitude;
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(haversine));
-};
+}
 
 /**
  * Traslado hacia la parada siguiente. Con minutos fijados a mano en la parada de origen manda el

@@ -52,6 +52,9 @@
         .itinerary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .itinerary-heading { color: var(--bs-body-color); letter-spacing: -0.03em; }
         .itinerary-count { background: var(--bs-secondary-bg); color: var(--bs-body-color); border-radius: 20px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
+        /* [REO] D-9: chip del resumen en vivo durante el arrastre, bajo la cabecera del panel. */
+        .drag-summary { display: flex; align-items: center; margin: 8px 0 0; color: var(--bs-secondary-color); font-size: .78rem; font-weight: 600; }
+        .drag-summary > span { display: inline-flex; align-items: center; }
         .itinerary-list { list-style: none; padding: 0; margin: 12px 0 0; }
         .place-item { position: relative; display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
         .place-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 50%; bottom: -50%; border-left: 2px dashed var(--bs-border-color); }
@@ -650,6 +653,15 @@
                 <h5 id="itinerary-heading" class="itinerary-heading fw-bold m-0">Tu recorrido</h5>
                 <span class="itinerary-count">{{ planPlaces.length }} {{ planPlaces.length === 1 ? 'parada' : 'paradas' }}</span>
             </div>
+            <!-- [REO] D-9: resumen del recorrido en vivo, solo mientras la manija está agarrada:
+                 misma cuenta que el itinerario (paradas, minutos totales con tramos, km con coma
+                 decimal). Es efímero y va oculto al lector de pantalla: el canal de anuncios del
+                 drag es el aria-live, y al soltar confirma el resumen que recalcula el servidor. -->
+            <p v-if="dragSummary" class="drag-summary" aria-hidden="true">
+                <span class="me-1" v-html="iconHtml('route', 14)"></span>
+                {{ dragSummary.count }} {{ dragSummary.count === 1 ? 'parada' : 'paradas' }} &middot;
+                {{ dragSummary.timeLabel }} &middot; {{ dragSummary.kmLabel }}
+            </p>
             <!-- [STD] AC-05: agregar lugar es una accion del recorrido, no una card propia: el
              boton vive en la cabecera del panel y el picker se despliega colapsado debajo,
              sin consumir layout hasta que se pide. [STD-011/AC-11] A todo el ancho: la
