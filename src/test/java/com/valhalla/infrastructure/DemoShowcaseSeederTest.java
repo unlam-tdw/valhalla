@@ -265,7 +265,8 @@ public class DemoShowcaseSeederTest {
       .thenAnswer(invocation -> Optional.of(userWith(invocation.getArgument(0, String.class))));
     // La cuenta demo no existe al principio y existe despues de crearla.
     when(this.userServiceMock.findOptionalByEmail(DEMO_EMAIL))
-      .thenReturn(Optional.empty(), Optional.of(userWith(DEMO_EMAIL)));
+      .thenReturn(Optional.empty())
+      .thenReturn(Optional.of(userWith(DEMO_EMAIL)));
     when(this.planRepositoryMock.findByShortCode(anyString()))
       .thenAnswer(invocation -> {
         Plan plan = new Plan();
