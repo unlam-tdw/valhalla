@@ -43,6 +43,11 @@
             class="rounded-full px-4 py-2 text-sm font-medium transition hover:bg-secondary">
             Siguiendo
           </a>
+          <!-- [SURPRISE] Atajo del feed: preguntas mínimas y plan privado generado. -->
+          <a th:href="@{/plans/surprise}" sec:authorize="isAuthenticated()"
+            class="rounded-full bg-secondary px-4 py-2 text-sm font-medium text-gray-800 transition hover:bg-primary hover:text-white">
+            Sorprendeme
+          </a>
         </nav>
 
         <!-- [SEARCH] Busqueda, filtro y orden del feed: un form GET a la misma ruta, sin
