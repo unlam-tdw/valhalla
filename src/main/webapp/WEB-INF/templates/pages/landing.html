@@ -67,8 +67,32 @@
          imprimir, así que el titular saldría en blanco sobre blanco. Sin degradado y en negro.
          Lo mismo valía para el resto del chrome: el navbar escribe en blanco sobre negro y los
          .btn-cta en blanco sobre --primary, y sin fondos impresos las dos cosas desaparecían.
-         El navbar y los links del pie no aportan en papel; las acciones se dibujan con borde. */
+         El navbar y los links del pie no aportan en papel; las acciones se dibujan con borde.
+         Imprimir CON el tema oscuro puesto era peor: html[data-theme="dark"] .text-gray-900
+         resuelve a #f9fafb y sobre papel blanco eso mide 1.03:1, así que 12 de los 14
+         titulares desaparecían. Los tokens de oscuro vuelven a negro solo para el papel: se
+         redefine la variable, no cada utilidad, y las 40 reglas de la capa oscura quedan
+         cubiertas de una. */
       @media print {
+        html[data-theme="dark"] {
+          --dark-text: #000;
+          --dark-text-soft: #000;
+          --dark-text-muted: #1f2937;
+          --dark-text-faint: #374151;
+          --dark-text-decor: #4b5563;
+          --dark-link: #000;
+          --dark-danger: #000;
+          --dark-card: #fff;
+          --dark-surface: #fff;
+          --dark-page: #fff;
+          --dark-control: #fff;
+          --dark-border: #000;
+          --dark-border-soft: #6b7280;
+          --dark-border-strong: #000;
+          --dark-border-hover: #000;
+          color: #000;
+        }
+
         .hero-title {
           background-image: none;
           color: #000;

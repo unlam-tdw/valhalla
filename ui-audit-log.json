@@ -928,6 +928,41 @@
       ],
       "verdict": "Como home de marketing para el visitante frio que abre un link de WhatsApp, la pagina no cierra: en los primeros 844px no dice 'Buenos Aires' ni que es el producto, y el unico boton relleno pide la cuenta que el texto promete que no hace falta, mientras la unica prueba de producto (el mock) es inerte. Lo que hay es un folleto correcto y bien medido -texto entre 4.39:1 y 14.05:1, objetivos de 44px, cero desborde a 390, forced-colors resuelto- pero con 960px de padding, 3775px entre los dos CTA y un layout que se desarma sin JavaScript. Sirve para alguien que ya sabe que es PlanIt; no para la primera pantalla del que llega desde un plan compartido.",
       "comparability_note": "NO COMPARABLE con las iteraciones 0-3. Las 0-3 fueron autoevaluaciones del mismo ciclo: el critico puntuo su propia lista de deducciones y la fue cerrando, asi que cada score alto confirmaba el trabajo anterior. Esta pasada es un agente en frio, sin acceso al log ni a ui-audit-evidence/, que puntuo la pagina desde cero con su propia lista de 28 deducciones. La caida de 7.00 a 5.43 no mide una regresion: mide el sesgo que tenian las tres pasadas anteriores. Tampoco se puede promediar con ellas para decidir el corte del loop."
+    },
+    {
+      "iteration": 5,
+      "phase": "cold_critic_final",
+      "average_score": 7.57,
+      "scores": {
+        "visual_hierarchy": 8,
+        "layout_spacing": 8,
+        "affordance_clarity": 7,
+        "cognitive_load": 7,
+        "color_accessibility": 8,
+        "microcopy_precision": 8,
+        "state_resilience": 7
+      },
+      "verdict": "La primera pantalla esta bien armada y no es marketing generico: el h1 nombra producto, ciudad y mecanismo, el mock es producto real y el visitante entiende en cinco segundos que es esto y que gana. Lo que no cierra es el final y la alineacion: el cierre vuelve a decir el h1 con el 80% del tamano, el texto salta dos veces 192px de eje y el link de texto cambia de gramatica segun la banda. El problema de fondo es de intencion: el que llega desde un link compartido encuentra un boton de registro como accion dominante y su propio camino enterrado en un link de 16px.",
+      "changes_applied_after_scoring": [
+        "brand.css: borde de las filas del FAQ de #8d949c a #7c848c. El #8d949c se habia verificado contra blanco (3.07:1) pero la fila vive sobre la banda gris, donde medía 2.79:1. Ahora 3.45:1 sobre la banda y 3.79:1 sobre el blanco interior; en oscuro el borde pasa a 4.16:1.",
+        "brand.css: borde inferior de 1px (var(--dark-border-strong)) en el navbar solo para el tema oscuro. La barra (#111827) y la banda de abajo (#1f2937) median 1.21:1 y la sombra era negra sobre negro: al scrollear la barra sticky no tenia canto visible.",
+        "landing.html: el bloque @media print devuelve los tokens --dark-* a negro. Imprimir con el tema oscuro puesto dejaba 12 de los 14 titulares a 1.03:1 porque html[data-theme=dark] .text-gray-900 resuelve a #f9fafb. Verificado: el h2 pasa a #000 (21:1 sobre papel) y el cuerpo a #374151 (10.31:1)."
+      ],
+      "deductions_left_open": [
+        "[visual_hierarchy] el h2 de cierre mide 48px contra un h1 de 60px y repite la promesa: conviene bajarlo a 36px y cambiarle el mensaje",
+        "[visual_hierarchy] el degradado del h1 termina en #666666 (5.74:1): las dos palabras que cargan la promesa son las mas lavadas de la pagina",
+        "[layout_spacing] el borde izquierdo del texto salta 192px entre bandas (max-w-6xl 1152px vs max-w-3xl 768px)",
+        "[layout_spacing] en 390px el h2 del problema mide 20px y su cuerpo 18px: 2px de diferencia",
+        "[affordance_clarity] dos gramaticas de link: subrayado en reposo en el hero, solo en hover en navbar y pie",
+        "[affordance_clarity] /for-you tiene dos nombres en el primer fold ('Planes publicos' y 'Ver planes publicos')",
+        "[affordance_clarity] los chips del mock son pills rellenas e inertes, con la misma forma que los chips de filtro de /explore",
+        "[cognitive_load] 'compartis por link, no hace falta cuenta' se dice 5 veces y 'Crear cuenta gratis' aparece 4 veces",
+        "[cognitive_load] la accion dominante es el registro y no la de quien llega desde un plan compartido",
+        "[microcopy_precision] 'El museo abre a las 10 y el cafe cierra a las 19' promete horarios de apertura que el plan publico no muestra (muestra timeRange)",
+        "[microcopy_precision] 'de MALBA a Plaza Serrano' esta escrito a mano aunque placeCount sale del modelo",
+        "[state_resilience] el reveal con blur(12px) y techo de 1500ms deja bandas ilegibles si el observer no dispara"
+      ],
+      "comparability_note": "Mismo criterio y misma posicion que la iteracion 4 (agente en frio, sin el log ni la evidencia ni git), pero es otro agente y otra vez: la suba de 5.43 a 7.57 mezcla las mejoras aplicadas entre las dos pasadas con la varianza entre criticos. Lo comparable es el sentido: la pagina paso de 'folleto correcto que no cierra' a 'primera pantalla bien armada, con el final y la intencion flojos'."
     }
   ]
 }
