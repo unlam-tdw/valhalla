@@ -1,0 +1,593 @@
+{
+ "captured_at": "auditoria final posterior a los tres arreglos (borde FAQ, canto del navbar oscuro, reset de tokens en @media print)",
+ "method": "Capturas con Chrome headless (--headless=new, deviceScaleFactor 1, captureBeyondViewport) en vez del browser del IDE: ese pipeline devolvia rasters suavizados ~2x (varianza de Laplaciano 4-5x menor) y servia para mirar layout pero no para leer texto chico. Contraste de texto medido sobre los pixeles renderizados (color modal = fondo, color mas alejado en luminancia con >=0.2% de cobertura = texto), no sobre estilos computados: el color computado de un elemento con textura de gradiente (background-clip: text) devuelve rgba(0,0,0,0) y da ratios falsos de 1.0.",
+ "viewports": {
+  "desktop": "1440 x 900",
+  "mobile": "390 x 844"
+ },
+ "themes": [
+  "light",
+  "dark"
+ ],
+ "geometry": {
+  "desktop_light": {
+   "doc_height_px": 3186,
+   "horizontal_overflow_px": 0,
+   "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 11,
+    "details_faq": 4,
+    "sections_in_main": 7,
+    "words_in_main": 419
+   },
+   "nav": {
+    "height": 72,
+    "top": 0,
+    "position": "sticky",
+    "border_bottom": "0px rgb(255, 255, 255)"
+   },
+   "h1": {
+    "text": "Arm├í el itinerario de tu d├¡a en Buenos Aires y compartilo con un link",
+    "top": 184,
+    "height": 300,
+    "font_size": "60px",
+    "line_height": "75px",
+    "weight": "700",
+    "lines": 4
+   },
+   "controls": {
+    "total": 15,
+    "under_44px": 1,
+    "note": "el unico control < 44px es el skip-link 1x1 que solo se ve al enfocar con teclado"
+   }
+  },
+  "desktop_dark": {
+   "doc_height_px": 3181,
+   "horizontal_overflow_px": 0,
+   "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 11,
+    "details_faq": 4,
+    "sections_in_main": 7,
+    "words_in_main": 419
+   },
+   "nav": {
+    "height": 73,
+    "top": 0,
+    "position": "sticky",
+    "border_bottom": "1px rgb(75, 85, 99)"
+   },
+   "h1": {
+    "text": "Arm├í el itinerario de tu d├¡a en Buenos Aires y compartilo con un link",
+    "top": 185,
+    "height": 300,
+    "font_size": "60px",
+    "line_height": "75px",
+    "weight": "700",
+    "lines": 4
+   },
+   "controls": {
+    "total": 15,
+    "under_44px": 1,
+    "note": "el unico control < 44px es el skip-link 1x1 que solo se ve al enfocar con teclado"
+   }
+  },
+  "mobile_light": {
+   "doc_height_px": 4487,
+   "horizontal_overflow_px": 0,
+   "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 11,
+    "details_faq": 4,
+    "sections_in_main": 7,
+    "words_in_main": 418
+   },
+   "nav": {
+    "height": 48,
+    "top": 0,
+    "position": "static",
+    "border_bottom": "0px rgb(255, 255, 255)"
+   },
+   "h1": {
+    "text": "Arm├í el itinerario de tu d├¡a en Buenos Aires y compartilo con un link",
+    "top": 128,
+    "height": 180,
+    "font_size": "36px",
+    "line_height": "45px",
+    "weight": "700",
+    "lines": 4
+   },
+   "controls": {
+    "total": 14,
+    "under_44px": 1,
+    "note": "el unico control < 44px es el skip-link 1x1 que solo se ve al enfocar con teclado"
+   }
+  },
+  "mobile_dark": {
+   "doc_height_px": 4475,
+   "horizontal_overflow_px": 0,
+   "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 11,
+    "details_faq": 4,
+    "sections_in_main": 7,
+    "words_in_main": 418
+   },
+   "nav": {
+    "height": 49,
+    "top": 0,
+    "position": "static",
+    "border_bottom": "1px rgb(75, 85, 99)"
+   },
+   "h1": {
+    "text": "Arm├í el itinerario de tu d├¡a en Buenos Aires y compartilo con un link",
+    "top": 129,
+    "height": 180,
+    "font_size": "36px",
+    "line_height": "45px",
+    "weight": "700",
+    "lines": 4
+   },
+   "controls": {
+    "total": 14,
+    "under_44px": 1,
+    "note": "el unico control < 44px es el skip-link 1x1 que solo se ve al enfocar con teclado"
+   }
+  }
+ },
+ "text_contrast": {
+  "desktop_light": {
+   "rows": {
+    "h1": {
+     "ratio": 17.57,
+     "fg": "rgb(18,25,40)",
+     "bg": "rgb(255,255,255)",
+     "size": 60,
+     "weight": "700",
+     "text": "ArmÃ¡ el itinerario de tu dÃ­a en Buenos Aires y compartilo co"
+    },
+    "hero_sub": {
+     "ratio": 7.56,
+     "fg": "rgb(74,85,101)",
+     "bg": "rgb(255,255,255)",
+     "size": 18,
+     "weight": "400",
+     "text": "BuscÃ¡s lugares en el mapa, armÃ¡s el plan con horarios y se l"
+    },
+    "hero_cta": {
+     "ratio": 8.13,
+     "fg": "rgb(255,255,255)",
+     "bg": "rgb(0,74,173)",
+     "size": 16,
+     "weight": "600",
+     "text": "Crear cuenta gratis"
+    },
+    "hero_link": {
+     "ratio": 8.13,
+     "fg": "rgb(0,74,173)",
+     "bg": "rgb(255,255,255)",
+     "size": 16,
+     "weight": "500",
+     "text": "Ver planes pÃºblicos"
+    },
+    "h2_first": {
+     "ratio": 16.13,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(243,244,246)",
+     "size": 24,
+     "weight": "500",
+     "text": "El plan de sÃ¡bado termina siendo tres mensajes sueltos"
+    },
+    "benefit_title": {
+     "ratio": 17.75,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(255,255,255)",
+     "size": 18,
+     "weight": "600",
+     "text": "Cada parada con su hora"
+    },
+    "body_copy": {
+     "ratio": 17.75,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(255,255,255)",
+     "size": 16,
+     "weight": "500",
+     "text": "Un plan pÃºblico se copia tal cual y queda como tuyo, para ed"
+    },
+    "faq_summary": {
+     "ratio": 17.75,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(255,255,255)",
+     "size": 16,
+     "weight": "600",
+     "text": "Â¿Necesito crear una cuenta para ver un plan que me compartie"
+    },
+    "footer_note": {
+     "ratio": 16.13,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(243,244,246)",
+     "size": 14,
+     "weight": "600",
+     "text": "PlanIt"
+    },
+    "nav_brand": {
+     "ratio": 5.16,
+     "fg": "rgb(102,129,252)",
+     "bg": "rgb(17,24,39)",
+     "size": 20,
+     "weight": "700",
+     "text": "PlanIt"
+    },
+    "nav_link": {
+     "ratio": 14.4,
+     "fg": "rgb(232,231,234)",
+     "bg": "rgb(17,24,39)",
+     "size": 14,
+     "weight": "500",
+     "text": "Planes pÃºblicos"
+    },
+    "nav_cta": {
+     "ratio": 5.16,
+     "fg": "rgb(102,129,252)",
+     "bg": "rgb(17,24,39)",
+     "size": 14,
+     "weight": "600",
+     "text": "Crear cuenta gratis"
+    }
+   },
+   "worst": {
+    "label": "nav_brand",
+    "ratio": 5.16
+   },
+   "aa_failures": [],
+   "aa_failures_count": 0
+  },
+  "desktop_dark": {
+   "rows": {
+    "h1": {
+     "ratio": 14.55,
+     "fg": "rgb(254,254,254)",
+     "bg": "rgb(31,41,55)",
+     "size": 60,
+     "weight": "700",
+     "text": "ArmÃ¡ el itinerario de tu dÃ­a en Buenos Aires y compartilo co"
+    },
+    "hero_sub": {
+     "ratio": 9.96,
+     "fg": "rgb(209,213,219)",
+     "bg": "rgb(31,41,55)",
+     "size": 18,
+     "weight": "400",
+     "text": "BuscÃ¡s lugares en el mapa, armÃ¡s el plan con horarios y se l"
+    },
+    "hero_cta": {
+     "ratio": 8.13,
+     "fg": "rgb(255,255,255)",
+     "bg": "rgb(0,74,173)",
+     "size": 16,
+     "weight": "600",
+     "text": "Crear cuenta gratis"
+    },
+    "hero_link": {
+     "ratio": 5.77,
+     "fg": "rgb(96,165,250)",
+     "bg": "rgb(31,41,55)",
+     "size": 16,
+     "weight": "500",
+     "text": "Ver planes pÃºblicos"
+    },
+    "h2_first": {
+     "ratio": 19.27,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(3,7,18)",
+     "size": 24,
+     "weight": "500",
+     "text": "El plan de sÃ¡bado termina siendo tres mensajes sueltos"
+    },
+    "benefit_title": {
+     "ratio": 14.05,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(31,41,55)",
+     "size": 18,
+     "weight": "600",
+     "text": "Cada parada con su hora"
+    },
+    "body_copy": {
+     "ratio": 14.05,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(31,41,55)",
+     "size": 16,
+     "weight": "500",
+     "text": "Un plan pÃºblico se copia tal cual y queda como tuyo, para ed"
+    },
+    "faq_summary": {
+     "ratio": 14.05,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(31,41,55)",
+     "size": 16,
+     "weight": "600",
+     "text": "Â¿Necesito crear una cuenta para ver un plan que me compartie"
+    },
+    "footer_note": {
+     "ratio": 19.27,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(3,7,18)",
+     "size": 14,
+     "weight": "600",
+     "text": "PlanIt"
+    },
+    "nav_brand": {
+     "ratio": 5.16,
+     "fg": "rgb(102,129,252)",
+     "bg": "rgb(17,24,39)",
+     "size": 20,
+     "weight": "700",
+     "text": "PlanIt"
+    },
+    "nav_link": {
+     "ratio": 14.4,
+     "fg": "rgb(232,231,234)",
+     "bg": "rgb(17,24,39)",
+     "size": 14,
+     "weight": "500",
+     "text": "Planes pÃºblicos"
+    },
+    "nav_cta": {
+     "ratio": 5.16,
+     "fg": "rgb(102,129,252)",
+     "bg": "rgb(17,24,39)",
+     "size": 14,
+     "weight": "600",
+     "text": "Crear cuenta gratis"
+    }
+   },
+   "worst": {
+    "label": "nav_brand",
+    "ratio": 5.16
+   },
+   "aa_failures": [],
+   "aa_failures_count": 0
+  },
+  "mobile_light": {
+   "rows": {
+    "h1": {
+     "ratio": 16.65,
+     "fg": "rgb(24,30,44)",
+     "bg": "rgb(255,255,255)",
+     "size": 36,
+     "weight": "700",
+     "text": "ArmÃ¡ el itinerario de tu dÃ­a en Buenos Aires y compartilo co"
+    },
+    "hero_sub": {
+     "ratio": 7.56,
+     "fg": "rgb(74,85,101)",
+     "bg": "rgb(255,255,255)",
+     "size": 18,
+     "weight": "400",
+     "text": "BuscÃ¡s lugares en el mapa, armÃ¡s el plan con horarios y se l"
+    },
+    "hero_cta": {
+     "ratio": 8.13,
+     "fg": "rgb(255,255,255)",
+     "bg": "rgb(0,74,173)",
+     "size": 16,
+     "weight": "600",
+     "text": "Crear cuenta gratis"
+    },
+    "hero_link": {
+     "ratio": 8.13,
+     "fg": "rgb(0,74,173)",
+     "bg": "rgb(255,255,255)",
+     "size": 16,
+     "weight": "500",
+     "text": "Ver planes pÃºblicos"
+    },
+    "h2_first": {
+     "ratio": 16.13,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(243,244,246)",
+     "size": 20,
+     "weight": "500",
+     "text": "El plan de sÃ¡bado termina siendo tres mensajes sueltos"
+    },
+    "benefit_title": {
+     "ratio": 17.75,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(255,255,255)",
+     "size": 18,
+     "weight": "600",
+     "text": "Cada parada con su hora"
+    },
+    "body_copy": {
+     "ratio": 17.75,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(255,255,255)",
+     "size": 16,
+     "weight": "500",
+     "text": "Un plan pÃºblico se copia tal cual y queda como tuyo, para ed"
+    },
+    "faq_summary": {
+     "ratio": 17.75,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(255,255,255)",
+     "size": 16,
+     "weight": "600",
+     "text": "Â¿Necesito crear una cuenta para ver un plan que me compartie"
+    },
+    "footer_note": {
+     "ratio": 16.13,
+     "fg": "rgb(16,24,40)",
+     "bg": "rgb(243,244,246)",
+     "size": 14,
+     "weight": "600",
+     "text": "PlanIt"
+    },
+    "nav_brand": {
+     "ratio": 5.16,
+     "fg": "rgb(102,129,252)",
+     "bg": "rgb(17,24,39)",
+     "size": 20,
+     "weight": "700",
+     "text": "PlanIt"
+    },
+    "nav_link": {
+     "ratio": 17.59,
+     "fg": "rgb(254,254,254)",
+     "bg": "rgb(17,24,39)",
+     "size": 14,
+     "weight": "500",
+     "text": "Planes pÃºblicos"
+    },
+    "nav_cta": null
+   },
+   "worst": {
+    "label": "nav_brand",
+    "ratio": 5.16
+   },
+   "aa_failures": [],
+   "aa_failures_count": 0
+  },
+  "mobile_dark": {
+   "rows": {
+    "h1": {
+     "ratio": 14.55,
+     "fg": "rgb(254,254,254)",
+     "bg": "rgb(31,41,55)",
+     "size": 36,
+     "weight": "700",
+     "text": "ArmÃ¡ el itinerario de tu dÃ­a en Buenos Aires y compartilo co"
+    },
+    "hero_sub": {
+     "ratio": 9.96,
+     "fg": "rgb(209,213,219)",
+     "bg": "rgb(31,41,55)",
+     "size": 18,
+     "weight": "400",
+     "text": "BuscÃ¡s lugares en el mapa, armÃ¡s el plan con horarios y se l"
+    },
+    "hero_cta": {
+     "ratio": 8.13,
+     "fg": "rgb(255,255,255)",
+     "bg": "rgb(0,74,173)",
+     "size": 16,
+     "weight": "600",
+     "text": "Crear cuenta gratis"
+    },
+    "hero_link": {
+     "ratio": 5.77,
+     "fg": "rgb(96,165,250)",
+     "bg": "rgb(31,41,55)",
+     "size": 16,
+     "weight": "500",
+     "text": "Ver planes pÃºblicos"
+    },
+    "h2_first": {
+     "ratio": 19.27,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(3,7,18)",
+     "size": 20,
+     "weight": "500",
+     "text": "El plan de sÃ¡bado termina siendo tres mensajes sueltos"
+    },
+    "benefit_title": {
+     "ratio": 14.05,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(31,41,55)",
+     "size": 18,
+     "weight": "600",
+     "text": "Cada parada con su hora"
+    },
+    "body_copy": {
+     "ratio": 14.05,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(31,41,55)",
+     "size": 16,
+     "weight": "500",
+     "text": "Un plan pÃºblico se copia tal cual y queda como tuyo, para ed"
+    },
+    "faq_summary": {
+     "ratio": 14.05,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(31,41,55)",
+     "size": 16,
+     "weight": "600",
+     "text": "Â¿Necesito crear una cuenta para ver un plan que me compartie"
+    },
+    "footer_note": {
+     "ratio": 19.27,
+     "fg": "rgb(249,250,251)",
+     "bg": "rgb(3,7,18)",
+     "size": 14,
+     "weight": "600",
+     "text": "PlanIt"
+    },
+    "nav_brand": {
+     "ratio": 5.16,
+     "fg": "rgb(102,129,252)",
+     "bg": "rgb(17,24,39)",
+     "size": 20,
+     "weight": "700",
+     "text": "PlanIt"
+    },
+    "nav_link": {
+     "ratio": 14.4,
+     "fg": "rgb(232,231,234)",
+     "bg": "rgb(17,24,39)",
+     "size": 14,
+     "weight": "500",
+     "text": "Planes pÃºblicos"
+    },
+    "nav_cta": null
+   },
+   "worst": {
+    "label": "nav_brand",
+    "ratio": 5.16
+   },
+   "aa_failures": [],
+   "aa_failures_count": 0
+  }
+ },
+ "not_measured": [
+  "Contraste de bordes e indicadores no textuales (divisorias, borde de fila del FAQ, canto inferior del navbar oscuro): medido en la pasada anterior con los mismos tokens (3.45:1 / 3.79:1 / 4.16:1 / 1.94:1) y no re-medido aca.",
+  "Estados hover/focus: revisados en codigo (focus-ring sobre los cuatro colores de superficie), no capturados en pixel.",
+  "Sin JS y prefers-reduced-motion: revisado en codigo, no renderizado."
+ ],
+ "screenshots_for_the_critic": [
+  "desktop-dark-0.png",
+  "desktop-dark-1000.png",
+  "desktop-dark-1900.png",
+  "desktop-dark-2000.png",
+  "desktop-dark-2286.png",
+  "desktop-dark-3000.png",
+  "desktop-light-0.png",
+  "desktop-light-1000.png",
+  "desktop-light-1900.png",
+  "desktop-light-2000.png",
+  "desktop-light-2286.png",
+  "desktop-light-3000.png",
+  "mobile-dark-0.png",
+  "mobile-dark-1500.png",
+  "mobile-dark-1600.png",
+  "mobile-dark-2400.png",
+  "mobile-dark-2900.png",
+  "mobile-dark-3200.png",
+  "mobile-dark-3643.png",
+  "mobile-dark-800.png",
+  "mobile-light-0.png",
+  "mobile-light-1500.png",
+  "mobile-light-1600.png",
+  "mobile-light-2400.png",
+  "mobile-light-2900.png",
+  "mobile-light-3200.png",
+  "mobile-light-3643.png",
+  "mobile-light-800.png"
+ ]
+}

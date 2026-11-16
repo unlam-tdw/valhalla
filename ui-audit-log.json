@@ -539,7 +539,7 @@
         "microcopy_precision": 7,
         "state_resilience": 6
       },
-      "average_score": 7.0,
+      "average_score": 7,
       "lowest_dimensions": [
         "state_resilience"
       ],
@@ -963,6 +963,178 @@
         "[state_resilience] el reveal con blur(12px) y techo de 1500ms deja bandas ilegibles si el observer no dispara"
       ],
       "comparability_note": "Mismo criterio y misma posicion que la iteracion 4 (agente en frio, sin el log ni la evidencia ni git), pero es otro agente y otra vez: la suba de 5.43 a 7.57 mezcla las mejoras aplicadas entre las dos pasadas con la varianza entre criticos. Lo comparable es el sentido: la pagina paso de 'folleto correcto que no cierra' a 'primera pantalla bien armada, con el final y la intencion flojos'."
+    },
+    {
+      "iteration": 6,
+      "phase": "cold_critic_post_fixes",
+      "evidence": "ui-audit-evidence/iter6-metrics.json + 14 capturas nativas (Chrome headless, 1440x900 y 390x844, temas claro y oscuro, estado final con las animaciones de entrada resueltas)",
+      "scores": {
+        "visual_hierarchy": 8,
+        "layout_spacing": 7,
+        "affordance_clarity": 8,
+        "cognitive_load": 8,
+        "color_accessibility": 8,
+        "microcopy_precision": 8,
+        "state_resilience": 5
+      },
+      "average_score": 7.43,
+      "verdict": "La home sabe cual es su trabajo: en el primer viewport de 1440 dice que es PlanIt (el itinerario de un dia en Buenos Aires), para que sirve (un link que se abre sin cuenta) y ofrece una accion rellena. El mock del plan comunica el producto mejor que cualquier ilustracion, el ritmo de bandas es parejo (64/112px), los targets tactiles miden 44px o mas y el modo oscuro esta resuelto token por token: todo el texto medido sobre pixeles pasa AA, con minimo 4.63:1 en la nota de 14px y 5.16:1 en el ghost del navbar. Lo que falla: el eje de lectura salta 192px entre bandas, el FAQ mide unos 111 caracteres por linea, la misma accion de registro aparece dos veces con dos estilos en el primer viewport y, en oscuro, el CTA principal queda a 1.81:1 del fondo. Debajo de la superficie hay dos problemas serios: el skip link queda tapado por el navbar y sin JavaScript no queda CSS, con el navbar en blanco sobre blanco. Aun asi, un visitante anonimo entiende la propuesta y sabe que hacer: crear cuenta o mirar planes publicos.",
+      "deductions": [
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 0.5,
+          "element_or_selector": "h1#hero-title max-w-[18ch] lg:text-6xl (landing.html)",
+          "issue": "A 1440px las cuatro lineas miden 486/512/497/296px: la ultima es el 58% de la segunda, y el hueco corta el borde derecho que parecen tener las tres primeras.",
+          "actionable_fix": "Subir a max-w-[20ch] o bajar a lg:text-5xl para repartir las cuatro lineas; verificar 1152-1280px que no pase a cinco."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 0.5,
+          "element_or_selector": "body > nav a.btn-ghost (Crear cuenta gratis, 152x44, borde y texto #6681fc) contra main a.btn-cta (misma etiqueta, 184x48, relleno #004aad)",
+          "issue": "La misma accion, con la misma etiqueta y el mismo destino, aparece dos veces en el primer viewport separada por ~500px y con dos gramaticas visuales distintas.",
+          "actionable_fix": "Dejar el navbar anonimo sin CTA de registro (o convertirlo en .btn-link) y reservar el relleno para el boton del hero."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "max-w-3xl (problema, FAQ y cierre) contra max-w-6xl (beneficios, pasos y prueba)",
+          "issue": "Los h2 de banda arrancan en dos ejes: 144px (beneficios, como, prueba) y 336px (problema, FAQ, cierre). El ojo reancla 192px en cada salto.",
+          "actionable_fix": "Envolver las bandas angostas en mx-auto max-w-6xl px-4 y poner el max-w-3xl en un hijo, para que todos los h2 compartan el eje de 144px."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "#landing details p (respuestas del FAQ): 766px de ancho a 14px",
+          "issue": "La primera respuesta entra en una linea de 661px, unos 111 caracteres, muy por encima de los 75 de una medida comoda. El resto de la pagina si controla la medida (46ch y 60ch).",
+          "actionable_fix": "Agregar max-w-[62ch] al parrafo de respuesta en landing.html: la caja sigue en 768px y el texto baja a ~75 caracteres por linea."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 0.5,
+          "element_or_selector": "footer nav a: inline-flex min-h-11 transition-all duration-700",
+          "issue": "Los dos links del pie estan en #4a5565 (6.87:1) y sin subrayado en reposo, igual que el texto vecino: nada los distingue hasta el hover, y el subrayado aparece recien al terminar los 700ms de transition-all. El foco sufre lo mismo.",
+          "actionable_fix": "Subrayado en reposo como .btn-link y transition-colors duration-150 en los <a> del pie."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 0.5,
+          "element_or_selector": "#landing figure (mock Un sabado en Recoleta)",
+          "issue": "Es la unica tarjeta con tres filas bordeada (502px) y un chip azul en bg-primary/10, el mismo lenguaje que las filas del FAQ, que si abren algo. El figcaption es sr-only, asi que no hay rotulo visible de ejemplo.",
+          "actionable_fix": "Agregar un rotulo visible encima de la figura (Ejemplo de plan) o hacer visible el figcaption en text-sm."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 0.5,
+          "element_or_selector": ".btn-link del hero (Ver planes publicos, Iniciar sesion) contra el cluster anonimo del navbar (Planes publicos, Iniciar sesion)",
+          "issue": "Las mismas dos rutas aparecen dos veces en el primer viewport, a ~400px, con nombres distintos: cinco destinos arriba del fold para quien todavia no sabe si el producto le sirve.",
+          "actionable_fix": "Quitar el bloque de links del hero o cambiar el primero por Ver un plan de ejemplo apuntando a un plan real."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 0.5,
+          "element_or_selector": "Vocabulario: itinerario en h1, beneficios y FAQ contra plan/planes en CTAs y navbar",
+          "issue": "El objeto del producto tiene dos nombres y el visitante tiene que inferir que son lo mismo para decidir si le sirve el link del navbar.",
+          "actionable_fix": "Usar plan como nombre unico en el h1 y dejar itinerario solo como sinonimo en el cuerpo, nunca en etiquetas de accion."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "html[data-theme=\"dark\"] .btn-cta (brand.css): relleno #004aad sobre la banda #1f2937",
+          "issue": "Medido sobre pixeles: el relleno del boton contra la banda da 1.81:1, por debajo del 3:1 de 1.4.11. Es el borde del control que lo identifica como boton, no una divisoria decorativa. El texto blanco encima si mide 8.13:1: el boton se lee, su forma se pierde.",
+          "actionable_fix": "En brand.css: html[data-theme=\"dark\"] .btn-cta { border: 1px solid var(--secondary) } (5.16:1 contra #1f2937), o subir el relleno oscuro a un azul que llegue a 3:1."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 0.5,
+          "element_or_selector": "\"El plan se imprime y entra en una hoja para llevar.\" (#prueba)",
+          "issue": "Promete de mas: la hoja imprimible pagina con break-inside: avoid-page y @page { margin: 16mm }, asi que un plan largo ocupa varias hojas. Ademas no es la forma idiomatica de hablar de imprimir.",
+          "actionable_fix": "Reescribir como \"El plan se imprime y lo llevas en la mano.\", sin cuantificar hojas."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 0.5,
+          "element_or_selector": "\"Un plan publico se copia tal cual y queda como tuyo, para editarlo.\" junto a \"Solo vos podes editarlo.\"",
+          "issue": "Los dos items se leen contradictorios: uno dice que cualquiera copia y edita, el otro que solo el dueno edita. El segundo no aclara que habla de tu plan.",
+          "actionable_fix": "Cambiar el candado a \"Solo vos podes editar tu plan; quien lo copia edita su copia.\""
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 2,
+          "element_or_selector": "Sin JavaScript: resources/core/js/tailwind-browser.js no compila y layouts/base.html no emite utilidades",
+          "issue": "Con scripts deshabilitados no hay hoja de Tailwind (tailwindSheetPresent: false): el nav queda con fondo transparente y texto blanco (blanco sobre blanco), el h1 baja de 60px a 32px, la barra pasa de 72px a 98px, el figcaption sr-only se hace visible y la linea mobile \"+1 parada mas\" aparece en desktop. El comentario de landing.html afirma que sin JS la pagina se ve entera: la estructura sobrevive, el diseno no.",
+          "actionable_fix": "Compilar Tailwind en build y servir el CSS estatico; como parche inmediato, un <noscript><style> en layouts/base.html con nav{background:#111827;color:#fff}, la tipografia del hero y [data-lucide]{display:none}."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "Skip link \"Saltar al contenido\" en layouts/base.html (antes del <nav> en el orden efectivo, ambos z-50)",
+          "issue": "Es el primer tab stop y queda tapado por la barra: a 1440px document.elementFromPoint(24,24) devuelve IMG.navbar-logo y en la captura con foco no se ve ningun anillo. El usuario de teclado tabula a un control invisible.",
+          "actionable_fix": "Mover el <a href=\"#contenido\"> despues de <nav> en layouts/base.html o darle focus:z-[60], y verificar que el anillo de 2px se dibuje sobre la barra."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 0.5,
+          "element_or_selector": "Hero entre 1024px y 1151px (lg:grid-cols-2 + lg:text-6xl)",
+          "issue": "A 1024px la columna de texto mide 472px, el titular pasa a 6 lineas y el hero crece a 918px: el CTA queda en y=774-822, entero por debajo de un viewport de 768px de alto. A 1152px vuelve a 4 lineas.",
+          "actionable_fix": "Mantener text-5xl hasta 1152px (lg:text-5xl xl:text-6xl) o retrasar la grilla a min-[1152px]:grid-cols-2."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 0.5,
+          "element_or_selector": "Navbar anonimo (components/navbar.html) por debajo de 375px",
+          "issue": "A 375px la barra mide 48px, pero a 360px y 320px envuelve a dos filas y mide 96px. En 320px el h1 ademas pasa a 6 lineas y el CTA baja a y=614-662. Contradice el comentario que fija una sola fila en todos los anchos.",
+          "actionable_fix": "Debajo de sm: logo a h-8 w-8, gap-x-1 en el cluster y px-1.5 en los links; si a 320px sigue sin entrar, ocultar Iniciar sesion del navbar anonimo."
+        }
+      ],
+      "orchestrator_verification": {
+        "method": "El orquestador no puntua la UI; solo valido las deducciones que deciden el resultado, con medicion propia.",
+        "confirmed": [
+          {
+            "claim": "sin JavaScript no queda CSS (state_resilience, -2)",
+            "check": "base.html:274 y base.html:317 declaran y cargan resources/core/js/tailwind-browser.js con defer: el CSS se compila en el navegador. Sin JS no se emite ninguna hoja de utilidades. Confirmado por fuente."
+          },
+          {
+            "claim": "el skip link queda tapado por el navbar (state_resilience, -1)",
+            "check": "Tab real por CDP a 1440x900: el link se enfoca y se hace visible en 16,16 con 173x40, z-index 50 y outline 2px solid rgb(102,129,252); elementFromPoint en su centro devuelve SPAN del navbar-brand (elemento enfocado NO es el que esta arriba). Confirmado por medicion."
+          },
+          {
+            "claim": "el CTA en oscuro queda a 1.81:1 de la banda (color_accessibility, -1)",
+            "check": "Aritmetica sobre los tokens: #004aad tiene L=0.0805 y #1f2937 L=0.0190, asi que el ratio es 1.89:1. Confirmado (el critico midio 1.81 sobre pixeles con antialiasing)."
+          }
+        ],
+        "rejected": [
+          {
+            "claim": "si el usuario clickea el skip link, activa el logo en vez del ancla",
+            "correction": "Impreciso: elementFromPoint decide el hit-test del mouse, pero un usuario de teclado que presiona Enter sobre un link enfocado activa el link, no el elemento que esta arriba. El defecto real es que el foco es invisible, no que la accion cambie."
+          }
+        ],
+        "note": "Las otras 11 deducciones son de diseno (jerarquia, ejes, medida de linea, microcopy, breakpoints) y quedan como estan: son juicio del critico sobre la evidencia, no afirmaciones verificables por medicion."
+      },
+      "changes_applied_after_scoring": [],
+      "deductions_left_open": [
+        "state_resilience -2: sin JS no hay hoja de Tailwind (base.html carga tailwind-browser.js con defer); el navbar queda blanco sobre blanco.",
+        "state_resilience -1: el skip link \"Saltar al contenido\" se enfoca tapado por el navbar.",
+        "state_resilience -0.5: entre 1024 y 1151px el hero pasa a 6 lineas y el CTA cae debajo de un viewport de 768px.",
+        "state_resilience -0.5: el navbar anonimo envuelve a dos filas en 360px y 320px.",
+        "color_accessibility -1: el relleno del .btn-cta en oscuro mide 1.89:1 contra la banda #1f2937.",
+        "layout_spacing -1: los h2 de banda arrancan en dos ejes (144px y 336px) por max-w-3xl contra max-w-6xl.",
+        "layout_spacing -1: las respuestas del FAQ miden ~111 caracteres por linea.",
+        "visual_hierarchy -0.5: el h1 deja la cuarta linea al 58% del ancho de la segunda.",
+        "visual_hierarchy -0.5: \"Crear cuenta gratis\" aparece dos veces en el primer viewport, ghost en el navbar y relleno en el hero.",
+        "affordance_clarity -0.5: los links del pie no se distinguen de texto en reposo y el subrayado tarda 700ms.",
+        "affordance_clarity -0.5: el mock del plan no tiene rotulo visible de ejemplo y se lee como algo clickeable.",
+        "cognitive_load -0.5: las mismas dos rutas del navbar se repiten como .btn-link en el hero.",
+        "cognitive_load -0.5: \"itinerario\" y \"plan/planes\" nombran el mismo objeto.",
+        "microcopy_precision -0.5: \"entra en una hoja\" promete de mas (un plan largo pagina en varias).",
+        "microcopy_precision -0.5: \"queda como tuyo para editarlo\" y \"solo vos podes editarlo\" se leen contradictorios."
+      ],
+      "loop_decision": {
+        "outcome": "salida por plateau/regresion, no por objetivo",
+        "detail": "Iteracion 5 dio 7.57 y esta 6 da 7.43: -0.14 con un critico distinto. Un delta menor a 0.2 entre criticos en frio es ruido de medicion, no una regresion del codigo, y el umbral de salida (>=8.0 con >=6/7 categorias >=8 y ninguna <7) no se alcanzo en ninguna de las dos. Se corta el loop.",
+        "no_revert": "No se revierte el ultimo cambio (los tres arreglos de borde, canto y print) por esta caida: cada uno se midio por separado y el propio critico los acredita (el borde del FAQ y el canto oscuro no aparecen en las deducciones). Revertirlos por un delta dentro del ruido seria empeorar la pagina.",
+        "ceiling": "La brecha que queda no esta en landing.html: 4 de los 5 puntos que faltan para el umbral son de state_resilience y color_accessibility, y tres de esas deducciones viven en layouts/base.html, components/navbar.html y la estrategia de build de Tailwind. Este loop ya llego a su techo; lo que sigue es otra tarea, no otra iteracion."
+      },
+      "comparability_note": "Misma posicion que las iteraciones 4 y 5 (agente en frio, sin el log, sin la evidencia y sin git) y la misma rubrica, pero con una diferencia de metodo: esta vez la evidencia fueron capturas nativas de Chrome headless (Laplaciano 16-18) en vez del navegador del IDE, que devolvia rasters suavizados 4-5x (Laplaciano 2-6). El critico ademas midio contraste sobre pixeles renderizados y no sobre estilos computados, y corrigio por su cuenta la deduccion que iba a apoyarse en el h1 con background-clip: text (que por CSS da 1.0:1 y por pixeles da 17.57:1). Esa mejora de metodo puede explicar parte de la diferencia con las iteraciones 4 y 5 en las dimensiones de color y legibilidad, en cualquier direccion."
     }
   ]
 }
