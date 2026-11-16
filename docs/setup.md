@@ -127,7 +127,7 @@ It is a project-wide decision, and this ticket deliberately does not make it.
 
 ## Demo data
 
-`docker-dev.sh` starts the app with `-Dseed.demoPlans=true`. The flag is read by two seeders at
+`docker-dev.sh` starts the app with `-Dseed.demoPlans=true`. The flag is read by four seeders at
 startup and is off by default, so the test suites and a plain `mvn jetty:run` never seed anything.
 
 - `PublicPlanDataSeeder` seeds the feed: five ghost accounts, six public plans (`GHOST001` to
@@ -139,8 +139,30 @@ startup and is off by default, so the test suites and a plain `mvn jetty:run` ne
   description, `GHOST013` in the past with a working and a broken place photo) and unusual
   accounts (`inactivo@planit.demo`, deactivated, and Camila with three followers).
 
-`GHOST010` is the idempotency marker: once it exists, neither seeder writes anything again. A
-half-finished seed is repaired with `reset-db`, not by hand.
+- `DemoShowcaseSeeder` seeds the presenter account `demo@planit.demo` (password `password`) with
+  its own story: a public two-day plan (`DEMO0001`), a private plan with an editor, a pending join
+  request and a banned user (`DEMO0002`), a pending invitation to accept (`DEMO0003`), follows in
+  both directions, two bookmarks, two ratings and the notifications those actions produce. The
+  walkthrough is in `docs/demo-script.md`.
+
+- `PoiSnapshotSeeder` loads the map import table (`poi` / `poi_zone`) with one snapshot zone of
+  Palermo (`src/main/resources/place-snapshot/palermo-pois.json`): one tag per category, 751
+  places in seven categories. It reads no network and is idempotent per category. The snapshot
+  data is OpenStreetMap, under ODbL: keep the attribution in the file. Museums, parks and sports
+  venues are absent on purpose: OSM tags them outside the importer's `amenity`/`shop` allowlist.
+
+- `PlanItShowcaseSeeder` publishes one public plan as the platform itself: "Agenda PlanIt: clásicos
+  porteños", with four stops from the catalogue, a budget and the derived schedule. It goes through
+  `PlanService.createAdminPlan`, the same path as the admin ABM, so the owner is the system user
+  `app@planit.com` ("PlanIt App") and the plan sorts first in every listing
+  (`PlanDiscovery.planItFirst`). It has its own marker - "the platform already has a plan" - so it
+  also lands on a database that was seeded before it existed.
+
+`GHOST010` is the idempotency marker of `DemoInteractionSeeder`, `DEMO0001` the one of
+`DemoShowcaseSeeder`, and "a plan owned by `app@planit.com`" the one of `PlanItShowcaseSeeder`:
+once a marker exists, its seeder writes nothing again. A seed that stopped halfway is repaired with
+`reset-db`, not by hand. A database that already holds the ghosts and `GHOST010` gets only the
+showcase data on its next start, because `DEMO0001` is missing.
 
 The long demo description does not fit in the old `plans.description` column: the mapping is now
 `varchar(2048)`, and `hbm2ddl.auto=update` never widens a column that already exists. On a volume

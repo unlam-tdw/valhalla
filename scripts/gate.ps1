@@ -19,6 +19,7 @@
       .\scripts\gate.ps1 all                      everything, one `mvn verify`
       .\scripts\gate.ps1 all=UserServiceTest+LoginViewE2E
       .\scripts\gate.ps1 reset-db                 throws the local database away and rebuilds it
+      .\scripts\gate.ps1 seed                     resets the local database, seeds the demo data and stops the app
       .\scripts\gate.ps1 check                    Checkstyle, PMD, CPD, Prettier
       .\scripts\gate.ps1 js                       the frontend JS contract
       .\scripts\gate.ps1 coverage                 runs the suite, prints the coverage matrix
@@ -76,6 +77,9 @@ Commands
   js                    the frontend JS contract, docs/guide-js.md. Changes nothing
   coverage              runs the whole suite, prints the coverage matrix
   reset-db              DESTROYS every local database and rebuilds it. See below
+  seed                  DESTROYS the local database (reset-db), then starts the app with
+                        -Dseed.demoPlans=true until the seeders finish, and stops it again.
+                        Postgres stays up; run `docker compose up --build` afterwards for the demo
 
   No command means help. Nothing runs unless you name a layer.
 
@@ -93,6 +97,7 @@ Options
   -SlowMo <ms>   per-action delay in the browser (e2e only)
   -Port <n>      moves Jetty and e2e.baseUrl together
   -Keep          leave PostgreSQL running afterwards
+  -NoReset       with `seed`: keep the current database and seed on top of it, no reset
 
 Examples
   .\scripts\gate.ps1 unit -Fast
@@ -109,6 +114,8 @@ Examples
   .\scripts\gate.ps1 coverage
   .\scripts\gate.ps1 list=e2e
   .\scripts\gate.ps1 reset-db
+  .\scripts\gate.ps1 seed
+  .\scripts\gate.ps1 seed -Port 9090
 
 Coverage matrix
   unit, integration and all end with one: LINE, BRANCH and METHOD ratios per package,
@@ -158,7 +165,7 @@ $unitPatterns = "!**/e2e/**,!**/integration/**"
 # disarm it, letting a bogus -Dit.test name report a green build over zero tests.
 $surefireNone = '__NoUnitGate__'
 
-$commands = 'help', 'list', 'unit', 'integration', 'e2e', 'all', 'check', 'js', 'coverage', 'reset-db'
+$commands = 'help', 'list', 'unit', 'integration', 'e2e', 'all', 'check', 'js', 'coverage', 'reset-db', 'seed'
 
 # Resolve before listing: Get-ChildItem echoes back the path it was given, and the package
 # is computed by cutting a fixed prefix off it, so the prefix has to be the same string
@@ -189,6 +196,7 @@ $headed = $false
 $slowmo = 0
 $port = 0
 $keep = $false
+$noReset = $false
 
 function Stop-With($message) {
     Write-Host $message
@@ -320,6 +328,9 @@ while ($args.Count -gt 0) {
     elseif ($arg -match '^-(Strict)$') {
         $strict = $true
     }
+    elseif ($arg -match '^-(NoReset)$') {
+        $noReset = $true
+    }
     elseif ($arg -match '^-(Keep|k)$') {
         $keep = $true
     }
@@ -389,6 +400,9 @@ if ($command -eq 'help') {
     exit 0
 }
 
+if ($noReset -and $command -ne 'seed') {
+    Stop-With "-NoReset only applies to 'seed'."
+}
 if ($fix -and $command -ne 'check') {
     Stop-With "-Fix only applies to 'check'."
 }
@@ -398,7 +412,7 @@ if ($strict -and $command -ne 'js') {
     Stop-With "-Strict only applies to 'js'."
 }
 # list is absent on purpose: `list=e2e` is a scope, and the block below validates it.
-if ($targets.Count -gt 0 -and $command -in 'help', 'check', 'js', 'coverage', 'reset-db') {
+if ($targets.Count -gt 0 -and $command -in 'help', 'check', 'js', 'coverage', 'reset-db', 'seed') {
     Stop-With "'$command' does not take a target. Targets apply to unit, integration, e2e and all."
 }
 if ($targets -match 'E2E' -and $command -in 'unit', 'integration') {
@@ -597,6 +611,138 @@ if ($command -eq 'reset-db') {
     Write-Host '[reset-db] done. Hibernate rebuilds the schema on the next start.'
     Set-Location $originalLocation
     exit 0
+}
+
+# ---- seed ----------------------------------------------------------------------------
+if ($command -eq 'seed') {
+    if ($fast) {
+        Write-Host "[seed] -Fast ignored: the app always starts with the dev profile here."
+    }
+
+    # The seeders read -Dseed.demoPlans when the app starts and write only the rows whose
+    # marker is missing, so running this again on a seeded database changes nothing. It
+    # fills the same database docker-dev.sh serves (DB_NAME from .env), so what you see at
+    # http://localhost:8080 after this command is what the demo will show.
+    #
+    # The app does not read .env (docker compose does), so the values are read here and
+    # handed to the JVM as environment variables, then restored on the way out.
+    $dotenvPath = Join-Path $root '.env'
+    if (-not (Test-Path $dotenvPath)) {
+        Stop-With "[seed] no .env at $dotenvPath. Copy .env.example to .env first."
+    }
+    $dotenv = @{}
+    foreach ($line in Get-Content $dotenvPath) {
+        if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$') {
+            $dotenv[$matches[1]] = $matches[2]
+        }
+    }
+    foreach ($key in 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'SECURITY_SECRET') {
+        if (-not $dotenv[$key]) { Stop-With "[seed] $key is empty or missing in .env." }
+    }
+
+    # reset-db first: seed starts from an empty database, so the result is the same every time.
+    # -NoReset keeps the current data and seeds on top of it. A fresh PowerShell runs the reset,
+    # so its exit code is reliable and its `exit` cannot end this script.
+    if (-not $noReset) {
+        Write-Host '[seed] resetting the local database first (reset-db)'
+        $engine = (Get-Process -Id $PID).Path
+        & $engine -NoProfile -File $PSCommandPath 'reset-db'
+        if ($LASTEXITCODE -ne 0) { Stop-With "[seed] reset-db failed (exit $LASTEXITCODE); nothing was seeded." }
+    }
+
+    $appPort = if ($port -gt 0) { $port } else { 8080 }
+    $seedEnv = @{
+        DB_HOST = 'localhost'
+        DB_PORT = if ($dotenv['DB_PORT']) { $dotenv['DB_PORT'] } else { '5432' }
+        DB_NAME = $dotenv['DB_NAME']
+        DB_USER = $dotenv['DB_USER']
+        DB_PASSWORD = $dotenv['DB_PASSWORD']
+        SECURITY_SECRET = $dotenv['SECURITY_SECRET']
+        APP_BASE_URL = "http://localhost:$appPort"
+    }
+    $previous = @{}
+    foreach ($name in $seedEnv.Keys) {
+        $previous[$name] = [Environment]::GetEnvironmentVariable($name)
+        [Environment]::SetEnvironmentVariable($name, $seedEnv[$name])
+    }
+
+    try {
+        Invoke-Native 'docker' @('compose', 'up', '-d', 'postgres')
+        if ($script:nativeExitCode -ne 0) { throw '[seed] docker compose up failed.' }
+
+        # A container that was just started answers "the database system is starting up"
+        # for a few seconds; wait it out, same probe as reset-db.
+        $ready = $false
+        foreach ($attempt in 1..20) {
+            Invoke-Native 'docker' @(
+                'compose', 'exec', '-T', 'postgres', 'psql', '-U', 'user', '-d', 'postgres', '-tAc', 'SELECT 1'
+            ) -Quiet
+            if ($script:nativeExitCode -eq 0) { $ready = $true; break }
+            Start-Sleep -Seconds 1
+        }
+        if (-not $ready) { throw '[seed] postgres never answered; is the image pulled?' }
+
+        $jettyArgs = @('-B', '-Pdev', 'jetty:run', '-Dmaven.test.skip=true', '-Dseed.demoPlans=true')
+        if ($port -gt 0) { $jettyArgs += "-Djetty.port=$port" }
+
+        # A leftover app on this port would answer the readiness probe below, and the seed would
+        # look finished when it never ran.
+        if (Get-NetTCPConnection -LocalPort $appPort -State Listen -ErrorAction SilentlyContinue) {
+            throw "[seed] port $appPort is already in use; stop that app first (docker compose down, or the terminal that runs it)."
+        }
+
+        $seedLog = Join-Path $env:TEMP 'valhalla-seed.log'
+        Write-Host "[seed] starting the app with -Dseed.demoPlans=true; log: $seedLog"
+        $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList "/c mvn $($jettyArgs -join ' ') > `"$seedLog`" 2>&1" -PassThru -WindowStyle Hidden
+
+        # A first 200 only proves the connector is listening, not that the seed finished: the
+        # seeders are ContextRefreshedEvent listeners and can still be writing. Wait until the
+        # log stops growing, so the app is not killed mid-seed and its lines are read.
+        $deadline = (Get-Date).AddMinutes(10)
+        $up = $false
+        while ((Get-Date) -lt $deadline) {
+            if ($proc.HasExited) { throw "[seed] the app exited before it was ready (exit $($proc.ExitCode)). See $seedLog" }
+            try {
+                if ((Invoke-WebRequest -Uri "http://localhost:$appPort/" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) { $up = $true; break }
+            }
+            catch { }
+            Start-Sleep -Seconds 3
+        }
+        if (-not $up) { throw "[seed] the app did not answer within 10 minutes. See $seedLog" }
+
+        $previousLength = -1
+        $stableChecks = 0
+        $settleDeadline = (Get-Date).AddMinutes(2)
+        while ($stableChecks -lt 2 -and (Get-Date) -lt $settleDeadline) {
+            Start-Sleep -Seconds 2
+            $currentLength = if (Test-Path $seedLog) { (Get-Item $seedLog).Length } else { 0 }
+            if ($currentLength -eq $previousLength) { $stableChecks++ } else { $stableChecks = 0 }
+            $previousLength = $currentLength
+        }
+
+        $loaded = @(Select-String -Path $seedLog -Pattern 'seed loaded|seeded|snapshot loaded' -ErrorAction SilentlyContinue)
+        if ($loaded) {
+            Write-Host '[seed] seeded:'
+            $loaded | ForEach-Object { Write-Host "  $($_.Line.Trim())" }
+        }
+        else {
+            Write-Host '[seed] nothing new to seed: the database already had the demo data.'
+        }
+        Write-Host '[seed] presenter  demo@planit.demo / password'
+        Write-Host '[seed] admin      test@unlam.edu.ar / password'
+        Write-Host '[seed] done. Stopping the app; postgres stays up. Next: docker compose up --build'
+        $exitCode = 0
+    }
+    finally {
+        # cmd, mvn and the JVM go together: the app only exists to run the seeders.
+        if ($proc -and -not $proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null }
+        foreach ($name in $previous.Keys) {
+            if ($null -eq $previous[$name]) { Remove-Item "env:$name" -ErrorAction SilentlyContinue }
+            else { [Environment]::SetEnvironmentVariable($name, $previous[$name]) }
+        }
+        Set-Location $originalLocation
+    }
+    exit $exitCode
 }
 
 # ---- coverage ------------------------------------------------------------------------

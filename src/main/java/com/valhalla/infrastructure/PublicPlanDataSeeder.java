@@ -359,7 +359,7 @@ public class PublicPlanDataSeeder implements ApplicationListener<ContextRefreshe
    * del sistema, con la ventana y el modo de traslado del plan. Asi el itinerario demo se ve igual
    * que uno armado desde el form, y cambiar una duracion del catalogo mueve las horas solas.
    */
-  private void applyDerivedSchedule(Plan plan) {
+  static void applyDerivedSchedule(Plan plan) {
     List<PlanScheduleCalculator.Stop> inputs = plan
       .getPlanPlaces()
       .stream()
