@@ -315,6 +315,39 @@ public class PlanControllerTest {
     assertThat(view.getModel().get("planDateIso"), is(equalTo("2026-12-31")));
   }
 
+  // --- [REO] I-01: el modelo del detalle expone los valores del seed del preview del horario ---
+
+  @Test
+  public void REO_I01_showPlan_exponeLosValoresDelSeedDelPreviewDelHorario() {
+    // given: un plan sin la ventana del horario (la forma de un plan viejo) no viaja con hora
+    // de inicio, y la ventana y el modo caen a los defaults del planificador
+    Plan plan = plan(PLAN_ID, "Preview del reorden");
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+
+    // when
+    ModelAndView view = this.controller.showPlan(PLAN_ID, this.authentication);
+
+    // then: [REO] el espejo JS del planificador (29-REO D-3) necesita los cuatro valores para
+    // previsualizar el horario mientras se arrastra; el flag de derivación es el del plan
+    assertThat(view.getModel().get("planEventTime"), is(nullValue()));
+    assertThat(view.getModel().get("planDayEndTime"), is(equalTo("23:00")));
+    assertThat(view.getModel().get("planTransportMode"), is(equalTo("WALK")));
+    assertThat(view.getModel().get("planAutoSchedule"), is(true));
+
+    // y con la ventana completa viajan tal cual, las horas formateadas HH:mm igual que el
+    // planDateIso viaja ISO, porque el JS no parsea nada más que strings
+    plan.setEventDate(LocalDate.of(2026, 12, 31));
+    plan.setEventTime(LocalTime.of(9, 30));
+    plan.setDayEndTime(LocalTime.of(22, 0));
+    plan.setTransportMode(TransportMode.BIKE);
+    plan.getSettings().setAutoSchedule(false);
+    view = this.controller.showPlan(PLAN_ID, this.authentication);
+    assertThat(view.getModel().get("planEventTime"), is(equalTo("09:30")));
+    assertThat(view.getModel().get("planDayEndTime"), is(equalTo("22:00")));
+    assertThat(view.getModel().get("planTransportMode"), is(equalTo("BIKE")));
+    assertThat(view.getModel().get("planAutoSchedule"), is(false));
+  }
+
   // --- [MARK] toggle de Guardados en el detalle y en la vista publica ---
 
   @Test

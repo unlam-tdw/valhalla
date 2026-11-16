@@ -131,13 +131,14 @@ public class PlanPlaceDetailE2E extends E2eBase {
     assertThat(dialog.locator("dd").last()).hasText("2");
     closeStopDetails();
 
-    // Reordering is drag and drop, and the new order survives a reload. The drop handler swaps
-    // the list optimistically and saves afterwards, so the reload has to wait for that save:
-    // reloading while the POST is still in flight renders the old order from the database.
+    // Reordering is drag and drop from the handle button (29-REO D-1: the <li> is no longer
+    // draggable), and the new order survives a reload. The drop handler swaps the list
+    // optimistically and saves afterwards, so the reload has to wait for that save: reloading
+    // while the POST is still in flight renders the old order from the database.
     Locator titles = page.locator(".stop-title");
     String firstName = titles.nth(0).innerText();
     String secondName = titles.nth(1).innerText();
-    assertThat(page.locator(".place-item").first()).hasAttribute("draggable", "true");
+    assertThat(page.locator(".place-item").first().locator("button.drag-handle")).hasCount(1);
     Response reorder = reorderFirstTwoStops();
     assertEquals(200, reorder.status(), "the reorder has to be saved by the server");
     assertThat(titles.nth(0)).hasText(secondName);
@@ -667,9 +668,10 @@ public class PlanPlaceDetailE2E extends E2eBase {
   }
 
   /**
-   * Playwright's pointer-driven {@code dragTo} can skip the HTML5 drag events on headless CI and
-   * leave the response wait hanging. Dispatch the same events the Vue component listens to, so the
-   * handlers and the reorder POST remain covered without depending on pointer hit-testing.
+   * [REO] La manija es un botón con pointer events (29-REO D-1): el HTML5 drag & drop del
+   * <li> ya no existe. Dispatch de la misma secuencia sintética de PointerEvent sobre el
+   * handle de la primera parada —down, move hacia la ranura de la segunda y up—, así los
+   * handlers y el reorder POST siguen cubiertos sin depender del pointer hit-testing.
    */
   private Response reorderFirstTwoStops() {
     return page.waitForResponse(
@@ -678,17 +680,27 @@ public class PlanPlaceDetailE2E extends E2eBase {
         page.evaluate(
           """
           () => {
-            const items = document.querySelectorAll('.place-item');
-            const dataTransfer = new DataTransfer();
-            const event = (type) => new DragEvent(type, {
+            const handles = document.querySelectorAll('.drag-handle');
+            const rows = document.querySelectorAll('.place-item');
+            const handle = handles[0];
+            const from = handle.getBoundingClientRect();
+            const to = rows[1].getBoundingClientRect();
+            const fire = (type, y) => handle.dispatchEvent(new PointerEvent(type, {
               bubbles: true,
               cancelable: true,
-              dataTransfer
-            });
-            items[0].dispatchEvent(event('dragstart'));
-            items[1].dispatchEvent(event('dragover'));
-            items[1].dispatchEvent(event('drop'));
-            items[0].dispatchEvent(event('dragend'));
+              pointerId: 1,
+              pointerType: 'mouse',
+              button: 0,
+              buttons: type === 'pointerup' ? 0 : 1,
+              clientX: from.left,
+              clientY: y
+            }));
+            // Down al medio del handle de la parada 1; move a la mitad superior de la fila 2
+            // (debajo del punto medio de la fila 1 y encima del de la fila 2: ranura 2) y up
+            // en el mismo lugar.
+            fire('pointerdown', from.top + from.height / 2);
+            fire('pointermove', to.top + to.height / 2 - to.height / 4);
+            fire('pointerup', to.top + to.height / 2 - to.height / 4);
           }
           """
         )
