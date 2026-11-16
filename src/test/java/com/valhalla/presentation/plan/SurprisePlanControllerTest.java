@@ -80,6 +80,26 @@ public class SurprisePlanControllerTest {
   }
 
   @Test
+  public void SURPRISE_POST_sinEstiloUsaEtiquetaGenerica() {
+    SurpriseRequest form = new SurpriseRequest();
+    form.setBudget(new BigDecimal("1000"));
+    form.setDate(LocalDate.of(2026, 12, 20));
+    form.setStyle(null);
+    when(this.planServiceMock.createPlan(any(Plan.class), eq(OWNER_EMAIL)))
+      .thenReturn(plan(PLAN_ID, "Sorpresa"));
+
+    this.controller.createSurprise(
+        form,
+        new BeanPropertyBindingResult(form, "surpriseForm"),
+        this.authentication
+      );
+
+    ArgumentCaptor<Plan> captor = ArgumentCaptor.forClass(Plan.class);
+    verify(this.planServiceMock).createPlan(captor.capture(), eq(OWNER_EMAIL));
+    assertThat(captor.getValue().getName(), containsString("sorpresa"));
+  }
+
+  @Test
   public void SURPRISE_POST_conErroresNoCreaPlan() {
     SurpriseRequest form = new SurpriseRequest();
     BeanPropertyBindingResult errors = new BeanPropertyBindingResult(form, "surpriseForm");

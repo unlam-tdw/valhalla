@@ -25,6 +25,16 @@ public class SurprisePlanController {
 
   private static final String VIEW_SURPRISE = "pages/plans/surprise";
   private static final String REDIRECT_PLAN_DETAIL = "redirect:/plans/";
+  private static final Map<String, String> STYLE_LABELS = Map.of(
+    "gastronomia",
+    "gastronomía",
+    "cultura",
+    "cultura",
+    "aire_libre",
+    "aire libre",
+    "mixto",
+    "mixto"
+  );
 
   private final PlanService planService;
 
@@ -89,12 +99,6 @@ public class SurprisePlanController {
   }
 
   private static String styleLabel(String style) {
-    return switch (style == null ? "" : style) {
-      case "gastronomia" -> "gastronomía";
-      case "cultura" -> "cultura";
-      case "aire_libre" -> "aire libre";
-      case "mixto" -> "mixto";
-      default -> "sorpresa";
-    };
+    return STYLE_LABELS.getOrDefault(style == null ? "" : style, "sorpresa");
   }
 }
