@@ -19,8 +19,8 @@
   <main id="landing" class="flex-1">
 
     <!-- Estilos propios de la página: el degradado del título (único degradado permitido, y
-         solo sobre texto), la 마스크 de entrada de los bloques y el revelado palabra por palabra
-         del tagline. Todo lo demás es Tailwind. -->
+         solo sobre texto), la máscara de entrada de los bloques y el par de color del cierre de
+         beneficios. Todo lo demás es Tailwind. -->
     <style>
       /* El título del hero: degradado horizontal negro a gris, recortado sobre el texto. */
       .hero-title {
@@ -32,9 +32,59 @@
 
       /* En modo oscuro la misma dirección de degradado, pero con los tokens de marca en sus
          valores claros: sobre la tarjeta oscura el negro a gris quedaría ilegible. El estado
-         corresponde a html[data-theme="dark"], que escribe el script de layouts/base. */
+         corresponde a html[data-theme="dark"], que escribe el script de layouts/base. El
+         extremo final es --dark-text-muted (#d1d5db, 9.9:1 sobre la tarjeta): --gray cerraba
+         el degradado en 3.02:1 y media línea del titular quedaba al límite. */
       html[data-theme="dark"] .hero-title {
-        background-image: linear-gradient(90deg, var(--white) 0%, var(--gray) 100%);
+        background-image: linear-gradient(90deg, var(--white) 0%, var(--dark-text-muted) 100%);
+      }
+
+      /* El título se pinta recortando el fondo sobre el texto, así que en alto contraste
+         (color: transparent) desaparece. Sin degradado, con el color de sistema. El CTA
+         sólido tiene el mismo problema: en forced-colors el navegador descarta el fondo de
+         autor y la acción principal quedaba como texto suelto, indistinguible de un link.
+         Se le devuelve el borde del sistema, que es lo único que dibuja. */
+      @media (forced-colors: active) {
+        .hero-title {
+          background-image: none;
+          color: CanvasText;
+        }
+
+        .btn-cta {
+          border: 2px solid ButtonText;
+        }
+
+        .btn-ghost {
+          border-color: ButtonText;
+        }
+
+        .place-card {
+          border: 1px solid CanvasText;
+        }
+      }
+
+      /* En papel no hay fondo que recortar: los navegadores no pintan background-image al
+         imprimir, así que el titular saldría en blanco sobre blanco. Sin degradado y en negro.
+         Lo mismo valía para el resto del chrome: el navbar escribe en blanco sobre negro y los
+         .btn-cta en blanco sobre --primary, y sin fondos impresos las dos cosas desaparecían.
+         El navbar y los links del pie no aportan en papel; las acciones se dibujan con borde. */
+      @media print {
+        .hero-title {
+          background-image: none;
+          color: #000;
+        }
+
+        nav,
+        footer nav {
+          display: none !important;
+        }
+
+        .btn-cta,
+        .btn-ghost {
+          background: none !important;
+          border: 1px solid #000 !important;
+          color: #000 !important;
+        }
       }
 
       /* Los bloques entran con un fade up pesado. El estado inicial solo existe si JavaScript
@@ -43,6 +93,16 @@
         opacity: 0;
         transform: translateY(4rem);
         filter: blur(12px);
+      }
+
+      /* En papel no hay observer que dispare: el estado inicial dejaría media página en
+         blanco. La impresión siempre ve el contenido. */
+      @media print {
+        html.reveal-ready [data-reveal] {
+          opacity: 1;
+          transform: none;
+          filter: none;
+        }
       }
 
       html.reveal-ready [data-reveal].is-revealed {
@@ -55,25 +115,13 @@
           filter 900ms cubic-bezier(0.32, 0.72, 0, 1);
       }
 
-      /* Tagline: cada palabra arranca apagada y se enciende al entrar en pantalla. */
-      html.reveal-ready .tagline-word {
-        color: rgba(17, 24, 39, 0.28);
-        transition: color 700ms cubic-bezier(0.32, 0.72, 0, 1);
-      }
-
-      html.reveal-ready .tagline-word.is-lit {
-        color: #111827;
-      }
-
-      /* Modo oscuro: la misma escala al revés (apagado claro, encendido blanco). Los
-         selectores repiten .reveal-ready para que la especificidad gane por sí sola y no
-         dependan del orden dentro del bloque; --white es el token de brand.css. */
+      /* Cierre de la sección de beneficios: una frase, no un carrusel de palabras. La clase se
+         queda como marca del bloque y solo lleva el par de modo: en claro el párrafo ya es
+         text-gray-600, y en oscuro se afirma en blanco (--white), que es el token de brand.css.
+         El selector conserva el prefijo .reveal-ready que tenía el bloque animado (es la clase
+         que el script agrega cuando arma el reveal): sin JavaScript la frase se queda con la
+         utilidad, que en oscuro ya es legible. */
       html[data-theme="dark"].reveal-ready .tagline-word {
-        color: rgb(249 250 251 / 0.28);
-        transition: color 700ms cubic-bezier(0.32, 0.72, 0, 1);
-      }
-
-      html[data-theme="dark"].reveal-ready .tagline-word.is-lit {
         color: var(--white);
       }
 
@@ -83,132 +131,168 @@
       }
     </style>
 
-    <a href="#contenido"
-      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-base focus:font-semibold focus:text-primary">
-      Saltar al contenido
-    </a>
-
+    <!-- El skip link que apunta a este ancla vive en layouts/base, justo después del <body> y
+         antes del <nav>: adentro de <main> llegaba como cuarto tab stop y no salteaba nada.
+         Los separadores entre bandas son CSS plano en brand.css (#landing .landing-section +
+         .landing-section): el divide-y declarado medía 0px de borde, así que el límite entre
+         secciones quedaba en 1.09:1. -->
     <div id="contenido">
 
       <!-- ============================== HERO ============================== -->
-      <section class="bg-white px-4 py-16" aria-labelledby="hero-title">
+      <section class="landing-section--lg bg-white px-4" aria-labelledby="hero-title">
         <div class="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
 
           <div>
+            <!-- Sin <br>: text-balance reparte el titular en las líneas que necesite a lo ancho
+                 de la columna. Antes era un acertijo de 66 caracteres que no nombraba ni el
+                 producto ni la ciudad: "Buenos Aires" recién aparecía al 69% de la página. -->
             <h1 id="hero-title"
-              class="hero-title font-serif text-4xl font-bold leading-tight text-balance sm:text-5xl lg:text-6xl">
-              Armá el plan del día una vez<br />
-              y compartilo las veces que haga falta
+              class="hero-title max-w-[18ch] font-serif text-4xl font-bold leading-tight text-balance sm:text-5xl lg:text-6xl">
+              Armá el itinerario de tu día en Buenos Aires y compartilo con un link
             </h1>
 
-            <p class="mt-6 max-w-[680px] text-lg text-gray-600 text-pretty">
-              PlanIt junta lugares de Buenos Aires en un itinerario con horarios y lo deja en un
-              link que se abre en el celu. Gratis, sin tarjeta y sin que el resto tenga que
-              registrarse.
+            <p class="mt-6 max-w-[46ch] text-lg text-gray-600 text-pretty">
+              Buscás lugares en el mapa, armás el plan con horarios y se lo pasás al grupo con un
+              link. Para abrirlo no hace falta cuenta.
             </p>
 
-            <!-- Acción única arriba. El enlace de entrada es texto: no compite con el CTA. -->
-            <div class="mt-8 flex flex-wrap items-center gap-3">
-              <a th:if="${authenticated == false}" th:href="@{/auth/register}"
+            <!-- Una sola acción rellena arriba del fold. Los dos links de abajo son el camino
+                 de quien llega desde un plan compartido: mirar no pide cuenta. -->
+            <div class="mt-8">
+              <a th:unless="${authenticated}" th:href="@{/auth/register}"
                 class="btn-cta">
-                Crear mi plan gratis
+                Crear cuenta gratis
               </a>
-              <a th:if="${authenticated == true}" th:href="@{/explore}"
+              <a th:if="${authenticated}" th:href="@{/explore}"
                 class="btn-cta">
                 Explorar lugares
               </a>
+            </div>
 
-              <a th:if="${authenticated == false}" th:href="@{/auth/login}"
-                class="rounded-lg px-3 py-2 text-base font-medium text-primary underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                Ya tengo cuenta, entro
+            <!-- Sin calificador: "gratis y sin tarjeta" es literalmente la pregunta 2 del FAQ, y
+                 decirlo dos veces en la misma página era la única razón de ser del bloque. La
+                 respuesta del FAQ queda como fuente única, y los secundarios suben a mt-3, que
+                 era la distancia que el calificador tenía con el CTA. Comparten un solo estado
+                 de reposo (.btn-link) y van en su fila: el CTA no queda agrupado igual con el
+                 párrafo de arriba que con lo que viene abajo. -->
+            <div class="mt-3 flex flex-wrap items-center gap-x-4">
+              <a th:unless="${authenticated}" th:href="@{/for-you}"
+                class="btn-link focus-ring">
+                Ver planes públicos
               </a>
-              <a th:if="${authenticated == true and isAdmin == false}" th:href="@{/plans}"
-                class="rounded-lg px-3 py-2 text-base font-medium text-primary underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                Ver mis planes
+              <a th:unless="${authenticated}" th:href="@{/auth/login}"
+                class="btn-link focus-ring">
+                Iniciar sesión
               </a>
-              <a th:if="${authenticated == true and isAdmin == true}" th:href="@{/admin/users}"
-                class="rounded-lg px-3 py-2 text-base font-medium text-primary underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              <a th:if="${authenticated and not isAdmin}" th:href="@{/plans}"
+                class="btn-link focus-ring">
+                Mis planes
+              </a>
+              <a th:if="${authenticated and isAdmin}" th:href="@{/admin/users}"
+                class="btn-link focus-ring">
                 Administrar usuarios
               </a>
             </div>
-
-            <!-- Señal de prueba: un dato concreto del catálogo, no una promesa. -->
-            <p class="mt-4 text-sm text-gray-500">
-              10 lugares de Buenos Aires en el catálogo, con dirección y coordenadas.
-            </p>
           </div>
 
           <!-- Visual del hero: la pantalla real del detalle de un plan. Los lugares salen del
-               modelo (LandingController) y los íconos de la librería vendorizada. -->
+               modelo (LandingController) y los íconos de la librería vendorizada. Sin h-full: el
+               panel interno envuelve su contenido y la figura estirada dejaba ~200px de tarjeta
+               vacía debajo del itinerario. Sin order-*: el orden de fuentes ya es el correcto, el
+               copy primero y el mock después, así en mobile el primer viewport abre con titular y
+               acción, y en desktop la figura cae en la columna derecha. Debajo de sm la figura
+               muestra dos paradas (brand.css): la tercera empujaba el CTA fuera del fold. -->
           <figure class="rounded-2xl border border-gray-200 bg-white p-3">
             <div class="rounded-lg bg-gray-50 p-3">
-              <div class="flex items-center justify-between">
-                <p class="font-serif text-xl text-gray-900">Un sábado en Recoleta</p>
+              <div class="flex items-center justify-between gap-3">
+                <p class="font-serif text-2xl text-gray-900">Un sábado en Recoleta</p>
+                <!-- El chip de estado no puede vestirse con el relleno sólido del CTA: arriba del
+                     fold quedaban dos formas #004aad y el chip se leía como un botón que no hace
+                     nada. El relleno sólido es solo de .btn-cta. -->
                 <span
-                  class="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">
-                  <i data-lucide="users" class="h-3 w-3" aria-hidden="true"></i>
+                  class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-sm font-semibold text-primary">
+                  <i data-lucide="users" class="h-3.5 w-3.5" aria-hidden="true"></i>
                   Público
                 </span>
               </div>
 
-              <ol class="mt-3 flex flex-col gap-2">
+              <ol class="mt-3 flex flex-col gap-2" th:if="${!#lists.isEmpty(heroItinerary)}">
                 <th:block th:each="stop : ${heroItinerary}">
                   <th:block th:replace="~{components/place-card :: place-card(${stop})}"></th:block>
                 </th:block>
               </ol>
 
-              <p class="mt-3 text-xs text-gray-500">
-                Itinerario con hora, orden y dirección en cada parada.
+              <!-- Con el modelo vacío la tarjeta no promete paradas que no muestra. -->
+              <p class="mt-3 text-sm text-gray-500" th:if="${#lists.isEmpty(heroItinerary)}">
+                Todavía no hay paradas para mostrar en este ejemplo.
+              </p>
+
+              <p class="mt-3 text-sm text-gray-500" th:unless="${#lists.isEmpty(heroItinerary)}">
+                Cada parada con su hora y su dirección.
+              </p>
+
+              <!-- Debajo de sm brand.css corta el mock en dos paradas para que el h1 y el CTA
+                   entren en el primer viewport. La tercera no desaparece en silencio: se resume en
+                   una línea con el mismo dato de la card oculta, así lo que se ve y lo que se
+                   escucha cuentan lo mismo (el figcaption sigue describiendo el itinerario
+                   entero, que es el que está en el DOM). -->
+              <p class="mt-2 text-sm text-gray-500 sm:hidden"
+                th:if="${heroItinerary != null and #lists.size(heroItinerary) > 2}">
+                +<span th:text="${#lists.size(heroItinerary) - 2}">1</span>
+                <span th:text="${#lists.size(heroItinerary) - 2 == 1} ? 'parada más' : 'paradas más'">parada más</span>:
+                <span th:text="${heroItinerary[2].time}">17:30</span> ·
+                <span th:text="${heroItinerary[2].place}">El Ateneo</span>
               </p>
             </div>
-            <figcaption class="sr-only">
-              Ejemplo de plan con tres paradas, horario y categoría por cada lugar.
+            <!-- El conteo sale del mismo modelo que dibuja la lista: si el itinerario de ejemplo
+                 cambia, el texto que lo describe cambia con él. -->
+            <figcaption class="sr-only" th:if="${!#lists.isEmpty(heroItinerary)}">
+              Ejemplo de plan con <span th:text="${#lists.size(heroItinerary)}">tres</span> paradas,
+              horario y categoría por cada lugar.
             </figcaption>
           </figure>
         </div>
       </section>
 
-      <!-- ========================= TAGLINE (B11) ========================= -->
-      <!-- Vai Chartrain, founder de Linear: "Any product worth building has to have a
-           tagline." El bloque se enciende palabra por palabra al entrar en pantalla. -->
-      <section class="bg-white px-4 pb-16" aria-label="Tagline">
-        <p data-reveal class="mx-auto max-w-[680px] font-serif text-4xl leading-tight text-balance sm:text-5xl">
-          <span class="tagline-word">Armá</span> <span class="tagline-word">el</span>
-          <span class="tagline-word">itinerario</span> <span class="tagline-word">una</span>
-          <span class="tagline-word">vez.</span>
-          <span class="tagline-word">Compartilo</span> <span class="tagline-word">con</span>
-          <span class="tagline-word">quien</span> <span class="tagline-word">quiera,</span>
-          <span class="tagline-word">las</span> <span class="tagline-word">veces</span>
-          <span class="tagline-word">que</span> <span class="tagline-word">haga</span>
-          <span class="tagline-word">falta.</span>
-        </p>
-      </section>
-
       <!-- ====================== PROBLEMA Y SOLUCIÓN ====================== -->
-      <section class="bg-gray-100 px-4 py-16" aria-labelledby="problema-title">
-        <div class="mx-auto max-w-3xl text-center">
-          <h2 id="problema-title" class="font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+      <!-- La banda describe el dolor, no repite la tesis: alineada a la izquierda y con el
+           titular en escala de lead (text-xl/2xl en vez de un segundo h2 de 36px), deja de ser
+           un segundo arranque del mismo peso que el hero. La tercera oración ("Armalo una vez en
+           PlanIt...") se retiró: era la tercera vez que la página decía lo mismo antes de la
+           primera prueba. -->
+      <section class="landing-section bg-gray-100 px-4" aria-labelledby="problema-title">
+        <div class="mx-auto max-w-3xl">
+          <h2 id="problema-title"
+            class="max-w-[38ch] font-serif text-xl font-medium text-gray-900 text-balance sm:text-2xl">
             El plan de sábado termina siendo tres mensajes sueltos
           </h2>
-          <p class="mt-6 text-base text-gray-600 text-pretty">
+          <p class="mt-4 max-w-[60ch] text-base text-gray-600 text-pretty">
             Uno propone el museo, otro el bar de siempre, el tercero responde a las tres de la
-            tarde. Al final nadie recuerda a qué hora era el café. Armalo una vez en PlanIt y el
-            grupo deja de discutir el plan para empezarlo.
+            tarde. Al final nadie recuerda a qué hora era el café.
           </p>
         </div>
       </section>
 
       <!-- ============================ BENEFICIOS ========================== -->
-      <section class="bg-white px-4 py-16" aria-labelledby="beneficios-title">
+      <!-- Escala de titulares en dos escalones: las cinco secciones de apoyo comparten
+           text-2xl/3xl y el cierre de la página sube a 4xl/5xl. Antes los seis h2 medían lo
+           mismo y "Preguntas frecuentes" pesaba igual que el CTA final. -->
+      <section class="landing-section bg-white px-4" aria-labelledby="beneficios-title">
         <div class="mx-auto max-w-6xl">
-          <h2 id="beneficios-title" class="max-w-[680px] font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
-            Un plan que se arma una vez y no se vuelve a discutir
+          <h2 id="beneficios-title" class="font-serif text-2xl font-bold text-gray-900 text-balance sm:text-3xl">
+            Qué deja de pasar cuando el plan está escrito
           </h2>
 
-          <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <article data-reveal
-              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
-              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+          <!-- Bloques de lectura, no de acción: sin borde, sin superficie propia y sin hover.
+               La única caja con borde, hover y chevron de la página es el FAQ, que sí abre
+               algo. En mobile la lista se separa con un divisor en vez de cuatro tarjetas
+               (eran ~640px de scroll para cuatro frases); el divisor es CSS plano
+               (.landing-divide en brand.css), no la utilidad divide-y, que medía 0px. -->
+          <div
+            class="landing-divide landing-divide--split mt-8 grid gap-0 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-10 lg:grid-cols-4">
+            <article data-reveal class="py-5 sm:py-0">
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <i data-lucide="clock" class="h-5 w-5" aria-hidden="true"></i>
               </span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Cada parada con su hora</h3>
@@ -218,9 +302,9 @@
               </p>
             </article>
 
-            <article data-reveal
-              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
-              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+            <article data-reveal class="py-5 sm:py-0">
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <i data-lucide="link" class="h-5 w-5" aria-hidden="true"></i>
               </span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Un link, no una cuenta</h3>
@@ -230,9 +314,9 @@
               </p>
             </article>
 
-            <article data-reveal
-              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
-              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+            <article data-reveal class="py-5 sm:py-0">
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <i data-lucide="map-pin" class="h-5 w-5" aria-hidden="true"></i>
               </span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">El mapa como punto de partida</h3>
@@ -242,9 +326,9 @@
               </p>
             </article>
 
-            <article data-reveal
-              class="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300 hover:shadow-lg">
-              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-primary">
+            <article data-reveal class="py-5 sm:py-0">
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <i data-lucide="calendar" class="h-5 w-5" aria-hidden="true"></i>
               </span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Tus planes, siempre a mano</h3>
@@ -253,30 +337,45 @@
               </p>
             </article>
           </div>
+
+          <!-- Cierre de la sección: el único hecho de producto que la página no cuenta en ningún
+               otro lado —el plan puede llevar presupuesto estimado por persona— en escala de
+               cuerpo y sin revelado palabra por palabra: la frase no necesitaba 14 spans. Antes
+               repetía el h1 palabra por palabra y solo existía para sostener esa animación. -->
+          <p data-reveal
+            class="tagline-word mt-10 max-w-[46ch] text-xl font-medium leading-snug text-gray-600 text-balance sm:mt-12 sm:text-2xl">
+            Y el plan puede llevar un presupuesto estimado por persona, así nadie pregunta cuánto
+            sale.
+          </p>
         </div>
       </section>
 
       <!-- ========================= CÓMO FUNCIONA ======================== -->
-      <section class="bg-gray-100 px-4 py-16" aria-labelledby="como-title">
+      <section class="landing-section bg-gray-100 px-4" aria-labelledby="como-title">
         <div class="mx-auto max-w-6xl">
-          <h2 id="como-title" class="max-w-[680px] font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
-            De cero a compartido en tres pasos
+          <h2 id="como-title" class="font-serif text-2xl font-bold text-gray-900 text-balance sm:text-3xl">
+            De cero al plan compartido en tres pasos
           </h2>
 
-          <ol class="mt-8 grid gap-4 md:grid-cols-3">
-            <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
+          <!-- Misma banda plana que la prueba: el paso es lectura. Un borde acá competía con el
+               del <details>, que es el único bloque que responde. -->
+          <ol class="mt-8 grid gap-6 md:grid-cols-3 md:divide-x md:divide-gray-200">
+            <li data-reveal class="md:px-6">
               <span class="font-serif text-4xl text-gray-500">01</span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Creás tu cuenta</h3>
               <p class="mt-2 text-sm text-gray-600 text-pretty">Un mail y una contraseña.</p>
             </li>
 
-            <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
+            <li data-reveal class="md:px-6">
               <span class="font-serif text-4xl text-gray-500">02</span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Elegís los lugares</h3>
-              <p class="mt-2 text-sm text-gray-600 text-pretty">Buscás en el mapa y armás el itinerario.</p>
+              <p class="mt-2 text-sm text-gray-600 text-pretty">
+                Buscás en el mapa y filtrás por las <span th:text="${categoryCount}">10</span>
+                categorías del catálogo: del café al parque, todas con su dirección.
+              </p>
             </li>
 
-            <li data-reveal class="rounded-2xl border border-gray-200 bg-white p-6">
+            <li data-reveal class="md:px-6">
               <span class="font-serif text-4xl text-gray-500">03</span>
               <h3 class="mt-4 text-lg font-semibold text-gray-900">Compartís el link</h3>
               <p class="mt-2 text-sm text-gray-600 text-pretty">El plan queda listo para abrirlo en el celu.</p>
@@ -286,132 +385,118 @@
       </section>
 
       <!-- ============================ PRUEBA ============================= -->
-      <!-- No hay testimonios inventados: la prueba es el producto mismo y los tres números
-           reales del catálogo (10 lugares, 10 categorías, 8 caracteres de shortCode). -->
-      <section class="bg-white px-4 py-16" aria-labelledby="prueba-title">
+      <!-- No hay testimonios inventados: la prueba es el producto mismo. Una banda de tres
+           afirmaciones y un conteo que sale del modelo: el catálogo puede crecer o vaciarse y la
+           frase sigue siendo cierta. "Sin registro" se dice una sola vez en toda la página (la
+           bajada del hero); acá cada ítem aporta algo que ninguna otra sección cuenta: el primero
+           es el camino inverso (copiar un plan público ajeno) y el segundo es la impresión, que
+           reemplazó a "horarios y direcciones" porque eso ya lo decían el caption del mock y el
+           beneficio 1. El conteo de la bajada sale del modelo y tiene guarda: con el catálogo
+           vacío, la banda no puede afirmar que hay lugares "de MALBA a Plaza Serrano". -->
+      <section class="landing-section bg-white px-4" aria-labelledby="prueba-title">
         <div class="mx-auto max-w-6xl">
-          <h2 id="prueba-title" class="max-w-[680px] font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+          <!-- El titular se ramifica con el mismo guard que la bajada: con el catálogo vacío el
+               párrafo ya no podía prometer lugares mientras el h2 seguía diciendo "Ya hay". -->
+          <h2 id="prueba-title" class="font-serif text-2xl font-bold text-gray-900 text-balance sm:text-3xl"
+            th:text="${placeCount > 0} ? 'Ya hay lugares para empezar' : 'El catálogo se está armando'">
             Ya hay lugares para empezar
           </h2>
+          <p class="mt-4 max-w-[60ch] text-base text-gray-600 text-pretty" th:if="${placeCount > 0}">
+            <span th:text="${placeCount}">10</span> lugares de Buenos Aires para empezar, de MALBA a
+            Plaza Serrano.
+          </p>
+          <p class="mt-4 max-w-[60ch] text-base text-gray-600 text-pretty" th:unless="${placeCount > 0}">
+            Estamos sumando los primeros lugares: en cuanto estén, aparecen acá.
+          </p>
 
-          <div class="mt-8 grid gap-4 sm:grid-cols-3">
-            <div data-reveal class="rounded-2xl border border-gray-200 bg-gray-100 p-6">
-              <p class="font-serif text-5xl text-gray-900">10</p>
-              <p class="mt-2 text-sm text-gray-600 text-pretty">
-                lugares de Buenos Aires en el catálogo, de MALBA a Plaza Serrano, con dirección y
-                coordenadas.
+          <ul class="mt-8 grid gap-6 sm:grid-cols-3 sm:divide-x sm:divide-gray-200">
+            <li data-reveal class="flex items-start gap-3 sm:px-6">
+              <i data-lucide="copy" class="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true"></i>
+              <p class="text-base font-medium text-gray-900 text-pretty">
+                Un plan público se copia tal cual y queda como tuyo, para editarlo.
               </p>
-            </div>
+            </li>
 
-            <div data-reveal class="rounded-2xl border border-gray-200 bg-gray-100 p-6">
-              <p class="font-serif text-5xl text-gray-900">10</p>
-              <p class="mt-2 text-sm text-gray-600 text-pretty">
-                categorías para filtrar: restaurante, bar, café, museo, parque, cultura y más.
+            <li data-reveal class="flex items-start gap-3 sm:px-6">
+              <i data-lucide="printer" class="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true"></i>
+              <p class="text-base font-medium text-gray-900 text-pretty">
+                El plan se imprime y entra en una hoja para llevar.
               </p>
-            </div>
+            </li>
 
-            <div data-reveal class="rounded-2xl border border-gray-200 bg-gray-100 p-6">
-              <p class="font-serif text-5xl text-gray-900">8</p>
-              <p class="mt-2 text-sm text-gray-600 text-pretty">
-                caracteres en el código único de cada plan, el que después se convierte en el link
-                para compartir.
+            <li data-reveal class="flex items-start gap-3 sm:px-6">
+              <i data-lucide="lock" class="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true"></i>
+              <p class="text-base font-medium text-gray-900 text-pretty">
+                Solo vos podés editarlo.
               </p>
-            </div>
-          </div>
+            </li>
+          </ul>
         </div>
       </section>
 
       <!-- ============================== FAQ ============================== -->
-      <section class="bg-gray-100 px-4 py-16" aria-labelledby="faq-title">
+      <!-- Cuatro dudas del que todavía no tiene cuenta, en el orden en que aparecen, y la
+           primera abierta: la página responde sin que nadie tenga que desplegar nada. Las
+           preguntas de después del registro (editar, borrar, recuperar contraseña) viven en la
+           app, no acá. El padding va en el <summary>, no en el <details>: así el área clickeable
+           mide 48px y no 24. -->
+      <section class="landing-section bg-gray-100 px-4" aria-labelledby="faq-title">
         <div class="mx-auto max-w-3xl">
-          <h2 id="faq-title" class="font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
+          <h2 id="faq-title" class="font-serif text-2xl font-bold text-gray-900 text-balance sm:text-3xl">
             Preguntas frecuentes
           </h2>
 
           <div class="mt-8 flex flex-col gap-2">
-            <details data-reveal
-              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+            <details data-reveal open
+              class="group rounded-xl border border-gray-200 bg-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
               <summary
-                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-semibold text-gray-900 focus-ring">
                 ¿Necesito crear una cuenta para ver un plan que me compartieron?
               </summary>
-              <p class="mt-3 text-sm text-gray-600 text-pretty">
+              <p class="px-4 pb-4 text-sm text-gray-600 text-pretty">
                 No. El link abre el itinerario sin pedirte nada. Registrarse es para crear y editar
                 planes, no para mirarlos.
               </p>
             </details>
 
             <details data-reveal
-              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              class="group rounded-xl border border-gray-200 bg-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
               <summary
-                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-semibold text-gray-900 focus-ring">
                 ¿PlanIt cuesta algo?
               </summary>
-              <p class="mt-3 text-sm text-gray-600 text-pretty">
+              <p class="px-4 pb-4 text-sm text-gray-600 text-pretty">
                 No. La cuenta y los planes son gratuitos y no pedimos tarjeta.
               </p>
             </details>
 
             <details data-reveal
-              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              class="group rounded-xl border border-gray-200 bg-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
               <summary
-                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                ¿Sirve para una ciudad que no es Buenos Aires?
-              </summary>
-              <p class="mt-3 text-sm text-gray-600 text-pretty">
-                Sí. El catálogo arranca con Buenos Aires, pero un plan es un lugar con horario y
-                dirección: el modelo sirve para cualquier ciudad.
-              </p>
-            </details>
-
-            <details data-reveal
-              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
-              <summary
-                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                ¿Quién puede editar un plan?
-              </summary>
-              <p class="mt-3 text-sm text-gray-600 text-pretty">
-                Solo vos. El resto ve el itinerario, los horarios y la ruta, pero no lo modifica.
-              </p>
-            </details>
-
-            <details data-reveal
-              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
-              <summary
-                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                ¿Puedo recuperar la contraseña?
-              </summary>
-              <p class="mt-3 text-sm text-gray-600 text-pretty">
-                Sí. Lo pedís desde la pantalla de ingreso y PlanIt te muestra una contraseña
-                temporal para entrar de nuevo.
-              </p>
-            </details>
-
-            <details data-reveal
-              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
-              <summary
-                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-semibold text-gray-900 focus-ring">
                 ¿Funciona desde el celu?
               </summary>
-              <p class="mt-3 text-sm text-gray-600 text-pretty">
+              <p class="px-4 pb-4 text-sm text-gray-600 text-pretty">
                 Sí. La página se adapta al teléfono y el link se abre sin instalar nada.
               </p>
             </details>
 
             <details data-reveal
-              class="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
+              class="group rounded-xl border border-gray-200 bg-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-gray-300">
               <summary
-                class="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                ¿Puedo borrar un plan?
+                class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-semibold text-gray-900 focus-ring">
+                ¿Sirve para una ciudad que no es Buenos Aires?
               </summary>
-              <p class="mt-3 text-sm text-gray-600 text-pretty">
-                Sí, desde el detalle del plan. La eliminación no se puede deshacer.
+              <p class="px-4 pb-4 text-sm text-gray-600 text-pretty">
+                Sí. El catálogo arranca con Buenos Aires, pero un plan es un lugar con horario y
+                dirección: el modelo sirve para cualquier ciudad.
               </p>
             </details>
           </div>
 
           <!-- Los mismos datos del FAQ, en JSON-LD, para que los buscadores puedan citar la
-               página. Solo se declara si la vista existe: el bloque va dentro de main. -->
+               página. Las respuestas se copian textuales: Google exige que el texto marcado esté
+               en la página, y el bloque solo se declara si la vista existe. -->
           <script type="application/ld+json" th:if="${authenticated != null}">
             {
               "@context": "https://schema.org",
@@ -429,28 +514,13 @@
                 },
                 {
                   "@type": "Question",
-                  "name": "¿Sirve para una ciudad que no es Buenos Aires?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Sí. Un plan es un lugar con horario y dirección, así que el modelo sirve para cualquier ciudad." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "¿Quién puede editar un plan?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Solo el dueño. El resto ve el itinerario, los horarios y la ruta." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "¿Puedo recuperar la contraseña?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Sí. PlanIt te muestra una contraseña temporal para volver a entrar." }
-                },
-                {
-                  "@type": "Question",
                   "name": "¿Funciona desde el celu?",
                   "acceptedAnswer": { "@type": "Answer", "text": "Sí. La página se adapta al teléfono y el link se abre sin instalar nada." }
                 },
                 {
                   "@type": "Question",
-                  "name": "¿Puedo borrar un plan?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Sí, desde el detalle del plan. La eliminación no se puede deshacer." }
+                  "name": "¿Sirve para una ciudad que no es Buenos Aires?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Sí. El catálogo arranca con Buenos Aires, pero un plan es un lugar con horario y dirección: el modelo sirve para cualquier ciudad." }
                 }
               ]
             }
@@ -459,24 +529,24 @@
       </section>
 
       <!-- =========================== CTA FINAL =========================== -->
-      <!-- Mismo texto y mismo botón que el hero: una sola promesa en toda la página. -->
-      <section class="bg-white px-4 py-16" aria-labelledby="cta-title">
+      <!-- Mismo botón que el hero y una sola promesa en toda la página. Sin párrafo de apoyo: el
+           que había acá solo reformulaba el hero (gratis, sin tarjeta, el link se abre sin
+           cuenta) por tercera vez. El cierre usa el escalón --lg del ritmo: pesa más que el FAQ
+           sin inventar un padding nuevo. -->
+      <section class="landing-section--lg bg-white px-4" aria-labelledby="cta-title">
         <div class="mx-auto max-w-3xl text-center">
-          <h2 id="cta-title" class="font-serif text-3xl font-bold text-gray-900 text-balance sm:text-4xl">
-            El próximo plan que compartís lo armás en cinco minutos
+          <h2 id="cta-title"
+            class="font-serif text-4xl font-bold leading-tight text-gray-900 text-balance sm:text-5xl">
+            El próximo plan que compartís lo armás de una vez.
           </h2>
-          <p class="mx-auto mt-4 max-w-[680px] text-base text-gray-600 text-pretty">
-            Cuenta gratuita, sin tarjeta, y el link del plan se abre sin que nadie tenga que
-            registrarse.
-          </p>
           <div class="mt-8">
-            <a th:if="${authenticated == false}" th:href="@{/auth/register}"
+            <a th:unless="${authenticated}" th:href="@{/auth/register}"
               class="btn-cta">
-              Crear mi plan gratis
+              Crear cuenta gratis
             </a>
-            <a th:if="${authenticated == true}" th:href="@{/plans}"
+            <a th:if="${authenticated}" th:href="@{/plans}"
               class="btn-cta">
-              Ver mis planes
+              Mis planes
             </a>
           </div>
         </div>
@@ -490,21 +560,26 @@
     <footer class="bg-gray-100 px-4 py-8">
     <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
       <p class="text-sm font-semibold text-gray-900">PlanIt</p>
-      <nav aria-label="Links del pie" class="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-        <a th:href="@{/}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-          Inicio
-        </a>
-        <a th:href="@{/explore}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+      <!-- Los links del pie son inline-flex min-h-11: 20px de alto de texto solo no llegaban al
+           objetivo tocable de WCAG 2.2 AA en mobile. "Mis planes" y "Crear cuenta gratis" se
+           ramifican por sesión, como el hero: el pie no puede ofrecerle a un anónimo un link que
+           rebota en el login ni a un usuario una cuenta que ya tiene. No hay link "Inicio": era
+           un objetivo de 44px que apuntaba a la página en la que ya está el visitante. -->
+      <nav aria-label="Links del pie"
+        class="flex flex-wrap items-center gap-x-4 text-sm text-gray-600">
+        <a th:href="@{/explore}" class="inline-flex min-h-11 items-center rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-ring">
           Explorar lugares
         </a>
-        <a th:href="@{/plans}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <a th:if="${authenticated}" th:href="@{/plans}" class="inline-flex min-h-11 items-center rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-ring">
           Mis planes
         </a>
-        <a th:href="@{/auth/register}" class="rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-          Crear cuenta
+        <a th:unless="${authenticated}" th:href="@{/auth/register}" class="inline-flex min-h-11 items-center rounded underline-offset-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-primary hover:underline focus-ring">
+          Crear cuenta gratis
         </a>
       </nav>
-      <p class="text-xs text-gray-500">Proyecto del Taller Web I</p>
+      <!-- text-gray-600 y no gray-500: sobre el gris del pie, el 500 quedaba en 4.39:1, el único
+           texto claro de la página por debajo de AA. -->
+      <p class="text-xs text-gray-600">Proyecto del Taller Web I</p>
     </div>
   </footer>
 
@@ -522,16 +597,16 @@
   </script>
 
   <script>
-    /* Sin JavaScript la página se ve entera: los estados iniciales (blur, opacidad 0, palabras
-       apagadas) solo se activan cuando esta clase está en <html>. prefers-reduced-motion
-       desactiva el efecto y muestra todo. */
+    /* Sin JavaScript la página se ve entera: los estados iniciales (blur, opacidad 0) solo se
+       activan cuando esta clase está en <html>. prefers-reduced-motion desactiva el efecto y
+       muestra todo. */
     (function () {
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       const revealAll = function () {
-        const nodes = document.querySelectorAll('[data-reveal], .tagline-word');
+        const nodes = document.querySelectorAll('[data-reveal]');
         for (let i = 0; i < nodes.length; i++) {
-          nodes[i].classList.add('is-revealed', 'is-lit');
+          nodes[i].classList.add('is-revealed');
         }
       };
 
@@ -542,7 +617,13 @@
 
       document.documentElement.classList.add('reveal-ready');
 
-      /* Bloques: entran una vez cuando aparecen. */
+      /* Respaldo: si el observer no dispara (webview, anchor jump a mitad de página, un
+         navegador que deja de pintar), las secciones quedarían en opacity 0 para siempre.
+         A los 1.5 s se muestra todo; el efecto ya ocurrió o no importa. */
+      setTimeout(revealAll, 1500);
+
+      /* Bloques: entran una vez cuando aparecen. Es el único efecto de la página: el párrafo de
+         cierre de beneficios ya no enciende palabras una por una. */
       const blocks = document.querySelectorAll('[data-reveal]');
       const blockObserver = new IntersectionObserver(
         function (entries) {
@@ -556,27 +637,6 @@
       );
       for (let i = 0; i < blocks.length; i++) {
         blockObserver.observe(blocks[i]);
-      }
-
-      /* Tagline: las palabras se encienden una por una, en orden de lectura, con un delay
-         proporcional a su posición. Cada palabra tiene su propio observer para que se activen
-         al cruzar la línea de lectura, no todas de un tirón. */
-      const words = document.querySelectorAll('.tagline-word');
-      for (let w = 0; w < words.length; w++) {
-        (function (word, index) {
-          const wordObserver = new IntersectionObserver(
-            function (entries) {
-              entries.forEach(function (entry) {
-                if (!entry.isIntersecting) return;
-                word.style.transitionDelay = index * 90 + 'ms';
-                word.classList.add('is-lit');
-                wordObserver.disconnect();
-              });
-            },
-            { threshold: 0.6 }
-          );
-          wordObserver.observe(word);
-        })(words[w], w);
       }
     })();
   </script>

@@ -1,0 +1,76 @@
+{
+  "captured_at": "iteration-0-baseline",
+  "page": "http://localhost:8080/ (landing publica de PlanIt, GET /)",
+  "viewport_desktop": "1440 x 900",
+  "viewport_mobile": "390 x 844",
+  "theme_control": "theme script in layouts/base.html reads localStorage 'planit-theme'; both themes measured independently",
+  "document_height_desktop_px": 3540,
+  "document_height_mobile_px": 5600,
+  "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 12,
+    "buttons": 1,
+    "details_faq": 7,
+    "images": 1,
+    "sections_in_main": 8,
+    "words_in_main": 471
+  },
+  "typography_scale_measured": {
+    "h1": { "fontSize": "60px", "fontWeight": "700", "lineHeight": "75px", "note": "gradient text, color transparent" },
+    "h2": { "fontSize": "36px", "fontWeight": "700", "lineHeight": "40px" },
+    "h3": { "fontSize": "18px", "fontWeight": "600", "lineHeight": "28px" },
+    "body": { "fontSize": "18px / 16px", "lineHeight": "28px / 24px" },
+    "small": { "fontSize": "14px / 12px" }
+  },
+  "section_rhythm_measured": [
+    { "heading": "Hero", "bg": "#ffffff", "wrapper_padding_y": "64px / 64px", "height": 644 },
+    { "heading": "Tagline (sin h2)", "bg": "#ffffff", "wrapper_padding_y": "0 / 64px", "height": 244 },
+    { "heading": "Problema", "bg": "gray-100", "wrapper_padding_y": "64px / 64px", "height": 304 },
+    { "heading": "Beneficios", "bg": "#ffffff", "wrapper_padding_y": "64px / 64px", "height": 490 },
+    { "heading": "Como funciona", "bg": "gray-100", "wrapper_padding_y": "64px / 64px", "height": 364 },
+    { "heading": "Prueba (numeros)", "bg": "#ffffff", "wrapper_padding_y": "64px / 64px", "height": 346 },
+    { "heading": "FAQ", "bg": "gray-100", "wrapper_padding_y": "64px / 64px", "height": 654 },
+    { "heading": "CTA final", "bg": "#ffffff", "wrapper_padding_y": "64px / 64px", "height": 320 }
+  ],
+  "cta_measured_light": [
+    { "text": "Crear mi plan gratis", "region": "hero", "w": 173, "h": 40, "fontSize": "16px", "fontWeight": "600", "color": "#ffffff", "bg": "#004aad", "contrast": 8.13, "radius": "8px" },
+    { "text": "Ya tengo cuenta, entro", "region": "hero, secundario", "w": 190, "h": 40, "fontSize": "16px", "fontWeight": "500", "color": "#004aad", "bg": "transparent", "contrast": 8.13, "note": "link sin borde, sin subrayado por defecto" },
+    { "text": "Crear mi plan gratis", "region": "CTA final", "w": 173, "h": 40, "fontSize": "16px", "fontWeight": "600", "color": "#ffffff", "bg": "#004aad", "contrast": 8.13 },
+    { "text": "Para vos", "region": "navbar", "w": 80, "h": 36, "fontSize": "14px", "color": "#ffffff", "bg": "#004aad", "contrast": 8.13 },
+    { "text": "Register", "region": "navbar (anonimo)", "w": 77, "h": 36, "fontSize": "14px", "color": "#ffffff", "bg": "#004aad", "contrast": 8.13 },
+    { "text": "Login", "region": "navbar (anonimo)", "w": 61, "h": 36, "fontSize": "14px", "color": "#ffffff", "bg": "#6681fc", "contrast": 3.44, "note": "btn-cta--alt, por debajo de AA" },
+    { "text": "Inicio / Explorar lugares / Mis planes / Crear cuenta", "region": "footer", "h": 20, "fontSize": "14px", "color": "gray-600", "note": "caja de 20px de alto" }
+  ],
+  "contrast_issues_measured_light": [
+    { "text": "Login", "selector": "nav > div.order-last > a.btn-cta.btn-cta--alt", "color": "#ffffff", "bg": "#6681fc", "contrast": 3.44 }
+  ],
+  "contrast_issues_measured_dark": [
+    { "text": "Login", "selector": "nav .btn-cta--alt", "color": "#ffffff", "bg": "#6681fc", "contrast": 3.44 },
+    { "text": "Ya tengo cuenta, entro", "selector": "hero > div > a.rounded-lg.px-3.py-2.text-primary", "color": "#004aad (text-primary)", "bg": "#1f2937", "contrast": 1.81 },
+    { "text": "10:00 / 13:30 / 17:30", "selector": "li.place-card > span.font-mono.text-sm.text-primary", "color": "#004aad", "bg": "#1f2937", "contrast": 1.81 }
+  ],
+  "tap_targets_under_44px_measured": [
+    { "text": "Para vos / Register / Login", "region": "navbar", "h": 36 },
+    { "text": "Crear mi plan gratis / Ya tengo cuenta, entro", "region": "hero + CTA final", "h": 40 },
+    { "text": "summary de cada FAQ", "region": "FAQ", "h": 24 },
+    { "text": "links del footer", "region": "footer", "h": 20 }
+  ],
+  "overflow_horizontal": "ninguno detectado en 1440 ni en 390",
+  "images_without_alt": "ninguna",
+  "structure_notes": [
+    "main#landing contiene : skip link, 8 <section>, footer y scripts (el layout reemplaza body completo).",
+    "Un solo h1; el resto es jerarquia h2 por seccion, h3 por card.",
+    "FAQ con <details>/<summary> nativos (7 items) + JSON-LD FAQPage.",
+    "Animaciones de entrada con IntersectionObserver; sin JS la pagina se ve completa (html.reveal-ready gate)."
+  ],
+  "screenshots": {
+    "desktop_light_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwifr70a-44076dd6.png",
+    "desktop_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwifr6h5-ad3d3c74.png",
+    "desktop_dark_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwifq4k2-5bcac052.png",
+    "mobile_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwifrjhi-8ec41739.png",
+    "mobile_light_mid": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwifrjml-7b591aad.png",
+    "mobile_light_bottom": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwifrjqf-5bbf3762.png"
+  }
+}

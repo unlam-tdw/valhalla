@@ -164,9 +164,12 @@ public class BrandTokensTest {
 
   // Las webfonts entran por <link> en el head, con display=swap. El parámetro no es
   // cosmético: sin él el texto queda invisible hasta que la fuente llega, y encima
-  // el reveal shield de base.html ya espera hasta 3 segundos. El link es no bloqueante
-  // (media="print" + onload): una respuesta lenta de fonts.googleapis.com cambia la
-  // tipografía pero nunca pospone los scripts del head.
+  // el reveal shield de base.html ya espera a que Tailwind compile. El link NO se
+  // esconde detrás de media="print" + onload: ese truco depende de un onload que sin
+  // JavaScript nunca corre, y la página se quedaba sin tipografía. media="all" con
+  // display=swap cubre el FOIT sin ese camino, así que el <link> no declara media ni
+  // onload. Se mira el tag, no el archivo: el comentario de al lado nombra el truco
+  // viejo justamente para explicar por qué se fue.
   @Test
   void theWebfontsLoadWithSwapAndPreconnect() throws IOException {
     String base = read(BASE);
@@ -179,15 +182,21 @@ public class BrandTokensTest {
     assertThat("Josefin Sans y Bree Serif", base, containsString("family=Josefin+Sans"));
     assertThat("Josefin Sans y Bree Serif", base, containsString("family=Bree+Serif"));
     assertThat("display=swap evita el texto invisible", base, containsString("display=swap"));
+
+    Matcher webfonts = Pattern
+      .compile("<link rel=\"stylesheet\"[^>]*fonts\\.googleapis\\.com/css2[^>]*>")
+      .matcher(base);
+    assertThat("el <link> de las webfonts existe", webfonts.find(), is(true));
+    String webfontsLink = webfonts.group();
     assertThat(
-      "el link de las webfonts carga no bloqueante (media=print)",
-      base,
-      containsString("media=\"print\"")
+      "el <link> de las webfonts no se esconde tras media=print",
+      webfontsLink,
+      not(containsString("media="))
     );
     assertThat(
-      "onload cambia media=print a all al terminar de cargar",
-      base,
-      containsString("onload=\"this.media='all'\"")
+      "el <link> de las webfonts no depende de un onload para activarse",
+      webfontsLink,
+      not(containsString("onload"))
     );
     assertThat(
       "preconnect a fonts.googleapis.com",

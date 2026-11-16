@@ -1,0 +1,65 @@
+{
+  "captured_at": "iteration-1-after-first-builder-pass",
+  "page": "http://localhost:8080/ (landing publica de PlanIt, GET /)",
+  "viewport_desktop": "1440 x 900",
+  "viewport_mobile": "390 x 844",
+  "document_height_desktop_px": 3393,
+  "document_height_mobile_px": 5095,
+  "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 12,
+    "details_faq": 4,
+    "sections_in_main": 8,
+    "words_in_main": 461
+  },
+  "typography_scale_measured_desktop": {
+    "h1": { "fontSize": "60px", "fontWeight": "700", "note": "gradient text, color transparent" },
+    "h2": { "fontSize": "36px (30px en mobile)", "fontWeight": "700" },
+    "h3": { "fontSize": "18px", "fontWeight": "600" },
+    "body": "18px / 16px",
+    "small": "14px / 12px"
+  },
+  "section_rhythm_measured_desktop": [
+    { "heading": "Hero", "bg": "#ffffff", "padY": "96px / 96px", "height": 736 },
+    { "heading": "Problema", "bg": "gray-100", "padY": "48px / 48px", "height": 272 },
+    { "heading": "Beneficios", "bg": "#ffffff", "padY": "80px / 80px", "height": 482 },
+    { "heading": "Tagline (sin h2, movido debajo de beneficios)", "bg": "#ffffff", "padY": "0 / 80px", "height": 163 },
+    { "heading": "Como funciona", "bg": "gray-100", "padY": "64px / 64px", "height": 364 },
+    { "heading": "Prueba", "bg": "#ffffff", "padY": "48px / 48px", "height": 256 },
+    { "heading": "FAQ", "bg": "gray-100", "padY": "80px / 80px", "height": 492 },
+    { "heading": "CTA final", "bg": "#ffffff", "padY": "112px / 112px", "height": 448 }
+  ],
+  "cta_measured_light": [
+    { "text": "Crear mi plan gratis", "region": "hero", "w": 189, "h": 48, "contrast": 8.13, "bg": "#004aad" },
+    { "text": "Ver un plan de ejemplo", "region": "hero, secundario", "w": 194, "h": 44, "contrast": 8.13, "note": "link de texto sin subrayado" },
+    { "text": "Iniciar sesión", "region": "hero, terciario", "w": 119, "h": 44, "contrast": 8.13, "note": "subrayado en reposo" },
+    { "text": "Crear mi plan gratis", "region": "CTA final", "w": 189, "h": 48, "contrast": 8.13 },
+    { "text": "Crear cuenta", "region": "navbar anonimo", "w": 124, "h": 44, "contrast": 8.13 },
+    { "text": "Iniciar sesión", "region": "navbar anonimo", "w": 98, "h": 44, "note": "texto claro sobre navbar oscuro, rgba(255,255,255,0.9)" },
+    { "text": "Inicio / Explorar lugares / Mis planes / Crear cuenta", "region": "footer", "h": 44 }
+  ],
+  "contrast_issues_measured_light": [],
+  "contrast_issues_measured_dark": [
+    { "text": "Ver un plan de ejemplo", "selector": "hero div.mt-4 > a.inline-flex.text-primary", "color": "#054fb1", "bg": "#1f2937", "contrast": 1.93 },
+    { "text": "Iniciar sesión", "selector": "hero div.mt-4 > a.inline-flex.text-primary", "color": "#054fb1", "bg": "#1f2937", "contrast": 1.93 },
+    { "text": "tagline completo (Armá, itinerario, una, vez., Compartilo, con, quien, quiera, las, veces, que, haga, falta.)", "selector": "#contenido > section > p > span.tagline-word.is-lit", "color": "#111827", "bg": "#1f2937", "contrast": 1.21 }
+  ],
+  "tap_targets": "todos los controles visibles miden 44px o mas de alto; el unico por debajo es el skip link (sr-only 1px, se agranda al enfocar)",
+  "overflow_horizontal": "ninguno detectado en 1440 ni en 390",
+  "state_notes": [
+    "FAQ reducido a 4 items, el primero abierto por defecto; el JSON-LD declara las mismas 4 respuestas visibles.",
+    "Guardas invertidas a th:unless / th:if sobre ${authenticated}: el estado anonimo es el default.",
+    "Navbar anonimo: un solo pill relleno (Crear cuenta) + 'Iniciar sesión' como texto; /for-you ya no aparece para anonimos.",
+    "En mobile el navbar anonimo queda en una sola fila con el logo."
+  ],
+  "screenshots": {
+    "desktop_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwig7zub-7f719a79.png",
+    "desktop_light_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwig80df-8edc5d9c.png",
+    "desktop_dark_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwig80t3-a3dd895b.png",
+    "mobile_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwig83h3-4c47e5d2.png",
+    "mobile_light_mid": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwig83nh-553ad401.png",
+    "mobile_light_bottom": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwig83r6-11c36e13.png"
+  }
+}

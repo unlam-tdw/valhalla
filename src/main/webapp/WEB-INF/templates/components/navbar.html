@@ -4,35 +4,51 @@
      desde el fragmento único (una sola declaración, todas las páginas). El skip-link del
      landing va después en el orden de fuente y, con el mismo z-50, pinta encima al enfocarse;
      los modales del sitio (navbar-menu z-[1100], detalle del explorador z-[1100]) siguen por
-     encima, como los tenía /explore con su sticky propio. -->
+     encima, como los tenía /explore con su sticky propio.
+     [MOBILE] La fijeza arranca en md: en un teléfono la barra ocupa una franja de los ~844px
+     de viewport y, fija, se comía esa franja para siempre. Debajo de md scrollea con la página.
+     [MOBILE] Alto de una fila: la marca baja a py-1.5 con el logo a 36px (md vuelve a py-3 y
+     48px) y el cluster anónimo no envuelve (flex-nowrap, gap-x-2), así que la barra mide lo
+     que mide su hijo más alto (44px de los links + 12px de aire de la marca = ~52px) en vez
+     de las tres filas que armaba el wrap. El ghost de registro se esconde debajo de md: caía
+     solo a una segunda línea, huérfano contra el canto derecho, y duplicaba el CTA del hero,
+     que 400px más abajo lleva al mismo /auth/register. El aire que ahorra la barra es el que
+     dejan el titular y el CTA dentro del primer viewport. -->
 <nav th:fragment="navbar" xmlns:th="http://www.thymeleaf.org"
   xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-  class="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-black px-4 text-white shadow">
+  class="z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-black px-4 text-white shadow md:sticky md:top-0">
 
   <!-- Logo principal: a /admin/home cuando el navbar rinde la variante admin (rol ADMIN
        dentro de /admin/**), a / en el resto. La variante se decide por rol Y por el área que se
        está visitando (CurrentUserControllerAdvice.showAdminNav): un ADMIN en /explore usa el
        navbar de usuario. El color sale del token de marca, declarado en resources/css/brand.css
        y expuesto a Tailwind por el bloque @theme de layouts/base :: head. La clase navbar-brand
-       se conserva porque es el hook que leen los tests del navbar. -->
-  <a class="navbar-brand inline-flex items-center gap-2 py-3 font-serif text-xl font-bold text-secondary hover:text-white"
+       se conserva porque es el hook que leen los tests del navbar. El anillo de foco lo pone
+       .focus-ring (--secondary, 4.25:1 sobre el negro de la barra) y no el del navegador, que
+       ahí mide 1.07:1: la marca es el segundo tab stop y se enfocaba sin señal. -->
+  <a class="navbar-brand inline-flex items-center gap-1.5 py-1.5 font-serif text-xl font-bold text-secondary hover:text-white md:gap-2 md:py-3 focus-ring rounded"
     th:if="${showAdminNav}" th:href="@{/admin/home}">
     <!-- [FLASH] width/height fijos: logo.svg declara 1366x768 y sin width/height el browser
-         lo pinta a su tamano intrínseco hasta que Tailwind aplica h-12 w-12. Los atributos
-         reservan la caja final desde el primer frame; las clases siguen mandando. -->
-    <img th:src="@{/images/logo.svg}" alt="Logo" width="48" height="48"
-      class="h-12 w-12 object-contain" />
+         lo pinta a su tamano intrínseco hasta que Tailwind aplica las clases. Los atributos
+         reservan la caja desde el primer frame y las clases siguen mandando: 36px en mobile,
+         48px desde md (el alto de la marca en mobile es el que fija el alto de la barra).
+         [A11Y] alt vacío a propósito: el texto visible "PlanIt" ya nombra el link y un alt
+         "Logo" delante convertía el nombre accesible en "Logo PlanIt". La clase navbar-logo
+         es el hook estable de los tests que miden la caja del logo. -->
+    <img th:src="@{/images/logo.svg}" alt="" width="48" height="48"
+      class="navbar-logo h-9 w-9 object-contain md:h-12 md:w-12" />
     <span>PlanIt</span>
   </a>
-  <a class="navbar-brand inline-flex items-center gap-2 py-3 font-serif text-xl font-bold text-secondary hover:text-white"
+  <a class="navbar-brand inline-flex items-center gap-1.5 py-1.5 font-serif text-xl font-bold text-secondary hover:text-white md:gap-2 md:py-3 focus-ring rounded"
     th:unless="${showAdminNav}" th:href="@{/}">
-    <img th:src="@{/images/logo.svg}" alt="Logo" width="48" height="48"
-      class="h-12 w-12 object-contain" />
+    <img th:src="@{/images/logo.svg}" alt="" width="48" height="48"
+      class="navbar-logo h-9 w-9 object-contain md:h-12 md:w-12" />
     <span>PlanIt</span>
   </a>
 
-  <!-- [PPV] "Para vos" es el feed /for-you y aparece SIEMPRE en el navbar de usuario, con y sin
-       sesion (excepto la variante admin): es la puerta de descubrimiento del producto. El link
+  <!-- [PPV] "Planes públicos" es el feed /for-you y aparece SIEMPRE en el navbar de usuario,
+       con y sin sesion (excepto la variante admin): es la puerta de descubrimiento del producto
+       y este es el nombre que comparte con el hero, que lleva a la misma ruta. El link
        duplica en los dos bloques porque el nav es flex de dos hijos (marca + menu) y sacarlo
        romperia el layout; los labels viven en WebPage.getNavbarItems para los E2E. -->
   <!-- [MOBILE] Hamburguesa del menu: solo con sesion (el E2E pinnea que el navbar anonimo NO la
@@ -44,7 +60,7 @@
   <button type="button" id="navbar-menu-btn" data-menu-toggle="navbar-menu"
     sec:authorize="isAuthenticated()"
     class="navbar-menu-btn md:hidden ml-auto inline-flex h-11 w-11 items-center justify-center rounded-md bg-primary hover:bg-secondary"
-    aria-label="Abrir menu" aria-haspopup="true" aria-expanded="false" aria-controls="navbar-menu">
+    aria-label="Abrir menú" aria-haspopup="true" aria-expanded="false" aria-controls="navbar-menu">
     <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round">
       <path d="M4 6h16M4 12h16M4 18h16" />
@@ -57,23 +73,25 @@
   <div sec:authorize="isAuthenticated()" class="hidden md:flex md:ml-auto items-center gap-4 text-sm">
     <!-- Front door to the admin panel; the only destination an admin needs, and only while
          inside /admin/**. Outside that area the admin gets the user menu instead. -->
+    <!-- [F1] Las etiquetas van en español también en la variante admin: la barra es la misma
+         y "Users / Places / Plans" cambiaba de idioma a mitad de la app. -->
     <a th:href="@{/admin/users}" th:if="${showAdminNav}"
       class="btn-cta">
-      Users
+      Usuarios
     </a>
     <a th:href="@{/admin/places}" th:if="${showAdminNav}"
       class="btn-cta">
-      Places
+      Lugares
     </a>
     <a th:href="@{/admin/plans}" th:if="${showAdminNav}"
       class="btn-cta">
-      Plans
+      Planes
     </a>
 
     <!-- [USEARCH] Buscador de personas con debounce: el script del final del fragment navega a
          /users?q= 300 ms despues de la ultima tecla. Sin boton, para no sumar un item al set que
-         pinnean los E2E del navbar; Enter sigue enviando el form nativo. Va antes de "Para vos"
-         para que el acceso a personas quede a la izquierda del feed. -->
+         pinnean los E2E del navbar; Enter sigue enviando el form nativo. Va antes de "Planes
+         públicos" para que el acceso a personas quede a la izquierda del feed. -->
     <form th:action="@{/users}" method="get" role="search" th:unless="${showAdminNav}"
       class="hidden md:block">
       <label for="navbar-user-search" class="sr-only">Buscar usuarios</label>
@@ -84,18 +102,20 @@
 
     <!-- Rutas del usuario común: /for-you es el feed (el home post-login) y /plans su
          listado. /explore es el catálogo. Se muestran en todo el área de usuario, también
-         para una sesión ADMIN que la está navegando. -->
+         para una sesión ADMIN que la está navegando. [F2] Cada label nombra su destino:
+         "Explorar lugares" es solo el catálogo y "Mis planes" solo el listado propio, así dos
+         links que van a rutas distintas no se leen como el mismo. -->
     <a th:href="@{/for-you}" th:unless="${showAdminNav}"
       class="btn-cta">
-      Para vos
+      Planes públicos
     </a>
     <a th:href="@{/explore}" th:unless="${showAdminNav}"
       class="btn-cta">
-      Explore
+      Explorar lugares
     </a>
     <a th:href="@{/plans}" th:unless="${showAdminNav}"
       class="btn-cta">
-      Plans
+      Mis planes
     </a>
 
     <!-- [NOTIF] AC-05: campana con badge de no-leidas. El numero viaja en data-notifications-count
@@ -106,7 +126,7 @@
          request: marcar desde la pagina descuenta en el render del redirect, sin JS. -->
     <a th:href="@{/notifications}" id="navbar-notifications" data-testid="navbar-notifications"
       aria-label="Notificaciones"
-      class="navbar-notifications relative inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-white/10"
+      class="navbar-notifications relative inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10"
       th:attr="data-notifications-count=${unreadNotificationCount}">
       <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -126,8 +146,12 @@
          viajando en aria-label/title para lectores de pantalla y tooltips. El logout ya no
          vive en el navbar: está en el modal (navbar-menu), así que los helpers E2E que
          pinnearon items no ven un "Logout" suelto que desapareció. -->
+    <!-- [C1] Campana y avatar a 44px (h-11 w-11): eran los dos únicos controles del navbar
+         debajo del objetivo tocable de WCAG 2.2 AA que ya cumplía el resto (hamburguesa, toggle
+         de tema y CTA). El ícono sigue en 20px, centrado, así el botón crece sin que el dibujo
+         engorde. -->
     <button type="button" data-menu-toggle="navbar-menu" id="navbar-avatar"
-      class="navbar-avatar inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-secondary font-serif font-bold text-black hover:ring-2 hover:ring-white/60"
+      class="navbar-avatar inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-secondary font-serif font-bold text-black hover:ring-2 hover:ring-white/60"
       th:if="${userInitial != null}"
       th:attr="aria-label=${userDisplayName}, title=${userDisplayName}"
       aria-haspopup="true" aria-expanded="false" aria-controls="navbar-menu">
@@ -145,27 +169,33 @@
          hamburguesa. El item "Tema" del modal se retiro. -->
   </div>
 
-  <!-- Usuario NO AUTENTICADO: sin hamburguesa (decision fijada en PublicPlansListE2E), asi que
-       los links fluyen con flex-wrap en pantallas angostas. order-last + w-full en mobile: el
-       bloque baja a su propia fila completa; en desktop, md:order-none + md:ml-auto lo devuelve
-       a la derecha. pb-3 en mobile: el nav no tiene padding vertical y esta ultima fila quedaba
-       flush contra el canto inferior (los pills azules tocaban el borde con la seccion de
-       abajo); md:pb-0 conserva el desktop pixel-identico. El anonimo no tiene ningun control de
-       tema: sin sesion, el modo sigue al sistema ([THEME]). -->
+  <!-- Usuario NO AUTENTICADO: sin hamburguesa (decision fijada en PublicPlansListE2E). Los links
+       van en una sola fila junto al logo en TODOS los anchos: flex-nowrap + gap-x-2 en el cluster
+       (la marca ya viene recortada a 36px) alcanzan para que "Planes públicos" e "Iniciar sesión"
+       entren a la derecha de "PlanIt" en 390px sin envolver. "Planes públicos" sigue sin sesion:
+       el feed es publico y es la unica puerta de descubrimiento que el anonimo tiene, y ese es el
+       nombre con el que el hero llama a la misma ruta (una ruta, un nombre). "Crear cuenta gratis"
+       se oculta debajo de md: era el único control que caía a una segunda línea, huérfano contra el
+       canto derecho, y duplicaba el CTA del hero (mismo /auth/register, 400px más abajo en el primer
+       viewport). El display:none va en un <span> envoltorio porque .btn-ghost declara display en
+       brand.css sin capa y le gana a la utilidad hidden. En desktop el set no cambia. El anonimo
+       no tiene ningun control de tema: sin sesion, el modo sigue al sistema ([THEME]). -->
   <div sec:authorize="!isAuthenticated()"
-    class="order-last md:order-none md:ml-auto w-full md:w-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1 pb-3 text-sm md:pb-0">
+    class="ml-auto flex flex-nowrap items-center justify-end gap-x-2 text-sm">
     <a th:href="@{/for-you}"
-      class="btn-cta">
-      Para vos
-    </a>
-    <a th:href="@{/auth/register}"
-      class="btn-cta">
-      Register
+      class="inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-2 font-medium text-white/90 underline-offset-4 hover:text-white hover:underline focus-ring">
+      Planes públicos
     </a>
     <a th:href="${#strings.isEmpty(currentPath)} ? @{/auth/login} : @{/auth/login(redirect=${currentPath})}"
-      class="btn-cta btn-cta--alt">
-      Login
+      class="inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-2 font-medium text-white/90 underline-offset-4 hover:text-white hover:underline focus-ring">
+      Iniciar sesión
     </a>
+    <span class="hidden md:inline-flex">
+      <a th:href="@{/auth/register}"
+        class="btn-ghost whitespace-nowrap focus-ring">
+        Crear cuenta gratis
+      </a>
+    </span>
 
   </div>
 

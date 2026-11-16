@@ -152,11 +152,13 @@
   <link rel="icon" th:href="@{/images/favicon.svg}" type="image/svg+xml">
 
   <!-- Webfonts from Google Fonts: the sans that body wears, and the serif the design tokens
-       expose as --font-serif. display=swap is not optional: without it the text stays
-       invisible until the font arrives, on top of the reveal shield below. -->
+       expose as --font-serif. media="all" (and not the old media="print" onload trick): the
+       onload script never runs without JavaScript, and then the webfonts never loaded at all.
+       display=swap still covers FOIT without it: the text paints with the fallback and swaps
+       when the font arrives. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" media="print" onload="this.media='all'"
+  <link rel="stylesheet"
   href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Josefin+Sans:ital,wght@0,300..700;1,300..700&display=swap">
    
 
@@ -272,9 +274,15 @@
   <!-- Tailwind compiled in the browser: the vendored @tailwindcss/browser script
        scans the rendered DOM and injects the generated CSS (no build step).
        The shield below hides the page until the styles are ready, so there is
-       no unstyled flash; it always falls back to visible after 3 seconds. -->
+       no unstyled flash; it always falls back to visible after 800 ms.
+       [G1] The shield hangs off html.js, and the class is set by the inline script
+       right above it: an html{visibility:hidden} that only JavaScript can lift
+       left the page blank forever without JavaScript (and the noscript below
+       makes it explicit). The non-deferred inline script runs during head
+       parsing, before any paint, so the shield still covers the first frame. -->
+  <script>document.documentElement.classList.add("js");</script>
   <style>
-    html {
+    html.js {
       visibility: hidden;
     }
 
@@ -284,13 +292,28 @@
        visibility keeps those nodes out of layout, so they cannot flash. Vue removes the
        attribute from the root as soon as mount() returns.
 
-       The 3 s fallback below strips any v-cloak left over, so a page whose script never ran
+       The 5 s fallback below strips any v-cloak left over, so a page whose script never ran
        ends up showing its raw template (what it does today) instead of a permanently blank
-       region. */
+       region. Es un temporizador aparte del escudo: quitarlo temprano pintaría el template
+       crudo mientras el módulo de la vista todavía carga. */
     [v-cloak] {
       display: none !important;
     }
   </style>
+  <!-- [G1/G3] Sin JavaScript no hay nada que levante el escudo ni que dibuje los iconos de
+       lucide: el escudo se anula y los <i data-lucide> se ocultan en vez de quedar como ocho
+       huecos vacios. Un <noscript><style> es el unico CSS que llega en ese escenario. -->
+  <noscript>
+    <style>
+      html {
+        visibility: visible;
+      }
+
+      [data-lucide] {
+        display: none;
+      }
+    </style>
+  </noscript>
   <script th:src="@{/js/tailwind-browser.js}" defer></script>
   <script th:src="@{/js/vue.global.prod.js}"></script>
   <script th:src="@{/js/toasts.js}" defer></script>
@@ -316,11 +339,22 @@
         document.documentElement.style.visibility = "visible";
       };
 
-      /* Escape hatch, 3 s: either Tailwind never compiled or the view's script never mounted.
-         Showing a raw template beats a blank page. */
-      const fallback = function () {
+      /* Los dos tiempos de abajo son distintos a propósito: qué tan rápido se pinta la página y
+         cuándo se muestra el template crudo no son el mismo problema.
+         - Escudo (visibilidad): 800 ms de techo. Si Tailwind nunca compiló, mostrar la página
+           sin estilos es mejor que una pantalla en blanco. Eran 3 s, y con la caché fría eso era
+           una primera pintura en blanco de tres segundos; el compilador local resuelve en
+           cientos de ms, así que el techo baja sin dejar de cubrir el caso real.
+         - [v-cloak] (template crudo): 5000 ms de techo. Quitar el atributo antes de que Vue
+           monte deja a la vista los {{ }} y los bloques v-if que el CSS venía escondiendo. Con
+           800 ms el barrido corría mientras el módulo de la vista todavía cargaba, y el template
+           crudo quedaba pintado ~700 ms (PlacesViewE2E lo fuerza retrasando places-list.js).
+           Este techo largo solo cubre el caso en que el módulo de la vista nunca corre: si Vue
+           monta, mount() saca el atributo mucho antes. */
+      const clearCloakFallback = function () {
         const pending = document.querySelectorAll("[v-cloak]");
         for (let i = 0; i < pending.length; i++) pending[i].removeAttribute("v-cloak");
+        /* También revela: si el escudo corto no llegó a correr, nadie dejaría la página visible. */
         reveal();
       };
 
@@ -330,7 +364,8 @@
       };
 
       setTimeout(waitForStyles, 15);
-      setTimeout(fallback, 3000);
+      setTimeout(reveal, 800);
+      setTimeout(clearCloakFallback, 5000);
     })();
   </script>
   <script th:if="${devReloadToken != null}" th:inline="javascript" defer>
@@ -359,6 +394,16 @@
 <body th:fragment="layout(content)" class="bg-gray-100 min-h-screen flex flex-col">
 
   <span hidden data-toast th:if="${successToast}" th:text="${successToast}"></span>
+
+  <!-- [A11Y] El skip link va acá, no dentro de <main>: el layout inserta el contenido después
+       del navbar, así que adentro de la página llegaba como cuarto tab stop (primero los tres
+       links del nav) y no salteaba nada. Solo la landing declara #contenido, así que solo ahí
+       se renderiza; en cualquier otra vista sería un ancla muerta. -->
+  <a th:if="${currentPath == '/'}" href="#contenido"
+    class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-base focus:font-semibold focus:text-primary focus-ring">
+    Saltar al contenido
+  </a>
+
   <nav th:replace="~{components/navbar}"></nav>
 
   <!-- [PROF] Menú del navbar: hermano del <nav>, no hijo, así que el conteo de items de los

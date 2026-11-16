@@ -1,0 +1,92 @@
+{
+  "captured_at": "iteration-2-after-second-builder-pass",
+  "page": "http://localhost:8080/ (landing publica de PlanIt, GET /)",
+  "viewport_desktop": "1440 x 900",
+  "viewport_mobile": "390 x 844",
+  "document_height_desktop_px": 3300,
+  "document_height_mobile_px": 4804,
+  "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 12,
+    "details_faq": 4,
+    "sections_in_main": 7,
+    "tagline_words": 14,
+    "faq_open_by_default": [true, false, false, false]
+  },
+  "typography_scale_measured_desktop": {
+    "h1": { "fontSize": "60px", "fontWeight": "700", "note": "texto con gradiente, color computado transparente" },
+    "h2": { "fontSize": "36px", "fontWeight": "700" },
+    "h3": { "fontSize": "18px", "fontWeight": "600" },
+    "tagline": { "fontSize": "24px", "nota": "bajado desde 30px y movido dentro de la seccion de beneficios" },
+    "mobile_h1": { "fontSize": "36px", "lines_at_390px": 4 }
+  },
+  "section_rhythm_measured_desktop": [
+    { "heading": "Hero", "bg": "#ffffff", "padY": "112px / 112px", "height": 812 },
+    { "heading": "Problema", "bg": "gray-50", "padY": "64px / 64px", "height": 304 },
+    { "heading": "Beneficios (+ linea de tagline dentro)", "bg": "#ffffff", "padY": "64px / 64px", "height": 494 },
+    { "heading": "Como funciona", "bg": "gray-50", "padY": "64px / 64px", "height": 314 },
+    { "heading": "Prueba", "bg": "#ffffff", "padY": "64px / 64px", "height": 288 },
+    { "heading": "FAQ", "bg": "gray-50", "padY": "64px / 64px", "height": 460 },
+    { "heading": "CTA final", "bg": "#ffffff", "padY": "112px / 112px", "height": 448 }
+  ],
+  "rhythm_note": "Dos tiers declarados (112px hero y CTA final, 64px el resto) y padding simetrico en las 7 secciones; la seccion Tagline ya no existe como bloque propio.",
+  "cta_measured_light": [
+    { "text": "Crear mi plan gratis", "region": "hero", "w": 189, "h": 48, "contrast": 8.13, "bg": "#004aad" },
+    { "text": "Explorar planes públicos", "region": "hero, secundario", "w": 187, "h": 44, "contrast": 8.13, "note": "btn-link con subrayado en reposo" },
+    { "text": "Iniciar sesión", "region": "hero, terciario", "w": 102, "h": 44, "contrast": 8.13 },
+    { "text": "Crear mi plan gratis", "region": "CTA final", "w": 189, "h": 48, "contrast": 8.13 },
+    { "text": "Crear cuenta", "region": "navbar anonimo", "w": 110, "h": 44, "contrast": 5.16, "note": "btn-ghost con borde, ya no es un segundo pill relleno" },
+    { "text": "Para vos", "region": "navbar anonimo", "w": 71, "h": 44, "contrast": 17.0, "note": "text-white/90 sobre bg-black" },
+    { "text": "Iniciar sesión", "region": "navbar anonimo", "w": 98, "h": 44, "contrast": 17.0 },
+    { "text": "Inicio / Explorar lugares / Crear cuenta", "region": "footer", "h": 44 }
+  ],
+  "contrast_issues_measured_light": [
+    {
+      "text": "Proyecto del Taller Web I",
+      "selector": "footer p (y su copia en main)",
+      "color": "rgb(106, 114, 130)",
+      "bg": "gray-50",
+      "contrast": 4.39,
+      "note": "unico texto por debajo de 4.5:1 en claro; es el meta del footer, 4.39 vs 4.5 requerido"
+    }
+  ],
+  "contrast_worst_measured_dark": [
+    { "text": "PlanIt / Crear cuenta (navbar)", "color": "rgb(102, 129, 252)", "bg": "#111827", "contrast": 5.16 },
+    { "text": "Explorar planes públicos / Iniciar sesión (hero)", "color": "#60a5fa", "bg": "#1f2937", "contrast": 5.77 },
+    { "text": "10:00 / 13:30 / 17:30 (mock del hero)", "color": "#60a5fa", "bg": "#1f2937", "contrast": 5.77 },
+    { "text": "10 categorías... / Gratis y sin tarjeta.", "color": "rgb(156, 163, 175)", "bg": "#1f2937", "contrast": 5.78 },
+    { "text": "Itinerario con hora, orden y dirección", "color": "rgb(156, 163, 175)", "bg": "#111827", "contrast": 6.99 },
+    { "text": "Proyecto del Taller Web I", "color": "rgb(156, 163, 175)", "bg": "#030712", "contrast": 7.93 },
+    { "text": "Crear mi plan gratis", "color": "#ffffff", "bg": "#004aad", "contrast": 8.13 },
+    { "text": "cuerpo de secciones", "color": "rgb(209, 213, 219)", "bg": "#1f2937", "contrast": 9.96 }
+  ],
+  "dark_note": "Ningun texto medido por debajo de 4.5:1 en oscuro; el peor caso es 5.16:1 (acento de marca en el navbar). Los problemas de dark de las iteraciones 0 y 1 (1.21 / 1.93 / 2.99) ya no aparecen.",
+  "tap_targets": "todos los controles visibles miden 44px o mas de alto (FAQs 48px, navbar 44px, footer 44px, CTA del hero 48px, CTA final 48px); el unico por debajo es el skip link (1px sr-only, se agranda al enfocar)",
+  "mobile_measured_390x844": {
+    "navbar_height_px": 120,
+    "navbar_position": "static (ya no sticky debajo de md)",
+    "hero_figure": { "order": "first", "top": 184, "height": 460 },
+    "hero_copy_block_top": 692,
+    "hero_h1": { "top": 692, "bottom": 872, "fontSize": "36px", "lines": 4 },
+    "hero_primary_cta": { "top": 984, "height": 48 },
+    "note": "Con la figure primero, el mock ocupa el fold y el h1 arranca a 692px; el CTA primario queda a 984px, debajo del fold de 844px."
+  },
+  "overflow_horizontal": "0 px de desborde medido en 1440 y en 390",
+  "state_notes": [
+    "FAQ con 4 items, el primero abierto por defecto; summary de 48px de alto.",
+    "Navbar anonimo: 'Para vos' + 'Iniciar sesión' como links de texto y 'Crear cuenta' como ghost con borde; un solo pill relleno arriba del fold (el CTA del hero).",
+    "Cada accion de registro usa una etiqueta en navbar ('Crear cuenta') y otra en hero/CTA final ('Crear mi plan gratis').",
+    "El footer ramifica sus links por sesion y todos miden 44px.",
+    "La seccion 'Tagline' desaparecio como bloque: 14 palabras encendidas viven dentro de la seccion de beneficios, a 24px."
+  ],
+  "screenshots": {
+    "desktop_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwigquhq-273adb43.png",
+    "desktop_light_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwigquq0-fa263b3c.png",
+    "desktop_dark_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwigquwm-0066a91d.png",
+    "mobile_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwigqxi5-4b9fdb0d.png",
+    "mobile_light_mid": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwigqxnk-e40971e5.png",
+    "mobile_light_bottom": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwigqxrb-f21744c9.png"
+  }
+}

@@ -1,7 +1,10 @@
 package com.valhalla.presentation.landing;
 
+import com.valhalla.domain.place.PlaceCategory;
+import com.valhalla.domain.place.PlaceService;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -17,6 +20,11 @@ import org.springframework.web.servlet.ModelAndView;
  * <p>El itinerario del hero es contenido editorial, no una consulta: son lugares del catálogo que
  * el seed ya carga, escritos acá para que la página no dependa de una base de datos levantada y
  * para que el copy se cambie en un solo lugar.
+ *
+ * <p>Los dos conteos que la página nombra sí salen de la fuente: {@code placeCount} es el catálogo
+ * real (un lugar nuevo o borrado se refleja en la frase sin tocar la plantilla) y
+ * {@code categoryCount} es el enum de categorías, que es el conjunto cerrado que el filtro ofrece.
+ * Antes eran literales y el copy quedaba viejo en cuanto cambiaba el seed.
  */
 @Controller
 public class LandingController {
@@ -38,6 +46,13 @@ public class LandingController {
     new HeroStop("17:30", "El Ateneo Grand Splendid", "Cultura", "Av. Santa Fe 1860")
   );
 
+  private final PlaceService placeService;
+
+  @Autowired
+  public LandingController(PlaceService placeService) {
+    this.placeService = placeService;
+  }
+
   @GetMapping("/")
   public ModelAndView landing(@AuthenticationPrincipal UserDetails userDetails) {
     Map<String, Object> model = new ModelMap();
@@ -55,6 +70,11 @@ public class LandingController {
     model.put("pageDescription", PAGE_DESCRIPTION);
 
     model.put("heroItinerary", HERO_ITINERARY);
+
+    // Los conteos del copy: el catálogo se lee del servicio (es la misma fuente que /explore) y
+    // las categorías del enum, que no cuesta nada y no puede desincronizarse del filtro.
+    model.put("placeCount", placeService.getAllPlaces().size());
+    model.put("categoryCount", PlaceCategory.values().length);
 
     return new ModelAndView(VIEW_LANDING, model);
   }

@@ -281,7 +281,7 @@ public class MobileLayoutE2E extends E2eBase {
     page.waitForSelector("#navbar-menu:not([hidden])");
     assertThat(
       "el menu replica los destinos del nav",
-      page.locator("#navbar-menu a:has-text('Explore')").first().isVisible(),
+      page.locator("#navbar-menu a:has-text('Explorar lugares')").first().isVisible(),
       is(true)
     );
     assertNoSideScroll("/for-you con menu abierto");
@@ -292,7 +292,7 @@ public class MobileLayoutE2E extends E2eBase {
     assertThat(
       "items del navbar de escritorio",
       web.getNavbarItems(),
-      contains("PlanIt", "Para vos", "Explore", "Plans", "A", "Cambiar tema")
+      contains("PlanIt", "Planes públicos", "Explorar lugares", "Mis planes", "A", "Cambiar tema")
     );
   }
 

@@ -1,0 +1,111 @@
+{
+  "captured_at": "iteration-3-after-third-builder-pass",
+  "page": "http://localhost:8080/ (landing publica de PlanIt, GET /)",
+  "viewport_desktop": "1440 x 900",
+  "viewport_mobile": "390 x 844",
+  "document_height_desktop_px": 3238,
+  "document_height_mobile_px": 4764,
+  "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 12,
+    "details_faq": 4,
+    "sections_in_main": 7
+  },
+  "render_checks": {
+    "document_visibility": "visible con JS (html.js + reveal inline)",
+    "html_class_at_runtime": "js reveal-ready",
+    "noscript_present": true,
+    "live_http_status": 200,
+    "response_bytes": 57086
+  },
+  "section_rhythm_measured_desktop": [
+    { "heading": "Hero", "bg": "#ffffff", "padY": "112px / 112px", "height": 769 },
+    { "heading": "Problema", "bg": "gray-50", "padY": "64px / 64px", "height": 305 },
+    { "heading": "Qué deja de pasar cuando el plan está escrito", "bg": "#ffffff", "padY": "64px / 64px", "height": 495 },
+    { "heading": "Como funciona", "bg": "gray-50", "padY": "64px / 64px", "height": 355 },
+    { "heading": "Prueba", "bg": "#ffffff", "padY": "64px / 64px", "height": 289 },
+    { "heading": "FAQ", "bg": "gray-50", "padY": "64px / 64px", "height": 461 },
+    { "heading": "CTA final", "bg": "#ffffff", "padY": "112px / 112px", "height": 384 }
+  ],
+  "section_rhythm_measured_mobile": [
+    { "heading": "Hero", "padY": "80px / 80px", "height": 987 },
+    { "heading": "resto de las secciones", "padY": "64px / 64px" }
+  ],
+  "rhythm_note": "Los dos tiers ahora existen tambien por debajo de 1024px: 80px el hero y el cierre, 64px el resto.",
+  "divider_check": {
+    "wrapper": "div#contenido con class 'divide-y divide-gray-200'",
+    "selector_matches": true,
+    "computed_border_top_width_on_children": "0px en las 7 secciones",
+    "generated_rules_for_divide": "solo @property --tw-divide-y-reverse; la regla .divide-y no se genero",
+    "note": "El separador entre bandas NO se ve: la clase esta en el markup pero el compilador de Tailwind no emitio la regla, asi que el limite entre secciones sigue dependiendo solo del cambio de fondo (1.09:1)."
+  },
+  "cta_measured_light": [
+    { "text": "Crear cuenta gratis", "region": "hero", "h": 48, "contrast": 8.13, "bg": "#004aad" },
+    { "text": "Ver planes públicos", "region": "hero, secundario", "h": 44, "contrast": 8.13 },
+    { "text": "Iniciar sesión", "region": "hero, terciario", "h": 44, "contrast": 8.13 },
+    { "text": "Crear cuenta gratis", "region": "CTA final", "h": 48, "contrast": 8.13 },
+    { "text": "Crear cuenta gratis", "region": "navbar anonimo (ghost)", "h": 44, "contrast": 5.16 },
+    { "text": "Para vos / Iniciar sesión", "region": "navbar anonimo", "h": 44, "contrast": 17.0 },
+    { "text": "Inicio / Explorar lugares / Crear cuenta gratis", "region": "footer", "h": 44, "contrast": 6.87 }
+  ],
+  "contrast_issues_measured_light": [],
+  "contrast_worst_measured_light": [
+    { "text": "Itinerario con hora, orden y dirección", "contrast": 4.63, "bg": "gray-50" },
+    { "text": "Gratis y sin tarjeta.", "contrast": 4.84, "bg": "#ffffff" },
+    { "text": "PlanIt / Crear cuenta gratis (navbar)", "contrast": 5.16, "bg": "#111827" },
+    { "text": "links del footer", "contrast": 6.87, "bg": "gray-50" }
+  ],
+  "contrast_issues_measured_dark": [],
+  "contrast_worst_measured_dark": [
+    { "text": "PlanIt / Crear cuenta gratis (navbar)", "contrast": 5.16, "bg": "#111827" },
+    { "text": "Ver planes públicos / Iniciar sesión (hero)", "contrast": 5.77, "bg": "#1f2937" },
+    { "text": "Gratis y sin tarjeta.", "contrast": 5.78, "bg": "#1f2937" },
+    { "text": "Itinerario con hora, orden y dirección", "contrast": 6.99, "bg": "#111827" },
+    { "text": "Crear cuenta gratis (CTA)", "contrast": 8.13, "bg": "#004aad" },
+    { "text": "cuerpo de secciones", "contrast": 9.96, "bg": "#1f2937" }
+  ],
+  "contrast_note": "Ningun texto por debajo de 4.5:1 en ninguno de los dos temas. El 4.39:1 del pie de la iteracion 2 quedo en 6.87:1.",
+  "tap_targets": "todos los controles visibles miden 44px o mas; el unico por debajo es el skip link (1px sr-only, se agranda al enfocar)",
+  "mobile_measured_390x844": {
+    "navbar_height_px": 152,
+    "navbar_position": "static",
+    "navbar_rows": "2 (marca 56px + bloque de links 92px que envuelve en dos lineas)",
+    "hero_order": "copy primero, mock despues",
+    "hero_h1": { "top": 232, "bottom": 412, "lines": 4 },
+    "hero_primary_cta": { "top": 524, "bottom": 572, "h": 48 },
+    "hero_secondary_links": { "top": 612, "bottom": 656, "h": 44 },
+    "hero_figure": { "top": 704, "height": 354 },
+    "place_cards_in_mock": "3 en el DOM, la tercera con display:none debajo de sm",
+    "note": "h1 y CTA primario entran completos en el fold de 844px. La navbar, en cambio, crecio de 120px a 152px y ocupa 18% del viewport movil."
+  },
+  "overflow_horizontal": "0 px de desborde medido en 1440 y en 390",
+  "copy_repetition_measured": {
+    "frases_con_sin_registro_o_sin_cuenta": 1,
+    "frases_con_una_vez": 3,
+    "palabras_en_main": 1271,
+    "note": "En la iteracion 2 'abrir sin registro / sin cuenta' aparecia 5 veces; ahora 1."
+  },
+  "state_notes": [
+    "Etiqueta unica para /auth/register: 'Crear cuenta gratis' en navbar, hero, CTA final y footer.",
+    "/for-you se llama 'Ver planes públicos' en el hero y 'Para vos' en el navbar; /explore se llama 'Explorar lugares' en navbar y footer.",
+    "Conteos del hero (lugares, categorias, paradas) salen del modelo; el figcaption cuenta las paradas con #lists.size(heroItinerary).",
+    "FAQ nativo con 4 items, el primero abierto; summary de 48px.",
+    "El escudo del head ahora depende de html.js y hay <noscript> que lo neutraliza."
+  ],
+  "screenshots": {
+    "desktop_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwihk6yr-c32f211d.png",
+    "desktop_light_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwihkfw3-63286aa7.png",
+    "desktop_dark_full": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwihkiid-4929e40f.png",
+    "mobile_light_above_fold": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwihliga-873b73c8.png",
+    "mobile_light_top": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwihlms0-af238838.png",
+    "mobile_light_bottom": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwihlp0h-d53b8608.png"
+  },
+  "verification_run_by_orchestrator": {
+    "mvn_-Pdev_-q_compile": "exit 0, sin salida",
+    "mvn_-q_prettier:check": "exit 0, sin salida",
+    "gate_integration_BrandingPagesTest_-Fast": "Tests run: 12, Failures: 0, Errors: 0, Skipped: 0 - BUILD SUCCESS",
+    "live_200": "HTTP 200, 57086 bytes"
+  }
+}
