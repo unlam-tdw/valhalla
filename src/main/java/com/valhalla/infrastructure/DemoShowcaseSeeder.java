@@ -186,8 +186,11 @@ public class DemoShowcaseSeeder implements ApplicationListener<ContextRefreshedE
       demo,
       true
     );
+    // [DEMO] El tope tiene que cubrir el costo estimado del propio recorrido (PlaceCostEstimator
+    // lo suma en el detalle): estas seis paradas dan ARS 37.000 por persona, asi que un tope de
+    // 20.000 abria la demo con un "te pasas por ARS 17.000" en rojo.
     plan.setBudget(
-      new PlanBudget(BigDecimal.valueOf(8000), BigDecimal.valueOf(20000), "Entradas y comida")
+      new PlanBudget(BigDecimal.valueOf(30000), BigDecimal.valueOf(45000), "Entradas y comida")
     );
     addStops(plan, catalogue, WEEKEND_STOPS);
     // [SCH] El horario sale de la misma calculadora que usa la app, no de horas escritas a mano.
@@ -221,7 +224,10 @@ public class DemoShowcaseSeeder implements ApplicationListener<ContextRefreshedE
     plan.setBudget(
       new PlanBudget(BigDecimal.valueOf(15000), BigDecimal.valueOf(30000), "Carne y bebidas")
     );
-    addStops(plan, catalogue, List.of("Parque Tres de Febrero"));
+    // [DEMO] La parada de compras va antes del parque: el detalle estima el costo de cada lugar y
+    // un itinerario con una sola parada gratis (el parque) mostraba ARS 0,00 al lado de un
+    // presupuesto de carne y bebidas.
+    addStops(plan, catalogue, List.of("Plaza Serrano", "Parque Tres de Febrero"));
     Plan saved = planRepository.save(plan);
 
     planService.changeParticipantRole(saved.getId(), LUCIA, EDITOR_ROLE, DEMO_EMAIL);

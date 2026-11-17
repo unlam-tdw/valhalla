@@ -20,6 +20,7 @@ import com.valhalla.domain.follow.FollowRepository;
 import com.valhalla.domain.notification.NotificationService;
 import com.valhalla.domain.place.Place;
 import com.valhalla.domain.place.PlaceCategory;
+import com.valhalla.domain.place.PlaceCostEstimator;
 import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanRepository;
@@ -28,8 +29,10 @@ import com.valhalla.domain.rating.PlanRating;
 import com.valhalla.domain.rating.PlanRatingRepository;
 import com.valhalla.domain.user.User;
 import com.valhalla.domain.user.UserService;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +57,22 @@ public class DemoShowcaseSeederTest {
   private static final String MARKER = "DEMO0001";
   private static final String SHARED = "DEMO0002";
   private static final String INVITE = "DEMO0003";
+
+  /** Categoria real de cada lugar del catalogo de demo, la misma que siembra PlaceDataSeeder. */
+  private static final Map<String, PlaceCategory> CATEGORIES = Map.of(
+    "MALBA",
+    PlaceCategory.MUSEUM,
+    "Plaza Serrano",
+    PlaceCategory.SHOPPING,
+    "Parque Tres de Febrero",
+    PlaceCategory.PARK,
+    "Planetario Galileo Galilei",
+    PlaceCategory.CULTURE,
+    "La Viruta",
+    PlaceCategory.NIGHTLIFE,
+    "El Sanjuanino",
+    PlaceCategory.RESTAURANT
+  );
 
   private PublicPlanDataSeeder publicPlanSeederMock;
   private UserService userServiceMock;
@@ -183,6 +202,38 @@ public class DemoShowcaseSeederTest {
     assertThat(shared.getParticipants(), hasSize(3));
   }
 
+  /**
+   * [DEMO] El detalle del plan muestra el costo estimado del recorrido (PlaceCostEstimator) contra
+   * el tope del presupuesto. Si el tope sembrado queda por debajo, la demo abre con un "te pasas
+   * por ARS ..." en rojo que contradice el propio plan; y un itinerario sin ningun lugar pago
+   * muestra "Costo estimado: ARS 0,00" al lado de un presupuesto de carne y bebidas.
+   */
+  @Test
+  public void elPresupuestoSembradoCubreElCostoEstimadoDelRecorrido() {
+    // given
+    givenEnabledSeederWithGhosts();
+
+    // when
+    this.seeder.onApplicationEvent(null);
+
+    // then: el tope del plan publico cubre lo que cuesta su propio itinerario
+    Plan weekend = savedPlan(MARKER);
+    BigDecimal weekendCost = PlaceCostEstimator.tripCost(weekend.getPlanPlaces());
+    assertThat(
+      "el presupuesto del weekend cubre su costo estimado (" + weekendCost + ")",
+      weekendCost.compareTo(weekend.getBudget().getMaximum()) <= 0,
+      is(true)
+    );
+
+    // then: el plan compartido tiene al menos un lugar pago, o el costo estimado da cero
+    Plan shared = savedPlan(SHARED);
+    assertThat(
+      "el plan compartido no estima ARS 0",
+      PlaceCostEstimator.tripCost(shared.getPlanPlaces()).signum() > 0,
+      is(true)
+    );
+  }
+
   @Test
   public void usaLosServiciosRealesParaRolesSolicitudesBaneosEInvitaciones() {
     // given
@@ -302,8 +353,10 @@ public class DemoShowcaseSeederTest {
       Place place = new Place();
       place.setId(UUID.randomUUID());
       place.setName(name);
-      // El horario deriva distancias y categorias: un lugar real siempre las trae.
-      place.setCategory(PlaceCategory.CULTURE);
+      // El horario deriva distancias y categorias: un lugar real siempre las trae. La categoria
+      // es la del catalogo sembrado (PlaceDataSeeder), no una generica: el costo estimado del
+      // itinerario sale de ella y un parque gratis no cuesta lo mismo que una parrilla.
+      place.setCategory(CATEGORIES.getOrDefault(name, PlaceCategory.CULTURE));
       place.setLatitude(-34.6037);
       place.setLongitude(-58.3816);
       places.add(place);
