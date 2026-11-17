@@ -1,0 +1,101 @@
+{
+  "captured_at": "final-polish-pass (despues del critico en frio que dio 5.43)",
+  "page": "http://localhost:8080/ (landing publica de PlanIt, GET /)",
+  "viewport_desktop": "1440 x 900",
+  "viewport_mobile": "390 x 844",
+  "document_height_desktop_px": 3186,
+  "document_height_mobile_px": 4527,
+  "counts": {
+    "h1": 1,
+    "h2": 6,
+    "h3": 7,
+    "links": 11,
+    "details_faq": 4,
+    "sections_in_main": 7,
+    "palabras_en_main": 419
+  },
+  "hero_measured": {
+    "h1_text": "Armá el itinerario de tu día en Buenos Aires y compartilo con un link",
+    "h1_top_desktop": 184,
+    "h1_height_desktop": 300,
+    "h1_top_mobile": 128,
+    "h1_lines_mobile": 4,
+    "h1_font_size_mobile": "36px",
+    "buenos_aires_char_index": 32,
+    "buenos_aires_pct_of_text": 1,
+    "note": "En la iteracion anterior 'Buenos Aires' aparecia en el 69% de la pagina y el titular no nombraba ni el producto ni la ciudad. Ahora abre el primer viewport y el h1 lo dice."
+  },
+  "navbar_measured": {
+    "desktop": { "height_px": 72, "position": "sticky", "rows": 1, "items": ["PlanIt", "Planes públicos", "Iniciar sesión", "Crear cuenta gratis"] },
+    "mobile": { "height_px": 48, "pct_of_viewport": 6, "position": "static", "rows": 1, "items": ["PlanIt", "Planes públicos", "Iniciar sesión"] },
+    "previous_mobile_height_px": 152,
+    "logo": { "size_px": "48x48 desktop / 36x36 mobile", "alt": "", "class": "navbar-logo h-9 w-9 object-contain md:h-12 md:w-12" },
+    "brand_focus_ring": "focus-ring rounded agregado: el link de la marca recibia el anillo del UA (1.07:1 sobre el navbar negro), invisible"
+  },
+  "mobile_first_viewport": {
+    "nav_px": 48,
+    "h1": { "top": 128, "bottom": 308 },
+    "primary_cta": { "top": 448, "bottom": 496, "h": 48, "in_fold": true },
+    "mock_card_top": 604,
+    "overflow_horizontal_px": 0
+  },
+  "contrast_text_measured": {
+    "method": "canvas 2d fillStyle + WCAG 2.x, sobre color computado real (resuelve oklch/oklab), con el tema fijado antes de cargar la pagina",
+    "light": { "runs": 61, "failures": 0, "worst": { "text": "Cada parada con su hora y su dirección.", "ratio": 4.63, "bg": "#f9fafb" } },
+    "dark": { "runs": 61, "failures": 0, "worst": { "text": "PlanIt / Crear cuenta gratis (navbar)", "ratio": 5.16, "bg": "#111827" } },
+    "artifact_note": "Si el tema se cambia DESPUES de cargar, los links del pie miden 2.66:1 en oscuro y 1.34:1 en claro. No es la pagina: la transicion de color (transition-all duration-700) queda congelada en currentTime 0 porque la pestana de preview no recibe ticks de compositor (visible=false), asi que el color se queda en el del tema anterior. Con el tema fijado antes de la carga no hay transicion y el pie mide 13.66:1 en oscuro."
+  },
+  "borders_and_underlines_measured": {
+    "band_divider": { "before": "#e5e7eb = 1.24:1 sobre blanco", "after": "rgb(173,181,189) = 2.07:1 sobre blanco / 1.89:1 sobre la banda gris", "dark": "1.95:1", "decision": "usa var(--bs-border-color), que es el token que la decision del 2026-10-25 ya habia subido a #adb5bd; el #e5e7eb hardcodeado la ignoraba" },
+    "place_card_border": { "before": "#e5e7eb = 1.24:1", "after": "rgb(173,181,189) = 2.07:1" },
+    "faq_row_border": { "before": "2.07:1 claro / 1.42:1 oscuro", "after": "#8d949c = 3.07:1 claro / 3.04:1 oscuro", "why": "el borde es la unica forma de la fila ademas de un chevron de 10px: aplica el 3:1 de 1.4.11" },
+    "btn_link_underline": { "before": "color-mix(--primary 40%) = 2.06:1", "after": "70% = 4.03:1" }
+  },
+  "section_rhythm_measured_desktop": [
+    { "heading": "Hero", "padY": "112px / 112px", "height": 740 },
+    { "heading": "El plan de sábado termina siendo tres mensajes sueltos", "padY": "64px / 64px", "height": 257 },
+    { "heading": "Qué deja de pasar cuando el plan está escrito", "padY": "64px / 64px", "height": 491 },
+    { "heading": "De cero al plan compartido en tres pasos", "padY": "64px / 64px", "height": 351 },
+    { "heading": "Ya hay lugares para empezar", "padY": "64px / 64px", "height": 285 },
+    { "heading": "Preguntas frecuentes", "padY": "64px / 64px", "height": 457 },
+    { "heading": "El próximo plan que compartís lo armás de una vez.", "padY": "112px / 112px", "height": 425 }
+  ],
+  "changes_applied_in_this_pass": [
+    "landing.html: h1 y bajada nombran producto y ciudad; 'Buenos Aires' pasa del 69% del texto al primer viewport",
+    "landing.html: 'De cero a compartido en tres pasos' -> 'De cero al plan compartido en tres pasos'",
+    "landing.html: caption del mock sin 'orden' y con el dato real (hora y direccion)",
+    "landing.html: vocabulario de operador fuera ('cargados/cargada' en la seccion de prueba y en el paso 02; 'en este entorno' fuera del estado vacio)",
+    "landing.html: 'Editable solo por vos' -> 'Solo vos podés editarlo.'",
+    "landing.html: 'en cinco minutos' -> 'de una vez' (la unica duracion de la pagina y sin dato que la sostenga)",
+    "brand.css: separadores y borde de .place-card pasan al token --bs-border-color",
+    "brand.css: borde de las filas del FAQ a 3.07:1 claro / 3.04:1 oscuro",
+    "brand.css: subrayado en reposo de .btn-link del 40% al 70% de mezcla (2.06:1 -> 4.03:1)",
+    "navbar.html: focus-ring rounded en el link de la marca (el anillo del UA medía 1.07:1)"
+  ],
+  "deductions_left_open": [
+    "Sin JavaScript no hay layout: Tailwind se compila en el navegador, asi que con JS apagado el grid del hero pasa a block y el tipo cae a la pila del sistema. Es arquitectonico, no de esta pagina.",
+    "El mock del hero sigue siendo inerte: las tres .place-card no son enlaces y no hay link a un plan de ejemplo.",
+    "Imprimir da mas de una pagina A4: el hero y el cierre conservan 112px de padding y el mock se imprime entero.",
+    "Etiqueta duplicada en el mismo viewport: el ghost 'Crear cuenta gratis' del navbar y el CTA del hero comparten label y destino (PublicPlansListE2E fija los items del navbar, asi que no se puede quitar sin tocar tests)."
+  ],
+  "screenshots": {
+    "desktop_light_top": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwilimaw-e9de7934.png",
+    "desktop_light_mid": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwilin71-980eaa39.png",
+    "desktop_light_bottom": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwilinla-ab7e4a8d.png",
+    "desktop_dark_top": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwiliu15-7f69f172.png",
+    "desktop_dark_mid": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwiliuix-59b5c535.png",
+    "desktop_dark_bottom": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwiliux5-b1275b8b.png",
+    "mobile_light_top": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwilij5s-63a4e856.png",
+    "mobile_light_mid": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwilijhe-0d3ae024.png",
+    "mobile_light_bottom": "C:\\Users\\valen\\.t3\\userdata\\browser-artifacts\\browser-screenshot-localhost-mwilik6x-da6d904b.png"
+  },
+  "verification_run": {
+    "mvn_-Pdev_-q_compile": "exit 0",
+    "mvn_-q_prettier:check": "exit 0",
+    "unit_BrandTokensTest": "Tests run: 20, Failures: 0",
+    "integration_BrandingPagesTest": "Tests run: 12, Failures: 0",
+    "e2e_PublicPlansListE2E": "Tests run: 2, Failures: 0",
+    "e2e_MobileLayoutE2E": "Tests run: 6, Failures: 0",
+    "e2e_PlacesViewE2E": "Tests run: 7, Failures: 0"
+  }
+}

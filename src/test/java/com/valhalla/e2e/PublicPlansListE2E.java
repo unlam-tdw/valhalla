@@ -15,9 +15,9 @@ import com.valhalla.presentation.shared.LoginRedirects;
 import org.junit.jupiter.api.Test;
 
 /**
- * [PPV] E-01 / T-PPV-005: el feed "Para vos" ({@code GET /for-you}) es visible con y sin sesion.
+ * [PPV] E-01 / T-PPV-005: el feed "Planes públicos" ({@code GET /for-you}) es visible con y sin sesion.
  *
- * <p>Cubro las tres caras del contrato de producto. Sin sesion: el navbar ofrece "Para vos", entrar
+ * <p>Cubro las tres caras del contrato de producto. Sin sesion: el navbar ofrece "Planes públicos", entrar
  * directo a /for-you rinde el feed (no rebota en el login) y el CTA "Clonar Plan" de la tarjeta es
  * un link al login con la vuelta. Con sesion: el navbar lo ofrece, la tarjeta rinde sus datos con
  * el href a la vista publica del plan (AC-04) y "Clonar Plan" copia el plan como propia. El plan
@@ -43,16 +43,16 @@ public class PublicPlansListE2E extends E2eBase {
   void T_PPV_005_visitanteVeElFeedSinSesionYUnNuevoUsuarioLoClona() {
     WebPage web = new WebPage(page);
 
-    // --- Sin sesion: el navbar ofrece el feed como "Para vos" ---
+    // --- Sin sesion: el navbar ofrece el feed como "Planes públicos" ---
     web.navigate(web.baseUrl() + "/");
     assertThat(
       "el navbar sin sesion ofrece el feed",
       web.getNavbarItems(),
-      contains("PlanIt", "Para vos", "Register", "Login")
+      contains("PlanIt", "Planes públicos", "Iniciar sesión", "Crear cuenta gratis")
     );
     assertThat(
       "el link del navbar sin sesion apunta a /for-you",
-      page.locator("body > nav a:has-text('Para vos')").getAttribute("href"),
+      page.locator("body > nav a:has-text('Planes públicos')").getAttribute("href"),
       containsString("/for-you")
     );
     assertThat(
@@ -94,8 +94,8 @@ public class PublicPlansListE2E extends E2eBase {
     givenARegisteredUserOpensFeed();
     web = new WebPage(page);
 
-    // El navbar con sesion ofrece el feed como "Para vos", una unica vez.
-    Locator navLink = page.locator("body > nav a:has-text('Para vos')");
+    // El navbar con sesion ofrece el feed como "Planes públicos", una unica vez.
+    Locator navLink = page.locator("body > nav a:has-text('Planes públicos')");
     assertThat("el navbar con sesion ofrece el feed", navLink.count(), is(1));
     navLink.click();
     web.waitForPath(LoginRedirects.USER_LANDING);

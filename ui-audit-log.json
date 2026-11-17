@@ -1,0 +1,1140 @@
+{
+  "target": "Home publica de PlanIt (GET /) - src/main/webapp/WEB-INF/templates/pages/landing.html",
+  "branch": "ui/home-landing-audit-loop",
+  "critic_spec": "7 dimensiones 1-10, deducciones obligatorias por cada score < 9",
+  "exit_conditions": {
+    "target_reached": "average_score >= 8.0, >= 6/7 categorias >= 8, 0 categorias < 7",
+    "iteration_cap": 4,
+    "plateau_or_regression": "mejora < 0.2 en dos pasadas consecutivas, o caida respecto de la anterior (revierte el ultimo cambio)"
+  },
+  "iterations": [
+    {
+      "iteration": 0,
+      "phase": "baseline",
+      "changes_applied": [],
+      "scores": {
+        "visual_hierarchy": 6,
+        "layout_spacing": 6,
+        "affordance_clarity": 6,
+        "cognitive_load": 5,
+        "color_accessibility": 5,
+        "microcopy_precision": 6,
+        "state_resilience": 7
+      },
+      "average_score": 5.86,
+      "lowest_dimensions": [
+        "cognitive_load",
+        "color_accessibility"
+      ],
+      "deductions": [
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 2,
+          "element_or_selector": "components/navbar.html - nav > div.order-last (anonymous block): a.btn-cta[href='/for-you'], a.btn-cta[href='/auth/register'], a.btn-cta.btn-cta--alt[href='/auth/login']",
+          "issue": "Three filled 36px pills sit in the top-right, first in reading order, all rendered with the same .btn-cta fill as the hero CTA (80/77/61 x 36). 'Register' duplicates the hero CTA and 'Para vos' is an unmapped destination, so the page presents four co-equal primary actions above the fold. On the 390px mobile shot the entire second nav row is this pill trio, before any value proposition.",
+          "actionable_fix": "Keep exactly one filled pill in the anonymous navbar: Register as .btn-cta, relabelled 'Crear cuenta'. Demote the other two to text links with hover:underline, and drop /for-you from the anonymous variant entirely."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - section[aria-label='Tagline'] > p[data-reveal].font-serif.text-4xl.sm:text-5xl",
+          "issue": "The second block after the hero restates the h1 thesis in the same font-serif at text-4xl/sm:text-5xl (36px mobile / 48px desktop). At 390px it is pixel-identical in size to the h1, so the page has two headlines of equal weight 240px apart.",
+          "actionable_fix": "Delete the block or break the parity: drop font-serif and the 4xl/5xl step, and move it below the benefits grid so it can never read as a second hero."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - section[aria-labelledby='hero-title'] figure > div.rounded-lg.bg-gray-50",
+          "issue": "The only product evidence is a 480px-wide mock whose text is text-sm names, text-xs addresses and a 12px footnote inside a 1152px grid - illegible at a glance, reads as a grey smudge next to a 60px headline.",
+          "actionable_fix": "Scale the mock up: title text-2xl, place name text-base, address text-sm, chip text-sm, card p-4, figure h-full so the three stops occupy the same optical mass as the h1 block."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "main#landing > section (all 8 sections use px-4 py-16)",
+          "issue": "Measured rhythm is 64px/64px on every one of the eight sections, including the 304px Problema slab and the 320px final CTA; the closing CTA carries no more weight than the FAQ.",
+          "actionable_fix": "Differentiate on the same token scale: hero py-16 lg:py-24, Problema py-12, Beneficios py-20, Prueba py-12, FAQ py-20, CTA final py-16 lg:py-28."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "#beneficios-title / #como-title / #prueba-title (max-w-[680px]) inside div.mx-auto.max-w-6xl; #hero-title hardcoded <br />",
+          "issue": "Section headings capped at 680px inside a 1152px container stop at 59% while the grid below spans full width. In the hero the literal <br /> overrides text-balance and forces an unbalanced four-line stack.",
+          "actionable_fix": "Remove max-w-[680px] from the three h2s (or wrap heading + grid in max-w-4xl). Delete the <br /> in #hero-title and keep text-balance with a max-w-[18ch] on the h1."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "components/navbar.html - nav.sticky.top-0.z-50.flex-wrap > div.order-last.w-full (anonymous, <768px)",
+          "issue": "On the 390px render the anonymous nav wraps to two rows (~120px of 844px) and, being sticky, permanently occludes ~14% of the viewport across a 5600px document.",
+          "actionable_fix": "Use smaller text/padding and flex-nowrap in the anonymous block so the links stay on the logo row, and scope stickiness to md:sticky md:top-0."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "section[aria-labelledby='beneficios-title'] div.grid.gap-4 (4 x article.p-6) at 390px",
+          "issue": "Below sm the four benefit cards stack as four 150px+ panels with p-6 bodies - roughly 640px of scroll for four short sentences; the step cards replicate it at 110px each for three words.",
+          "actionable_fix": "On mobile render benefits as one grouped list: grid gap-0 divide-y divide-gray-200 sm:grid-cols-2 sm:gap-4 sm:divide-y-0 lg:grid-cols-4, articles rounded-none border-0 p-4 sm:rounded-2xl sm:border sm:p-6."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 2,
+          "element_or_selector": "brand.css .place-card:hover { transform: translateY(-2px); box-shadow } applied to hero li.place-card (non-interactive) + landing.html article.hover:border-gray-300.hover:shadow-lg (4 benefit cards)",
+          "issue": "Hero itinerary rows and the four benefit panels lift and gain shadow on hover but are li/article with no href, no role, no handler: the strongest false affordance on the page, over the region a visitor is most likely to click.",
+          "actionable_fix": "Scope the hover to real links (a.place-card:hover) and strip hover:border-gray-300 hover:shadow-lg transition-all from the four articles."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - hero secondary a.rounded-lg.px-3.py-2.text-primary.underline-offset-4 ('Ya tengo cuenta, entro')",
+          "issue": "No underline at rest and underline-offset-4 is dead without underline; on touch it renders as plain blue text indistinguishable from emphasis, one gap-3 away from a filled button.",
+          "actionable_fix": "Render it as a real link: inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": ".btn-cta (40px), nav pills (36px), details > summary (24px), footer nav a (20px) - measured tap targets",
+          "issue": "Every interactive target except body links is under 44px tall; FAQ summaries measure 24px (p-4 belongs to <details>, not to the clickable <summary>) and footer links 20px.",
+          "actionable_fix": ".btn-cta min-height 2.75rem with 0.75rem/1.25rem padding; navbar pills min-h-11; move FAQ padding onto <summary class='px-4 py-3'>; footer links inline-flex min-h-11 items-center."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 2,
+          "element_or_selector": "pages/landing.html - hero action row (div.mt-8 with only /auth/register + /auth/login) and the final CTA (section[aria-labelledby='cta-title'])",
+          "issue": "The persona arrives from a shared link and must choose between creating an account or opening the plan they were sent; the page offers no 'open a shared plan' path and the only answer is buried in FAQ item 1 ~2900px down.",
+          "actionable_fix": "Add the second path in the same hero row as a text link ('Ver un plan de ejemplo') plus a one-line reassurance under the h1: 'Sin cuenta para mirar, con cuenta para armar.' Promote FAQ #1's answer into that line."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "section[aria-labelledby='prueba-title'] - third stat card: p.font-serif.text-5xl '8' + 'caracteres en el codigo unico de cada plan'",
+          "issue": "The proof section proves nothing: two of three numbers are the same value and the third advertises an internal implementation detail no visitor can act on.",
+          "actionable_fix": "Replace the three cards with one benefit-shaped proof band: 'Un plan por link, sin registro para abrirlo', 'Horarios y direcciones ya cargados en cada parada', 'Editable solo por vos'. Keep at most one numeral."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "section[aria-labelledby='faq-title'] - 7 x details[data-reveal] in div.flex.flex-col.gap-2",
+          "issue": "Seven collapsed rows of identical weight (654px, tallest section) mix the anonymous visitor's three real doubts with product internals that only matter post-signup; everything is hidden so nothing reassures at a glance.",
+          "actionable_fix": "Reorder so account/free/mobile come first, open the first item by default (<details open>), move the three post-signup questions to a smaller block or drop them; keep the landing FAQ to 4 items maximum."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - p.mt-6.max-w-[680px].text-lg.text-gray-600 (hero paragraph, 44 words)",
+          "issue": "Three chained clauses sit between the h1 and the CTA; on mobile they occupy six lines before the button appears, pushing the primary action below the 620px mark.",
+          "actionable_fix": "Cut to one sentence under 20 words: 'Arma el itinerario, comparti un link y que el grupo lo abra sin registrarse.' Move 'Gratis y sin tarjeta' to text-sm microcopy under the button."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 2,
+          "element_or_selector": "nav a.btn-cta--alt ('Login') and .btn-cta:hover background - both white on var(--secondary) #6681fc",
+          "issue": "Measured 3.44:1 for 14px white on #6681fc in light and dark; the same token is the hover background for every .btn-cta, so the primary CTA drops from 8.13:1 to 3.44:1 on hover.",
+          "actionable_fix": "Stop using --secondary behind white text: give .btn-cta--alt a dark-text treatment or move it to --primary; change .btn-cta:hover to darken (color-mix 82% with black) instead of washing out."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 2,
+          "element_or_selector": "html[data-theme='dark'] - a.text-primary ('Ya tengo cuenta, entro'), li.place-card span.font-mono.text-primary (10:00/13:30/17:30), span.text-primary icon discs in the 4 benefit cards",
+          "issue": "--primary (#004aad) is never remapped for dark surfaces, so on the #1f2937 card these read 1.81:1; the hero secondary action becomes invisible in dark mode and the benefit icons lose their anchor.",
+          "actionable_fix": "Add html[data-theme='dark'] .text-primary { color: var(--dark-link); } next to the existing dark overrides, and give the icon discs a scoped class using the primary at 10% for the background plus var(--dark-link) for the icon in dark."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html <style> - html.reveal-ready .tagline-word { color: rgba(17,24,39,0.28) } (and the dark twin)",
+          "issue": "The tagline spends its pre-reveal state at ~1.9:1 (light) / 1.5:1 (dark); a word that never crosses the threshold stays at that contrast permanently, so a decorative flourish hides real copy.",
+          "actionable_fix": "Raise the resting alpha to clear 3:1 for large text (0.55 in both themes), or animate opacity from 0.55 instead of a colour ramp that starts below AA."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 2,
+          "element_or_selector": "components/navbar.html - anonymous labels 'Para vos', 'Register', 'Login'; authenticated 'Explore', 'Plans'",
+          "issue": "Chrome present on every viewport is labelled in English inside an otherwise Spanish product; 'Register' and 'Crear mi plan gratis' are the same destination with two languages and two labels, and they are the first words in mobile reading order.",
+          "actionable_fix": "Localise: Register->Crear cuenta, Login->Iniciar sesion, Explore->Explorar, Plans->Mis planes; label /for-you as 'Descubrir' or remove it from the anonymous variant. One label per destination across navbar, hero and footer."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - hero a[href='/auth/login'] text 'Ya tengo cuenta, entro'",
+          "issue": "First-person sentence fragment used as a control label; it never states the destination, unlike the explicit sibling CTA.",
+          "actionable_fix": "Label the destination: 'Iniciar sesion' (optionally keeping the warm sentence as a span above the link)."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - p.mt-4.text-sm.text-gray-500 ('10 lugares ... con direccion y coordenadas.') and the '8 caracteres' stat",
+          "issue": "The hero proof line sits under the CTA as fine print and describes schema fields rather than what the visitor gets; combined with '8 caracteres' the copy asks the reader to care about the database.",
+          "actionable_fix": "Move it above the CTA and rewrite as benefit ('10 lugares de Buenos Aires listos para armar tu primer plan, con horario y direccion en cada parada.'). Delete the '8 caracteres' card."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "layouts/base.html :: headTail - inline html { visibility: hidden } shield + waitForStyles() polling for the in-browser Tailwind build (3s fallback)",
+          "issue": "The whole document, navbar and hero CTA included, is visibility:hidden until the vendored Tailwind browser compiler injects its <style>; on a cold cache the first paint is blank, with a 3s fallback that surfaces an unstyled layout.",
+          "actionable_fix": "Precompile Tailwind at build time and drop the shield, or inline above-the-fold critical CSS so the shield only covers below-the-fold; keep the noscript reveal and shorten the fallback to ~800ms."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - th:if='${authenticated == false}' on the hero CTA (line 112) and on the final CTA (line 473)",
+          "issue": "Both primary CTAs render only when authenticated is exactly false; a null model attribute silently produces an empty action row and the page loses its only conversion element with no fallback.",
+          "actionable_fix": "Invert the guard so anonymous is the default: th:unless='${authenticated}' on the register CTA and th:if='${authenticated}' on the logged-in variant."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "pages/landing.html - script[type='application/ld+json'] FAQPage mainEntity answers vs the visible <p> answers (Q3, Q4)",
+          "issue": "Structured data ships different answer text than the page shows; Google's FAQPage guidance requires the marked-up answer to be present on the page, risking the rich result over a mismatch nobody can see.",
+          "actionable_fix": "Drive both outputs from one source: build the FAQ list in LandingController as record Faq(String question, String answer) and render the <details> loop and the JSON-LD from it, or copy the visible strings verbatim."
+        }
+      ]
+    },
+    {
+      "iteration": 1,
+      "phase": "refinement",
+      "changes_applied": [
+        "navbar anonimo: un solo pill 'Crear cuenta'; 'Iniciar sesion' como link de texto; /for-you fuera del estado anonimo; una fila en mobile; sticky solo md+",
+        "landing: tagline movido debajo de beneficios y degradado a text-2xl/3xl sin serif; <br /> del h1 eliminado y max-w-[18ch]; parrafo del hero a una sola frase; prueba reescrita como banda de 3 beneficios; FAQ a 4 items con el primero abierto; ritmo vertical diferenciado por seccion; benefits como lista dividida en mobile; hover quitado de las cards no interactivas; guards invertidos a th:unless/th:if; JSON-LD igualado al texto visible",
+        "brand.css: .btn-cta min-h 2.75rem con hover que oscurece; .btn-cta--alt con texto oscuro; hover de .place-card scoped a a.place-card:hover; override oscuro para .text-primary",
+        "place-card.html: escala del mock del hero (titulo text-2xl, lugar text-base, direccion text-sm)",
+        "base.html: fallback del shield de Tailwind de 3000ms a 800ms"
+      ],
+      "scores": {
+        "visual_hierarchy": 7,
+        "layout_spacing": 6,
+        "affordance_clarity": 6,
+        "cognitive_load": 6,
+        "color_accessibility": 5,
+        "microcopy_precision": 7,
+        "state_resilience": 7
+      },
+      "average_score": 6.29,
+      "lowest_dimensions": [
+        "color_accessibility"
+      ],
+      "deductions": [
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 2,
+          "element_or_selector": "navbar anonimo a.btn-cta ('Crear cuenta') vs hero a.btn-cta ('Crear mi plan gratis')",
+          "issue": "Dos pills solidos identicos en el primer viewport, a ~80px de distancia: no hay una accion dominante.",
+          "actionable_fix": "Dejar 'Crear cuenta' del navbar como ghost con borde (border-primary text-primary) o como link de texto, para que el unico pill relleno arriba del fold sea el CTA del hero."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": "section[aria-label='Tagline'] > p (text-2xl/sm:text-3xl font-medium)",
+          "issue": "El tagline a 30px queda debajo de un h2 de 36px y se lee como un segundo titular sin heading.",
+          "actionable_fix": "Bajarlo un escalon (text-xl sm:text-2xl, text-gray-600, max-w-[46ch]) y fusionarlo con la seccion de beneficios como linea de cierre."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 2,
+          "element_or_selector": "hero figure.h-full.rounded-2xl > div.rounded-lg.bg-gray-50",
+          "issue": "La figure estira a h-full (~576px) pero el panel interno solo envuelve su contenido: quedan ~200px de tarjeta vacia debajo del itinerario.",
+          "actionable_fix": "Hacer que el panel interno ocupe la altura (flex h-full flex-col justify-between) o quitar h-full de la figure y usar self-center para que la tarjeta abrace su contenido."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "ritmo vertical de las 8 secciones (48/64/80/96/112 y un 0/80 asimetrico)",
+          "issue": "Cinco paddings distintos para secciones del mismo rango semantico, sin regla visible.",
+          "actionable_fix": "Colapsar a dos tiers declarados en brand.css (.landing-section / .landing-section--lg) y dar padding simetrico al tagline."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "hero div.mt-4.flex (fila de CTA) y p.mt-4.text-sm (fine print)",
+          "issue": "El CTA queda agrupado tan cerca del parrafo de arriba como de su propio calificador; la proximidad no lo ata al bloque de copy que cierra.",
+          "actionable_fix": "mt-8 en la fila de CTA y envolver el calificador con el boton (p.mt-3), manteniendo la escala de 8px."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 2,
+          "element_or_selector": "hero a[href=/for-you] ('Ver un plan de ejemplo') vs a[href=/auth/login] ('Iniciar sesion')",
+          "issue": "Dos links de texto adyacentes con tratamientos distintos: uno sin subrayado en reposo y el otro subrayado y semibold; tres acciones con tres gramaticas visuales.",
+          "actionable_fix": "Un solo estado en reposo compartido (.btn-link con underline decoration-primary/40 underline-offset-4) y reservar el pill relleno para el primario."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "landing section[aria-labelledby='como-title'] li (01/02/03) y beneficios article vs FAQ details",
+          "issue": "Cards estaticas y filas de FAQ comparten el mismo recipe (rounded + border + bg-white), pero solo el FAQ reacciona: no se distingue que caja abre algo.",
+          "actionable_fix": "Aplanar los bloques no interactivos (sin borde, bg-gray-50 o divide-y) y reservar borde + hover + chevron para details > summary."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "focus-visible:outline-primary en links del hero y summary",
+          "issue": "El anillo de foco en #004aad sobre la card oscura mide ~1.93:1, debajo del 3:1 de WCAG 1.4.11.",
+          "actionable_fix": "Regla unica de foco en brand.css (.focus-ring:focus-visible con --secondary y su par oscuro --dark-link) aplicada a links del hero, summary y footer."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 2,
+          "element_or_selector": "h1 + tagline + beneficios h3 'Un link, no una cuenta' + prueba 'Un plan por link, sin registro para abrirlo' + '10 lugares' repetido en hero y prueba",
+          "issue": "Cuatro bloques consecutivos reformulan las mismas dos afirmaciones; la pagina se lee mas larga de lo que es.",
+          "actionable_fix": "Una afirmacion por claim: eliminar el tagline (o usarlo como lede de la prueba), dejar '10 lugares' solo en la prueba y dar al hero un dato distinto."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 2,
+          "element_or_selector": "hero en <lg: h1 + 2 parrafos + 3 acciones + fine print, con la figure debajo",
+          "issue": "En 390x844 el primer pantallazo es 100% copy y el mock del producto (la unica evidencia) arranca debajo del fold.",
+          "actionable_fix": "En mobile subir la figure con order-first (o flex-col-reverse), ocultar el parrafo de '10 lugares' bajo sm, y poner los dos links secundarios en una fila bajo el CTA."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 2,
+          "element_or_selector": "span.tagline-word.is-lit en html[data-theme='dark']",
+          "issue": "Las palabras encendidas computan #111827 sobre #1f2937 = 1.21:1; el bloque es ilegible en modo oscuro.",
+          "actionable_fix": "Sacar los hex literales y manejar ambos estados con tokens (--dark-text / var(--white)), y agregar fallback de forced-colors."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 2,
+          "element_or_selector": "hero div.mt-4 > a.text-primary ('Ver un plan de ejemplo', 'Iniciar sesion') en dark",
+          "issue": "Color computado #054fb1 sobre #1f2937 = 1.93:1 justo en los dos links que responden 'puedo mirar sin cuenta?'.",
+          "actionable_fix": "Mapear el texto sobre superficies oscuras a un token que mida >= 4.5:1 real (verificar el valor computado) en vez de --primary."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": ".hero-title gradient oscuro terminando en var(--gray) #6b7280",
+          "issue": "El final del gradiente queda en ~2.99:1 sobre #1f2937 y en forced-colors el h1 desaparece por color: transparent.",
+          "actionable_fix": "Terminar el gradiente oscuro en un gris claro (--dark-text-muted) y agregar fallback de forced-colors con color: CanvasText."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "hero a[href=/for-you] ('Ver un plan de ejemplo')",
+          "issue": "Promete un plan de ejemplo pero el destino es el feed de planes publicos.",
+          "actionable_fix": "Apuntar a un plan publico real del seed o renombrar a 'Explorar planes publicos' para que el destino coincida con la promesa."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "navbar 'Crear cuenta' / hero y CTA final 'Crear mi plan gratis' / footer 'Crear cuenta'",
+          "issue": "La misma accion de registro aparece con tres etiquetas en una sola pagina.",
+          "actionable_fix": "Una etiqueta por accion reutilizada entre navbar y footer, y 'Crear mi plan gratis' solo donde el beneficio es el punto."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "navbar autenticado 'Explore' y 'Plans' (y admin 'Users'/'Places')",
+          "issue": "El navbar autenticado cambia a ingles al lado de 'Para vos', en un producto integramente en espanol.",
+          "actionable_fix": "Renombrar a 'Explorar lugares' y 'Mis planes' reutilizando las etiquetas del footer."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "footer nav > a[href=/plans] ('Mis planes') y a[href=/auth/register] ('Crear cuenta')",
+          "issue": "El footer no conoce la sesion: un anonimo ve 'Mis planes' (muro de login) y un usuario logueado ve 'Crear cuenta'.",
+          "actionable_fix": "Ramificar con th:if/th:unless como el hero, manteniendo el hit area de 44px."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "html.reveal-ready [data-reveal] { opacity: 0; filter: blur(12px) }",
+          "issue": "Cada seccion posterior al hero queda invisible hasta que dispara su observer, sin timeout de respaldo; print, webviews o un anchor jump dejan contenido en opacity 0.",
+          "actionable_fix": "Agregar setTimeout(revealAll, 1500) junto al observer y neutralizar el estado inicial en @media print."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "hero ol.mt-3 con th:each sobre ${heroItinerary}",
+          "issue": "Sin guarda de vacio: si la lista viene vacia, el header, el pill 'Publico' y la nota siguen renderizando una tarjeta que promete tres paradas y no muestra ninguna.",
+          "actionable_fix": "th:if='${!#lists.isEmpty(heroItinerary)}' en el <ol> y un fallback de texto cuando la lista esta vacia; condicionar tambien el figcaption."
+        }
+      ]
+    },
+    {
+      "iteration": 2,
+      "phase": "refinement",
+      "changes_applied": [
+        "brand.css: ritmo de dos tiers (.landing-section 4rem / .landing-section--lg 7rem desde 64rem) reemplaza los cinco paddings sueltos; .btn-link, .btn-ghost y .focus-ring pasan a ser clases compartidas; tokens oscuros corregidos (--dark-link #60a5fa = 5.77:1, final del gradiente en --dark-text-muted = 9.96:1, tagline encendido en --white = 14.68:1)",
+        "landing.html: seccion Tagline eliminada como bloque y sus 14 palabras movidas dentro de la seccion de beneficios a 24px; figure del hero sin h-full y con order-first lg:order-none; guards de estado vacio, print y timeout de reveal; etiqueta 'Explorar planes publicos' en el link a /for-you",
+        "navbar.html: 'Para vos' e 'Iniciar sesion' como links de texto y 'Crear cuenta' como ghost con borde (un solo pill relleno arriba del fold)",
+        "footer del landing ramificado por sesion",
+        "PublicPlansListE2E: expectativa de label del navbar actualizada"
+      ],
+      "scores": {
+        "visual_hierarchy": 7,
+        "layout_spacing": 7,
+        "affordance_clarity": 8,
+        "cognitive_load": 6,
+        "color_accessibility": 8,
+        "microcopy_precision": 6,
+        "state_resilience": 5
+      },
+      "average_score": 6.71,
+      "lowest_dimensions": [
+        "state_resilience",
+        "cognitive_load",
+        "microcopy_precision"
+      ],
+      "strengths": [
+        "Desktop tiene una sola accion rellena arriba del fold (CTA del hero, 189x48, 8.13:1); el resto son links de texto o un ghost con borde.",
+        "Modo oscuro sin fallas de contraste medidas: el peor caso es 5.16:1, contra 1.21/1.93/2.99 de iteraciones previas.",
+        "Todos los controles del estado anonimo miden 44px o mas de alto (navbar 44, FAQ 48, CTA 48, footer 44).",
+        "El ritmo vertical esta tokenizado en brand.css con padding simetrico en las 7 secciones: no quedan py-* sueltos.",
+        "El FAQ es <details> nativo, primero abierto, con summary de 48px y chevron en CSS: funciona sin JS.",
+        "Ramificacion por sesion en hero, CTA final, footer y navbar: ningun destino rebota en el login para un usuario logueado."
+      ],
+      "deductions": [
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 2,
+          "element_or_selector": "landing.html:194 <figure class=\"order-first ... lg:order-none\">",
+          "issue": "En 390x844 el mock va primero: la figura ocupa 184-644px, el h1 arranca en 692 y sus 4 lineas terminan en 872 (fuera del fold de 844), y el CTA primario cae en 984, 140px debajo del fold. El primer viewport muestra navbar (120px) + una ilustracion no interactiva: no hay titular completo ni accion.",
+          "actionable_fix": "Invertir el orden en mobile: quitar 'order-first' de la figura y poner 'order-first lg:order-none' en el div del copy (o dejar la figura 'hidden sm:block' arriba del h1). Ademas, limitar el mock a 2 paradas debajo de sm con CSS (.place-card:nth-child(n+3){display:none} en @media (max-width:639px)) para que h1 + CTA entren en los 844px."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:245 <h2 id=\"beneficios-title\"> vs landing.html:133 <h1>",
+          "issue": "El segundo tipo mas grande de la pagina (36px) repite la tesis del h1: 'Un plan que se arma una vez y no se vuelve a discutir' vs 'Arma el plan del dia una vez y compartilo las veces que haga falta'. La escala 60/36 no marca avance, marca eco.",
+          "actionable_fix": "Reescribir #beneficios-title para nombrar lo que la seccion agrega (por ejemplo 'Que deja de pasar cuando el plan esta escrito') o bajarlo a un lead de text-2xl, dejando el unico 36px para el titulo de seccion que abre un tema nuevo."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "brand.css:192-204 (.landing-section y .landing-section--lg)",
+          "issue": "Ambas clases declaran padding-block: 4rem y los 7rem solo aplican desde min-width:64rem. Debajo de 1024px el ritmo de dos escalones es un solo escalon: el hero y el cierre pesan exactamente lo mismo que el FAQ (64px).",
+          "actionable_fix": "Darle a --lg un escalon propio en mobile: .landing-section--lg{padding-block:5rem} y mantener el override de 7rem en el @media (min-width:64rem)."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:127,228,242,320,355,395,486 (bg-white vs bg-gray-100)",
+          "issue": "La alternancia de bandas es #ffffff contra #f3f4f6: 1.09:1 de diferencia, invisible como superficie. Con 3300px de alto en desktop y 4804px en mobile, la unica senal de cambio de seccion es el h2.",
+          "actionable_fix": "Convertir la banda en linea, no en tinte: agregar 'divide-y divide-gray-200' al contenedor #contenido (o un border-top en las secciones bg-gray-100), usando el token que ya tiene pareja oscura en brand.css:170."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "navbar.html:20-34 (brand link py-3 + img h-12)",
+          "issue": "La navbar mobile mide 120px de 844 (14% del viewport) para un logo y tres links de texto; el bloque de marca solo son 72px (48px de imagen + 24px de padding vertical).",
+          "actionable_fix": "Bajar la marca debajo de md: 'py-2 md:py-3' en el <a class=\"navbar-brand\"> y 'h-10 w-10 md:h-12 md:w-12' en el <img>, con lo que la barra queda en ~96px."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "navbar.html:111 (campana h-9 w-9) y navbar.html:132 (avatar h-9 w-9)",
+          "issue": "Los controles de icono del estado autenticado miden 36x36px (h-9), por debajo de los 44px que cumplen el cluster anonimo, el CTA y el footer. El usuario logueado recibe objetivos mas chicos que el visitante.",
+          "actionable_fix": "Subir ambos a 'h-11 w-11' manteniendo el icono de 20px centrado."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "navbar-menu.html:47,59,74,84,97,110,124,135,148 (role=menuitem px-4 py-2 text-sm)",
+          "issue": "Cada fila del menu mide 36px de alto (20px de linea + 16px de padding). En mobile autenticado ese panel es la unica navegacion disponible.",
+          "actionable_fix": "Reemplazar 'py-2' por 'py-3' o 'min-h-11' en cada <a role=\"menuitem\"> y en los dos <button id=\"btn-logout\">, sin tocar el icono de 16px."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 2,
+          "element_or_selector": "landing.html:138-140, 271-275, 367-369, 409-411, 491-494",
+          "issue": "'Abrir sin registro / sin cuenta' se afirma cinco veces (bajada del hero, beneficio 2, primer item de la banda de prueba, respuesta 1 del FAQ, parrafo del CTA final) y 'una vez / compartir' cuatro veces. La pagina gasta 7 secciones y 3300px para entregar una sola promesa.",
+          "actionable_fix": "Borrar las repeticiones: reemplazar el primer <li> de la banda de prueba por un dato que la pagina nunca dice (por ejemplo que el plan es editable solo por el dueno) y eliminar el parrafo del CTA final, que solo reformula el hero."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:305-315 <p data-reveal> con span.tagline-word",
+          "issue": "El tagline de 14 palabras reformula el h1 casi literalmente y es el tercer bloque tipografico de la pagina (24px). Existe para sostener una animacion, no para agregar informacion.",
+          "actionable_fix": "Eliminarlo, o cambiar el texto por el unico hecho que la pagina no cuenta (un link por plan, o que el dueno es el unico que edita) y dejarlo como cierre de la seccion de beneficios sin animacion palabra por palabra."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:145-147 (inventario 'hidden sm:block') y 165-167 ('Gratis y sin tarjeta.')",
+          "issue": "Antes del CTA el hero apila cuatro enunciados (h1, bajada, inventario, calificador) y despues otros dos; el inventario ademas desaparece en mobile por 'hidden sm:block', asi que el mismo bloque sirve contenido distinto por dispositivo sin razon de tarea.",
+          "actionable_fix": "Dejar un solo apoyo ('Gratis y sin tarjeta.') junto al CTA y mover la frase de las 10 categorias al paso 02 de 'Como funciona', donde el catalogo es el tema."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:535 <p class=\"text-xs text-gray-500\">Proyecto del Taller Web I</p>",
+          "issue": "Medido en 4.39:1 (rgb(106,114,130) sobre #f3f4f6): es el unico texto claro por debajo de 4.5:1, y a 12px no califica como texto grande.",
+          "actionable_fix": "Cambiar a 'text-gray-600' (#4b5563, 6.87:1 sobre gray-100) manteniendo text-xs, o subir a 'text-sm text-gray-600'."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "place-card.html:16 chip <span class=\"bg-gray-100\"> dentro de .place-card (brand.css:233)",
+          "issue": "En oscuro .bg-gray-100 resuelve a --dark-page #030712 mientras la card es #1f2937. El chip queda en 1.37:1 contra su propia superficie: la pildora pierde forma y la categoria deja de leerse como etiqueta.",
+          "actionable_fix": "Agregar en brand.css 'html[data-theme=\"dark\"] .place-card .bg-gray-100{background-color:var(--dark-control)}' (#374151)."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "navbar-menu.html:46-57 ('Users','Places'), 62-69 ('Explore','Plans'), 117 ('Cambiar contrasena'), 174/187 ('Cerrar sesion')",
+          "issue": "El chrome autenticado cambia de idioma dentro de la misma pantalla: el landing dice 'Explorar lugares' y 'Mis planes' mientras la navbar y su menu dicen 'Explore' y 'Plans'; ademas dos etiquetas pierden la tilde.",
+          "actionable_fix": "Renombrar a 'Explorar', 'Mis planes', 'Usuarios', 'Lugares', 'Planes', 'Cambiar contraseña' y 'Cerrar sesión'; los labels que los E2E pinnean viven en WebPage.getNavbarItems, asi que se actualizan ahi en el mismo commit."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:170 ('Explorar planes publicos' -> /for-you), landing.html:525 footer ('Explorar lugares' -> /explore), navbar.html:159 ('Para vos' -> /for-you)",
+          "issue": "Dos etiquetas que difieren en una palabra llevan a rutas distintas (/for-you y /explore), y la misma ruta aparece con dos nombres. El lector no puede predecir a donde va 'explorar'.",
+          "actionable_fix": "Nombrar el destino: 'Ver planes publicos' para /for-you y 'Explorar lugares' solo para /explore; sacar 'Para vos' del landing para que la ruta tenga un unico nombre en la pagina."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:152-155 y 496-499 ('Crear mi plan gratis') vs navbar.html:167 y landing.html:531 ('Crear cuenta')",
+          "issue": "El mismo destino (/auth/register) tiene dos etiquetas, y la dominante promete un artefacto ('mi plan') que la pantalla de destino no puede entregar: ahi se crea una cuenta.",
+          "actionable_fix": "Una sola etiqueta para /auth/register ('Crear cuenta gratis', repetida en navbar, hero, CTA final y footer) y dejar que el redirect post-registro sea lo que deje al usuario dentro del editor de planes."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:146 ('10 categorias'), 361 ('10 lugares de Buenos Aires ...'), 221 figcaption ('tres paradas')",
+          "issue": "El encabezado del archivo afirma que todo el contenido sale del modelo, pero los numeros son literales mientras el itinerario si es modelado (LandingController:35-39, 57). Si el seed cambia, el copy visible y el figcaption sr-only mienten.",
+          "actionable_fix": "Exponer los conteos en LandingController (placeCount, categoryCount) y renderizar 'th:text=\"${placeCount}\"' y 'th:text=\"${#lists.size(heroItinerary)}\"' en lugar de los 10 y el 'tres paradas' fijos."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 3,
+          "element_or_selector": "base.html:276-279 (html{visibility:hidden}) + base.html:297-337 (script que la levanta)",
+          "issue": "El documento entero arranca invisible y solo lo revela un script inline diferido (o su fallback de 800ms). Sin JS no hay <noscript> que la levante: la home queda permanentemente en blanco, y de paso las webfonts tampoco cargan porque el <link> usa media=\"print\" onload (base.html:159).",
+          "actionable_fix": "Cambiar el escudo a 'html.js{visibility:hidden}' y agregar la clase 'js' desde un <script> inline no diferido en el head, mas '<noscript><style>html{visibility:visible}</style></noscript>'; para las fuentes, dejar media=\"all\" en el <link> (display=swap ya evita el FOIT)."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:26-31 (.hero-title con color: transparent) y unico @media print en landing.html:61-67",
+          "issue": "El h1 se pinta con background-clip:text y color transparent; el unico bloque @media print arregla el reveal, no el titulo. Los navegadores no imprimen imagenes de fondo por defecto, asi que al imprimir la home queda un titular en blanco.",
+          "actionable_fix": "Agregar '@media print{.hero-title{background-image:none;color:#000}}' junto al bloque de forced-colors, que ya tiene la misma estructura."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:200, 257, 269, 281, 293, 366, 373, 380 (<i data-lucide>) con landing.html:547-549",
+          "issue": "Los 8 iconos son <i data-lucide> vacios que solo se convierten en SVG si corre lucide.min.js. Sin JS quedan ocho huecos sin glifo ni texto alternativo.",
+          "actionable_fix": "Agregar '<noscript><style>[data-lucide]{display:none}</style></noscript>' (o un fallback CSS por data-lucide) para que no dejen huecos sin JS."
+        }
+      ]
+    },
+    {
+      "iteration": 3,
+      "phase": "refinement",
+      "changes_applied": [
+        "landing.html: figure del hero vuelve despues del copy en mobile (order-first solo en lg), corte a dos paradas debajo de sm scoped a #landing, #beneficios-title reescrito, bloque tagline eliminado junto con su animacion, inventario del hero movido al paso 02, parrafo del CTA final eliminado, una sola etiqueta 'Crear cuenta gratis' para /auth/register, /for-you como 'Ver planes públicos' y /explore como 'Explorar lugares', conteos del hero desde el modelo, pipe de print para .hero-title, footer meta a text-gray-600",
+        "brand.css: .landing-section--lg con escalon propio de 5rem debajo de 64rem; chip del place-card con superficie oscura propia; .tagline-word reducido a su regla oscura",
+        "navbar.html: marca py-2 md:py-3 con logo h-10 w-10 md:h-12 md:w-12, campana y avatar a h-11 w-11, etiquetas en español (Explorar lugares, Mis planes, Usuarios, Lugares, Planes)",
+        "navbar-menu.html: filas y logout con min-h-11 py-3 y etiquetas en español con tildes",
+        "base.html: escudo condicionado a html.js con <script> inline no diferido, <noscript> que lo neutraliza y oculta los <i data-lucide>, webfonts a media=all",
+        "LandingController: placeCount y categoryCount expuestos desde PlaceService y PlaceCategory",
+        "E2E: literales del set del navbar actualizados en UserAuthViewE2E, MobileLayoutE2E, PlacesViewE2E y PublicPlansListE2E"
+      ],
+      "scores": {
+        "visual_hierarchy": 7,
+        "layout_spacing": 7,
+        "affordance_clarity": 7,
+        "cognitive_load": 7,
+        "color_accessibility": 8,
+        "microcopy_precision": 7,
+        "state_resilience": 6
+      },
+      "average_score": 7,
+      "lowest_dimensions": [
+        "state_resilience"
+      ],
+      "strengths": [
+        "Una sola accion rellena: el resto de las acciones del hero comparten un unico estado de reposo (.btn-link).",
+        "Ningun texto por debajo de 4.5:1 en claro ni en oscuro; el anillo de foco sirve para los dos temas.",
+        "Todos los controles visibles miden 44px o mas y hay 0px de desborde horizontal en 1440 y en 390.",
+        "Ritmo vertical de dos escalones aplicado tambien por debajo de 1024px, sin py-* sueltos.",
+        "Sin JS y con reduced-motion resuelto: html.reveal-ready, <noscript>, fallback y reset del degradado en print y forced-colors.",
+        "El copy se limpio: 'sin registro/sin cuenta' paso de 5 menciones a 1 y los conteos salen del modelo con guarda de catalogo vacio."
+      ],
+      "deductions": [
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 2,
+          "element_or_selector": "landing.html:217, 231, 304, 345, 389, 482 (los seis <h2> de seccion)",
+          "issue": "Los seis h2 comparten un solo escalon tipografico (font-serif text-3xl font-bold sm:text-4xl), incluido el cierre de la pagina. 'Preguntas frecuentes' y el titulo del CTA final pesan lo mismo y lo unico que los separa es el padding (112px vs 64px).",
+          "actionable_fix": "Abrir dos escalones: secciones de apoyo a text-2xl sm:text-3xl y el h2 del CTA final a text-4xl sm:text-5xl leading-tight (opcionalmente bajar el del FAQ a text-2xl)."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:215-226 (#problema, div.mx-auto.max-w-3xl.text-center sobre bg-gray-100)",
+          "issue": "La primera banda despues del hero es centrada, mismo serif 3xl, y vuelve a narrar la premisa que el h1 ya dijo: dos 'arranques' consecutivos del mismo peso.",
+          "actionable_fix": "Alinear a la izquierda dentro de max-w-3xl, bajar el h2 a text-xl font-medium (o a parrafo lead) y dejar una sola frase de dolor; o absorberla como bajada de beneficios y liberar ~305px."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 2,
+          "element_or_selector": "components/navbar.html:15 (.flex.flex-wrap ... gap-y-1) y :170-185 (cluster anonimo)",
+          "issue": "Medido en 390x844: navbar de 152px = 18% del viewport, en tres filas visuales. 'Crear cuenta gratis' cae solo a una segunda linea, a gap-y-1 de los dos links de texto, y el h1 no empieza hasta y=232.",
+          "actionable_fix": "Debajo de md sacar el ghost del navbar (hidden md:inline-flex) y dejar el cluster en una sola linea con justify-between; si se mantiene el wrap, gap-y-2 y justify-start para el ghost."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:109 (#contenido con divide-y divide-gray-200)",
+          "issue": "Medido: border-top-width 0px en las 7 secciones y la regla .divide-y nunca se emitio (solo @property --tw-divide-y-reverse). El separador declarado no existe y el limite entre bandas queda en 1.09:1. La misma utilidad se repite en landing.html:240.",
+          "actionable_fix": "Bordes explicitos por seccion (border-t border-gray-200 first:border-t-0) o [&>*+*]:border-t [&>*+*]:border-gray-200, y verificar tras el render que getComputedStyle(section).borderTopWidth devuelve 1px."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 2,
+          "element_or_selector": "landing.html:104-107 (a.sr-only 'Saltar al contenido') dentro de <main id=\"landing\">",
+          "issue": "El skip link vive dentro del <main>, que en orden de fuente va despues del navbar, asi que se llega recien despues de tabular los tres links del nav: es el 4to o 5to tab stop y no saltea nada.",
+          "actionable_fix": "Mover el ancla a layouts/base.html justo despues de <body> y antes de <nav>, conservando href=\"#contenido\" y las clases sr-only focus:not-sr-only."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:182-187 (span.inline-flex.rounded-full.bg-primary.text-white 'Publico')",
+          "issue": "El chip de estado del mock usa el mismo relleno que la accion primaria (--primary con texto blanco): arriba del fold quedan dos formas solidas #004aad y el chip se lee como un boton que no hace nada.",
+          "actionable_fix": "Pintar el chip como bg-primary/10 text-primary o bg-white text-gray-700 ring-1 ring-gray-200, reservando el relleno solido para .btn-cta."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:120 (h1) + :124 (bajada) + :220-224 (#problema)",
+          "issue": "La misma promesa se afirma tres veces antes de la primera prueba; las metricas cuentan 3 frases con 'una vez' y 1271 palabras en main. La banda cuesta ~305px sin aportar un hecho nuevo.",
+          "actionable_fix": "Borrar la oracion 'Armalo una vez en PlanIt...' y dejar que la banda describa solo el dolor, o eliminar la banda y arrancar con el h2 de beneficios."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:200 (caption del mock), :246-250 (beneficio 'Cada parada con su hora'), :364-369 (item 'Horarios y direcciones ya cargados')",
+          "issue": "'Hora + direccion por parada' se afirma en tres secciones distintas con tres redacciones; la banda de Prueba queda afirmando lo mismo que la seccion anterior a 400px de distancia.",
+          "actionable_fix": "Conservar el caption del mock y reemplazar el item de Prueba por un hecho que la pagina no diga en otro lado (ej. que el plan publico se abre sin login y se puede imprimir)."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:144-146 ('Gratis y sin tarjeta.') + :410-414 (FAQ '¿PlanIt cuesta algo?')",
+          "issue": "La promesa de gratis/sin tarjeta se dice dos veces y la segunda es literalmente la pregunta del FAQ.",
+          "actionable_fix": "Dejar la respuesta del FAQ como fuente unica y cambiar el calificador del hero por un dato que el FAQ no cubra, o quitarlo y bajar la fila de links secundarios a mt-3."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "resources/css/brand.css:452-461 (details > summary::after, border-color: var(--gray))",
+          "issue": "La unica senal de que una fila del FAQ abre es un chevron de 8x8px con bordes de 2px en --gray #6b7280: sobre la card oscura #1f2937 calcula ~3.0:1, justo en el piso de 1.4.11, y el bloque oscuro no lo corrige.",
+          "actionable_fix": "Agregar html[data-theme=\"dark\"] details > summary::after { border-color: var(--dark-text-muted); } (~9.9:1) y subir la marca a 0.625rem."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:152-155 ('Ver planes publicos') vs components/navbar.html:172-175 ('Para vos')",
+          "issue": "El mismo destino /for-you tiene dos etiquetas en la misma pagina y la del navbar no nombra el destino.",
+          "actionable_fix": "'Ver planes publicos' en el hero y 'Planes publicos' en el navbar, nunca dos nombres para una ruta."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:512-514 (footer, a[href='/'] 'Inicio')",
+          "issue": "El primer link del pie apunta a '/', la pagina en la que ya esta el visitante: un target de 44px que no lleva a ningun lado.",
+          "actionable_fix": "Renderizarlo solo fuera de la home (th:if=\"${currentPath != '/'}\") o eliminarlo del pie del landing."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "components/navbar.html:29 y :35 (img alt=\"Logo\") y :53 (aria-label=\"Abrir menu\")",
+          "issue": "El logo lleva alt=\"Logo\" al lado del texto visible 'PlanIt', asi que el nombre accesible del link queda 'Logo PlanIt'; y el unico aria-label del navbar dice 'Abrir menu' sin tilde.",
+          "actionable_fix": "alt=\"\" en el <img> (el texto visible ya nombra el link) o alt=\"PlanIt\" sin el span; y aria-label=\"Abrir menu\" con tilde."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 2,
+          "element_or_selector": "landing.html:53-58 y :70-76 (bloque @media print) + components/navbar.html:15 (bg-black text-white) + brand.css:400-411 (.btn-cta)",
+          "issue": "El bloque de impresion solo neutraliza .hero-title y [data-reveal]; nada neutraliza el chrome. Como los navegadores no pintan fondos, el navbar (text-white/90) y los .btn-cta (blanco sobre --primary) salen como texto blanco sobre papel blanco: desaparecen los tres links del nav y los dos 'Crear cuenta gratis'.",
+          "actionable_fix": "En el @media print del landing: nav, footer nav { display: none !important } y .btn-cta, .btn-ghost { background: none !important; color: #000 !important; border: 1px solid #000 !important; }."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "brand.css:400-433 (.btn-cta) + landing.html:44-49 (unico override de forced-colors)",
+          "issue": "En forced-colors el unico ajuste es el degradado del h1: .btn-cta se distingue solo por background, forced-colors descarta los fondos de autor, y la accion dominante queda como texto plano indistinguible de un link.",
+          "actionable_fix": "Agregar @media (forced-colors: active) { .btn-cta { border: 2px solid ButtonText; } .btn-ghost { border-color: ButtonText; } .place-card { border: 1px solid CanvasText; } }."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:345-354 (h2 'Ya hay lugares para empezar' vs parrafo con th:unless=\"${placeCount > 0}\")",
+          "issue": "Con el catalogo vacio el parrafo dice la verdad pero el h2 hardcodeado sigue prometiendo 'Ya hay lugares para empezar': el estado vacio se contradice dentro del mismo bloque.",
+          "actionable_fix": "Ramificar tambien el titulo: th:text=\"${placeCount > 0} ? 'Ya hay lugares para empezar' : 'El catalogo se esta armando'\"."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "brand.css:245-249 (#landing .place-card:nth-child(n+3) { display: none }) + landing.html:206-209 (figcaption sr-only)",
+          "issue": "Debajo de 640px la tercera parada se oculta, pero el figcaption sr-only sigue contando el modelo ('3 paradas') y el caption visible sigue diciendo 'en cada parada'. Quien mira ve dos filas, quien escucha oye tres.",
+          "actionable_fix": "No ocultar la fila: reemplazarla por un resumen ('+1 parada mas: 17:30 · El Ateneo') o ajustar los paddings del hero en mobile para que entren las tres; y derivar el conteo del figcaption de las filas renderizadas."
+        }
+      ]
+    },
+    {
+      "iteration": 4,
+      "phase": "cold_critic",
+      "changes_applied": [
+        "landing.html: escala de titulares en dos escalones (cinco secciones de apoyo a text-2xl/3xl, cierre a text-4xl/5xl), #problema pasa a lead alineado a la izquierda en text-xl/2xl font-medium, tercera oracion 'Armalo una vez en PlanIt...' eliminada, linea 'Gratis y sin tarjeta' eliminada (duplicaba el FAQ 2), item de prueba 'Horarios y direcciones ya cargados' reemplazado por la impresion, 'Inicio' del pie eliminado, h2 de prueba ramifica con placeCount, resumen '+1 parada mas' debajo de sm, chip 'Publico' deja el relleno solido del CTA, forced-colors da borde ButtonText a .btn-cta/.btn-ghost y borde CanvasText a .place-card, print oculta navbar y nav del pie y perfila .btn-cta en negro",
+        "brand.css: separadores de banda en CSS plano (#landing .landing-section + .landing-section, .landing-divide, --split) en lugar de divide-y, que medía 0px; chevron del FAQ de 0.625rem y --dark-text-muted en oscuro",
+        "layouts/base.html: skip link movido antes de <nav> y condicionado a currentPath == '/'",
+        "BrandTokensTest: theWebfontsLoadWithSwapAndPreconnect pasa a mirar el tag <link> y exige que no declare media ni onload (la iteracion 3 habia cambiado el markup y dejado el test en rojo)"
+      ],
+      "scores": {
+        "visual_hierarchy": 6,
+        "layout_spacing": 6,
+        "affordance_clarity": 5,
+        "cognitive_load": 5,
+        "color_accessibility": 6,
+        "microcopy_precision": 5,
+        "state_resilience": 5
+      },
+      "average_score": 5.43,
+      "lowest_dimensions": [
+        "affordance_clarity",
+        "cognitive_load",
+        "microcopy_precision",
+        "state_resilience"
+      ],
+      "strengths": [
+        "Sin desborde horizontal: a 390px scrollWidth = innerWidth = 390 (y 1440 = 1440); el unico elemento fuera de caja es el skip link reducido a 1x1px.",
+        "Contraste de texto: el peor caso es 4.39:1 (numeros 01/02/03 a 36px sobre #f3f4f6); el cuerpo mide 6.87:1-7.56:1 en claro y 5.77:1-14.05:1 en oscuro. Ningun texto por debajo de AA.",
+        "Objetivos tocables: los 14 enfocables miden >=44px de alto a 390px (44, 48, 48 y 72px en los summary abiertos).",
+        "Orden de foco: el primer Tab cae en el skip link y apunta a #contenido; 11 de 14 enfocables reciben el anillo de 2px #6681fc (3.44:1 sobre blanco, 5.16:1 sobre el navbar).",
+        "forced-colors medido: el titular queda en rgb(0,0,0)=CanvasText sin background-image, el .btn-cta conserva 2px solid ButtonText y las .place-card 1px CanvasText.",
+        "Modo oscuro es un tema real, no un filtro: 4 superficies tokenizadas (--dark-page/surface/card/control) y el chip de categoria sube a --dark-control para no perderse (6.88:1 de texto).",
+        "El catalogo vacio ramifica h2 y parrafo de la banda de prueba (landing.html:398-408) y el mock no promete paradas que no muestra (landing.html:224-226)."
+      ],
+      "deductions": [
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": ".hero-title (landing.html:27)",
+          "issue": "El degradado termina en #666666 (5.74:1 sobre blanco) mientras la bajada es #4a5565 (7.56:1): la mitad derecha del titular -la parte que el ojo lee al final de cada linea- tiene menos tinta que el subtitulo. En 4 lineas a 1440 el efecto bana las cuatro lineas, no una palabra de enfasis.",
+          "actionable_fix": "Cerrar el degradado en un tono con contraste >=7:1: `linear-gradient(90deg, var(--black) 0%, color-mix(in srgb, var(--black) 72%, var(--gray)) 100%)`, o eliminarlo y dejar el h1 en --black."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": "#hero-title (landing.html:149)",
+          "issue": "`text-wrap: balance` esta aplicado (computed: balance) pero el bloque sale 439/353/388/545px a 1440: 192px de diferencia entre la linea mas corta y la mas larga, y la mas larga es la ultima. A 390: 264/212/233/327 sobre 358px. La silueta del titular es una escalera, no un bloque.",
+          "actionable_fix": "Quitar `max-w-[18ch]` (577.8px calculados) y fijar `max-w-[24ch]` con `text-pretty`, o cortar con `<span class=\"block\">` despues de 'una vez' para 2+2 lineas parejas."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": ".tagline-word (landing.html:344)",
+          "issue": "El parrafo de cierre de beneficios mide 24px y 689px de ancho: 80% del h2 de la seccion (30px) y 133% de los h3 (18px). Es el climax tipografico de la banda y lo ocupa una funcion nueva (presupuesto) que no tiene relacion con el titular 'Que deja de pasar cuando el plan esta escrito'.",
+          "actionable_fix": "Bajar a `text-base sm:text-lg` (16/18px) y convertir el presupuesto en un quinto item de la grilla con su icono, para que la seccion cierre en el mismo sistema y no en un cuerpo mayor que sus propios titulos."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 1,
+          "element_or_selector": "figure > div > div > p.font-serif (landing.html:206)",
+          "issue": "A 390px el titulo del mock mide 24px en Bree Serif: 67% del h1 (36px) y el segundo titular serif del primer viewport. Ademas envuelve a 2 lineas (211x64px medidos) porque el chip 'Publico' ocupa 88px de una fila de 310px, asi que el encabezado del mock queda desbalanceado.",
+          "actionable_fix": "A 390: `text-xl` (20px) en el titulo del mock y `flex-col items-start gap-1 sm:flex-row sm:items-center` en el header, para que el chip baje debajo del titulo y el titulo entre en una linea."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": ".landing-section / .landing-section--lg (brand.css:195-207)",
+          "issue": "Siete secciones suman 960px de padding vertical a 390px (80+80 del hero, 64+64 x5, 80+80 del cierre): 21.3% de los 4499px de pagina, mas que una pantalla completa de 844px de aire.",
+          "actionable_fix": "En `@media (max-width: 39.9375rem)` bajar `.landing-section` a `padding-block: 3rem` y `.landing-section--lg` a `3.5rem`; se recuperan 5x32 = 160px sin tocar el ritmo de desktop."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "#problema-title + p / #beneficios-title + div / #como-title + ol / #faq-title + div (landing.html:267, 290, 360, 447)",
+          "issue": "La misma relacion 'titulo -> contenido' se declara con tres distancias distintas: 16px (`mt-4`, problema y prueba), 24px (`mt-6`, bajada del hero) y 32px (`mt-8`, beneficios, pasos, prueba y FAQ). La escala 8/16/24/32 existe, pero el mismo par de elementos cae en tres escalones.",
+          "actionable_fix": "Unificar el paso titulo->cuerpo en `mt-6` en las cinco secciones (o en `mt-8` en todas) y reservar `mt-4` solo para parrafo->parrafo."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "section.landing-section--lg (landing.html:142)",
+          "issue": "El h1 arranca en y=128 a 390 (80px de padding + 48px de navbar = 15% de 844) y en y=184 a 1440 (112px + 72px = 20% de 900). El hero mide 966px a 390, asi que la caption del mock ('Itinerario con hora, orden y direccion...') cae en y=880, fuera del primer viewport.",
+          "actionable_fix": "`padding-block: 3rem` para `.landing-section--lg` por debajo de 40rem (hoy 5rem) y `4.5rem` de 64rem en adelante, en vez de 5/7rem."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "figure > div (landing.html:203-204)",
+          "issue": "El mock anida `p-3` dentro de `p-3`: 24px de marco sobre una tarjeta de 358px. Cada .place-card queda con 278px de contenido a 390 (menos 32px de su propio padding de 14/16 en brand.css:248), y 'El Ateneo Grand Splendid' ya envuelve a dos lineas.",
+          "actionable_fix": "Quitar el `p-3` del `<figure>` y dejar solo el del panel interno (`rounded-2xl bg-gray-50 p-3`), ganando 24px de ancho util por parada."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "#landing figure (landing.html:203-251) + components/place-card.html:8",
+          "issue": "El mock es la unica prueba de producto y es inerte: 0 de las 3 .place-card son enlaces, el `<figure>` no tiene `<a>` y no hay ningun link a un plan de ejemplo. El visitante que llega desde un link compartido ve la pantalla del producto y no puede entrar a ella.",
+          "actionable_fix": "Envolver el panel en `<a href=\"/for-you\" class=\"block rounded-lg focus-ring\">` (o agregar un `Ver un plan de ejemplo` como tercer .btn-link del hero) para que el objeto mas parecido al producto sea navegable."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": ".btn-link[href=/for-you] (landing.html:179) vs navbar.html:184",
+          "issue": "El mismo destino /for-you tiene dos etiquetas en la misma pantalla: 'Planes publicos' en el navbar y 'Ver planes publicos' en el hero. Y /explore -el catalogo, que es el otro producto- no tiene entrada en el hero: solo aparece en navbar y pie.",
+          "actionable_fix": "Usar 'Planes publicos' en los dos lugares (una ruta, un nombre, como ya hace el navbar) y sumar 'Explorar lugares' a la fila de .btn-link del hero."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "a.btn-cta[href=/auth/register] (landing.html:160-163)",
+          "issue": "La unica accion rellena del primer viewport pide la cuenta que la bajada promete que no hace falta ('que el grupo lo abra sin registrarse'): el boton dominante contradice la propuesta que esta 12px arriba.",
+          "actionable_fix": "Para el anonimo, el CTA relleno debe ser 'Ver un plan de ejemplo' (-> /for-you) y 'Crear cuenta gratis' pasar a `.btn-link`; invertir la jerarquia sin cambiar los destinos."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": ".btn-link (brand.css:359-370, text-decoration-color en :367)",
+          "issue": "El subrayado en reposo es `color-mix(--primary 40%, transparent)` = #99b7de, 2.06:1 sobre blanco, sobre texto de 16px. Los dos links secundarios del hero se distinguen del parrafo solo por el tono (#004aad vs #4a5565), porque el subrayado que deberia ser la senal no se ve.",
+          "actionable_fix": "`text-decoration-color: var(--primary)` en reposo (8.13:1) con `text-decoration-thickness: 1.5px`, y dejar el 40% solo para el hover inverso."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 1,
+          "element_or_selector": "navbar.html:191-196 + landing.html:160",
+          "issue": "A 1440 hay dos botones con la misma etiqueta y el mismo destino en el mismo viewport: el ghost del navbar ('Crear cuenta gratis' -> /auth/register, y~17-61) y el CTA del hero (mismo label, mismo href, y~596). Dos acciones identicas en 600px anulan la idea de accion dominante.",
+          "actionable_fix": "En >=md cambiar el ghost del navbar a 'Iniciar sesion' (-> /auth/login) y dejar /auth/register solo en el hero y en el cierre."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "#hero-title + p (landing.html:148-155) / #prueba-title + p (landing.html:402-405)",
+          "issue": "'Buenos Aires' aparece por primera vez en y=3094 de 4499px (69% de la pagina; 66% del texto). El primer viewport (72 palabras a 390, 106 a 1440) no dice ni la ciudad ni la categoria de producto: 'itinerario' recien aparece en la bajada de 18px.",
+          "actionable_fix": "Meter la ciudad y el sustantivo en el h1: 'El plan del dia en Buenos Aires, armado una vez y compartido con un link'; la bajada queda para el mecanismo."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "#landing (476 palabras visibles)",
+          "issue": "'plan/planes' aparece 25 veces, 'cuenta' 8 y 'compart*' 7 en 476 palabras. Y la pagina sostiene las dos historias a la vez: 'sin registrarse' (bajada), 'Un link, no una cuenta' (beneficio 2) y 'No. El link abre el itinerario sin pedirte nada' (FAQ 1) contra tres CTA 'Crear cuenta gratis'.",
+          "actionable_fix": "Elegir una historia por visitante: para el anonimo que llega por link, 'mirar no pide cuenta' como tesis y el registro como accion secundaria; recien el CTA final puede pedir la cuenta."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "#beneficios-title, #como-title, #prueba-title, #faq-title (landing.html:280, 354, 398, 443)",
+          "issue": "Cuatro h2 identicos en 24/30px y siete bandas sin indice ni anclas: a ojo de scroll todas las secciones pesan lo mismo y no hay forma de saltar a 'Preguntas frecuentes' sin recorrer 3536px.",
+          "actionable_fix": "Bajar los cuatro h2 de apoyo a `text-xl sm:text-2xl` y dejar 30/36px solo para hero y cierre, o agregar un indice de 3 anclas bajo el hero."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": ".btn-cta (landing.html:160 y 541)",
+          "issue": "Entre el CTA del hero (y=420) y el del cierre (y=4195) hay 3775px, 4.47 viewports de 844, con cero acciones primarias: el 84% central de la pagina no ofrece nada que hacer.",
+          "actionable_fix": "Repetir el mismo `.btn-cta` al final de la banda de prueba (despues de landing.html:433), sin parrafo nuevo: un boton y nada mas."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 1,
+          "element_or_selector": "details #3 y #4 (landing.html:475-492)",
+          "issue": "2 de los 4 lugares del FAQ los ocupa lo que un visitante en celular no puede preguntar: 'Funciona desde el celu?' se lee en el celular, y 'Sirve para una ciudad que no es Buenos Aires?' anuncia el limite del catalogo (14 lugares) en la seccion que deberia cerrar la duda.",
+          "actionable_fix": "Reemplazarlas por 'Puedo editar un plan que me compartieron?' y 'Que pasa si el lugar que quiero no esta?', que son dudas reales del que llega por link."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": ".place-card (brand.css:249-251)",
+          "issue": "El borde es #e5e7eb hardcodeado: 1.24:1 sobre blanco y 1.18:1 sobre el #f9fafb del panel; el relleno blanco sobre ese panel mide 1.05:1. Las tres tarjetas que son la prueba de producto no tienen limite perceptible, y su borde ignora la decision de 2026-10-25 que subio los bordes claros a #adb5bd (brand.css:334-337).",
+          "actionable_fix": "`border-color: var(--bs-border-color)` (#adb5bd, 2.07:1) en `.place-card` y `box-shadow: 0 1px 2px rgb(17 24 39 / 0.06)` para separar del panel sin subir el borde a 3:1."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "details (landing.html:449, 461, 472, 483)",
+          "issue": "El borde de las filas del FAQ mide 2.07:1 en claro (#adb5bd sobre blanco) y 1.42:1 en oscuro (#374151 sobre #1f2937), por debajo del 3:1 de 1.4.11: es la unica forma que tiene la fila ademas de un chevron de 10px.",
+          "actionable_fix": "`details { border-color: #8f98a3 }` en claro (3.0:1 sobre blanco) y `--dark-border-strong` (#4b5563) en oscuro; el hover ya sube un escalon."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "#landing .landing-section + .landing-section (brand.css:217-219)",
+          "issue": "El separador entre las siete bandas es #e5e7eb: 1.24:1 sobre blanco y 1.13:1 sobre #f3f4f6, mientras el tinte de fondo entre bandas mide 1.10:1. En claro las siete secciones se leen como una sola columna; en oscuro el mismo hairline (#374151) mide 1.95:1 y si se ve.",
+          "actionable_fix": "Subir el hairline claro a `#c9ced6` (aprox 1.55:1) y el tinte alterno a `#eef1f5`, para que la banda exista sin depender de 1.13:1."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "a.navbar-brand (navbar.html:27 y :40)",
+          "issue": "El logo es el segundo tab stop y no lleva `.focus-ring`: recibe el anillo del UA, medido `1px auto rgb(16,16,16)` sobre el #111827 del navbar = 1.07:1, es decir invisible. Los otros 13 enfocables reciben 2px #6681fc (3.44:1 en blanco, 5.16:1 en el navbar).",
+          "actionable_fix": "Agregar `focus-ring` a las dos ramas de `.navbar-brand` (navbar.html:27 y :40) para que use la regla unica de brand.css:414."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "#hero-title (landing.html:148-151)",
+          "issue": "66 caracteres de beneficio sin sustantivo de producto ni ciudad, con estructura de acertijo: 'una vez... las veces que haga falta'. El lector frio tiene que llegar a la bajada de 18px para saber que se trata de un itinerario, y a y=3094 para saber que es en Buenos Aires.",
+          "actionable_fix": "Reescribir con sujeto y lugar: 'Arma el itinerario de un dia en Buenos Aires una vez y compartilo con un link' (mismo largo, 3 datos nuevos)."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:225, 372, 403, 407",
+          "issue": "Vocabulario de operador en boca del visitante: 'cargados/cargada' aparece 4 veces en la plantilla (2 en el render actual: '14 lugares... cargados', 'todas con direccion cargada') y el estado vacio dice literalmente 'El catalogo arranca vacio en este entorno: todavia no hay lugares cargados' (:407). 'En este entorno' es una cadena de desarrollo publicada.",
+          "actionable_fix": "'14 lugares de Buenos Aires ya estan en el mapa' / 'todas con la direccion lista' y, para el vacio, 'Estamos cargando los primeros lugares de Buenos Aires'."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "#como-title (landing.html:355) y caption del mock (landing.html:229)",
+          "issue": "'De cero a compartido en tres pasos' usa 'compartido' como sustantivo (agramatical en rioplatense) y 'Itinerario con hora, orden y direccion en cada parada' vende 'orden' como beneficio de una lista que ya esta ordenada por definicion.",
+          "actionable_fix": "'De la idea al link en tres pasos' y 'Cada parada con su hora y su direccion'; el orden se muestra en el mock, no se enuncia."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "landing.html:421, 428, 538",
+          "issue": "Tres promesas imprecisas en la misma pagina: 'El plan se imprime y entra en una hoja para llevar' (el propio CSS de impresion lo reparte en 3.1 paginas A4), 'Editable solo por vos' (fragmento de 3 palabras en una fila de oraciones completas) y 'en cinco minutos' (:538), la unica duracion de la pagina y sin ningun dato que la sostenga.",
+          "actionable_fix": "'El plan se imprime en una hoja para llevar' (o quitar 'una hoja'), 'Solo vos podes editarlo' y 'en tres pasos' en lugar de 'cinco minutos'."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 1,
+          "element_or_selector": "bajada del hero (landing.html:154) y pie (landing.html:580)",
+          "issue": "'que el grupo lo abra' introduce un actor social que no vuelve a aparecer: 'grupo' ocurre 1 vez en 476 palabras. Y el texto mas chico de la pagina (12px) es 'Proyecto del Taller Web I', justo el dato que un visitante externo lee como 'esto es una tarea'.",
+          "actionable_fix": "'que tus amigos lo abran sin registrarse' (y sostener 'amigos' en el FAQ o el beneficio 2), y bajar la leyenda del taller a texto de 11px junto al copyright o quitarla de la home."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 2,
+          "element_or_selector": "layouts/base.html:284-287, 305-316 + #bookmark-alert (base.html:404-405)",
+          "issue": "Sin JavaScript no hay Tailwind: se compila en el navegador, asi que el layout entero desaparece. Medido a 390 con JS desactivado: docH 3692 vs 4499, el grid del hero pasa a `display: block`, `max-width: none`, `body` sin fondo, h1 a 32px en Josefin Sans en vez de 60px en Bree Serif. Ademas `hidden` sobre #bookmark-alert es una utilidad: queda a la vista una caja vacia con borde y `role=\"alert\"`, y el skip link (`.sr-only`) se queda en pantalla.",
+          "actionable_fix": "Reemplazar `hidden` por el atributo `hidden` en #bookmark-alert, sacar `.sr-only` del skip link a un estilo de brand.css, y emitir un CSS de utilidades precompilado (o al menos un `<noscript>` con las 30 utilidades del landing) para que el no-JS sea legible."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "layouts/base.html:316-317 + landing.html:586",
+          "issue": "887.552 B de JS sin comprimir para una pagina estatica: vue.global.prod.js 157.933 B cargado sin `defer` (bloquea el parser) en una vista con 0 directivas Vue, tailwind-browser.js 283.241 B y lucide.min.js 446.378 B. Con `html.js{visibility:hidden}` y el fallback de 800ms (base.html:357), la primera pintura puede ser un blanco de hasta 800ms en cache fria.",
+          "actionable_fix": "Sacar `vue.global.prod.js` del layout base y cargarlo solo en las paginas que montan Vue (detail, explore), y agregar `defer` al de lucide."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "@media print (landing.html:71-88)",
+          "issue": "Imprimir la home da 3510px a 794px de ancho = 3.1 paginas A4 (1123px): el hero y el cierre conservan 112px de padding, el mock y los chevrons del FAQ se imprimen enteros y el pie mantiene 'Proyecto del Taller Web I'. Se oculta el nav, pero no se reduce nada mas.",
+          "actionable_fix": "En `@media print`: `.landing-section{padding-block:1.5rem}`, `figure{display:none}` y `details{display:none}` - el FAQ impreso no aporta nada y se lleva media pagina."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "figure del hero con catalogo vacio (landing.html:203-226)",
+          "issue": "Con `heroItinerary` vacio la tarjeta conserva el titulo 'Un sabado en Recoleta' y el chip 'Publico', y reemplaza las paradas por 'Este ejemplo todavia no tiene paradas cargadas' (:225): el espacio de prueba de producto queda como una caja con un cartel de operador, sin ninguna accion para el visitante.",
+          "actionable_fix": "Cuando `#lists.isEmpty(heroItinerary)`, reemplazar el `<figure>` completo por un bloque con el CTA de /for-you ('Todavia no hay planes publicos: crea el primero'), en vez de dejar el cascaron del plan."
+        }
+      ],
+      "verdict": "Como home de marketing para el visitante frio que abre un link de WhatsApp, la pagina no cierra: en los primeros 844px no dice 'Buenos Aires' ni que es el producto, y el unico boton relleno pide la cuenta que el texto promete que no hace falta, mientras la unica prueba de producto (el mock) es inerte. Lo que hay es un folleto correcto y bien medido -texto entre 4.39:1 y 14.05:1, objetivos de 44px, cero desborde a 390, forced-colors resuelto- pero con 960px de padding, 3775px entre los dos CTA y un layout que se desarma sin JavaScript. Sirve para alguien que ya sabe que es PlanIt; no para la primera pantalla del que llega desde un plan compartido.",
+      "comparability_note": "NO COMPARABLE con las iteraciones 0-3. Las 0-3 fueron autoevaluaciones del mismo ciclo: el critico puntuo su propia lista de deducciones y la fue cerrando, asi que cada score alto confirmaba el trabajo anterior. Esta pasada es un agente en frio, sin acceso al log ni a ui-audit-evidence/, que puntuo la pagina desde cero con su propia lista de 28 deducciones. La caida de 7.00 a 5.43 no mide una regresion: mide el sesgo que tenian las tres pasadas anteriores. Tampoco se puede promediar con ellas para decidir el corte del loop."
+    },
+    {
+      "iteration": 5,
+      "phase": "cold_critic_final",
+      "average_score": 7.57,
+      "scores": {
+        "visual_hierarchy": 8,
+        "layout_spacing": 8,
+        "affordance_clarity": 7,
+        "cognitive_load": 7,
+        "color_accessibility": 8,
+        "microcopy_precision": 8,
+        "state_resilience": 7
+      },
+      "verdict": "La primera pantalla esta bien armada y no es marketing generico: el h1 nombra producto, ciudad y mecanismo, el mock es producto real y el visitante entiende en cinco segundos que es esto y que gana. Lo que no cierra es el final y la alineacion: el cierre vuelve a decir el h1 con el 80% del tamano, el texto salta dos veces 192px de eje y el link de texto cambia de gramatica segun la banda. El problema de fondo es de intencion: el que llega desde un link compartido encuentra un boton de registro como accion dominante y su propio camino enterrado en un link de 16px.",
+      "changes_applied_after_scoring": [
+        "brand.css: borde de las filas del FAQ de #8d949c a #7c848c. El #8d949c se habia verificado contra blanco (3.07:1) pero la fila vive sobre la banda gris, donde medía 2.79:1. Ahora 3.45:1 sobre la banda y 3.79:1 sobre el blanco interior; en oscuro el borde pasa a 4.16:1.",
+        "brand.css: borde inferior de 1px (var(--dark-border-strong)) en el navbar solo para el tema oscuro. La barra (#111827) y la banda de abajo (#1f2937) median 1.21:1 y la sombra era negra sobre negro: al scrollear la barra sticky no tenia canto visible.",
+        "landing.html: el bloque @media print devuelve los tokens --dark-* a negro. Imprimir con el tema oscuro puesto dejaba 12 de los 14 titulares a 1.03:1 porque html[data-theme=dark] .text-gray-900 resuelve a #f9fafb. Verificado: el h2 pasa a #000 (21:1 sobre papel) y el cuerpo a #374151 (10.31:1)."
+      ],
+      "deductions_left_open": [
+        "[visual_hierarchy] el h2 de cierre mide 48px contra un h1 de 60px y repite la promesa: conviene bajarlo a 36px y cambiarle el mensaje",
+        "[visual_hierarchy] el degradado del h1 termina en #666666 (5.74:1): las dos palabras que cargan la promesa son las mas lavadas de la pagina",
+        "[layout_spacing] el borde izquierdo del texto salta 192px entre bandas (max-w-6xl 1152px vs max-w-3xl 768px)",
+        "[layout_spacing] en 390px el h2 del problema mide 20px y su cuerpo 18px: 2px de diferencia",
+        "[affordance_clarity] dos gramaticas de link: subrayado en reposo en el hero, solo en hover en navbar y pie",
+        "[affordance_clarity] /for-you tiene dos nombres en el primer fold ('Planes publicos' y 'Ver planes publicos')",
+        "[affordance_clarity] los chips del mock son pills rellenas e inertes, con la misma forma que los chips de filtro de /explore",
+        "[cognitive_load] 'compartis por link, no hace falta cuenta' se dice 5 veces y 'Crear cuenta gratis' aparece 4 veces",
+        "[cognitive_load] la accion dominante es el registro y no la de quien llega desde un plan compartido",
+        "[microcopy_precision] 'El museo abre a las 10 y el cafe cierra a las 19' promete horarios de apertura que el plan publico no muestra (muestra timeRange)",
+        "[microcopy_precision] 'de MALBA a Plaza Serrano' esta escrito a mano aunque placeCount sale del modelo",
+        "[state_resilience] el reveal con blur(12px) y techo de 1500ms deja bandas ilegibles si el observer no dispara"
+      ],
+      "comparability_note": "Mismo criterio y misma posicion que la iteracion 4 (agente en frio, sin el log ni la evidencia ni git), pero es otro agente y otra vez: la suba de 5.43 a 7.57 mezcla las mejoras aplicadas entre las dos pasadas con la varianza entre criticos. Lo comparable es el sentido: la pagina paso de 'folleto correcto que no cierra' a 'primera pantalla bien armada, con el final y la intencion flojos'."
+    },
+    {
+      "iteration": 6,
+      "phase": "cold_critic_post_fixes",
+      "evidence": "ui-audit-evidence/iter6-metrics.json + 14 capturas nativas (Chrome headless, 1440x900 y 390x844, temas claro y oscuro, estado final con las animaciones de entrada resueltas)",
+      "scores": {
+        "visual_hierarchy": 8,
+        "layout_spacing": 7,
+        "affordance_clarity": 8,
+        "cognitive_load": 8,
+        "color_accessibility": 8,
+        "microcopy_precision": 8,
+        "state_resilience": 5
+      },
+      "average_score": 7.43,
+      "verdict": "La home sabe cual es su trabajo: en el primer viewport de 1440 dice que es PlanIt (el itinerario de un dia en Buenos Aires), para que sirve (un link que se abre sin cuenta) y ofrece una accion rellena. El mock del plan comunica el producto mejor que cualquier ilustracion, el ritmo de bandas es parejo (64/112px), los targets tactiles miden 44px o mas y el modo oscuro esta resuelto token por token: todo el texto medido sobre pixeles pasa AA, con minimo 4.63:1 en la nota de 14px y 5.16:1 en el ghost del navbar. Lo que falla: el eje de lectura salta 192px entre bandas, el FAQ mide unos 111 caracteres por linea, la misma accion de registro aparece dos veces con dos estilos en el primer viewport y, en oscuro, el CTA principal queda a 1.81:1 del fondo. Debajo de la superficie hay dos problemas serios: el skip link queda tapado por el navbar y sin JavaScript no queda CSS, con el navbar en blanco sobre blanco. Aun asi, un visitante anonimo entiende la propuesta y sabe que hacer: crear cuenta o mirar planes publicos.",
+      "deductions": [
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 0.5,
+          "element_or_selector": "h1#hero-title max-w-[18ch] lg:text-6xl (landing.html)",
+          "issue": "A 1440px las cuatro lineas miden 486/512/497/296px: la ultima es el 58% de la segunda, y el hueco corta el borde derecho que parecen tener las tres primeras.",
+          "actionable_fix": "Subir a max-w-[20ch] o bajar a lg:text-5xl para repartir las cuatro lineas; verificar 1152-1280px que no pase a cinco."
+        },
+        {
+          "dimension": "visual_hierarchy",
+          "points_deducted": 0.5,
+          "element_or_selector": "body > nav a.btn-ghost (Crear cuenta gratis, 152x44, borde y texto #6681fc) contra main a.btn-cta (misma etiqueta, 184x48, relleno #004aad)",
+          "issue": "La misma accion, con la misma etiqueta y el mismo destino, aparece dos veces en el primer viewport separada por ~500px y con dos gramaticas visuales distintas.",
+          "actionable_fix": "Dejar el navbar anonimo sin CTA de registro (o convertirlo en .btn-link) y reservar el relleno para el boton del hero."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "max-w-3xl (problema, FAQ y cierre) contra max-w-6xl (beneficios, pasos y prueba)",
+          "issue": "Los h2 de banda arrancan en dos ejes: 144px (beneficios, como, prueba) y 336px (problema, FAQ, cierre). El ojo reancla 192px en cada salto.",
+          "actionable_fix": "Envolver las bandas angostas en mx-auto max-w-6xl px-4 y poner el max-w-3xl en un hijo, para que todos los h2 compartan el eje de 144px."
+        },
+        {
+          "dimension": "layout_spacing",
+          "points_deducted": 1,
+          "element_or_selector": "#landing details p (respuestas del FAQ): 766px de ancho a 14px",
+          "issue": "La primera respuesta entra en una linea de 661px, unos 111 caracteres, muy por encima de los 75 de una medida comoda. El resto de la pagina si controla la medida (46ch y 60ch).",
+          "actionable_fix": "Agregar max-w-[62ch] al parrafo de respuesta en landing.html: la caja sigue en 768px y el texto baja a ~75 caracteres por linea."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 0.5,
+          "element_or_selector": "footer nav a: inline-flex min-h-11 transition-all duration-700",
+          "issue": "Los dos links del pie estan en #4a5565 (6.87:1) y sin subrayado en reposo, igual que el texto vecino: nada los distingue hasta el hover, y el subrayado aparece recien al terminar los 700ms de transition-all. El foco sufre lo mismo.",
+          "actionable_fix": "Subrayado en reposo como .btn-link y transition-colors duration-150 en los <a> del pie."
+        },
+        {
+          "dimension": "affordance_clarity",
+          "points_deducted": 0.5,
+          "element_or_selector": "#landing figure (mock Un sabado en Recoleta)",
+          "issue": "Es la unica tarjeta con tres filas bordeada (502px) y un chip azul en bg-primary/10, el mismo lenguaje que las filas del FAQ, que si abren algo. El figcaption es sr-only, asi que no hay rotulo visible de ejemplo.",
+          "actionable_fix": "Agregar un rotulo visible encima de la figura (Ejemplo de plan) o hacer visible el figcaption en text-sm."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 0.5,
+          "element_or_selector": ".btn-link del hero (Ver planes publicos, Iniciar sesion) contra el cluster anonimo del navbar (Planes publicos, Iniciar sesion)",
+          "issue": "Las mismas dos rutas aparecen dos veces en el primer viewport, a ~400px, con nombres distintos: cinco destinos arriba del fold para quien todavia no sabe si el producto le sirve.",
+          "actionable_fix": "Quitar el bloque de links del hero o cambiar el primero por Ver un plan de ejemplo apuntando a un plan real."
+        },
+        {
+          "dimension": "cognitive_load",
+          "points_deducted": 0.5,
+          "element_or_selector": "Vocabulario: itinerario en h1, beneficios y FAQ contra plan/planes en CTAs y navbar",
+          "issue": "El objeto del producto tiene dos nombres y el visitante tiene que inferir que son lo mismo para decidir si le sirve el link del navbar.",
+          "actionable_fix": "Usar plan como nombre unico en el h1 y dejar itinerario solo como sinonimo en el cuerpo, nunca en etiquetas de accion."
+        },
+        {
+          "dimension": "color_accessibility",
+          "points_deducted": 1,
+          "element_or_selector": "html[data-theme=\"dark\"] .btn-cta (brand.css): relleno #004aad sobre la banda #1f2937",
+          "issue": "Medido sobre pixeles: el relleno del boton contra la banda da 1.81:1, por debajo del 3:1 de 1.4.11. Es el borde del control que lo identifica como boton, no una divisoria decorativa. El texto blanco encima si mide 8.13:1: el boton se lee, su forma se pierde.",
+          "actionable_fix": "En brand.css: html[data-theme=\"dark\"] .btn-cta { border: 1px solid var(--secondary) } (5.16:1 contra #1f2937), o subir el relleno oscuro a un azul que llegue a 3:1."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 0.5,
+          "element_or_selector": "\"El plan se imprime y entra en una hoja para llevar.\" (#prueba)",
+          "issue": "Promete de mas: la hoja imprimible pagina con break-inside: avoid-page y @page { margin: 16mm }, asi que un plan largo ocupa varias hojas. Ademas no es la forma idiomatica de hablar de imprimir.",
+          "actionable_fix": "Reescribir como \"El plan se imprime y lo llevas en la mano.\", sin cuantificar hojas."
+        },
+        {
+          "dimension": "microcopy_precision",
+          "points_deducted": 0.5,
+          "element_or_selector": "\"Un plan publico se copia tal cual y queda como tuyo, para editarlo.\" junto a \"Solo vos podes editarlo.\"",
+          "issue": "Los dos items se leen contradictorios: uno dice que cualquiera copia y edita, el otro que solo el dueno edita. El segundo no aclara que habla de tu plan.",
+          "actionable_fix": "Cambiar el candado a \"Solo vos podes editar tu plan; quien lo copia edita su copia.\""
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 2,
+          "element_or_selector": "Sin JavaScript: resources/core/js/tailwind-browser.js no compila y layouts/base.html no emite utilidades",
+          "issue": "Con scripts deshabilitados no hay hoja de Tailwind (tailwindSheetPresent: false): el nav queda con fondo transparente y texto blanco (blanco sobre blanco), el h1 baja de 60px a 32px, la barra pasa de 72px a 98px, el figcaption sr-only se hace visible y la linea mobile \"+1 parada mas\" aparece en desktop. El comentario de landing.html afirma que sin JS la pagina se ve entera: la estructura sobrevive, el diseno no.",
+          "actionable_fix": "Compilar Tailwind en build y servir el CSS estatico; como parche inmediato, un <noscript><style> en layouts/base.html con nav{background:#111827;color:#fff}, la tipografia del hero y [data-lucide]{display:none}."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 1,
+          "element_or_selector": "Skip link \"Saltar al contenido\" en layouts/base.html (antes del <nav> en el orden efectivo, ambos z-50)",
+          "issue": "Es el primer tab stop y queda tapado por la barra: a 1440px document.elementFromPoint(24,24) devuelve IMG.navbar-logo y en la captura con foco no se ve ningun anillo. El usuario de teclado tabula a un control invisible.",
+          "actionable_fix": "Mover el <a href=\"#contenido\"> despues de <nav> en layouts/base.html o darle focus:z-[60], y verificar que el anillo de 2px se dibuje sobre la barra."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 0.5,
+          "element_or_selector": "Hero entre 1024px y 1151px (lg:grid-cols-2 + lg:text-6xl)",
+          "issue": "A 1024px la columna de texto mide 472px, el titular pasa a 6 lineas y el hero crece a 918px: el CTA queda en y=774-822, entero por debajo de un viewport de 768px de alto. A 1152px vuelve a 4 lineas.",
+          "actionable_fix": "Mantener text-5xl hasta 1152px (lg:text-5xl xl:text-6xl) o retrasar la grilla a min-[1152px]:grid-cols-2."
+        },
+        {
+          "dimension": "state_resilience",
+          "points_deducted": 0.5,
+          "element_or_selector": "Navbar anonimo (components/navbar.html) por debajo de 375px",
+          "issue": "A 375px la barra mide 48px, pero a 360px y 320px envuelve a dos filas y mide 96px. En 320px el h1 ademas pasa a 6 lineas y el CTA baja a y=614-662. Contradice el comentario que fija una sola fila en todos los anchos.",
+          "actionable_fix": "Debajo de sm: logo a h-8 w-8, gap-x-1 en el cluster y px-1.5 en los links; si a 320px sigue sin entrar, ocultar Iniciar sesion del navbar anonimo."
+        }
+      ],
+      "orchestrator_verification": {
+        "method": "El orquestador no puntua la UI; solo valido las deducciones que deciden el resultado, con medicion propia.",
+        "confirmed": [
+          {
+            "claim": "sin JavaScript no queda CSS (state_resilience, -2)",
+            "check": "base.html:274 y base.html:317 declaran y cargan resources/core/js/tailwind-browser.js con defer: el CSS se compila en el navegador. Sin JS no se emite ninguna hoja de utilidades. Confirmado por fuente."
+          },
+          {
+            "claim": "el skip link queda tapado por el navbar (state_resilience, -1)",
+            "check": "Tab real por CDP a 1440x900: el link se enfoca y se hace visible en 16,16 con 173x40, z-index 50 y outline 2px solid rgb(102,129,252); elementFromPoint en su centro devuelve SPAN del navbar-brand (elemento enfocado NO es el que esta arriba). Confirmado por medicion."
+          },
+          {
+            "claim": "el CTA en oscuro queda a 1.81:1 de la banda (color_accessibility, -1)",
+            "check": "Aritmetica sobre los tokens: #004aad tiene L=0.0805 y #1f2937 L=0.0190, asi que el ratio es 1.89:1. Confirmado (el critico midio 1.81 sobre pixeles con antialiasing)."
+          }
+        ],
+        "rejected": [
+          {
+            "claim": "si el usuario clickea el skip link, activa el logo en vez del ancla",
+            "correction": "Impreciso: elementFromPoint decide el hit-test del mouse, pero un usuario de teclado que presiona Enter sobre un link enfocado activa el link, no el elemento que esta arriba. El defecto real es que el foco es invisible, no que la accion cambie."
+          }
+        ],
+        "note": "Las otras 11 deducciones son de diseno (jerarquia, ejes, medida de linea, microcopy, breakpoints) y quedan como estan: son juicio del critico sobre la evidencia, no afirmaciones verificables por medicion."
+      },
+      "changes_applied_after_scoring": [],
+      "deductions_left_open": [
+        "state_resilience -2: sin JS no hay hoja de Tailwind (base.html carga tailwind-browser.js con defer); el navbar queda blanco sobre blanco.",
+        "state_resilience -1: el skip link \"Saltar al contenido\" se enfoca tapado por el navbar.",
+        "state_resilience -0.5: entre 1024 y 1151px el hero pasa a 6 lineas y el CTA cae debajo de un viewport de 768px.",
+        "state_resilience -0.5: el navbar anonimo envuelve a dos filas en 360px y 320px.",
+        "color_accessibility -1: el relleno del .btn-cta en oscuro mide 1.89:1 contra la banda #1f2937.",
+        "layout_spacing -1: los h2 de banda arrancan en dos ejes (144px y 336px) por max-w-3xl contra max-w-6xl.",
+        "layout_spacing -1: las respuestas del FAQ miden ~111 caracteres por linea.",
+        "visual_hierarchy -0.5: el h1 deja la cuarta linea al 58% del ancho de la segunda.",
+        "visual_hierarchy -0.5: \"Crear cuenta gratis\" aparece dos veces en el primer viewport, ghost en el navbar y relleno en el hero.",
+        "affordance_clarity -0.5: los links del pie no se distinguen de texto en reposo y el subrayado tarda 700ms.",
+        "affordance_clarity -0.5: el mock del plan no tiene rotulo visible de ejemplo y se lee como algo clickeable.",
+        "cognitive_load -0.5: las mismas dos rutas del navbar se repiten como .btn-link en el hero.",
+        "cognitive_load -0.5: \"itinerario\" y \"plan/planes\" nombran el mismo objeto.",
+        "microcopy_precision -0.5: \"entra en una hoja\" promete de mas (un plan largo pagina en varias).",
+        "microcopy_precision -0.5: \"queda como tuyo para editarlo\" y \"solo vos podes editarlo\" se leen contradictorios."
+      ],
+      "loop_decision": {
+        "outcome": "salida por plateau/regresion, no por objetivo",
+        "detail": "Iteracion 5 dio 7.57 y esta 6 da 7.43: -0.14 con un critico distinto. Un delta menor a 0.2 entre criticos en frio es ruido de medicion, no una regresion del codigo, y el umbral de salida (>=8.0 con >=6/7 categorias >=8 y ninguna <7) no se alcanzo en ninguna de las dos. Se corta el loop.",
+        "no_revert": "No se revierte el ultimo cambio (los tres arreglos de borde, canto y print) por esta caida: cada uno se midio por separado y el propio critico los acredita (el borde del FAQ y el canto oscuro no aparecen en las deducciones). Revertirlos por un delta dentro del ruido seria empeorar la pagina.",
+        "ceiling": "La brecha que queda no esta en landing.html: 4 de los 5 puntos que faltan para el umbral son de state_resilience y color_accessibility, y tres de esas deducciones viven en layouts/base.html, components/navbar.html y la estrategia de build de Tailwind. Este loop ya llego a su techo; lo que sigue es otra tarea, no otra iteracion."
+      },
+      "comparability_note": "Misma posicion que las iteraciones 4 y 5 (agente en frio, sin el log, sin la evidencia y sin git) y la misma rubrica, pero con una diferencia de metodo: esta vez la evidencia fueron capturas nativas de Chrome headless (Laplaciano 16-18) en vez del navegador del IDE, que devolvia rasters suavizados 4-5x (Laplaciano 2-6). El critico ademas midio contraste sobre pixeles renderizados y no sobre estilos computados, y corrigio por su cuenta la deduccion que iba a apoyarse en el h1 con background-clip: text (que por CSS da 1.0:1 y por pixeles da 17.57:1). Esa mejora de metodo puede explicar parte de la diferencia con las iteraciones 4 y 5 en las dimensiones de color y legibilidad, en cualquier direccion."
+    }
+  ]
+}

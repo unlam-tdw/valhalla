@@ -53,16 +53,20 @@ public class UserAuthViewE2E extends E2eBase {
     // Naming the whole set, not just the presence of the items: the navbar used to offer a
     // "Planes" link to /plans, which had no controller. It rendered fine, so no other assertion
     // could see the difference between a live item and a 404 waiting to be clicked. PlanController
-    // landed in 03-PLN, so "Plans" belongs back in the set and now has somewhere to resolve to.
-    // The Explore link arrived with the map feature in 03-PLC and resolves to /explore, so it
-    // belongs in the set too. "Para vos" resuelve a /for-you, el feed que es home del usuario
-    // (visible con y sin sesión); el label cambió de "Planes públicos" cuando el feed pasó a
-    // mostrar solo planes ajenos. [PROF+THEME] El toggle "Cambiar tema" vive en el navbar con
-    // sesión iniciada (form POST a /profile/theme): su sr-only lo hace el último item del set.
+    // landed in 03-PLN, so the plans link belongs back in the set and now has somewhere to resolve
+    // to; su label pasó de "Plans" a "Mis planes" cuando el navbar dejó de mezclar idiomas. The
+    // catalog link arrived with the map feature in 03-PLC and resolves to /explore: ahora dice
+    // "Explorar lugares", que es el único destino que se llama así. "Planes públicos" resuelve a
+    // /for-you, el feed que es home del usuario (visible con y sin sesión) y la misma ruta que el
+    // hero llama igual; cuando el feed pasó a mostrar solo planes ajenos el label fue "Para vos" y
+    // volvió a "Planes públicos" para que la ruta tenga un solo nombre en toda la página.
+    // [PROF+THEME] El toggle "Cambiar
+    // tema" vive en el navbar con sesión iniciada (form POST a /profile/theme): su sr-only lo hace
+    // el último item del set.
     assertThat(
       "the authenticated navbar offers only items that resolve",
       landing.getNavbarItems(),
-      contains("PlanIt", "Para vos", "Explore", "Plans", "A", "Cambiar tema")
+      contains("PlanIt", "Planes públicos", "Explorar lugares", "Mis planes", "A", "Cambiar tema")
     );
   }
 

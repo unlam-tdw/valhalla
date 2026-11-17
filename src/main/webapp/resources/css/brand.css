@@ -135,6 +135,15 @@ html[data-theme="dark"] .hover\:bg-gray-700:hover { background-color: var(--dark
 html[data-theme="dark"] .hover\:bg-red-50:hover { background-color: var(--dark-danger-surface); }
 html[data-theme="dark"] .hover\:bg-red-100:hover { background-color: var(--dark-danger-surface); }
 
+/* En oscuro la barra (#111827) y la banda que tiene debajo (#1f2937) miden 1.21:1, y la
+ * sombra del navbar es negra sobre negro: al scrollear sobre el hero la barra sticky no
+ * tiene ningun limite visible y el contenido parece pasar por detras del texto. El borde
+ * inferior le devuelve el canto. Va como 1px sobre el elemento y no como sombra: una
+ * sombra mas oscura sobre el fondo ya oscuro sigue sin verse. */
+html[data-theme="dark"] body > nav {
+  border-bottom: 1px solid var(--dark-border-strong);
+}
+
 /* --- Texto --- */
 html[data-theme="dark"] .text-gray-900 { color: var(--dark-text); }
 html[data-theme="dark"] .text-gray-800 { color: var(--dark-text); }
@@ -146,6 +155,12 @@ html[data-theme="dark"] .hover\:text-gray-900:hover { color: var(--dark-text); }
 html[data-theme="dark"] .text-blue-600 { color: var(--dark-link); }
 html[data-theme="dark"] .text-red-600 { color: var(--dark-danger); }
 html[data-theme="dark"] .hover\:text-red-600:hover { color: var(--dark-danger); }
+
+/* [LANDING] --primary es azul de marca para fondo claro: sobre la tarjeta oscura queda en
+   1.81:1. El landing es la unica vista que lo usa como texto suelto (CTA secundario del
+   hero, horas del mock y discos de beneficios), asi que el override se limita a #landing:
+   el resto del sitio conserva el primario de la marca donde ya funciona. */
+html[data-theme="dark"] #landing .text-primary { color: var(--dark-link); }
 /* text-black solo donde cae el contenido principal: en el navbar es el avatar
    sobre --secondary, que no cambia de modo, y detail.html además lo re-pinnea
    con !important dentro de nav. */
@@ -178,26 +193,97 @@ html[data-theme="dark"] .theme-icon-sun { display: block; }
  * [DIS] 17-DIS: una declaracion por componente, consumida por la landing y por la app.
  * Ningun template repite estas reglas (AC-01, AC-02, AC-03). */
 
+/* --- Ritmo vertical de la landing ---------------------------------------
+ * Cinco paddings distintos (48/64/80/96/112px) para secciones del mismo rango, mas un
+ * 0/80 asimetrico en el tagline, hacian que el ojo no encontrara la regla. Quedan dos
+ * escalones y nada mas: base para las secciones de apoyo, --lg para el hero y el cierre,
+ * que pesan mas. Cada seccion declara el escalon, nunca un py-* suelto.
+ * --lg arranca en 5rem y no en los 4rem de la base a proposito: los dos escalones ya se
+ * distinguen por debajo de 1024px, que es donde el media query de abajo todavia no aplica
+ * (antes los dos median lo mismo hasta desktop y el ritmo era un solo escalon). */
+.landing-section {
+  padding-block: 4rem;
+}
+
+.landing-section--lg {
+  padding-block: 5rem;
+}
+
+@media (min-width: 64rem) {
+  .landing-section--lg {
+    padding-block: 7rem;
+  }
+}
+
+/* --- Separadores de banda ------------------------------------------------
+ * Las siete secciones alternan bg-white y bg-gray-100, y esa diferencia de tinte mide
+ * 1.09:1: invisible como superficie, así que el único límite entre bandas es el titular.
+ * El separador declarado (divide-y sobre #contenido) no existía: la auditoría midió
+ * border-top-width 0px en las siete secciones. Acá es CSS plano, una regla, y no depende
+ * de que el compilador de navegador emita la utilidad.
+ * El color es --bs-border-color y no un #e5e7eb suelto: el hex medía 1.24:1 sobre blanco
+ * y dejaba el separador fuera de la decisión que ya había subido los bordes claros a
+ * #adb5bd (ver "sistema de bordes" más arriba).
+ * .landing-divide hace lo mismo para listas apiladas (los beneficios en mobile) y
+ * --split corta el divisor cuando la grilla pasa a columnas. */
+#landing :is(.landing-section, .landing-section--lg) + :is(.landing-section, .landing-section--lg) {
+  border-top: 1px solid var(--bs-border-color);
+}
+
+#landing .landing-divide > * + * {
+  border-top: 1px solid var(--bs-border-color);
+}
+
+html[data-theme="dark"] #landing :is(.landing-section, .landing-section--lg) + :is(.landing-section, .landing-section--lg),
+html[data-theme="dark"] #landing .landing-divide > * + * {
+  border-top-color: var(--dark-border);
+}
+
+@media (min-width: 40rem) {
+  #landing .landing-divide--split > * + * {
+    border-top: 0;
+  }
+}
+
+/* --- Filas del FAQ: el borde es su unica forma --------------------------------
+ * Las filas del <details> se dibujan con border-gray-200, que el sistema de bordes de
+ * arriba lleva a #adb5bd y mide 2.07:1 en claro y 1.42:1 en oscuro. El borde no es
+ * decoracion: junto con el chevron de 10px es lo unico que dice que la fila es una caja
+ * clickeable, asi que le aplica el 3:1 de 1.4.11. La fila no vive sobre blanco sino sobre
+ * la banda gris (#f3f4f6), y ahi #8d949c medía 2.79:1: #7c848c mide 3.45:1 sobre la banda
+ * y 3.07:1 sobre el blanco interior. En oscuro --dark-border-hover, 3.02:1 sobre la card.
+ * El id gana sobre la utilidad. */
+#landing details {
+  border-color: #7c848c;
+}
+
+html[data-theme="dark"] #landing details {
+  border-color: var(--dark-border-hover);
+}
+
 /* --- Card de lugar (AC-01): la parada del itinerario con la misma cara en el hero del
  * landing (components/place-card.html) y en el detalle del plan (el <li> lleva la clase
  * doble itinerary-stop place-card: el detalle conserva su identidad para sus reglas
  * moviles y de reduced-motion, y aca vive lo visual compartido). Borde, radius, padding,
  * superficie y hover salen de un solo lugar; el layout interno (flex:1, los .stop-*)
- * sigue siendo de cada pagina. --- */
+ * sigue siendo de cada pagina. El padding es el de una card (16px de aire): el mock del
+ * hero es la unica prueba de producto de la landing y necesita leerse de un vistazo. --- */
 .place-card {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  padding: 14px 16px;
+  border: 1px solid var(--bs-border-color);
   border-radius: 8px;
   background: var(--white);
   font-family: var(--typeface-sans);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.place-card:hover {
+/* El hover solo en las cards que son link: en el hero del landing son una lista de lectura
+   y levantarlas al pasar el mouse era la falsa affordance mas fuerte de la pagina. */
+a.place-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 3px 10px rgb(0 0 0 / 0.06);
 }
@@ -205,6 +291,23 @@ html[data-theme="dark"] .theme-icon-sun { display: block; }
 html[data-theme="dark"] .place-card {
   background: var(--dark-card);
   border-color: var(--dark-border);
+}
+
+/* [HERO] En mobile el mock del hero muestra dos paradas y nada mas: es la prueba de producto,
+ * no el itinerario completo. Con las tres cards el primer viewport de 844px se llenaba de
+ * tarjetas y el h1 y el CTA quedaban fuera del fold. El corte se limita a #landing: en el
+ * detalle del plan y en el editor cada parada cuenta y ahi no se oculta ninguna. */
+@media (max-width: 39.9375rem) {
+  #landing .place-card:nth-child(n + 3) {
+    display: none;
+  }
+}
+
+/* [HERO] El chip de categoria de la parada: sobre la card oscura, bg-gray-100 resuelve a
+ * --dark-page (#030712) y el chip quedaba en 1.37:1 contra la superficie de la card, sin forma.
+ * --dark-control (#374151) lo separa sin convertirlo en un segundo borde. */
+html[data-theme="dark"] .place-card .bg-gray-100 {
+  background-color: var(--dark-control);
 }
 
 /* --- Etiqueta de categoria: el template pasa el token de la categoria por
@@ -273,34 +376,112 @@ html:not([data-bs-theme="dark"]) .bg-white.shadow-xl {
   border: 1px solid var(--bs-border-color);
 }
 
+/* --- Link de texto (landing): un solo estado en reposo ---------------------
+ * Tres acciones del hero tenian tres gramaticas (una sin subrayado, otra subrayada y
+ * semibold, otra con el subrayado solo en hover), asi que no se leia cual era el link.
+ * Queda un unico estado: subrayado tenue en reposo, que se afirma en hover, y el pill
+ * relleno se reserva para la accion primaria. El subrayado en reposo subio del 40% al 70%
+ * de mezcla: al 40% medía 2.06:1 sobre blanco y no se veía, que es justo la señal que
+ * tiene que señalar el link; al 70% mide 4.03:1 y el hover lo lleva al primario pleno.
+ * min-height 2.75rem: el objetivo tocable
+ * de WCAG 2.2 AA en mobile, igual que .btn-cta.
+ * El color en oscuro sale de --dark-link (5.75:1 sobre #1f2937). --primary sobre la
+ * tarjeta oscura mide 1.8:1: es el texto ilegible del que hablaba el audit. */
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: 0.25rem;
+  color: var(--primary);
+  font-weight: 500;
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--primary) 70%, transparent);
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.btn-link:hover {
+  text-decoration-color: var(--primary);
+}
+
+html[data-theme="dark"] #landing .btn-link {
+  color: var(--dark-link);
+  text-decoration-color: color-mix(in srgb, var(--dark-link) 70%, transparent);
+}
+
+html[data-theme="dark"] #landing .btn-link:hover {
+  text-decoration-color: var(--dark-link);
+}
+
+/* --- Accion secundaria del navbar -----------------------------------------
+ * Con dos pills rellenos en el primer viewport (navbar y hero) la pagina no tenia
+ * accion dominante: el registro es el segundo destino, no el primero. Ghost con el
+ * borde del acento y el mismo alto tocable que .btn-cta. El texto va en --secondary
+ * (6.11:1 sobre el negro del navbar); --primary sobre esa barra mide 2.58:1.
+ * El hover tine el fondo en vez de invertirlo: invertido se leia como un segundo CTA. */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  border: 1px solid var(--secondary);
+  border-radius: 8px;
+  padding: 0 0.75rem;
+  background: transparent;
+  color: var(--secondary);
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.btn-ghost:hover {
+  background: color-mix(in srgb, var(--secondary) 18%, transparent);
+}
+
+/* --- Anillo de foco unico -------------------------------------------------
+ * outline-primary sobre la tarjeta oscura daba 1.93:1, debajo del 3:1 de WCAG 1.4.11:
+ * el foco se perdia justo en los links del hero. --secondary mide 4.25:1 sobre
+ * #1f2937 y 3.44:1 sobre blanco, asi que una sola regla sirve en los dos modos y en
+ * cualquier superficie de la pagina. */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
 /* --- Boton CTA (AC-02): el mismo estilo para el "Crear mi plan gratis" del hero del
  * landing, el de la seccion final y los botones primarios del navbar. Antes era una
  * lista de utilidades de Tailwind pegada string por string en 4 lugares del landing (y
  * otra distinta en el navbar): padding, peso, radio, colores y transiciones viven una
  * sola vez. btn-cta--alt es la variante del Login, que conserva su rol de segundo plano
- * (fondo secundario, hover primario) compartiendo todo lo demas. --- */
+ * (fondo secundario, hover primario) compartiendo todo lo demas. Minimo 2.75rem de alto:
+ * el objetivo tocable de WCAG 2.2 AA en mobile, y en el navbar no crece la barra porque
+ * el logo ya mide 72px. --- */
 .btn-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 2.75rem;
   border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1.25rem;
   font-weight: 600;
   background: var(--primary);
   color: var(--white);
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
+/* Oscurece en vez de aclarar: el hover sobre --secondary bajaba el texto blanco a 3.44:1. */
 .btn-cta:hover {
-  background: var(--secondary);
+  background: color-mix(in srgb, var(--primary) 82%, black);
 }
 
+/* Sobre --secondary el texto va oscuro: blanco sobre ese azul no llega a AA (3.44:1). */
 .btn-cta--alt {
   background: var(--secondary);
+  color: var(--black);
 }
 
 .btn-cta--alt:hover {
   background: var(--primary);
+  color: var(--white);
 }
 
 /* Focus en secundario: sobre el navbar negro el primario no se distingue. */
@@ -326,11 +507,13 @@ details > summary:hover {
   background-color: rgb(17 24 39 / 0.04);
 }
 
+/* La marca mide 0.625rem y no 0.5rem: es la única señal de que una fila del FAQ abre, y con
+ * 8px de lado se perdía al costado de un summary de 48px. */
 details > summary::after {
   content: "";
   flex-shrink: 0;
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.625rem;
+  height: 0.625rem;
   border-right: 2px solid var(--gray);
   border-bottom: 2px solid var(--gray);
   transform: rotate(45deg);
@@ -339,6 +522,12 @@ details > summary::after {
 
 details[open] > summary::after {
   transform: rotate(-135deg);
+}
+
+/* Sobre la tarjeta oscura --gray queda en 3.0:1, justo en el piso de 1.4.11: la marca se
+ * pierde. --dark-text-muted mide 9.9:1 y no compite con el texto del summary. */
+html[data-theme="dark"] details > summary::after {
+  border-color: var(--dark-text-muted);
 }
 
 html[data-theme="dark"] details > summary:hover {
