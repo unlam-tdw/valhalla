@@ -17,6 +17,9 @@ public class PlanBudget {
   @Column(name = "budget_notes", length = 500)
   private String notes;
 
+  @Column(name = "budget_people")
+  private Integer people;
+
   public PlanBudget() {}
 
   public PlanBudget(BigDecimal minimum, BigDecimal maximum, String notes) {
@@ -33,6 +36,11 @@ public class PlanBudget {
     this.minimum = minimum;
     this.maximum = maximum;
     this.notes = normalizeNotes(notes);
+  }
+
+  public PlanBudget(BigDecimal minimum, BigDecimal maximum, String notes, Integer people) {
+    this(minimum, maximum, notes);
+    this.people = people;
   }
 
   private static String normalizeNotes(String notes) {
@@ -62,6 +70,10 @@ public class PlanBudget {
 
   public String getNotes() {
     return notes;
+  }
+
+  public Integer getPeople() {
+    return people;
   }
 
   public boolean isEstimated() {

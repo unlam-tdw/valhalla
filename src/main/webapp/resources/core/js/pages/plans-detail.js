@@ -25,7 +25,7 @@ import {
     directionsUrl
 } from '../lib/places-map.js';
 
-const { createApp, ref, computed, onMounted, nextTick } = Vue;
+const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 const seed = window.PLAN_DETAIL_SEED || {};
 const itineraryUrl = seed.itineraryUrl || '';
 const catalogUrl = seed.catalogUrl || '';
@@ -36,11 +36,28 @@ const eventTime = seed.eventTime || '';
 const dayEndTime = seed.dayEndTime || '';
 const transportMode = seed.transportMode || '';
 const autoScheduleOn = seed.autoSchedule !== false;
+const estimatedPrices = seed.estimatedPrices || {};
+const budgetEstimated = seed.budgetEstimated === true;
+const budgetMaximum = seed.budgetMaximum == null ? null : Number(seed.budgetMaximum);
+// [SURPRISE] Cuantas personas se estimaron: los precios son por persona y la vista los
+// multiplica por este valor (null = no se indico, se muestra el precio por persona solo).
+const budgetPeople = Number(seed.budgetPeople) || null;
+const canReorderStops = seed.editable === true;
+
+// [SURPRISE] Costo por persona de cada tramo de traslado, el espejo de PlaceCostEstimator:
+// a pie y en bici no se gasta; colectivo y auto, si. El modo viaja como string en el seed y
+// en las entradas de la API.
+const TRAVEL_COSTS = { WALK: 0, BIKE: 0, BUS: 750, CAR: 2000 };
+const travelCostOf = (mode) => TRAVEL_COSTS[mode] || 0;
 
 /** An itinerary entry and a catalogue place arrive in different shapes; both end here. */
 const parsePlace = (p) => {
     if (!p) return null;
     const target = p.place ? p.place : p;
+    const category = target.category || 'DEFAULT';
+    const estimatedCost = Number(
+        p.estimatedCost ?? target.estimatedCost ?? estimatedPrices[category] ?? estimatedPrices.DEFAULT ?? 2500
+    );
     return {
         entryId: p.entryId || null,
         description: p.description,
@@ -53,17 +70,47 @@ const parsePlace = (p) => {
         transportModeToNext: p.transportModeToNext || '',
         travelMinutesToNext: p.travelMinutesToNext ?? null,
         timePinned: p.timePinned === true,
-        id: target.id,
+        estimatedCost,
+        id: target.id || p.placeId,
         name: target.name || 'Sin nombre',
-        category: target.category || 'DEFAULT',
+        category,
         // [MAPS] La direccion viaja en el modelo para armar el "Como llegar" de la ficha,
         // el popup y la lista del itinerario (el dataset trae direccion y coordenada
         // desfasadas, asi que el link usa el texto).
         address: target.address,
-        latitude: target.latitude || target.lat,
-        longitude: target.longitude || target.lng
+        latitude: target.latitude ?? target.lat,
+        longitude: target.longitude ?? target.lng
     };
 };
+
+const money = (value) => Number(value || 0).toLocaleString('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+
+/* Precio visible al usuario: los lugares gratuitos dicen "Gratis" y el resto viaja con el
+   simbolo. Cuando se indico gente, multiplica: "$12.000 × 2". El select de alta y las paradas
+   del itinerario usan la misma etiqueta. */
+const costLabel = (value) => {
+    const cost = Number(value) || 0;
+    const label = cost === 0 ? 'Gratis' : '$' + money(cost);
+    return budgetPeople > 1 ? label + ' × ' + budgetPeople : label;
+};
+
+/* Fallback del traslado cuando no hay ventana del día para derivar el horario: misma cuenta
+   que el espejo `travelMinutes` de plan-schedule (override, piso de 5, techo de 90). */
+function travelMinutesOf(from, to) {
+    const override = parseInt(from?.travelMinutesToNext, 10);
+    if (Number.isFinite(override)) return Math.max(1, override);
+    if (from?.place?.latitude == null || from?.place?.longitude == null
+        || to?.place?.latitude == null || to?.place?.longitude == null) return 15;
+    const mode = from?.transportModeToNext || transportMode || 'WALK';
+    const speeds = { WALK: 4.5, BIKE: 14, BUS: 16, CAR: 22 };
+    const speed = speeds[mode] || 4.5;
+    const distanceKm = haversineKm(from, to) * 1.4;
+    const minutes = Math.round(((distanceKm / speed) * 60) / 5) * 5;
+    return Math.max(5, Math.min(90, minutes));
+}
 
 createApp({
     setup() {
@@ -76,6 +123,7 @@ createApp({
         const selectedPlaceId = ref(null);
         const selectedEntry = ref(null);
         const requestError = ref('');
+        const requestNotice = ref('');
         const saving = ref(false);
         const placeDialog = ref(null);
         // [STD] La configuración del plan y los miembros baneados son cards centradas: se abren
@@ -120,17 +168,9 @@ createApp({
         });
 
         const itineraryRequest = async (path = '', options = {}) => {
-            try {
-                const response = await apiFetch(itineraryUrl + path, options);
-                const text = await response.text();
-                return text ? JSON.parse(text) : null;
-            } catch (error) {
-                // The session-expiry sentence is the only one worth passing through;
-                // this page owns its copy for everything else.
-                if (error.status === 401) throw error;
-                console.error(error);
-                throw new Error('No se pudo actualizar o consultar el lugar. Intenta nuevamente.');
-            }
+            const response = await apiFetch(itineraryUrl + path, options);
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
         };
 
         /* El servidor recalcula el plan entero después de cada cambio de horario, de un reorden o
@@ -138,14 +178,28 @@ createApp({
            evita reemplazar el array y perder el orden optimista de la UI. */
         const refreshSchedule = async () => {
             const entries = await itineraryRequest();
+            if (!Array.isArray(entries)) return;
+            const byId = new Map(planPlaces.value.map(p => [p.entryId, p]));
+            const ordered = [];
             entries.forEach((entry) => {
-                const item = planPlaces.value.find(p => p.entryId === entry.id);
+                const item = byId.get(entry.id);
                 if (!item) return;
                 item.visitDate = entry.visitDate;
                 item.visitTime = entry.visitTime;
                 item.durationMinutes = entry.durationMinutes;
-                item.timePinned = entry.timePinned;
+                item.timePinned = entry.timePinned === true;
+                item.travelMinutesToNext = entry.travelMinutesToNext ?? null;
+                item.transportModeToNext = entry.transportModeToNext || '';
+                if (entry.estimatedCost != null) item.estimatedCost = Number(entry.estimatedCost);
+                ordered.push(item);
             });
+            // Conserva el orden devuelto por el servidor y agrega cualquier entrada local no presente.
+            if (ordered.length === planPlaces.value.length) {
+                planPlaces.value = ordered;
+            } else if (ordered.length > 0) {
+                const seen = new Set(ordered.map(p => p.entryId));
+                planPlaces.value = ordered.concat(planPlaces.value.filter(p => !seen.has(p.entryId)));
+            }
         };
 
         /** `dd/mm` para el encabezado del día, igual que el creador. */
@@ -171,8 +225,6 @@ createApp({
             const start = clockMinutes(item.visitTime);
             const end = endMinutes(item);
             return {
-                // Sin duración no hay fin que calcular, pero la hora de inicio sí existe:
-                // mostrarla vale más que declarar el horario "por definir".
                 timeRange: start === null
                     ? ''
                     : end !== null
@@ -209,6 +261,61 @@ createApp({
             const [moved] = next.splice(draggingIndex.value, 1);
             next.splice(hoverSlot.value, 0, moved);
             return next;
+        });
+
+        /* Resumen del recorrido en vivo (paradas · minutos · km), el mismo que leía el chip del
+           servidor: ahora se recalcula también al agregar, sacar o reordenar paradas, y el drag
+           lo muestra como preview mientras arrastra. */
+        const itineraryStats = computed(() => {
+            const stops = displayPlaces.value.map((pair) => scheduleStopOf(pair.item));
+            let totalMinutes = 0;
+            let schedule = [];
+            if (autoScheduleOn && eventTime && planDate.value) {
+                schedule = scheduleStops({
+                    planDate: planDate.value,
+                    startTime: eventTime,
+                    dayEnd: dayEndTime,
+                    mode: transportMode,
+                    stops
+                });
+            }
+            if (schedule.length) {
+                schedule.forEach((slot) => { totalMinutes += slot.minutes + slot.legMinutes; });
+            } else {
+                stops.forEach((stop, index) => {
+                    totalMinutes += effectiveMinutes(stop);
+                    if (index + 1 < stops.length) {
+                        totalMinutes += travelMinutesOf(stop, stops[index + 1]);
+                    }
+                });
+            }
+            let totalKm = 0;
+            for (let i = 0; i < stops.length - 1; i++) {
+                const from = stops[i];
+                const to = stops[i + 1];
+                if (from.place.latitude != null && from.place.longitude != null
+                    && to.place.latitude != null && to.place.longitude != null) {
+                    totalKm += haversineKm(from, to);
+                }
+            }
+            return {
+                count: stops.length,
+                timeLabel: formatDuration(totalMinutes),
+                kmLabel: totalKm > 0 ? totalKm.toFixed(1).replace('.', ',') + ' km' : ''
+            };
+        });
+
+        const itineraryHeadline = computed(() => {
+            const stats = itineraryStats.value;
+            if (!stats.count) return '';
+            return stats.count + (stats.count === 1 ? ' parada' : ' paradas')
+                + ' · ' + stats.timeLabel
+                + (stats.kmLabel ? ' · ' + stats.kmLabel : '');
+        });
+
+        const dragSummary = computed(() => {
+            if (draggingIndex.value === null || hoverSlot.value === null) return null;
+            return itineraryStats.value;
         });
 
         /* [REO] D-3/D-5: el preview del horario vive solo durante el arrastre y solo cuando
@@ -260,8 +367,6 @@ createApp({
                 let group = groups[groups.length - 1];
                 if (!group || group.date !== date) {
                     group = {
-                        // La posición desambigua: un pin puede volver a una fecha ya usada un
-                        // grupo antes (1 → 2 → 1) y Vue necesita claves únicas dentro del v-for.
                         key: 'day-' + groups.length + (date || ''),
                         date,
                         label: 'Día ' + (groups.length + 1) + (date ? ' · ' + shortDate(date) : ''),
@@ -276,41 +381,54 @@ createApp({
 
         const dayCount = computed(() => dayGroups.value.length);
 
-        /* [REO] D-9: resumen del recorrido en vivo mientras se arrastra, con la misma cuenta
-           del itinerario: paradas, minutos totales (duraciones + tramos) y km de ruta con coma
-           decimal. Es efímero: al soltar gana lo que el servidor recalcula y refresca. */
-        const dragSummary = computed(() => {
-            if (draggingIndex.value === null || hoverSlot.value === null) return null;
-            const stops = displayPlaces.value.map((pair) => scheduleStopOf(pair.item));
-            const schedule = scheduleStops({
-                planDate: planDate.value,
-                startTime: eventTime,
-                dayEnd: dayEndTime,
-                mode: transportMode,
-                stops
-            });
-            let totalMinutes = 0;
-            schedule.forEach((slot) => { totalMinutes += slot.minutes + slot.legMinutes; });
-            if (!schedule.length) {
-                // Sin seed del planificador (plan viejo sin hora de inicio) solo quedan las
-                // duraciones: el resumen no miente con un total que no puede derivar.
-                stops.forEach((stop) => { totalMinutes += effectiveMinutes(stop); });
-            }
-            let totalKm = 0;
-            for (let i = 0; i < stops.length - 1; i++) {
-                const from = stops[i];
-                const to = stops[i + 1];
-                if (from.place.latitude != null && from.place.longitude != null
-                    && to.place.latitude != null && to.place.longitude != null) {
-                    totalKm += haversineKm(from, to);
+        /* [SURPRISE] Costo por persona de todo el recorrido en vivo: el precio de cada lugar
+           mas el traslado de cada tramo hacia la parada siguiente (el ultimo no tiene destino,
+           asi que no suma). El servidor valida el tope al agregar con la misma cuenta; acá se
+           muestra y se avisa cuando queda por encima del presupuesto. */
+        const estimatedTotal = computed(() => {
+            const stops = planPlaces.value;
+            let total = 0;
+            for (let i = 0; i < stops.length; i++) {
+                total += Number(stops[i].estimatedCost) || 0;
+                if (i + 1 < stops.length) {
+                    total += travelCostOf(stops[i].transportModeToNext);
                 }
             }
-            return {
-                count: stops.length,
-                timeLabel: formatDuration(totalMinutes),
-                kmLabel: totalKm.toFixed(1).replace('.', ',') + ' km'
-            };
+            return total;
         });
+
+        const overBudgetAmount = computed(() => {
+            if (!budgetEstimated || budgetMaximum == null) return 0;
+            return Math.max(0, estimatedTotal.value - budgetMaximum);
+        });
+
+        /* El chip ITINERARIO arranca server-rendered y Vue lo refresca escribiendo el texto
+           sobre el mismo nodo (no v-text: el th:text deja hijos y el template no compila). */
+        const syncItineraryHeadline = () => {
+            const chip = document.querySelector('.plan-chip--wide .plan-chip__value');
+            if (chip) chip.textContent = itineraryHeadline.value;
+        };
+
+        const syncEstimatedCost = () => {
+            const line = document.getElementById('itinerary-estimate');
+            const cost = document.getElementById('itinerary-estimated-cost');
+            const over = document.getElementById('itinerary-over-budget');
+            const overAmount = document.getElementById('itinerary-over-amount');
+            if (!line || !cost) return;
+            if (planPlaces.value.length === 0) {
+                line.hidden = true;
+                return;
+            }
+            line.hidden = false;
+            cost.textContent = money(estimatedTotal.value);
+            // El multiplicador de personas solo viaja si el server lo renderizo (gente > 1).
+            const peopleTotal = document.getElementById('itinerary-estimated-total');
+            if (peopleTotal) peopleTotal.textContent = money(estimatedTotal.value * (budgetPeople || 1));
+            syncItineraryHeadline();
+            const amount = overBudgetAmount.value;
+            if (over) over.hidden = !(amount > 0);
+            if (overAmount) overAmount.textContent = money(amount);
+        };
 
         const getCategoryLabel = (category) => {
             const labels = { RESTAURANT: 'Restaurante', BAR: 'Bar', CAFE: 'Café', MUSEUM: 'Museo', PARK: 'Parque', SHOPPING: 'Compras', NIGHTLIFE: 'Vida nocturna', CULTURE: 'Cultura', SPORT: 'Deporte', OTHER: 'Otro' };
@@ -330,7 +448,7 @@ createApp({
             }).outerHTML;
         };
 
-        const renderMarkers = (focusPlaceId = null) => {
+        const renderMarkers = (focusPlaceId = null, orderedPlaces = null) => {
             markers.forEach(m => map.removeLayer(m));
             markers = [];
             if (routeLine) {
@@ -338,14 +456,15 @@ createApp({
                 routeLine = null;
             }
 
-            const isSinglePlace = planPlaces.value.length === 1;
+            const ordered = Array.isArray(orderedPlaces) ? orderedPlaces : planPlaces.value;
+            const isSinglePlace = ordered.length === 1;
             const routeLatLngs = [];
             const bounds = [];
 
             if (allPlaces.value.length > 0) {
                 allPlaces.value.forEach((place) => {
                     if (place.latitude && place.longitude) {
-                        const itineraryIndex = planPlaces.value.findIndex(p => p.id === place.id);
+                        const itineraryIndex = ordered.findIndex(p => p.id === place.id);
                         const isInPlan = itineraryIndex !== -1;
 
                         const categoryClass = 'cat-' + place.category;
@@ -395,9 +514,12 @@ createApp({
                             directionsLink(place, { class: 'text-primary underline-offset-4 text-decoration-none fw-medium' })
                         ]);
 
-                        const marker = buildMarker(place, { badge })
+                        const marker = buildMarker(place, { badge, size: isNumbered ? 32 : 30 })
                             .addTo(map)
                             .bindPopup(popup);
+                        if (isNumbered) {
+                            marker.setZIndexOffset(500 + itineraryIndex);
+                        }
 
                         markers.push(marker);
                         bounds.push([place.latitude, place.longitude]);
@@ -410,8 +532,8 @@ createApp({
                 });
             }
 
-            if (planPlaces.value.length > 1) {
-                planPlaces.value.forEach(place => {
+            if (ordered.length > 1) {
+                ordered.forEach(place => {
                     if (place.latitude && place.longitude) {
                         routeLatLngs.push([place.latitude, place.longitude]);
                     }
@@ -448,6 +570,7 @@ createApp({
 
         const showPlace = async (item) => {
             requestError.value = '';
+            requestNotice.value = '';
             try {
                 const entries = await itineraryRequest();
                 const entry = entries.find(candidate => candidate.id === item.entryId);
@@ -460,7 +583,7 @@ createApp({
                 // <template v-if> necesita para renderizar antes de showModal.
                 await nextTick();
                 placeDialog.value.showModal();
-            } catch (error) { requestError.value = error.message; }
+            } catch (error) { requestError.value = error.message || 'No se pudo consultar el lugar.'; }
         };
 
         /* El PUT reemplaza los campos del horario, así que el payload viaja completo: el
@@ -473,6 +596,7 @@ createApp({
             if (saving.value || !entry) return;
             saving.value = true;
             requestError.value = '';
+            requestNotice.value = '';
             const editsSchedule = field === 'visitDate' || field === 'visitTime';
             const keepsSchedule = entry.timePinned || editsSchedule;
             const payload = {
@@ -501,35 +625,46 @@ createApp({
                 // horas viejas hasta recargar la página.
                 await refreshSchedule();
                 Object.assign(entry, describeStop(entry));
-            } catch (error) { requestError.value = error.message; }
+                syncEstimatedCost();
+            } catch (error) { requestError.value = error.message || 'No se pudo actualizar el lugar.'; }
             finally { saving.value = false; }
         };
 
         const addPlace = async () => {
-            if (saving.value) return;
+            if (saving.value || !selectedPlaceId.value) return;
             saving.value = true;
             requestError.value = '';
+            requestNotice.value = '';
             const placeObj = allPlaces.value.find(p => p.id === selectedPlaceId.value);
             try {
-                if (placeObj) {
-                    const entry = await itineraryRequest('?placeId=' + placeObj.id, { method: 'POST' });
-                    const addedId = placeObj.id;
-                    planPlaces.value.push({
-                        ...placeObj,
-                        entryId: entry.id,
-                        description: entry.description,
-                        visitDate: entry.visitDate,
-                        visitTime: entry.visitTime,
-                        durationMinutes: entry.durationMinutes,
-                        timePinned: entry.timePinned,
-                        transportModeToNext: entry.transportModeToNext || '',
-                        travelMinutesToNext: entry.travelMinutesToNext ?? null
-                    });
-                    selectedPlaceId.value = null;
-                    renderMarkers(addedId);
+                if (!placeObj) throw new Error('Elegí un lugar para agregar.');
+                const entry = await itineraryRequest('?placeId=' + placeObj.id, { method: 'POST' });
+                const addedId = placeObj.id;
+                planPlaces.value.push({
+                    ...placeObj,
+                    entryId: entry.id,
+                    description: entry.description,
+                    visitDate: entry.visitDate,
+                    visitTime: entry.visitTime,
+                    durationMinutes: entry.durationMinutes,
+                    timePinned: entry.timePinned === true,
+                    transportModeToNext: entry.transportModeToNext || '',
+                    travelMinutesToNext: entry.travelMinutesToNext ?? null,
+                    estimatedCost: Number(entry.estimatedCost ?? placeObj.estimatedCost ?? 0)
+                });
+                selectedPlaceId.value = null;
+                renderMarkers(addedId);
+                await refreshSchedule();
+                syncEstimatedCost();
+                if (overBudgetAmount.value > 0) {
+                    requestNotice.value = 'Se agregó «' + placeObj.name + '». El itinerario queda $'
+                        + money(overBudgetAmount.value)
+                        + ' sobre tu presupuesto de $' + money(budgetMaximum) + '.';
                 }
             } catch (error) {
-                requestError.value = error.message;
+                // El servidor rechaza el alta cuando el nuevo total pasa el presupuesto por más
+                // de $2.000: el plan queda como estaba y el mensaje viaja al alert rojo.
+                requestError.value = error.message || 'No se pudo agregar el lugar.';
             } finally {
                 saving.value = false;
             }
@@ -539,6 +674,7 @@ createApp({
             if (saving.value) return;
             saving.value = true;
             requestError.value = '';
+            requestNotice.value = '';
             try {
                 await itineraryRequest('/' + planPlaces.value[index].entryId, { method: 'DELETE' });
                 planPlaces.value.splice(index, 1);
@@ -546,7 +682,8 @@ createApp({
                 // El servidor recalcula el plan sin la parada borrada: las que quedan cambian de
                 // hora y el refresco las trae.
                 await refreshSchedule();
-            } catch (error) { requestError.value = error.message; }
+                syncEstimatedCost();
+            } catch (error) { requestError.value = error.message || 'No se pudo eliminar el lugar.'; }
             finally { saving.value = false; }
         };
 
@@ -570,8 +707,13 @@ createApp({
            manija inerte: sin drag mientras hay un guardado en curso. pointercancel restaura
            como un drop cancelado. */
         const onHandleDown = (event, index) => {
-            if (saving.value || event.button > 0) return;
+            if (!canReorderStops || saving.value || event.button > 0) return;
+            // Permite arrastrar desde la fila/manija, pero no al interactuar con controles.
+            const interactive = event.target && event.target.closest ? event.target.closest('a, button, input, select, textarea, label') : null;
+            const isHandle = event.target && event.target.closest ? event.target.closest('.drag-handle') : null;
+            if (interactive && !isHandle) return;
             event.preventDefault();
+            event.stopPropagation();
             draggingIndex.value = index;
             hoverSlot.value = index;
             const handle = event.currentTarget;
@@ -720,6 +862,7 @@ createApp({
             if (saving.value) return;
             saving.value = true;
             requestError.value = '';
+            requestNotice.value = '';
             const previous = [...planPlaces.value];
             await flipReorder(() => {
                 const movedItem = planPlaces.value.splice(from, 1)[0];
@@ -730,13 +873,14 @@ createApp({
             try {
                 await itineraryRequest('/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(planPlaces.value.map(item => item.entryId)) });
                 reordered = true;
-            } catch (error) { planPlaces.value = previous; renderMarkers(); requestError.value = error.message; }
+            } catch (error) { planPlaces.value = previous; renderMarkers(); requestError.value = error.message || 'No se pudo reordenar.'; }
             finally { saving.value = false; }
             // [SCH] Reordenar vuelve a derivar el horario: el refresco trae las horas nuevas y
             // deja intacto el orden optimista que ya está pintado. Va fuera del try del
             // reorder para que un fallo acá no revierta un orden que el servidor sí guardó.
             if (reordered) {
-                try { await refreshSchedule(); } catch (error) { requestError.value = error.message; }
+                try { await refreshSchedule(); } catch (error) { requestError.value = error.message || 'No se pudo actualizar el horario.'; }
+                syncEstimatedCost();
             }
         };
 
@@ -748,7 +892,8 @@ createApp({
 
             try {
                 const response = await apiFetch(catalogUrl);
-                allPlaces.value = await response.json();
+                const catalog = await response.json();
+                allPlaces.value = (catalog || []).map(parsePlace).filter(p => p && p.id);
             } catch (error) {
                 allPlaces.value = [];
                 requestError.value = error.status === 401
@@ -756,17 +901,38 @@ createApp({
                     : 'No se pudo cargar el listado de lugares.';
             }
             initMap();
+            syncEstimatedCost();
         });
 
+        watch([estimatedTotal, () => planPlaces.value.length], syncEstimatedCost);
+        // Recalcula marcadores y recorrido del mapa cuando cambia el itinerario (agregar,
+        // quitar, reordenar o refrescar horarios) para que se vea siempre actualizado.
+        watch(planPlaces, () => { if (map) renderMarkers(); }, { deep: true });
+        // Durante el arrastre muestra en el mapa el orden de la vista previa; al soltar vuelve al real.
+        watch([draggingIndex, hoverSlot], () => {
+            if (!map) return;
+            if (draggingIndex.value !== null && hoverSlot.value !== null) {
+                renderMarkers(null, displayPlaces.value.map(pair => pair.item));
+            } else {
+                renderMarkers();
+            }
+        });
+        watch(displayPlaces, () => {
+            if (!map) return;
+            if (draggingIndex.value !== null && hoverSlot.value !== null) {
+                renderMarkers(null, displayPlaces.value.map(pair => pair.item));
+            }
+        }, { deep: true });
+
         return {
-            allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, saving,
+            allPlaces, planPlaces, selectedPlaceId, selectedEntry, requestError, requestNotice, saving,
             inviteOpen, addPlaceOpen,
             configDialog, openConfig, bannedDialog, bannedTrigger, openBanned,
             participantsDialog, openParticipants, requestsDialog, openRequests,
             placeDialog, availablePlaces, dayGroups, dayCount, directionsUrl, itineraryList,
-            dragSummary,
-            dragAnnouncement,
-            getCategoryLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
+            dragSummary, itineraryHeadline,
+            dragAnnouncement, canReorderStops,
+            getCategoryLabel, costLabel, iconHtml, categoryIconHtml, showPlace, updateEntry, addPlace,
             removePlace, onHandleDown, onHandleKeydown
         };
     }

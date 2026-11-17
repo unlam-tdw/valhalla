@@ -689,6 +689,13 @@ public class PlanServiceImpl implements PlanService { // NOPMD — intentional: 
   }
 
   @Override
+  public void updatePlanName(UUID id, String name, String ownerEmail) {
+    Plan plan = getEditablePlan(id, ownerEmail);
+    plan.setName(name);
+    planRepository.save(plan);
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public Plan getParticipatingPlan(UUID id, String userEmail) {
     Plan plan = planRepository.findById(id).orElseThrow(PlanNotFoundException::new);
