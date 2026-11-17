@@ -48,7 +48,16 @@
             border-radius: 16px;
             overflow: hidden;
         }
-        .itinerary-panel { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: 8px; padding: 20px; }
+        /* [A11Y] La region aria-live del reorden es visually-hidden (position: absolute).
+           Sin un ancestro posicionado, su posicion estatica queda al final del documento y
+           suma scroll fantasma a la pagina. El panel es el contenedor correcto. */
+        .itinerary-panel {
+            position: relative;
+            background: var(--bs-body-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
         .itinerary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .itinerary-heading { color: var(--bs-body-color); letter-spacing: -0.03em; }
         .itinerary-count { background: var(--bs-secondary-bg); color: var(--bs-body-color); border-radius: 20px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
@@ -58,7 +67,7 @@
         .itinerary-list { list-style: none; padding: 0; margin: 12px 0 0; }
         .place-item { position: relative; display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
         .place-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 50%; bottom: -50%; border-left: 2px dashed var(--bs-border-color); }
-        .itinerary-step { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-secondary-bg); color: var(--bs-body-color); font-weight: 700; z-index: 1; }
+        .itinerary-step { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-primary); color: #fff; font-weight: 700; z-index: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         /* [DIS] AC-01: la cara visual (borde, radius, padding, superficie, hover, transicion)
              vive en .place-card de brand.css y la card la comparte con el landing; aca queda
              solo el layout propio del detalle (la card crece dentro de .place-item). El
@@ -74,6 +83,10 @@
             border: 0; background: none; color: var(--gray); opacity: 0.8;
             cursor: grab; touch-action: none;
         }
+        .draggable-stop { cursor: grab; touch-action: none; }
+        .draggable-stop:active { cursor: grabbing; }
+        .draggable-stop a, .draggable-stop button, .draggable-stop input, .draggable-stop select, .draggable-stop textarea { cursor: pointer; touch-action: auto; }
+        .draggable-stop .drag-handle { cursor: grab; touch-action: none; }
         .drag-handle:active { cursor: grabbing; opacity: 1; }
         .drag-handle:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
         /* [REO] D-2: estados del reacomodo en vivo. La fila levantada destaca con anillo y
@@ -164,17 +177,22 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            color: white;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            border: 2px solid white;
-            font-size: 13px;
-            margin-top: -15px;
-            margin-left: -15px;
+            color: #fff;
+            font-weight: 800;
+            background-color: #6c757d;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+            border: 2px solid #fff;
+            font-size: 14px;
+            line-height: 1;
+            margin-top: -16px;
+            margin-left: -16px;
             transition: transform 0.2s ease-in-out;
+        }
+        .custom-map-icon span {
+            text-shadow: 0 1px 2px rgba(0,0,0,0.75), 0 0 2px rgba(0,0,0,0.6);
         }
 
         .cat-RESTAURANT { background-color: #dc3545; }
@@ -185,12 +203,14 @@
         .cat-PARK       { background-color: #198754; }
         .cat-CULTURE    { background-color: #0dcaf0; }
         .cat-BAR        { background-color: #ffc107; color: #000; }
+        .cat-SPORT      { background-color: #20c997; }
         .cat-DEFAULT    { background-color: #6c757d; }
 
         .in-itinerary {
             border: 3px solid #ffc107 !important;
-            transform: scale(1.15);
+            transform: scale(1.2);
             z-index: 1000 !important;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 3px 8px rgba(0,0,0,0.45);
         }
 
         @keyframes pulse-ring {
@@ -502,6 +522,10 @@
             gap: 8px;
         }
         .plan-chips .plan-chip { min-width: 0; }
+        /* El resumen del itinerario es el unico valor que no entra en media columna
+           (paradas + duracion + distancia). Ocupa la fila entera para no salirse de la
+           pildora; el resto de los chips mantiene la grilla de dos columnas. */
+        .plan-chips .plan-chip--wide { grid-column: 1 / -1; }
         /* [STD-011/AC-11] Participantes: nombre y badge arriba, acciones en su fila debajo. */
         .participants-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
         /* La card resumen de participantes no estira: el detalle vive en la card centrada. */
@@ -559,7 +583,11 @@
          clonado lo tiene el clonador como admin, asi que su propia copia no lo muestra. -->
     <div class="plan-toolbar mb-4 mt-4">
         <div class="plan-header d-flex align-items-center px-3 py-2 rounded">
-            <h2 class="fw-bold m-0" th:text="${plan.name}">Nombre del plan</h2>
+            <h2 class="fw-bold m-0" th:id="${plan.id}" th:text="${plan.name}">Nombre del plan</h2>
+            <!-- [SORPRENDME] Botón para editar el título, solo visible en planes sorpresa -->
+            <span th:if="${plan.budget != null and plan.budget.notes != null and plan.budget.notes.startsWith('Sorprendeme:')}"
+              class="text-primary cursor-pointer px-2"
+              th:onclick="toggleEditName(event)">✏️</span>
         </div>
         <div class="plan-toolbar-actions d-flex flex-wrap align-items-center gap-2">
             <!-- [STD] AC-03: el aviso de solicitudes vive en la cabecera y solo se pinta con >=1.
@@ -633,16 +661,31 @@
                     <span class="plan-chip__value" th:text="${plan.shortCode}">BD0F615A</span>
                 </span>
                 <!-- [SCH] Resumen del itinerario derivado, con la misma calculadora del horario.
-                     Server-rendered como sus vecinos: los chips de la ficha no se actualizan por
-                     Vue y el resumen no es la excepcion. -->
-                <span class="plan-chip" th:if="${itinerarySummary.stopCount > 0}">
+                     El valor arranca server-rendered (th:text) y Vue lo refresca por el mismo
+                     nodo: el texto viaja por v-text SOLO cuando el elemento no tiene hijos, y un
+                     v-text sobre el th:text deja hijos en el DOM y Vue no compila el template
+                     (compiler-56, la pagina queda en v-cloak). El sync lo hace plans-detail.js
+                     via itineraryHeadline en el watch de paradas/costo. -->
+                <span class="plan-chip plan-chip--wide" th:if="${itinerarySummary.stopCount > 0}" v-if="planPlaces.length > 0">
                     <small class="plan-chip__label">ITINERARIO</small>
                     <span class="plan-chip__value" th:text="${itinerarySummary.headline()}">5 paradas · 6 h 20 min · 12,4 km</span>
                 </span>
             </div>
-            <p id="plan-description" class="mb-0 text-break plan-description-clamp"
+            <p id="plan-description" class="mb-0 text-break plan-description-clamp small"
+               th:if="${plan.budget == null or plan.budget.notes == null or !plan.budget.notes.startsWith('Sorprendeme:')}"
                th:text="${#strings.isEmpty(plan.description) ? 'Sin descripci&oacute;n' : plan.description}">Descripci&oacute;n del plan</p>
             <th:block th:replace="~{components/plan-budget :: summary}"></th:block>
+            <!-- Alertas del itinerario (alta bloqueada, aviso de presupuesto, fallos de red):
+                 junto a la card de presupuesto, que es donde se mira el costo, y no al pie de
+                 la pagina donde nunca se ven. -->
+            <p v-if="requestNotice" class="alert alert-warning mt-2 py-2 small" role="alert">{{ requestNotice }}</p>
+            <p v-if="requestError" class="alert alert-danger mt-2 py-2 small" role="alert">{{ requestError }}</p>
+            <!-- [SURPRISE] Otra sugerencia con la misma idea, compacto. -->
+            <form th:if="${canEditPlan and surpriseAgain != null and not #maps.isEmpty(surpriseAgain)}" method="post" th:action="@{/plans/surprise}" class="mt-2 mb-0">
+                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <input type="hidden" th:each="entry : ${surpriseAgain.entrySet()}" th:name="${entry.key}" th:value="${entry.value}" />
+                <button type="submit" class="btn btn-outline-primary btn-sm">Otra sugerencia</button>
+            </form>
             <!-- [STD-011/AC-11] El boton de edicion vive al pie de la ficha: en una columna de
                  ~360 px, al lado de los chips quedaba aplastado. [STD] Abre la card de
                  configuración centrada, sin sumar scroll a la página. -->
@@ -681,7 +724,7 @@
                     <select v-model="selectedPlaceId" class="form-select" aria-label="Lugar para agregar al plan">
                         <option :value="null" disabled>-- Seleccionar un lugar disponible --</option>
                         <option v-for="place in availablePlaces" :key="place.id" :value="place.id">
-                            {{ place.name }} ({{ place.category }})
+                            {{ place.name }} ({{ getCategoryLabel(place.category) }} · {{ costLabel(place.estimatedCost) }})
                         </option>
                     </select>
                     <button @click="addPlace" type="button" class="btn btn-success w-100 fw-bold" :disabled="!selectedPlaceId || saving">
@@ -689,7 +732,7 @@
                     </button>
                 </div>
             </div>
-            <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; la parada desde la manija para organizar tu recorrido.</p>
+            <p class="text-muted small mt-2 mb-0" th:if="${canEditPlan}">Arrastr&aacute; cada parada para cambiar el orden del recorrido.</p>
             <div v-if="planPlaces.length === 0" class="itinerary-empty">
                 <span class="mb-3 d-inline-block" v-html="iconHtml('map-pinned', 28)"></span>
                 <p class="fw-semibold mb-1">El recorrido est&aacute; por comenzar</p>
@@ -702,7 +745,8 @@
                         :key="stop.item.entryId || stop.planIndex"
                         class="place-item"
                         :data-stop-row="stop.item.entryId || String(stop.planIndex)"
-                        :class="{ 'is-dragged': stop.isDragged, 'is-drag-source': stop.dimmed }">
+                        :class="{ 'is-dragged': stop.isDragged, 'is-drag-source': stop.dimmed, 'draggable-stop': canReorderStops }"
+                        @pointerdown="onHandleDown($event, stop.planIndex)">
                         <!-- [REO] D-1/D-7/D-8: la manija es un botón real y el único origen del
                              arrastre: pointerdown + setPointerCapture acá, y el <li> deja de ser
                              draggable (fin de los drags accidentales). El SVG de 6 puntos se
@@ -733,6 +777,7 @@
                                 <div class="stop-heading">
                                     <button type="button" class="stop-title" @click="showPlace(stop.item)">{{ stop.item.name }}</button>
                                     <span class="stop-category"><span v-html="categoryIconHtml(stop.item.category, 14)"></span>{{ getCategoryLabel(stop.item.category) }}</span>
+                                    <span class="stop-category">{{ costLabel(stop.item.estimatedCost) }}</span>
                                     <span v-if="stop.item.timePinned" class="stop-pinned" title="Horario fijado a mano">
                                         <span v-html="iconHtml('pin', 12)"></span>Fijado
                                     </span>
@@ -745,7 +790,7 @@
                                     <span v-if="stop.dateLabel"><span class="me-1" v-html="iconHtml('calendar', 14)"></span>{{ stop.dateLabel }}</span>
                                     <span v-if="!stop.timeRange">Horario por definir</span>
                                 </div>
-                                <p v-if="stop.item.description" class="stop-description">{{ stop.item.description }}</p>
+                                <p v-if="stop.item.description && !stop.item.description.startsWith('Costo estimado')" class="stop-description">{{ stop.item.description }}</p>
                                 <!-- [MAPS] Como llegar en la lista del itinerario, ademas del mapa:
                                      mismo link que la ficha y el popup (direccion de texto). -->
                                 <a v-if="stop.item.address" class="stop-directions" :href="directionsUrl(stop.item)"
@@ -1075,7 +1120,6 @@
                 </div>
     </dialog>
 
-    <p v-if="requestError" class="alert alert-danger mt-3" role="alert">{{ requestError }}</p>
     <!-- [DIS-B02/B04] Ficha del lugar: título + chip de categoría arriba, bloques con icono
          (dirección, cómo llegar, descripciones, horario/duración/día y posición) y el editor de
          horario para quien puede editar. tabindex="-1" y el render previo a showModal
@@ -1206,10 +1250,86 @@
       });
     </script>
 
-    <!-- The module cannot read Thymeleaf, so the page hands it exactly these nine values.
-         `th:inline` is the accepted literal form (docs/guide-js.md R3): the two lists are
+    <!-- The module cannot read Thymeleaf, so the page hands it exactly these values.
+         `th:inline` is the accepted literal form (docs/guide-js.md R3): the lists/maps are
          object graphs, not strings a data-* attribute could carry. -->
     <script th:inline="javascript">
+      // @tags [SORPRENDME] Editar título del plan sorpresa (solo dueño, botón lápiz).
+      function toggleEditName(event) {
+        event.stopPropagation();
+        const icon = event.currentTarget || event.target.closest('span');
+        if (!icon || icon.dataset.editing === '1') return;
+        const header = icon.parentElement;
+        const h2 = header.querySelector('h2');
+        if (!h2) return;
+
+        icon.dataset.editing = '1';
+        const original = h2.textContent;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = original;
+        input.className = 'form-control form-control-sm d-inline-block w-auto ms-2';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'btn btn-sm btn-success ms-1';
+        saveBtn.textContent = 'Guardar';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn btn-sm btn-outline-secondary ms-1';
+        cancelBtn.textContent = 'Cancelar';
+
+        const editor = document.createElement('span');
+        editor.className = 'd-inline-flex align-items-center flex-wrap gap-1 ms-2';
+        editor.appendChild(input);
+        editor.appendChild(saveBtn);
+        editor.appendChild(cancelBtn);
+
+        h2.style.display = 'none';
+        icon.style.display = 'none';
+        header.appendChild(editor);
+        input.focus();
+        input.select();
+
+        function finish(newName) {
+          h2.textContent = newName || original;
+          h2.style.display = '';
+          icon.style.display = '';
+          icon.dataset.editing = '0';
+          editor.remove();
+        }
+
+        async function saveName() {
+          const newName = input.value.trim();
+          if (!newName || newName === original) {
+            finish(original);
+            return;
+          }
+          const csrfMeta = document.querySelector('meta[name="_csrf"]');
+          const headers = { 'X-CSRF-TOKEN': csrfMeta ? csrfMeta.content : '' };
+          try {
+            const res = await fetch(`/plans/${h2.id}/name?name=${encodeURIComponent(newName)}`, {
+              method: 'PUT',
+              headers
+            });
+            if (!res.ok) throw new Error();
+            finish(newName);
+          } catch (e) {
+            finish(original);
+          }
+        }
+
+        saveBtn.onclick = saveName;
+        cancelBtn.onclick = () => finish(original);
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); saveName(); }
+          if (e.key === 'Escape') { e.preventDefault(); finish(original); }
+        });
+      }
+
+      // El lápiz usa th:onclick inline; no duplicar listeners acá.
+
       window.PLAN_DETAIL_SEED = {
         itineraryUrl: /*[[@{/api/plans/{id}/places(id=${plan.id})}]]*/ '',
         catalogUrl: /*[[@{/api/places}]]*/ '',
@@ -1222,7 +1342,14 @@
         eventTime: /*[[${planEventTime}]]*/ '',
         dayEndTime: /*[[${planDayEndTime}]]*/ '',
         transportMode: /*[[${planTransportMode}]]*/ '',
-        autoSchedule: /*[[${planAutoSchedule}]]*/ true
+        autoSchedule: /*[[${planAutoSchedule}]]*/ true,
+        estimatedPrices: /*[[${estimatedPrices}]]*/ {},
+        budgetEstimated: /*[[${plan.budget != null ? plan.budget.estimated : false}]]*/ false,
+        budgetMaximum: /*[[${plan.budget != null ? plan.budget.maximum : null}]]*/ null,
+        // [SURPRISE] Cuantas personas se estimaron (null si no se indico): el JS multiplica los
+        // precios por persona por este valor en la card de presupuesto y en el badge de paradas.
+        budgetPeople: /*[[${budgetPeople}]]*/ null,
+        editable: /*[[${canEditPlan}]]*/ false
       };
     </script>
     <script type="module" th:src="@{/js/pages/plans-detail.js}"></script>

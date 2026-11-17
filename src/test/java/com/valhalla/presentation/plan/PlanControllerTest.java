@@ -975,6 +975,33 @@ public class PlanControllerTest {
     verify(this.planRatingServiceMock, never()).rate(any(UUID.class), anyString(), anyInt());
   }
 
+  @Test
+  public void showPlan_y_showPublicPlan_sonRobustosAnteParadasNulas() {
+    Plan plan = plan(PLAN_ID, "Sorpresa");
+    plan.setIsPublic(true);
+    // Un elemento nulo fuerza placeView(null) y hace fallar PrintSheet/ItinerarySummary,
+    // cubriendo los caminos defensivos (la vista debe renderizar igual).
+    plan.getPlanPlaces().add(null);
+
+    when(this.planServiceMock.getParticipatingPlan(PLAN_ID, OWNER_EMAIL)).thenReturn(plan);
+    ModelAndView detail = this.controller.showPlan(PLAN_ID, this.authentication);
+    assertThat(detail.getViewName(), is(DETAIL_VIEW));
+    assertThat(detail.getModel().get("printDays"), is(equalTo(java.util.Collections.emptyList())));
+    assertThat(detail.getModel().get("itinerarySummary"), is(nullValue()));
+
+    when(this.planServiceMock.getSharedPlan(PLAN_ID)).thenReturn(plan);
+    ModelAndView pub = this.controller.showPublicPlan(PLAN_ID, this.authentication);
+    assertThat(pub.getModel().get("printDays"), is(equalTo(java.util.Collections.emptyList())));
+    assertThat(pub.getModel().get("itinerarySummary"), is(nullValue()));
+  }
+
+  @Test
+  public void renamePlan_actualizaNombreConElUsuarioDeLaSesion() {
+    controller.renamePlan(PLAN_ID, "Nuevo nombre", authentication);
+
+    verify(planServiceMock).updatePlanName(PLAN_ID, "Nuevo nombre", OWNER_EMAIL);
+  }
+
   // --- helpers ---
 
   private static LocalValidatorFactoryBean localValidator() {
