@@ -79,6 +79,9 @@ async function messageOf(response) {
     if (parsed && typeof parsed.message === 'string' && parsed.message) {
       return parsed.message;
     }
+    if (parsed && typeof parsed.error === 'string' && parsed.error) {
+      return parsed.error;
+    }
   } catch {
     // Not JSON: an error page, a proxy, a stack trace. Fall through to the status.
   }

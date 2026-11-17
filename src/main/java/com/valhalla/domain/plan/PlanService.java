@@ -77,6 +77,7 @@ public interface PlanService {
   void leavePlan(UUID id, String userEmail);
   Plan joinPlan(String shortCode, String userEmail);
   Plan updatePlan(UUID id, Plan changes, String ownerEmail);
+  void updatePlanName(UUID id, String name, String ownerEmail);
   void deleteOwnedPlan(UUID id, String ownerEmail);
   /** [CLO] Copia propia y editable de un plan accesible: nuevo dueÃ±o, nuevo shortCode. */
   Plan clonePlan(UUID id, String clonerEmail);

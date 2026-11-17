@@ -1,12 +1,9 @@
 package com.valhalla.presentation.plan;
 
+import com.valhalla.domain.place.PlaceRepository;
 import com.valhalla.domain.plan.Plan;
-import com.valhalla.domain.plan.PlanBudget;
 import com.valhalla.domain.plan.PlanService;
-import com.valhalla.domain.plan.TransportMode;
 import jakarta.validation.Valid;
-import java.math.BigDecimal;
-import java.time.LocalTime;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -25,80 +22,54 @@ public class SurprisePlanController {
 
   private static final String VIEW_SURPRISE = "pages/plans/surprise";
   private static final String REDIRECT_PLAN_DETAIL = "redirect:/plans/";
-  private static final Map<String, String> STYLE_LABELS = Map.of(
-    "gastronomia",
-    "gastronomía",
-    "cultura",
-    "cultura",
-    "aire_libre",
-    "aire libre",
-    "mixto",
-    "mixto"
-  );
+  private static final String FORM_ATTR = "surpriseForm";
 
   private final PlanService planService;
+  private final PlaceRepository placeRepository;
 
   @Autowired
-  public SurprisePlanController(PlanService planService) {
+  public SurprisePlanController(PlanService planService, PlaceRepository placeRepository) {
     this.planService = planService;
+    this.placeRepository = placeRepository;
   }
 
   @GetMapping
   public ModelAndView surpriseForm() {
     SurpriseRequest form = new SurpriseRequest();
     form.setDate(java.time.LocalDate.now().plusDays(7));
-    form.setStyle("gastronomia");
-    return new ModelAndView(VIEW_SURPRISE, Map.of("surpriseForm", form));
+    form.setStyle("mixto");
+    ModelAndView view = new ModelAndView(VIEW_SURPRISE, Map.of(FORM_ATTR, form));
+    view.addObject("today", java.time.LocalDate.now().toString());
+    return view;
   }
 
   @PostMapping
   public ModelAndView createSurprise(
-    @Valid @ModelAttribute("surpriseForm") SurpriseRequest form,
+    @Valid @ModelAttribute(FORM_ATTR) SurpriseRequest form,
     BindingResult bindingResult,
     Authentication authentication
   ) {
     if (bindingResult.hasErrors()) {
-      return new ModelAndView(VIEW_SURPRISE, Map.of("surpriseForm", form));
+      return surpriseView(form, bindingResult);
     }
-    Plan created = planService.createPlan(surprisePlan(form), authentication.getName());
-    return new ModelAndView(REDIRECT_PLAN_DETAIL + created.getId());
+    try {
+      Plan draft = SurprisePlanFactory.build(form, placeRepository.findAll());
+      Plan created = planService.createPlan(draft, authentication.getName());
+      return new ModelAndView(REDIRECT_PLAN_DETAIL + created.getId());
+    } catch (IllegalArgumentException e) {
+      bindingResult.rejectValue("budget", "budget", e.getMessage());
+      return surpriseView(form, bindingResult);
+    }
   }
 
-  private static Plan surprisePlan(SurpriseRequest form) {
-    Plan plan = new Plan();
-    plan.setName(surpriseName(form));
-    plan.setDescription(surpriseDescription(form));
-    plan.setEventDate(form.getDate());
-    plan.setEventTime(LocalTime.of(10, 0));
-    plan.setDayEndTime(LocalTime.of(23, 0));
-    plan.setTransportMode(TransportMode.WALK);
-    plan.setIsPublic(false);
-    plan.setBudget(
-      new PlanBudget(BigDecimal.ZERO, form.getBudget(), "Presupuesto estimado por persona")
+  private ModelAndView surpriseView(SurpriseRequest form, BindingResult bindingResult) {
+    ModelAndView view = new ModelAndView(VIEW_SURPRISE);
+    view.addObject(FORM_ATTR, form);
+    view.addObject(
+      org.springframework.validation.BindingResult.MODEL_KEY_PREFIX + FORM_ATTR,
+      bindingResult
     );
-    return plan;
-  }
-
-  private static String surpriseName(SurpriseRequest form) {
-    return "Sorpresa: " + styleLabel(form.getStyle()) + " para " + form.getDate();
-  }
-
-  private static String surpriseDescription(SurpriseRequest form) {
-    StringBuilder description = new StringBuilder();
-    description
-      .append("Plan generado con Sorprendeme para ")
-      .append(form.getDate())
-      .append(". Presupuesto estimado: $")
-      .append(form.getBudget())
-      .append(" por persona.");
-    if (form.getPeople() != null && form.getPeople() > 0) {
-      description.append(" Pensado para ").append(form.getPeople()).append(" personas.");
-    }
-    description.append(" Estilo: ").append(styleLabel(form.getStyle())).append(".");
-    return description.toString();
-  }
-
-  private static String styleLabel(String style) {
-    return STYLE_LABELS.getOrDefault(style == null ? "" : style, "sorpresa");
+    view.addObject("today", java.time.LocalDate.now().toString());
+    return view;
   }
 }

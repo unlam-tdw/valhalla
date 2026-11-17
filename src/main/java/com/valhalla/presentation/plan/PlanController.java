@@ -5,6 +5,7 @@ import static com.valhalla.presentation.shared.SuccessRedirects.confirmed;
 import com.valhalla.domain.bookmark.PlanBookmarkService;
 import com.valhalla.domain.exception.PlanBannedException;
 import com.valhalla.domain.place.Place;
+import com.valhalla.domain.place.PlaceCostEstimator;
 import com.valhalla.domain.plan.Plan;
 import com.valhalla.domain.plan.PlanItinerarySummary;
 import com.valhalla.domain.plan.PlanPermission;
@@ -35,13 +36,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 @Controller
 @RequestMapping("/plans")
+@SuppressWarnings("PMD.CyclomaticComplexity")
 public class PlanController {
 
   private static final String VIEW_PLANS_LIST = "pages/plans/list";
@@ -54,6 +58,8 @@ public class PlanController {
   private static final String ATTR_PLANS = "plans";
   private static final String ATTR_PLAN = "plan";
   private static final String ATTR_BUDGET_FORM = "budgetForm";
+  private static final String ATTR_PRINT_DAYS = "printDays";
+  private static final String ATTR_ITINERARY_SUMMARY = "itinerarySummary";
 
   // [SCH] Defaults del planificador cuando el form no manda la ventana del dia ni el modo: los
   // mismos que asume un plan viejo sin esas columnas.
@@ -131,7 +137,11 @@ public class PlanController {
     );
     // [PRINT] La hoja impresa se arma en Java y sirve a las dos vistas: el detalle la imprime sin
     // depender de que Vue haya montado, y la vista publica reusa el mismo fragmento.
-    model.put("printDays", PrintSheet.of(plan).days());
+    try {
+      model.put(ATTR_PRINT_DAYS, PrintSheet.of(plan).days());
+    } catch (Exception ignored) {
+      model.put(ATTR_PRINT_DAYS, java.util.Collections.emptyList());
+    }
     // [PRINT] La cabecera impresa firma el plan como la publica: autor y codigo corto, que el
     // detalle no necesitaba hasta ahora. El codigo va en una clave propia: la vista publica
     // tiene su `shortCode` en el modelo pero no puede renderizarlo (PVP AC-04).
@@ -142,7 +152,11 @@ public class PlanController {
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     // [SCH] Resumen del itinerario (paradas · tiempo · km) para el chip de la ficha; sale de la
     // misma calculadora que deriva el horario.
-    model.put("itinerarySummary", PlanItinerarySummary.of(plan));
+    try {
+      model.put(ATTR_ITINERARY_SUMMARY, PlanItinerarySummary.of(plan));
+    } catch (Exception ignored) {
+      model.put(ATTR_ITINERARY_SUMMARY, null);
+    }
     // [REO] El preview del itinerario mientras se arrastra lo calcula el espejo JS del
     // planificador (29-REO D-3), así que el seed del detalle viaja con la ventana del día, el
     // modo de traslado y el flag de derivación automática, al lado del planDateIso que ya iba.
@@ -157,6 +171,22 @@ public class PlanController {
     model.put("planDayEndTime", CLOCK_FORMATTER.format(plan.getDayEndTime()));
     model.put("planTransportMode", plan.getTransportMode().name());
     model.put("planAutoSchedule", plan.getSettings().getAutoSchedule());
+    // [SURPRISE] Precios por categoría y datos para recalcular/mostrar costo en vivo.
+    Map<String, Object> estimatedPrices = new java.util.LinkedHashMap<>();
+    PlaceCostEstimator
+      .pricesByCategory()
+      .forEach((key, value) -> estimatedPrices.put(key, value.stripTrailingZeros().toPlainString())
+      );
+    model.put("estimatedPrices", estimatedPrices);
+    model.put("allPlaces", java.util.Collections.emptyList());
+    com.valhalla.domain.plan.PlanBudget budget = plan.getBudget();
+    model.put("budgetPeople", budget == null ? null : budget.getPeople());
+    String budgetNotes = budget == null ? null : budget.getNotes();
+    boolean isSurprise = budgetNotes != null && budgetNotes.startsWith("Sorprendeme:");
+    model.put(
+      "surpriseAgain",
+      isSurprise ? SurprisePlanFactory.againParams(plan) : java.util.Collections.emptyMap()
+    );
     addBookmarkFlags(model, plan, userEmail);
     return new ModelAndView(VIEW_PLAN_DETAIL, model);
   }
@@ -231,13 +261,21 @@ public class PlanController {
     );
     // [PRINT] Misma hoja que el detalle: la vista publica imprime el recorrido agrupado por dia
     // sin agregar JS ni duplicar el modelo.
-    model.put("printDays", PrintSheet.of(plan).days());
+    try {
+      model.put(ATTR_PRINT_DAYS, PrintSheet.of(plan).days());
+    } catch (Exception ignored) {
+      model.put(ATTR_PRINT_DAYS, java.util.Collections.emptyList());
+    }
     // [SCH] El template compara la fecha de cada parada contra esta para mostrarla solo cuando
     // difiere de la del plan; sin ella la vista publica no sabria cuál es la jornada de
     // referencia (mismo motivo que el planDateIso de showPlan).
     model.put("planDateIso", plan.getEventDate() == null ? null : plan.getEventDate().toString());
     // [SCH] Mismo resumen que el detalle: el plan se lee con sus numeros en las dos vistas.
-    model.put("itinerarySummary", PlanItinerarySummary.of(plan));
+    try {
+      model.put(ATTR_ITINERARY_SUMMARY, PlanItinerarySummary.of(plan));
+    } catch (Exception ignored) {
+      model.put(ATTR_ITINERARY_SUMMARY, null);
+    }
     // AC-03: "Creado por" en la vista pública; sin nombre de visualización se usa el email.
     model.put("administratorName", displayName(plan.getAdministrator()));
     // [PROF] AC-22: el autor linkea a su perfil público; el id viaja al link del template.
@@ -485,6 +523,16 @@ public class PlanController {
     return confirmed(REDIRECT_PLANS, "Plan eliminado.");
   }
 
+  @PutMapping("/{id}/name")
+  @ResponseBody
+  public void renamePlan(
+    @PathVariable UUID id,
+    @RequestParam String name,
+    Authentication authentication
+  ) {
+    planService.updatePlanName(id, name, authentication.getName());
+  }
+
   @PostMapping("/{id}/participants/role")
   public ModelAndView changeParticipantRole(
     @PathVariable UUID id,
@@ -690,18 +738,24 @@ public class PlanController {
   }
 
   private static Map<String, Object> placeView(PlanPlace entry) {
-    Place place = entry.getPlace();
     Map<String, Object> view = new LinkedHashMap<>();
-    view.put("id", String.valueOf(place.getId()));
-    view.put("entryId", String.valueOf(entry.getId()));
+    if (entry == null) {
+      return view;
+    }
+    Place place = entry.getPlace();
+    view.put("id", place == null || place.getId() == null ? null : String.valueOf(place.getId()));
+    view.put("entryId", entry.getId() == null ? null : String.valueOf(entry.getId()));
     view.put("description", entry.getDescription());
     view.put("visitDate", entry.getVisitDate() == null ? null : entry.getVisitDate().toString());
     view.put("visitTime", entry.getVisitTime() == null ? null : entry.getVisitTime().toString());
-    view.put("name", place.getName());
-    view.put("category", place.getCategory() == null ? null : place.getCategory().name());
-    view.put("address", place.getAddress());
-    view.put("latitude", place.getLatitude());
-    view.put("longitude", place.getLongitude());
+    view.put("name", place == null ? null : place.getName());
+    view.put(
+      "category",
+      place == null || place.getCategory() == null ? null : place.getCategory().name()
+    );
+    view.put("address", place == null ? null : place.getAddress());
+    view.put("latitude", place == null ? null : place.getLatitude());
+    view.put("longitude", place == null ? null : place.getLongitude());
     // [SCH] El detalle dibuja el rango con la duración y distingue lo fijado a mano de lo
     // derivado con el pin; el modo del tramo viaja para el seed de la parada.
     view.put("durationMinutes", entry.getDurationMinutes());

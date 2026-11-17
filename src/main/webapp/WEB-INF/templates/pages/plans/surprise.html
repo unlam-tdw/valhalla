@@ -10,29 +10,40 @@
         <div class="rounded-xl bg-white p-6 shadow-md">
           <h1 class="text-2xl font-semibold text-gray-900">Sorprendeme</h1>
           <p class="mt-1 text-sm text-gray-600">
-            Decime qué presupuesto tenés y una fecha, y te armo un plan para empezar.
+            Contame cuánto querés gastar, para cuándo y qué estilo te gusta. Te armo un plan privado
+            con lugares reales del catálogo y hasta tres paradas.
           </p>
 
           <form method="post" th:action="@{/plans/surprise}" th:object="${surpriseForm}" class="mt-6 space-y-4">
             <label class="block text-sm font-medium text-gray-700">
-              Presupuesto máximo por persona
+              Presupuesto máximo por persona (ARS)
               <input type="number" step="0.01" min="0" required th:field="*{budget}"
                 class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
                 placeholder="20000" />
             </label>
+            <p th:if="${#fields.hasErrors('budget')}" th:errors="*{budget}"
+              class="text-sm text-red-600"></p>
+            <p class="text-xs text-gray-500">
+              Estimamos el costo de cada lugar según su categoría: café, restaurante, museo, parque
+              o bar. Si el presupuesto no alcanza para el más barato de tu estilo, te lo avisamos.
+            </p>
 
             <label class="block text-sm font-medium text-gray-700">
               Fecha
-              <input type="date" required th:field="*{date}"
+              <input type="date" required th:field="*{date}" th:attr="min=${today}"
                 class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
             </label>
+            <p th:if="${#fields.hasErrors('date')}" th:errors="*{date}"
+              class="text-sm text-red-600"></p>
 
             <label class="block text-sm font-medium text-gray-700">
               ¿Cuántas personas?
-              <input type="number" min="1" th:field="*{people}"
+              <input type="number" min="1" required th:field="*{people}"
                 class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
                 placeholder="2" />
             </label>
+            <p th:if="${#fields.hasErrors('people')}" th:errors="*{people}"
+              class="text-sm text-red-600"></p>
 
             <label class="block text-sm font-medium text-gray-700">
               Estilo
@@ -44,11 +55,22 @@
               </select>
             </label>
 
-            <button type="submit"
+            <button type="submit" id="surprise-submit"
               class="w-full rounded-md bg-primary px-4 py-2 font-medium text-white transition hover:bg-secondary">
               Generar mi plan
             </button>
           </form>
+          <script>
+            (function () {
+              const form = document.querySelector('form[th\\:action], form[action*="/plans/surprise"]') || document.querySelector('form');
+              if (!form) return;
+              form.addEventListener('submit', function () {
+                if (!form.checkValidity()) return;
+                const btn = document.getElementById('surprise-submit');
+                if (btn) { btn.disabled = true; btn.textContent = 'Generando tu plan...'; }
+              });
+            })();
+          </script>
         </div>
       </div>
     </main>
