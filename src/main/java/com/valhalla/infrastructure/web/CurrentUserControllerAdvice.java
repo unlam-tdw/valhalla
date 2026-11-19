@@ -8,7 +8,9 @@ import com.valhalla.infrastructure.security.AppUserDetails;
 import com.valhalla.presentation.shared.LoginRedirects;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -31,6 +33,21 @@ import org.springframework.web.bind.annotation.ModelAttribute;
  */
 @ControllerAdvice
 public class CurrentUserControllerAdvice {
+
+  /**
+   * [NAV] Prefijo de ruta → sección del navbar. Ningún prefijo contiene a otro; la única
+   * excepción, la vista pública de un plan dentro de {@code /plans}, se resuelve antes en
+   * {@link #navSection}.
+   */
+  private static final List<Map.Entry<String, String>> NAV_SECTIONS = List.of(
+    Map.entry("/for-you", "for-you"),
+    Map.entry("/explore", "explore"),
+    Map.entry("/places", "explore"),
+    Map.entry("/plans", "plans"),
+    Map.entry("/admin/users", "admin-users"),
+    Map.entry("/admin/places", "admin-places"),
+    Map.entry("/admin/plans", "admin-plans")
+  );
 
   private final UserService userService;
   private final NotificationService notificationService;
@@ -145,6 +162,31 @@ public class CurrentUserControllerAdvice {
   @ModelAttribute("currentPath")
   public String currentPath(HttpServletRequest request) {
     return visiblePath(request);
+  }
+
+  /**
+   * [NAV] La sección del navbar a la que pertenece la página, para marcar su link con
+   * {@code aria-current="page"}. No sale de {@link #currentPath}: ese es null en {@code /admin/**}
+   * (existe para el redirect del login) y la variante admin también marca su sección. Se compara
+   * por segmento entero, como {@link #isInAdminArea}: {@code /plans/12} cae en "plans", pero
+   * {@code /for-you} no, y {@code /plansx} tampoco. El detalle de un lugar ({@code /places/{id}})
+   * se abre desde el catálogo, así que cuenta como "explore". La vista pública de un plan
+   * ({@code /plans/{id}/public}) se abre desde el feed de planes públicos, así que cuenta como
+   * "for-you" y no como "Mis planes". Null fuera de las secciones del nav.
+   */
+  @ModelAttribute("navSection")
+  public String navSection(HttpServletRequest request) {
+    String path = requestPath(request);
+    if (path.startsWith("/plans/") && path.endsWith("/public")) {
+      return "for-you";
+    }
+    for (Map.Entry<String, String> section : NAV_SECTIONS) {
+      String prefix = section.getKey();
+      if (path.equals(prefix) || path.startsWith(prefix + "/")) {
+        return section.getValue();
+      }
+    }
+    return null;
   }
 
   /**

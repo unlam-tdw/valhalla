@@ -1,17 +1,20 @@
 <div th:fragment="navbar-menu" id="navbar-menu" hidden xmlns:th="http://www.thymeleaf.org"
   xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-  class="fixed right-2 top-16 z-[1100] w-64 overflow-hidden rounded-lg bg-white text-sm shadow-xl ring-1 ring-black/10">
+  class="fixed right-2 top-[var(--nav-h)] z-[1100] w-64 overflow-hidden rounded-lg bg-white text-sm shadow-xl ring-1 ring-black/10">
 
   <!-- [PROF] Menú modal del navbar (AC-17/AC-18). Renderizado como hermano del <nav> en
        base.html: los helpers E2E cuentan "body > nav a, body > nav button", y este panel no
        pertenece ahí. Ya no quedan entradas "Pronto": [MARK] activó "Guardados" y [FOLLOW]
        "Siguiendo", ambas links a su ancla del perfil propio. -->
 
-  <!-- z 1100 y no 50: /explore (places/list.html) deja el <nav> sticky con z-index 1000 para
-       ganarle a las capas del mapa Leaflet (~800 max), y con el z-50 original el panel quedaba
-       DEBAJO del navbar al abrir el menu. 1100 gana a cualquier sticky de pagina y se mantiene
-       debajo del overlay full-screen del detalle de lugar (z-[2000]): jerarquia
-       overlay-pantalla > menu. -->
+  <!-- z 1100 y no 50: /explore llegó a dejar el <nav> sticky con z-index 1000 para ganarle a
+       las capas del mapa Leaflet (~800 max), y con el z-50 original el panel quedaba DEBAJO
+       del navbar al abrir el menu. [NAV] Ese override ya no existe (brand.css aísla el mapa con
+       .leaflet-container { z-index: 0 } y el nav vuelve a z-50 en todas las páginas), pero 1100
+       sigue siendo el piso correcto: gana a cualquier sticky de pagina y se mantiene debajo del
+       overlay full-screen del detalle de lugar (z-[2000]): jerarquia overlay-pantalla > menu.
+       [NAV] top-[var(--nav-h)]: el panel cuelga del canto inferior de la barra, 48px en phone y
+       72px desde md. El top-16 fijo (64px) lo encimaba 8px sobre la barra de escritorio. -->
 
   <!-- Variante AUTENTICADA -->
   <div sec:authorize="isAuthenticated()">
@@ -29,9 +32,10 @@
     </div>
 
     <!-- [USEARCH] Mismo buscador con debounce que el navbar de escritorio, acotado al menu que
-         existe en mobile (donde los links del nav estan ocultos). Sin boton: Enter envia el form. -->
+         existe en mobile (donde los links del nav estan ocultos). Sin boton: Enter envia el form.
+         [NAV] lg y no md: el buscador del nav de usuario recién aparece en lg. -->
     <form th:action="@{/users}" method="get" role="search" th:unless="${showAdminNav}"
-      class="border-b border-gray-100 px-3 py-2 md:hidden">
+      class="border-b border-gray-100 px-3 py-2 lg:hidden">
       <label for="menu-user-search" class="sr-only">Buscar usuarios</label>
       <input id="menu-user-search" data-user-search name="q" type="search"
         placeholder="Buscar usuarios" autocomplete="off"
@@ -40,10 +44,12 @@
 
     <div class="py-1" role="menu">
       <!-- [MOBILE] Destinos del navbar: visibles solo por debajo de md, donde los links del
-           <nav> estan ocultos tras la hamburguesa. En desktop el panel los ignora (md:hidden)
+           <nav> estan ocultos tras la hamburguesa. En desktop el panel los ignora (md:hidden / lg:hidden según la variante)
            y el usuario sigue viendo los links de siempre en la barra. [F1/F2] Mismos labels en
-           español que la barra: cada uno nombra su destino. -->
-      <div class="md:hidden">
+           español que la barra: cada uno nombra su destino.
+           [NAV] El corte sigue al de la barra: lg con sesión de usuario, md en la variante
+           admin, así entre 768 y 1023px el menú no pierde los destinos que la barra esconde. -->
+      <div th:class="${showAdminNav} ? 'md:hidden' : 'lg:hidden'">
         <a role="menuitem" th:if="${showAdminNav}" th:href="@{/admin/users}" data-menu-item
           class="flex min-h-11 items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-100">
           Usuarios

@@ -52,8 +52,11 @@
 
         <!-- [SEARCH] Busqueda, filtro y orden del feed: un form GET a la misma ruta, sin
              JavaScript, asi la URL resultante se comparte. El contenedor sticky mantiene los
-             controles visibles mientras se recorre la grilla. -->
-        <div class="sticky top-0 z-10 mb-6 bg-gray-100 pb-3 pt-1">
+             controles visibles mientras se recorre la grilla.
+             [NAV] Desde md la barra de navegación también es sticky: con top-0 los filtros se
+             pegaban DEBAJO de ella y quedaban tapados. md:top-[var(--nav-h)] los cuelga del
+             canto inferior de la barra; en phone la barra scrollea y top-0 sigue siendo el borde. -->
+        <div class="sticky top-0 z-10 mb-6 bg-gray-100 pb-3 pt-1 md:top-[var(--nav-h)]">
           <form method="get" th:action="@{/for-you}" class="flex flex-wrap items-end gap-3">
             <!-- [FOLLOW] El scope no se pierde al buscar: viaja como hidden en el mismo GET. -->
             <input type="hidden" name="scope" value="following" th:if="${followingScope}" />

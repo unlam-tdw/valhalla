@@ -208,7 +208,9 @@ public class PlanPlaceDetailE2E extends E2eBase {
           avatarRadius: parseFloat(avatarStyle.borderRadius),
           avatarFont: avatarStyle.fontFamily,
           navBg: getComputedStyle(document.querySelector('nav')).backgroundColor,
-          menuGap: getComputedStyle(document.querySelector('nav .md\\\\:flex')).gap,
+          menuGap: getComputedStyle(document.querySelector('nav .navbar-actions')).gap,
+          navHeight: document.querySelector('body > nav').getBoundingClientRect().height,
+          activeColor: getComputedStyle(document.querySelector('body > nav a[aria-current="page"]')).color,
           brandSize: getComputedStyle(document.querySelector('nav .navbar-brand')).fontSize,
         };
       }
@@ -225,9 +227,19 @@ public class PlanPlaceDetailE2E extends E2eBase {
     );
     assertEquals("rgb(17, 24, 39)", nav.get("navBg"), "fondo de token del nav, como en el resto");
     assertEquals(
-      "16px",
+      "8px",
       nav.get("menuGap"),
-      "gap-4 es 1rem en Tailwind, no el 1.5rem de Bootstrap"
+      "gap-2 es 0.5rem, el ritmo del cluster anónimo del landing"
+    );
+    assertEquals(
+      72.0,
+      ((Number) nav.get("navHeight")).doubleValue(),
+      "[NAV] la barra mide 72px como en el resto: el .navbar-brand de Bootstrap le sacaba el padding"
+    );
+    assertEquals(
+      "rgb(102, 129, 252)",
+      nav.get("activeColor"),
+      "[NAV] /plans/{id} marca Mis planes en --secondary, sin que el reboot de Bootstrap lo pise"
     );
     assertEquals("20px", nav.get("brandSize"), "wordmark en text-xl, como en el resto del sitio");
   }

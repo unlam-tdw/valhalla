@@ -41,6 +41,25 @@
      como respaldo: si fonts.googleapis.com no responde, la página se ve igual. */
   --typeface-sans: "Josefin Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --typeface-serif: "Bree Serif", Georgia, "Times New Roman", serif;
+
+  /* [NAV] Alto de la barra de navegación (components/navbar.html): 48px debajo de md (marca
+     py-1.5 + logo de 36px) y 72px desde md (py-3 + logo de 48px). Lo leen el panel del menú
+     (top), los sticky de página que se apilan debajo de la barra y el scroll-padding de las
+     anclas. Si la barra cambia de alto, cambia acá y en ningún otro lado. */
+  --nav-h: 3rem;
+}
+
+/* [NAV] Desde md la barra es sticky: sin scroll-padding, saltar a un ancla (#bookmarks,
+   #my-ratings, #follow del perfil) dejaba el título del bloque escondido debajo de ella. En
+   phone la barra scrollea con la página y no tapa nada, así que el padding arranca en md. */
+@media (min-width: 48rem) {
+  :root {
+    --nav-h: 4.5rem;
+  }
+
+  html {
+    scroll-padding-top: var(--nav-h);
+  }
 }
 
 /* Los neutros (gray-*, slate-*) NO tienen tokens propios a propósito: son la escala
@@ -137,11 +156,13 @@ html[data-theme="dark"] .hover\:bg-red-100:hover { background-color: var(--dark-
 
 /* En oscuro la barra (#111827) y la banda que tiene debajo (#1f2937) miden 1.21:1, y la
  * sombra del navbar es negra sobre negro: al scrollear sobre el hero la barra sticky no
- * tiene ningun limite visible y el contenido parece pasar por detras del texto. El borde
- * inferior le devuelve el canto. Va como 1px sobre el elemento y no como sombra: una
- * sombra mas oscura sobre el fondo ya oscuro sigue sin verse. */
+ * tiene ningun limite visible y el contenido parece pasar por detras del texto. La linea
+ * inferior le devuelve el canto. Va como linea clara y no como sombra oscura: una sombra
+ * mas oscura sobre el fondo ya oscuro sigue sin verse.
+ * [NAV] Linea interior (inset) y no border-bottom: el borde sumaba 1px y la barra medía 73px
+ * en oscuro contra 72 en claro, un salto al cambiar de tema y un pixel de más contra --nav-h. */
 html[data-theme="dark"] body > nav {
-  border-bottom: 1px solid var(--dark-border-strong);
+  box-shadow: inset 0 -1px 0 var(--dark-border-strong);
 }
 
 /* --- Texto --- */
@@ -411,6 +432,43 @@ html[data-theme="dark"] #landing .btn-link {
 
 html[data-theme="dark"] #landing .btn-link:hover {
   text-decoration-color: var(--dark-link);
+}
+
+/* --- [NAV] Link de texto del navbar ---------------------------------------
+ * El lenguaje del landing anónimo, ahora en todas las variantes: los destinos son texto
+ * (blanco al 90% sobre --black, 15.6:1), subrayado en hover, y 44px de alto tocable. Antes cada
+ * link repetía la tira de utilidades y las variantes con sesión usaban pills .btn-cta: tres
+ * acciones primarias seguidas en una barra que admite una sola.
+ * aria-current="page" marca la sección vigente: texto --secondary (6.11:1 sobre la barra) y
+ * subrayado de 2px permanente. El subrayado es la señal que no depende del color, así que
+ * sobrevive a forced-colors (el navegador repinta el texto pero dibuja la decoración) y a
+ * daltonismo. La barra es --black en los dos temas, así que no hay par oscuro que declarar.
+ * Sin capa, como todo este archivo: gana a la tira de Tailwind y al reboot de Bootstrap en
+ * /plans/{id} (a { color; text-decoration } pesa menos que una clase). Se llama navbar-link
+ * y no nav-link para no chocar con el componente .nav-link de Bootstrap en esa misma página. */
+.navbar-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.375rem;
+  white-space: nowrap;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.9);
+  text-decoration-line: none;
+  text-underline-offset: 4px;
+}
+
+.navbar-link:hover {
+  color: var(--white);
+  text-decoration-line: underline;
+}
+
+.navbar-link[aria-current="page"] {
+  color: var(--secondary);
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
 }
 
 /* --- Accion secundaria del navbar -----------------------------------------
@@ -703,3 +761,40 @@ html[data-theme="dark"] .planit-toast { background: var(--black); color: var(--w
 }
 .plan-budget-editor .form-label { font-weight: 600; }
 .plan-budget-editor input { font-variant-numeric: tabular-nums; }
+
+/* ============================ CHROME EN ALTO CONTRASTE E IMPRESIÓN ============================
+ *
+ * [NAV] Vivían en el <style> de landing.html, pero la barra y los botones son los mismos en
+ * todas las páginas: fuera del landing, en alto contraste el CTA relleno quedaba como texto
+ * suelto y al imprimir la barra salía como una franja de texto blanco sobre papel blanco. */
+
+/* En forced-colors el navegador descarta el fondo de autor: el CTA sólido quedaba como texto
+   suelto, indistinguible de un link. Se le devuelve el borde del sistema, que es lo único que
+   dibuja. El ghost ya tiene borde; se lo pasa al color de sistema. El link activo del navbar
+   conserva su subrayado de 2px, que forced-colors respeta, y no necesita regla propia. */
+@media (forced-colors: active) {
+  .btn-cta {
+    border: 2px solid ButtonText;
+  }
+
+  .btn-ghost {
+    border-color: ButtonText;
+  }
+}
+
+/* En papel la barra no aporta (escribe en blanco sobre negro, y los navegadores no imprimen
+   fondos), y los .btn-cta / .btn-ghost pierden su relleno: se dibujan con borde negro. Solo la
+   barra del layout (body > nav): los <nav> de contenido (paginación, alcance del feed,
+   calendario) siguen saliendo. */
+@media print {
+  body > nav {
+    display: none !important;
+  }
+
+  .btn-cta,
+  .btn-ghost {
+    background: none !important;
+    border: 1px solid #000 !important;
+    color: #000 !important;
+  }
+}
