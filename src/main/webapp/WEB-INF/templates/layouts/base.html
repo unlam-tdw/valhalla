@@ -207,8 +207,13 @@
        asi 4.5 cubre el 90% de la fila, sin JS ni glifos de media estrella.
        Estrella SVG: se mide en em para seguir la font-size del contenedor
        (text-2xl en la vista del plan, text-base en las cards). */
+    /* nowrap aca tambien, no solo en la capa amarilla: las dos capas tienen que medir lo
+       mismo. Sin el, en una columna angosta los 5 svg inline-block de base se parten en dos
+       lineas, la base queda mas alta y la capa amarilla (absoluta, con nowrap) se desalinea
+       respecto del promedio que deberia clipear (sidebar de /explore antes de [59]). */
     .rating-stars-base {
       color: #d1d5db;
+      white-space: nowrap;
     }
 
     .rating-stars-fill {
