@@ -40,22 +40,13 @@
       }
 
       /* El título se pinta recortando el fondo sobre el texto, así que en alto contraste
-         (color: transparent) desaparece. Sin degradado, con el color de sistema. El CTA
-         sólido tiene el mismo problema: en forced-colors el navegador descarta el fondo de
-         autor y la acción principal quedaba como texto suelto, indistinguible de un link.
-         Se le devuelve el borde del sistema, que es lo único que dibuja. */
+         (color: transparent) desaparece. Sin degradado, con el color de sistema.
+         [NAV] El borde de sistema de .btn-cta / .btn-ghost se mudó a brand.css: es el mismo
+         chrome en todas las páginas, no solo acá. */
       @media (forced-colors: active) {
         .hero-title {
           background-image: none;
           color: CanvasText;
-        }
-
-        .btn-cta {
-          border: 2px solid ButtonText;
-        }
-
-        .btn-ghost {
-          border-color: ButtonText;
         }
 
         .place-card {
@@ -65,9 +56,9 @@
 
       /* En papel no hay fondo que recortar: los navegadores no pintan background-image al
          imprimir, así que el titular saldría en blanco sobre blanco. Sin degradado y en negro.
-         Lo mismo valía para el resto del chrome: el navbar escribe en blanco sobre negro y los
-         .btn-cta en blanco sobre --primary, y sin fondos impresos las dos cosas desaparecían.
-         El navbar y los links del pie no aportan en papel; las acciones se dibujan con borde.
+         Los links del pie no aportan en papel. [NAV] La barra y los .btn-cta / .btn-ghost
+         (blanco sobre negro / --primary, invisibles sin fondos impresos) se resuelven en
+         brand.css para todas las páginas; acá queda solo lo propio del landing.
          Imprimir CON el tema oscuro puesto era peor: html[data-theme="dark"] .text-gray-900
          resuelve a #f9fafb y sobre papel blanco eso mide 1.03:1, así que 12 de los 14
          titulares desaparecían. Los tokens de oscuro vuelven a negro solo para el papel: se
@@ -98,16 +89,8 @@
           color: #000;
         }
 
-        nav,
         footer nav {
           display: none !important;
-        }
-
-        .btn-cta,
-        .btn-ghost {
-          background: none !important;
-          border: 1px solid #000 !important;
-          color: #000 !important;
         }
       }
 

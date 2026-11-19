@@ -14,9 +14,13 @@
         <div th:if="${!publicPlans.isEmpty()}" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           data-feed-grid>
           <!-- La card entera se siente clickeable: el body ya linkea a la vista publica, y el
-               hover con lift + sombra mas fuerte comunica la accion antes de llegar al CTA. -->
+               hover con lift + sombra mas fuerte comunica la accion antes de llegar al CTA.
+               [NAV] isolate hace de cada card su propio contexto de apilamiento: los z-10 de
+               adentro (guardar, compartir, autor, clonar) quedan entre ellos y no compiten con
+               la barra sticky de filtros de /for-you, que también es z-10 y, por ir antes en el
+               DOM, quedaba pintada por debajo de esos controles al scrollear. -->
           <article th:each="plan : ${publicPlans}"
-            class="relative flex cursor-pointer flex-col overflow-hidden rounded-lg bg-white shadow-md transition duration-200 hover:-translate-y-1 hover:shadow-xl">
+            class="relative isolate flex cursor-pointer flex-col overflow-hidden rounded-lg bg-white shadow-md transition duration-200 hover:-translate-y-1 hover:shadow-xl">
             <!-- [MARK] Guardar para clonar despues. Va fuera del <a> porque un form adentro de un
                  anchor es HTML invalido; absoluto arriba a la derecha del cover. Sin sesion no se
                  renderiza (AC-05) y el returnTo conserva los filtros del feed. -->

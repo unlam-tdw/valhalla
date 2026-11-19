@@ -294,6 +294,91 @@ public class MobileLayoutE2E extends E2eBase {
       web.getNavbarItems(),
       contains("PlanIt", "Planes públicos", "Explorar lugares", "Mis planes", "A", "Cambiar tema")
     );
+    // [NAV] La sección vigente se marca con aria-current (y solo esa): /for-you no marca
+    // "Mis planes" aunque los dos sean planes.
+    assertThat(
+      "Planes públicos es la sección vigente",
+      page
+        .locator("body > nav a[aria-current='page']")
+        .allTextContents()
+        .stream()
+        .map(String::trim)
+        .toList(),
+      contains("Planes públicos")
+    );
+  }
+
+  /**
+   * [NAV] Entre 768 y 1023px el cluster con sesión (buscador, tres links, campana, avatar y
+   * toggle) no entra en una fila y la barra armaba dos o tres. Desde el cambio la variante de
+   * usuario sigue con hamburguesa hasta lg y la de admin (tres links cortos) pasa a la barra en
+   * md: en los dos casos la barra mide una fila de 72px, el alto que publica --nav-h.
+   */
+  @Test
+  void T_MOB_009_navbarDeUnaFilaEntre768y1023() {
+    signInAsAdmin();
+    WebPage web = new WebPage(page);
+    for (int width : new int[] { 768, 900 }) {
+      page.setViewportSize(width, DESKTOP_H);
+      web.navigate(web.baseUrl() + "/plans");
+      awaitStyles();
+      assertThat("usuario a " + width + ": una fila de 72px", navHeight(), is(72.0));
+      assertThat(
+        "usuario a " + width + ": la hamburguesa sigue (corte en lg)",
+        page.locator("#navbar-menu-btn").isVisible(),
+        is(true)
+      );
+      assertThat(
+        "usuario a " + width + ": los links viajan en el menu",
+        page.locator("body > nav a:has-text('Mis planes')").isVisible(),
+        is(false)
+      );
+
+      web.navigate(web.baseUrl() + "/admin/users");
+      awaitStyles();
+      assertThat("admin a " + width + ": una fila de 72px", navHeight(), is(72.0));
+      assertThat(
+        "admin a " + width + ": sin hamburguesa (corte en md)",
+        page.locator("#navbar-menu-btn").isVisible(),
+        is(false)
+      );
+      assertThat(
+        "admin a " + width + ": Usuarios es la sección vigente",
+        page
+          .locator("body > nav a[aria-current='page']")
+          .allTextContents()
+          .stream()
+          .map(String::trim)
+          .toList(),
+        contains("Usuarios")
+      );
+    }
+
+    // En lg la variante de usuario vuelve a la barra completa, en una fila, y /plans/** marca
+    // "Mis planes".
+    page.setViewportSize(1024, DESKTOP_H);
+    web.navigate(web.baseUrl() + "/plans");
+    awaitStyles();
+    assertThat("usuario a 1024: una fila de 72px", navHeight(), is(72.0));
+    assertThat("sin hamburguesa en lg", page.locator("#navbar-menu-btn").isVisible(), is(false));
+    assertThat(
+      "Mis planes es la sección vigente",
+      page
+        .locator("body > nav a[aria-current='page']")
+        .allTextContents()
+        .stream()
+        .map(String::trim)
+        .toList(),
+      contains("Mis planes")
+    );
+  }
+
+  private double navHeight() {
+    return (
+      (Number) page.evaluate(
+        "() => document.querySelector('body > nav').getBoundingClientRect().height"
+      )
+    ).doubleValue();
   }
 
   /**

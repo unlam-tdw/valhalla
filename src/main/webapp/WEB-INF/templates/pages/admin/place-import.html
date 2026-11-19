@@ -7,17 +7,15 @@
 
   <main id="place-import-page" class="flex-1 min-h-0 w-full flex flex-col overflow-hidden">
     <style>
+      /* App-shell: la página no scrollea, el mapa y el panel ocupan el alto que deja la barra.
+         [NAV] El override de la barra (body>nav sticky, z-index 1000, flex-shrink 0) se retiró:
+         el fragmento ya trae shrink-0 y z-50, el sticky no hace nada en un body que no
+         scrollea, y el mapa no puede pintar encima porque .leaflet-container es su propio
+         stacking context (z-index 0, brand.css). El menú del navbar (z-[1100]) sigue arriba. */
       html,
       body {
         height: 100%;
         overflow: hidden;
-      }
-
-      body>nav {
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        flex-shrink: 0;
       }
     </style>
 

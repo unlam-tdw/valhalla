@@ -396,13 +396,41 @@ public class BrandTokensTest {
     String navbar = read(NAVBAR);
 
     assertThat(navbar, containsString("text-secondary"));
-    assertThat(navbar, containsString("bg-primary"));
     assertThat(navbar, containsString("bg-secondary"));
     assertThat(navbar, containsString("bg-black"));
     // Ningun color de marca hardcodeado como clase suelta de Tailwind.
     assertThat(navbar, not(containsString("bg-gray-700")));
     assertThat(navbar, not(containsString("bg-gray-900")));
     assertThat(navbar, not(containsString("bg-blue-600")));
+  }
+
+  // [NAV] La barra habla el lenguaje del landing en todas sus variantes: los destinos son links
+  // de texto (.navbar-link, una declaración en brand.css), la única acción con énfasis es el
+  // ghost de registro del anónimo, y los íconos (hamburguesa, toggle) no llevan relleno.
+  @Test
+  void navbarDestinationsAreTextLinksWithAnActiveSection() throws IOException {
+    String navbar = read(NAVBAR);
+    String brand = read(TOKENS);
+
+    assertThat("ningún pill relleno en la barra", navbar, not(containsString("btn-cta")));
+    assertThat(
+      "hamburguesa y toggle sin relleno de marca",
+      navbar,
+      not(containsString("bg-primary"))
+    );
+    assertThat(
+      "anónimo, usuario y admin comparten la clase del link",
+      occurrences(navbar, "class=\"navbar-link focus-ring\""),
+      is(8)
+    );
+    assertThat(
+      "cada destino marca su sección",
+      occurrences(navbar, "aria-current=${navSection == "),
+      is(7)
+    );
+    assertThat(brand, containsString(".navbar-link[aria-current=\"page\"]"));
+    assertThat("el alto de la barra vive en un token", brand, containsString("--nav-h:"));
+    assertThat(brand, containsString("scroll-padding-top: var(--nav-h)"));
   }
 
   // AC-07: el navbar usa las utilidades que genera @theme, no la sintaxis arbitraria.

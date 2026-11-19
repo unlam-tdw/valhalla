@@ -244,8 +244,11 @@
         /* Bootstrap's reboot is unlayered, so it beats the layered Tailwind utilities: it paints
            every <a> with the link color and an underline, and squares every button. Scoped to the
            nav so the Bootstrap-styled page body keeps its own reboot styling. */
-        nav a { color: inherit; text-decoration: none; }
-        nav a:hover { color: var(--white) !important; }
+        /* [NAV] Los links de texto (.navbar-link) traen su propio color, subrayado y estado
+           activo desde brand.css; el pin genérico con !important en hover les borraba el
+           --secondary de aria-current. Se acota al resto de los <a> (marca, campana). */
+        nav a:not(.navbar-link) { color: inherit; text-decoration: none; }
+        nav a:not(.navbar-link):hover { color: var(--white) !important; }
         /* [DIS-B01] El radius va por utilidad y no por elemento: el pin anterior
            ("nav button { border-radius }") vivia sin capa y le ganaba a .rounded-full de
            Tailwind, convirtiendo el avatar del navbar en un rectangulo de 6px en detalle. */
@@ -255,14 +258,31 @@
            text-xl del resto del sitio) y el font-family de todo <button>: el avatar del navbar
            perdia la serif de la marca. */
         nav .navbar-brand { font-size: var(--text-xl); }
+        /* [NAV] .navbar-brand de Bootstrap (sin capa) pone padding-block desde
+           --bs-navbar-brand-padding-y, que fuera de un .navbar no existe: el padding caía a 0 y
+           la barra medía 48px en vez de 72 desde md. Se repiten py-1.5 / md:py-3 del fragmento. */
+        nav .navbar-brand { padding-top: 0.375rem; padding-bottom: 0.375rem; margin-right: 0; }
+        @media (min-width: 48rem) {
+            nav .navbar-brand { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        }
+        /* [NAV] El reboot pone button { margin: 0 } sin capa y le gana al ml-auto de la
+           hamburguesa: en phone quedaba centrada en vez de contra el canto derecho. */
+        #navbar-menu-btn { margin-left: auto; }
+        /* [NAV] .rounded y .border de Bootstrap llevan !important: la marca pasaba a 6px de
+           radio y el buscador a un borde #dee2e6 (casi blanco) sobre la barra negra. */
+        nav .rounded { border-radius: 0.25rem !important; }
+        nav .border-gray-600 { border-color: var(--color-gray-600) !important; }
+        nav .focus\:border-secondary:focus { border-color: var(--secondary) !important; }
+        /* [NAV] Bootstrap 5.3 también tiene un helper .focus-ring que en :focus pinta un
+           box-shadow azul propio; el anillo de la marca es el outline de brand.css. */
+        nav .focus-ring:focus { box-shadow: none; }
         nav .font-serif { font-family: var(--font-serif); }
         nav.px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
         nav .px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
-        nav .py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
-        /* gap-4 de Tailwind es 1rem (16px): el pin anterior clavaba 1.5rem, el valor del
-           .gap-4 de Bootstrap, y el menu desktop quedaba con 50% mas de separacion. */
-        nav .gap-4 { gap: 1rem !important; }
         nav.shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important; }
+        /* [NAV] El pin de arriba lleva !important y tapaba la línea inferior que brand.css le
+           da a la barra en oscuro: se repite acá con la misma fuerza. */
+        html[data-theme="dark"] nav.shadow { box-shadow: inset 0 -1px 0 var(--dark-border-strong) !important; }
         /* [DIS-B01] #navbar-menu es hermano del <nav> (layouts/base), asi que vive fuera de los
            pins de arriba, pero en esta pagina Bootstrap tambien lo pisa: el reboot azula y
            subraya los links (sus .text-gray-700 solo viven en la capa de utilidades),

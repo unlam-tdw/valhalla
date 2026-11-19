@@ -192,6 +192,71 @@ public class PublicPlansListE2E extends E2eBase {
     assertThat("el nombre largo trunca con elipsis", String.valueOf(textOverflow), is("ellipsis"));
   }
 
+  /**
+   * [NAV] La barra sticky de filtros de /for-you tapa a las cards al scrollear, incluidos los
+   * controles con z-10 (guardar, compartir, autor, clonar). Antes compartian capa con la barra y,
+   * por venir despues en el DOM, se pintaban encima. Cada control se scrollea hasta quedar bajo la
+   * barra y el punto de su centro tiene que pertenecer a la barra, no a la card.
+   */
+  @Test
+  void T_NAV_001_laBarraDeFiltrosTapaLosControlesDeLasCards() {
+    // --- Arrange: una autora con nombre (asi la card rinde su link) publica un plan ---
+    RegisterPage register = new RegisterPage(page);
+    register.typeFirstName("Veronica");
+    register.typeLastName("Visitante");
+    register.typeEmail("autora.nav@unlam.edu.ar");
+    register.typePassword(PASSWORD);
+    register.typeConfirmPassword(PASSWORD);
+    register.clickRegister();
+    new WebPage(page).waitForPath(LoginRedirects.USER_LANDING);
+    new PlansPage(page).createPublicPlanViaExplore(PLAN_NAME, PLAN_DESCRIPTION, isoDateIn(30));
+
+    // --- Otra sesion mira el feed: con sesion la card suma guardar y el boton de clonar ---
+    newContext();
+    givenARegisteredUserOpensFeed();
+    page.setViewportSize(1280, 720);
+    // El feed de un solo plan no alcanza para scrollear. El relleno es un bloque dentro del
+    // contenedor de la barra, no padding: un sticky se mueve dentro de la caja de contenido de su
+    // contenedor, y con una sola card esa caja termina justo despues del boton de clonar.
+    page.evaluate(
+      "() => { const spacer = document.createElement('div'); spacer.style.height = '2000px';" +
+      " document.querySelector('main .sticky').parentElement.appendChild(spacer); }"
+    );
+
+    String[] controls = {
+      "[data-testid='plan-card-author'] a",
+      "[data-share-plan]",
+      "[data-bookmark-toggle]",
+      "button:text-is('Clonar Plan')",
+    };
+    Locator card = page
+      .locator("main article")
+      .filter(new Locator.FilterOptions().setHasText(PLAN_NAME));
+    for (String control : controls) {
+      Locator target = card.locator(control).first();
+      assertThat("el control " + control + " existe en la card", target.count(), is(1));
+      // Scrollea hasta que el centro del control quede a la altura del centro de la barra pegada
+      // (su top computado es --nav-h) y mira que pinta en ese punto.
+      Object coveredByBar = target.evaluate(
+        """
+        el => {
+          const bar = document.querySelector('main .sticky');
+          window.scrollTo(0, 0);
+          const control = el.getBoundingClientRect();
+          const stuckCenter = parseFloat(getComputedStyle(bar).top) + bar.offsetHeight / 2;
+          window.scrollTo(0, control.top + control.height / 2 - stuckCenter);
+          const barBox = bar.getBoundingClientRect();
+          const box = el.getBoundingClientRect();
+          const y = barBox.top + barBox.height / 2;
+          if (box.top > y || box.bottom < y) return 'el control no quedo bajo la barra';
+          return bar.contains(document.elementFromPoint(box.left + box.width / 2, y));
+        }
+        """
+      );
+      assertThat("la barra de filtros tapa a " + control, coveredByBar, is(true));
+    }
+  }
+
   /** Crea el plan publico con la sesion admin y la deja abierta sobre su detalle. */
   private void givenAPublicPlanExists() {
     signInAsAdmin();
