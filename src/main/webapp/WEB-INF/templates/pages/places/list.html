@@ -359,8 +359,12 @@
                 </button>
               </div>
               <a :href="'/plans/' + plan.id + '/public'"
-                class="block rounded-lg border border-gray-200 bg-white p-4 pr-20 shadow-sm transition hover:bg-gray-50">
-                <h4 class="text-base font-medium text-gray-900">{{ plan.name }}</h4>
+                class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:bg-gray-50">
+                <!-- [MARK][59] Los botones flotantes (Guardar + Compartir, 32px cada uno + gap)
+                     tapan solo la primera linea, asi que el espacio se reserva aca y no en toda
+                     la card: con pr-20 en el <a> la fila de estrellas se quedaba sin ancho y
+                     se partia en dos lineas dentro del sidebar de 320px. -->
+                <h4 class="pr-20 text-base font-medium text-gray-900">{{ plan.name }}</h4>
                 <p class="text-xs text-gray-500">{{ formatDate(plan.eventDate) || 'No date' }} &middot; {{ plan.placeCount }} places</p>
                 <!-- [CAL] Indicador read-only del agregado (16-CAL.md, AC-10): la version Vue
                      del fragment components/rating :: indicator, con los mismos estilos de
