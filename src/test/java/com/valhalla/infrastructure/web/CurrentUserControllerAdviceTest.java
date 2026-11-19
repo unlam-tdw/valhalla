@@ -175,6 +175,44 @@ public class CurrentUserControllerAdviceTest {
     assertThat(advice.showAdminNav(null, requestFor("/admin/home")), is(false));
   }
 
+  // --- [NAV] navSection: qué link del navbar lleva aria-current ---
+
+  @Test
+  public void NAV_shouldMarkTheSectionOfTheCurrentPageBySegment() {
+    assertThat(advice.navSection(requestFor("/for-you")), is("for-you"));
+    assertThat(advice.navSection(requestFor("/explore")), is("explore"));
+    assertThat(advice.navSection(requestFor("/places/7")), is("explore"));
+    assertThat(advice.navSection(requestFor("/plans")), is("plans"));
+    assertThat(advice.navSection(requestFor("/plans/12")), is("plans"));
+    assertThat(advice.navSection(requestFor("/plans/calendar")), is("plans"));
+    assertThat(advice.navSection(requestFor("/plans/12/public")), is("for-you"));
+  }
+
+  @Test
+  public void NAV_shouldNotMarkASectionThatOnlySharesAPrefix() {
+    assertThat(advice.navSection(requestFor("/plansx")), is(nullValue()));
+    assertThat(advice.navSection(requestFor("/")), is(nullValue()));
+    assertThat(advice.navSection(requestFor("/profile")), is(nullValue()));
+    assertThat(advice.navSection(requestFor("/notifications")), is(nullValue()));
+  }
+
+  @Test
+  public void NAV_shouldMarkTheAdminSectionsEvenThoughCurrentPathIsNullThere() {
+    assertThat(advice.currentPath(requestFor("/admin/users")), is(nullValue()));
+    assertThat(advice.navSection(requestFor("/admin/users")), is("admin-users"));
+    assertThat(advice.navSection(requestFor("/admin/places/import")), is("admin-places"));
+    assertThat(advice.navSection(requestFor("/admin/plans/3")), is("admin-plans"));
+    assertThat(advice.navSection(requestFor("/admin/home")), is(nullValue()));
+  }
+
+  @Test
+  public void NAV_shouldDropTheContextPathBeforeMatching() {
+    MockHttpServletRequest request = requestFor("/valhalla/plans/12");
+    request.setContextPath("/valhalla");
+
+    assertThat(advice.navSection(request), is("plans"));
+  }
+
   // --- themeRedirectUrl: el POST del toggle de tema vuelve a la pagina actual ---
 
   @Test

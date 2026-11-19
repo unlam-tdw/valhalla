@@ -13,10 +13,17 @@
      de las tres filas que armaba el wrap. El ghost de registro se esconde debajo de md: caía
      solo a una segunda línea, huérfano contra el canto derecho, y duplicaba el CTA del hero,
      que 400px más abajo lleva al mismo /auth/register. El aire que ahorra la barra es el que
-     dejan el titular y el CTA dentro del primer viewport. -->
+     dejan el titular y el CTA dentro del primer viewport.
+     [NAV] El landing anónimo es la referencia de toda la barra: una sola acción con énfasis
+     como mucho, el resto links de texto (.navbar-link en brand.css). Las variantes con sesión
+     y admin usan los mismos links, con aria-current="page" en la sección vigente (navSection
+     de CurrentUserControllerAdvice). Alto fijo: 48px debajo de md y 72px desde md, el mismo
+     valor que publica --nav-h en brand.css para el scroll-padding, el panel del menú y los
+     sticky de página. shrink-0: en las páginas app-shell (/explore, import) el body es flex
+     columna de alto fijo y, sin él, la barra se aplastaba antes que el mapa. -->
 <nav th:fragment="navbar" xmlns:th="http://www.thymeleaf.org"
   xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-  class="z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-black px-4 text-white shadow md:sticky md:top-0">
+  class="z-50 flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-black px-4 text-white shadow md:sticky md:top-0">
 
   <!-- Logo principal: a /admin/home cuando el navbar rinde la variante admin (rol ADMIN
        dentro de /admin/**), a / en el resto. La variante se decide por rol Y por el área que se
@@ -56,10 +63,16 @@
        que no hay JS nuevo: los destinos viajan dentro de #navbar-menu (bloque md:hidden).
        Sin texto en el contenido (aria-label) para que getNavbarItems no la cuente en desktop.
        ml-auto empuja el par [hamburguesa][toggle] contra el canto derecho en mobile, ahora
-       que el toggle es el ultimo hijo del nav. -->
+       que el toggle es el ultimo hijo del nav.
+       [NAV] Con sesión de usuario la hamburguesa sigue hasta lg, no md: entre 768 y 1023px el
+       buscador, los tres links, la campana, el avatar y el toggle no entraban en una fila y la
+       barra armaba dos o tres. La variante admin (tres links cortos, sin buscador) entra en
+       una fila desde md y conserva ese corte. Ícono sin relleno, como la campana: el cuadrado
+       relleno de primario competía con la única acción con énfasis que admite la barra. -->
   <button type="button" id="navbar-menu-btn" data-menu-toggle="navbar-menu"
     sec:authorize="isAuthenticated()"
-    class="navbar-menu-btn md:hidden ml-auto inline-flex h-11 w-11 items-center justify-center rounded-md bg-primary hover:bg-secondary"
+    class="navbar-menu-btn ml-auto inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10 focus-ring"
+    th:classappend="${showAdminNav} ? 'md:hidden' : 'lg:hidden'"
     aria-label="Abrir menú" aria-haspopup="true" aria-expanded="false" aria-controls="navbar-menu">
     <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round">
@@ -69,22 +82,32 @@
 
   <!-- Usuario AUTENTICADO: en mobile los links se esconden (van al menu de la hamburguesa).
        md:ml-auto mantiene este cluster contra el canto derecho en desktop aunque el nav suma
-       un tercer hijo visible (el form del toggle de tema). -->
-  <div sec:authorize="isAuthenticated()" class="hidden md:flex md:ml-auto items-center gap-4 text-sm">
+       un tercer hijo visible (el form del toggle de tema).
+       [NAV] El corte es lg para el usuario y md para el admin (ver la hamburguesa). gap-2 y
+       los links con su propio padding repiten el ritmo del cluster anónimo. navbar-actions es
+       el hook estable de los tests: la clase de breakpoint cambia según la variante. -->
+  <div sec:authorize="isAuthenticated()" class="navbar-actions hidden items-center gap-2 text-sm"
+    th:classappend="${showAdminNav} ? 'md:flex md:ml-auto' : 'lg:flex lg:ml-auto'">
     <!-- Front door to the admin panel; the only destination an admin needs, and only while
          inside /admin/**. Outside that area the admin gets the user menu instead. -->
     <!-- [F1] Las etiquetas van en español también en la variante admin: la barra es la misma
-         y "Users / Places / Plans" cambiaba de idioma a mitad de la app. -->
+         y "Users / Places / Plans" cambiaba de idioma a mitad de la app.
+         [NAV] Links de texto como los del landing, no los pills rellenos: tres seguidos
+         eran tres acciones primarias. aria-current marca la sección (th:attr con null no
+         escribe el atributo); /admin/places/import cuenta como Lugares. -->
     <a th:href="@{/admin/users}" th:if="${showAdminNav}"
-      class="btn-cta">
+      th:attr="aria-current=${navSection == 'admin-users'} ? 'page' : null"
+      class="navbar-link focus-ring">
       Usuarios
     </a>
     <a th:href="@{/admin/places}" th:if="${showAdminNav}"
-      class="btn-cta">
+      th:attr="aria-current=${navSection == 'admin-places'} ? 'page' : null"
+      class="navbar-link focus-ring">
       Lugares
     </a>
     <a th:href="@{/admin/plans}" th:if="${showAdminNav}"
-      class="btn-cta">
+      th:attr="aria-current=${navSection == 'admin-plans'} ? 'page' : null"
+      class="navbar-link focus-ring">
       Planes
     </a>
 
@@ -93,7 +116,7 @@
          pinnean los E2E del navbar; Enter sigue enviando el form nativo. Va antes de "Planes
          públicos" para que el acceso a personas quede a la izquierda del feed. -->
     <form th:action="@{/users}" method="get" role="search" th:unless="${showAdminNav}"
-      class="hidden md:block">
+      class="mr-2">
       <label for="navbar-user-search" class="sr-only">Buscar usuarios</label>
       <input id="navbar-user-search" data-user-search name="q" type="search"
         placeholder="Buscar usuarios" autocomplete="off"
@@ -104,17 +127,22 @@
          listado. /explore es el catálogo. Se muestran en todo el área de usuario, también
          para una sesión ADMIN que la está navegando. [F2] Cada label nombra su destino:
          "Explorar lugares" es solo el catálogo y "Mis planes" solo el listado propio, así dos
-         links que van a rutas distintas no se leen como el mismo. -->
+         links que van a rutas distintas no se leen como el mismo.
+         [NAV] Mismo .navbar-link que el landing anónimo; la sección vigente se marca por
+         segmento (navSection): /plans/12 marca "Mis planes" y /for-you no lo toca. -->
     <a th:href="@{/for-you}" th:unless="${showAdminNav}"
-      class="btn-cta">
+      th:attr="aria-current=${navSection == 'for-you'} ? 'page' : null"
+      class="navbar-link focus-ring">
       Planes públicos
     </a>
     <a th:href="@{/explore}" th:unless="${showAdminNav}"
-      class="btn-cta">
+      th:attr="aria-current=${navSection == 'explore'} ? 'page' : null"
+      class="navbar-link focus-ring">
       Explorar lugares
     </a>
     <a th:href="@{/plans}" th:unless="${showAdminNav}"
-      class="btn-cta">
+      th:attr="aria-current=${navSection == 'plans'} ? 'page' : null"
+      class="navbar-link focus-ring">
       Mis planes
     </a>
 
@@ -126,7 +154,7 @@
          request: marcar desde la pagina descuenta en el render del redirect, sin JS. -->
     <a th:href="@{/notifications}" id="navbar-notifications" data-testid="navbar-notifications"
       aria-label="Notificaciones"
-      class="navbar-notifications relative inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10"
+      class="navbar-notifications relative inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10 focus-ring"
       th:attr="data-notifications-count=${unreadNotificationCount}">
       <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -179,15 +207,18 @@
        canto derecho, y duplicaba el CTA del hero (mismo /auth/register, 400px más abajo en el primer
        viewport). El display:none va en un <span> envoltorio porque .btn-ghost declara display en
        brand.css sin capa y le gana a la utilidad hidden. En desktop el set no cambia. El anonimo
-       no tiene ningun control de tema: sin sesion, el modo sigue al sistema ([THEME]). -->
+       no tiene ningun control de tema: sin sesion, el modo sigue al sistema ([THEME]).
+       [NAV] Las utilidades que cada link repetía (min-h-11, text-white/90, subrayado en hover)
+       viven una sola vez en .navbar-link de brand.css, compartida con las variantes con sesión. -->
   <div sec:authorize="!isAuthenticated()"
     class="ml-auto flex flex-nowrap items-center justify-end gap-x-2 text-sm">
     <a th:href="@{/for-you}"
-      class="inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-2 font-medium text-white/90 underline-offset-4 hover:text-white hover:underline focus-ring">
+      th:attr="aria-current=${navSection == 'for-you'} ? 'page' : null"
+      class="navbar-link focus-ring">
       Planes públicos
     </a>
     <a th:href="${#strings.isEmpty(currentPath)} ? @{/auth/login} : @{/auth/login(redirect=${currentPath})}"
-      class="inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-2 font-medium text-white/90 underline-offset-4 hover:text-white hover:underline focus-ring">
+      class="navbar-link focus-ring">
       Iniciar sesión
     </a>
     <span class="hidden md:inline-flex">
@@ -211,15 +242,18 @@
        ya aplicado. El redirect vuelve a la pagina actual (admin incluido) y el controller
        lo valida. Hijo directo del nav y order-last: en mobile queda en la fila del logo,
        pegado a la hamburguesa, y en desktop md:order-none lo deja junto al cluster de la
-       derecha. El sr-only es el nombre accesible y el texto que leen los helpers E2E. -->
+       derecha. El sr-only es el nombre accesible y el texto que leen los helpers E2E.
+       [NAV] El corte del order sigue al del cluster (lg usuario, md admin). El botón es un
+       ícono de 44px sin relleno, gemelo de la campana: el relleno de primario lo volvía un CTA. -->
   <form th:action="@{/profile/theme}" method="POST" id="navbar-theme-form"
-    sec:authorize="isAuthenticated()" class="order-last md:order-none">
+    sec:authorize="isAuthenticated()" class="order-last"
+    th:classappend="${showAdminNav} ? 'md:order-none' : 'lg:order-none'">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
     <input type="hidden" name="theme" id="navbar-theme-value"
       th:value="${userThemePreference == 'dark'} ? 'light' : 'dark'">
     <input type="hidden" name="redirect" th:value="${themeRedirectUrl}">
     <button type="submit" data-theme-toggle title="Cambiar tema"
-      class="theme-toggle inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 hover:bg-secondary">
+      class="theme-toggle inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10 focus-ring">
       <svg class="theme-icon-moon h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />

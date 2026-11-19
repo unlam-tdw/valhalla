@@ -149,7 +149,7 @@ public class ProfileViewE2E extends E2eBase {
     );
   }
 
-  // --- z del modal: /explore deja el <nav> sticky con z-index 1000 y el panel queda ENCIMA ---
+  // --- z del modal: en /explore (mapa Leaflet bajo la barra) el panel queda ENCIMA del <nav> ---
 
   @Test
   void theMenuOpensAboveTheStickyNavbarOnExplore() {
@@ -159,10 +159,10 @@ public class ProfileViewE2E extends E2eBase {
     page.locator("#navbar-avatar").click();
     page.waitForSelector("#navbar-menu:not([hidden])");
 
-    // Regresion: places/list.html pisa body > nav con position:sticky z-index 1000 (para
-    // ganarle a las capas del mapa Leaflet). El modal del menu debe quedarse encima: su
-    // z-index computado tiene que superar al del navbar EN ESTA pagina (en las demas el nav
-    // no esta posicionado; el bug solo lo reventaba en /explore).
+    // Regresion: places/list.html pisaba body > nav con position:sticky z-index 1000 (para
+    // ganarle a las capas del mapa Leaflet) y el modal quedaba debajo. [NAV] Ese override se
+    // retiro (el mapa se aisla con .leaflet-container z-index 0), pero la regla sigue: el
+    // z-index computado del menu tiene que superar al del navbar en la pagina del mapa.
     int navZ = Integer.parseInt(
       (String) page.evaluate("() => getComputedStyle(document.querySelector('nav')).zIndex")
     );
